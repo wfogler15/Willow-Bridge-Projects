@@ -409,7 +409,7 @@ html,body{background:#F3F2EF !important}
 .pills button[aria-pressed="true"]{background:#fff;color:#1D1247;font-weight:600;box-shadow:0 1px 2px rgba(29,18,71,.14),0 0 0 1px rgba(29,18,71,.06)}
 .pills button i{font-style:normal;color:#9C97AE;margin-left:6px;font-weight:400}
 .pills button:focus-visible{outline:none;box-shadow:0 0 0 2px #432890}
-.lbtn{height:30px;padding:0 12px;border-radius:6px;border:1px solid #D3CEC7;background:#fff;font:600 13px var(--font);color:#1D1247;cursor:pointer;transition:background .12s,border-color .12s,transform .06s}
+.lbtn{flex:none;white-space:nowrap;height:30px;padding:0 12px;border-radius:6px;border:1px solid #D3CEC7;background:#fff;font:600 13px var(--font);color:#1D1247;cursor:pointer;transition:background .12s,border-color .12s,transform .06s}
 .lbtn:hover{background:#F8F7F4;border-color:#BDB6AD}
 .lbtn:active{background:#EDEBE6;transform:translateY(1px)}
 .lsearch{height:30px !important;min-width:240px !important}
@@ -469,6 +469,19 @@ html,body{background:#F3F2EF !important}
 .dlg .btn.primary:hover{background:#2B1D63}
 .dlg .btn:focus-visible,.dlg .x:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #432890}
 @media (max-width:700px){.dlg .grid{grid-template-columns:1fr 1fr}}
+
+/* floating view switch and actions */
+.ptool{position:fixed;z-index:20;top:calc(var(--top) + var(--g) + 10px);right:calc(var(--side) + 10px);display:flex;gap:8px;align-items:center}
+.ptool .pills{background:rgba(233,231,226,.94);box-shadow:0 2px 10px rgba(16,10,40,.18)}
+.ptool .lbtn{box-shadow:0 2px 10px rgba(16,10,40,.18)}
+.lbtn.primary{background:#1D1247;border-color:#1D1247;color:#fff}
+.lbtn.primary:hover{background:#2B1D63;border-color:#2B1D63}
+.lbtn[aria-pressed="true"]{background:#1D1247;border-color:#1D1247;color:#fff}
+body.listing .ptool{top:calc(var(--top) + 16px);right:var(--side)}
+body.listing .ptool .pills,body.listing .ptool .lbtn{box-shadow:none}
+body.listing #pick{display:none}
+body.listing .ltools{padding-right:262px;flex-wrap:nowrap}
+body.listing .lsearch{min-width:160px !important;flex:0 1 220px}
 
 .mg .mg-h{font-size:12px;color:var(--text);font-weight:600;margin-top:4px;padding-top:8px;border-top:1px solid rgba(29,18,71,.08)}
 .mg .mg-h:first-child{border-top:0;padding-top:0;margin-top:0}
@@ -600,21 +613,20 @@ const REPORT = await loadReport();
 
 /* ---------- light shell: the Midnight page band, the card and the map side by side ---------- */
 (function shell(){
-  const band = WB.band({eyebrow: "Pipeline", title: "Pipeline", lede: " ", compact: true,
-    actions: "", tabs: '<button type="button" class="on" data-t="call" role="tab">Map</button><button type="button" data-t="list" role="tab">All deals</button>'});
-  const acts = document.createElement("div"); acts.className = "acts";
-  band.querySelector(".top").appendChild(acts);
-  ["pick", "addb"].forEach(id => { const b = document.getElementById(id); if(b){ b.className = "b" + (id === "addb" ? " primary" : ""); acts.appendChild(b); } });
+  /* no page header here: the map and card run up to the app bar; view switch and actions float on the map */
+  const bar = document.createElement("div"); bar.className = "ptool";
+  bar.innerHTML = '<div class="pills" role="tablist"><button type="button" data-t="call" aria-pressed="true">Map</button><button type="button" data-t="list" aria-pressed="false">All deals</button></div>';
+  ["pick", "addb"].forEach(id => { const b = document.getElementById(id); if(b){ b.className = "lbtn" + (id === "addb" ? " primary" : ""); bar.appendChild(b); } });
+  document.body.appendChild(bar);
   const row = document.createElement("div"); row.className = "pctl";
   ["prev", "play", "next"].forEach(id => { const b = document.getElementById(id); if(b) row.appendChild(b); });
   document.getElementById("pfoot").appendChild(row);
-  band.querySelector(".tabs").addEventListener("click", e => {
+  bar.querySelector(".pills").addEventListener("click", e => {
     const b = e.target.closest("button[data-t]"); if(!b) return;
-    const lb = document.getElementById("listb"); const open = !document.getElementById("list").hidden;
-    if((b.dataset.t === "list") !== open) lb.click();
+    const open = !document.getElementById("list").hidden;
+    if((b.dataset.t === "list") !== open) document.getElementById("listb").click();
   });
-  const setTop = () => { document.documentElement.style.setProperty("--top", Math.round(band.getBoundingClientRect().bottom) + "px"); if(window.__pmap) window.__pmap.resize(); };
-  new ResizeObserver(setTop).observe(band); setTop(); addEventListener("resize", setTop);
+  document.documentElement.style.setProperty("--top", "48px");
 })();
 
 /* ---------- deal context: this deal against its submarket (Market Intel) and sales nearby (Sale Comps) ---------- */
@@ -1354,7 +1366,7 @@ const COLS = {
     ["broker", "Broker", d => RW(d).broker || null, d => esc(RW(d).broker || "")],
   ],
 };
-const SFILT = [["active", "Active"], ["watch", "Prospect and monitor"], ["archive", "Archive"], ["all", "All"]];
+const SFILT = [["active", "Active"], ["watch", "Watching"], ["archive", "Archive"], ["all", "All"]];
 function inStatus(d, s){ return s === "all" ? true : s === "archive" ? archived(d) : s === "watch" ? (watching(d) && !archived(d)) : (!archived(d) && !watching(d)); }
 function inFilter(d, kind = lk, st = ls){
   if(d.kind !== kind) return false;
@@ -1379,8 +1391,7 @@ function renderList(){
 }
 function setList(open){
   $("#list").hidden = !open; $("#listb").setAttribute("aria-pressed", open);
-  document.querySelectorAll(".wb-band .tabs button").forEach(b => b.classList.toggle("on", (b.dataset.t === "list") === open));
-  const ld = document.querySelector(".wb-band .lede"); if(ld){ ld.dataset.call = ld.dataset.call || ld.textContent; ld.textContent = open ? "Every deal we have looked at. Click a deal to see and edit everything on it." : ld.dataset.call; }
+  document.querySelectorAll(".ptool .pills button").forEach(b => b.setAttribute("aria-pressed", (b.dataset.t === "list") === open)); document.body.classList.toggle("listing", open);
   if(open){ if(picking) setPick(false); setPlaying(false); renderList(); }
 }
 function playDeal(d){ const i = SLIDES.findIndex(s => s.d === d); setList(false); if(i >= 0) go(i); }
