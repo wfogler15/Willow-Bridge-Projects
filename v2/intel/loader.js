@@ -97,9 +97,32 @@
 
     const s = document.createElement('script');
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
-    s.onload = () => overlay.remove();
+    s.onload = () => { overlay.remove(); try { intelShell(); } catch (e) { console.error('[intel] shell', e); } };
     s.onerror = () => { overlay.textContent = 'The dashboard code failed to load. Reload the page.'; };
     document.body.appendChild(s);
+  }
+
+  // The Midnight page band (shared with every tab) replaces the dashboard's own header and tab strip.
+  function intelShell() {
+    const D = window.__WBD;
+    const NAMES = { overview: 'Overview', absorption: 'Lease-up', pipeline: 'Supply', trends: 'Trends and forecast', yoc: 'Yield on cost',
+      submarkets: 'Map', properties: 'Properties', salecomps: 'Sale comps', opportunities: 'Opportunities' };
+    const band = WB.band({ eyebrow: 'Market intel', title: D.title || 'Market', lede: (D.msa_label || '') + '. CoStar inventory and RealPage rents, refreshed from the shared database.', tabs: ' ' });
+    const acts = document.createElement('div'); acts.className = 'acts'; band.querySelector('.top').appendChild(acts);
+    ['overview-report-btn', 'settings-btn'].forEach((id, i) => {
+      const b = document.getElementById(id); if (!b) return;
+      b.querySelectorAll('span').forEach((x) => x.remove());
+      b.className = 'b' + (i === 0 ? ' primary' : ''); acts.appendChild(b);
+    });
+    const tabs = band.querySelector('.tabs'); tabs.textContent = '';
+    document.querySelectorAll('.main > .tabs .tab').forEach((t) => { t.textContent = NAMES[t.dataset.view] || t.textContent; tabs.appendChild(t); });
+    document.body.classList.add('wb-shell');
+    // labels: commas, not middle dots
+    const tidy = (root) => root.querySelectorAll('.kpi-label,.kpi-sub,.panel-sub,.lu-kpi-sub').forEach((el) => {
+      if (el.children.length === 0 && el.textContent.includes(' · ')) el.textContent = el.textContent.replace(/ · /g, ', ');
+    });
+    tidy(document);
+    new MutationObserver(() => tidy(document.querySelector('.content') || document)).observe(document.querySelector('.content') || document.body, { childList: true, subtree: true, characterData: true });
   }
 
   boot().catch((e) => {

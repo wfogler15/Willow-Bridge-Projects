@@ -1,8 +1,8 @@
 /* Site Scout on the Willow Bridge Intel house style. Loaded after Site Scout's own styles. */
 :root{
-  --bg:#F2F2F5; --bg-panel:#FFFFFF; --bg-inset:#F7F7F9; --bg-hover:#FAFAFC;
-  --border:#E2E1E8; --border-strong:#C9C7D4; --line-hair:#ECEBF0;
-  --text:#16142B; --text-muted:#3E3C55; --text-faint:#6B6980;
+  --bg:#F3F2EF; --bg-panel:#FFFFFF; --bg-inset:#F8F7F4; --bg-hover:#F7F6FB;
+  --border:#E3E0DB; --border-strong:#D3CEC7; --line-hair:#EEECE8;
+  --text:#1D1247; --text-muted:#433C63; --text-faint:#6E6886;
   --wb-ink:#1D1247;
   --shadow-sm:none; --shadow:0 2px 10px rgba(22,20,43,.10); --shadow-lg:0 12px 36px rgba(22,20,43,.16);
   --radius:8px; --radius-sm:6px; --radius-lg:10px;
@@ -14,7 +14,8 @@ body *{text-transform:none !important;letter-spacing:normal !important}
 /* the app bar spans the top; sidebar and map fill the rest */
 body{flex-wrap:wrap;align-content:flex-start;height:100vh;overflow:hidden}
 .wb-nav{flex:0 0 100%;width:100%}
-#sidebar,#mapWrap{height:calc(100vh - var(--wb-nav-h,48px))}
+#sidebar,#mapWrap{height:calc(100vh - var(--top,140px))}
+.wb-band{flex:0 0 100%;width:100%}
 
 /* flat Midnight panel heads (no gradients or sheen); the app bar carries the brand */
 #brand,#siteDetailHead,#sitesHomeHead,#settingsHead,#panelHead,.ac-head{background:#1D1247 !important;box-shadow:none !important}
@@ -27,3 +28,19 @@ body{flex-wrap:wrap;align-content:flex-start;height:100vh;overflow:hidden}
 /* hairlines, not drop shadows, on in-panel surfaces */
 .seg button.active{box-shadow:none !important}
 #loginCard{background:#fff !important;box-shadow:0 20px 60px rgba(9,6,22,.4) !important}
+
+/* the page band carries the title and Settings; the panel head keeps only the collapse control */
+#brand .brand-lockup{display:none !important}
+#brand{padding:0 !important;min-height:44px !important;height:44px}
+#brand #railCollapse{top:8px !important;right:12px !important}
+.wb-band #settingsBtn{position:static !important;width:auto !important;height:32px !important;font-size:13px !important}
+/* controls: Midnight selection, hover and pressed states like the other tabs */
+.seg button.active,.chip.active,.tab.active{background:#1D1247 !important;color:#fff !important;border-color:#1D1247 !important}
+button{transition:background-color .12s,border-color .12s,color .12s}
+button:active{transform:translateY(1px)}
+button:focus-visible{outline:none !important;box-shadow:0 0 0 2px #fff,0 0 0 4px #432890 !important}
+.wb-band #settingsBtn{position:static !important;width:auto !important;height:32px !important;padding:0 14px !important;border-radius:6px !important;
+  background:rgba(255,255,255,.06) !important;border:1px solid rgba(255,255,255,.24) !important;color:#fff !important;font:600 13px Aptos,"Segoe UI",Inter,sans-serif !important;line-height:30px !important}
+.wb-band #settingsBtn:hover{background:rgba(255,255,255,.14) !important;border-color:rgba(255,255,255,.38) !important}
+#openSitesHome{background:#1D1247 !important;border-color:#1D1247 !important;color:#fff !important}
+#openSitesHome:hover{background:#2B1D63 !important}

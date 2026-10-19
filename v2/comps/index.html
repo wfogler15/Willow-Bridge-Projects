@@ -10,17 +10,18 @@
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
-  .page{flex:1;min-height:0;display:flex;flex-direction:column;gap:14px;width:100%;padding-bottom:20px}
-  .page-head{margin-bottom:0}
+  .page{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;width:100%;max-width:none;padding-top:16px;padding-bottom:20px}
+  .wb-band{flex:none}
   .toolbar .input[type=search]{width:280px}
-  .chip-near{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 6px 0 10px;border-radius:6px;background:var(--selected);color:var(--purple);font-weight:600;font-size:12.5px}
+  .chip-near{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 6px 0 10px;border-radius:6px;background:var(--selected);color:var(--ink);font-weight:600;font-size:var(--fs);border:1px solid var(--purple)}
   .chip-near button{border:0;background:none;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 4px}
-  .split{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,36%);gap:14px}
+  .split{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,34%);gap:16px}
   .split>.sec{display:flex;flex-direction:column;min-height:0;margin:0}
   .tablewrap{overflow:auto;flex:1;min-height:0;border-top:1px solid var(--rule-2)}
   .tbl th{border-top:0}
   .tbl td.t{max-width:180px;overflow:hidden;text-overflow:ellipsis}
   .tbl td.name{max-width:300px}
+  .tbl td.name small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #mapPanel{overflow:hidden}
   #map{flex:1;min-height:0}
   .dot{width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:var(--asset);box-shadow:0 0 0 1px rgba(22,20,43,.35);cursor:pointer}
@@ -32,8 +33,10 @@
   .drawer{position:fixed;top:var(--wb-nav-h,48px);right:0;bottom:0;width:min(460px,100%);background:var(--surface);border-left:1px solid var(--rule);
     box-shadow:-12px 0 32px rgba(22,20,43,.12);z-index:60;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .2s}
   .drawer.open{transform:none}
-  .drawer header{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--rule)}
-  .drawer header h2{margin:0;font:600 18px/1.2 var(--font-display);flex:1}
+  .drawer header{display:flex;align-items:center;gap:10px;padding:14px 18px;background:var(--midnight);color:#fff}
+  .drawer header h2{margin:0;font:600 var(--fs-lg)/1.2 var(--font-display);flex:1}
+  .drawer header .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.24);color:#fff}
+  .drawer header .btn:hover{background:rgba(255,255,255,.16)}
   .drawer form{flex:1;overflow:auto;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-content:start}
   .drawer .input{width:100%}
   .drawer .full{grid-column:1/-1}
@@ -44,12 +47,7 @@
 </head>
 <body>
 <main class="page">
-  <div class="page-head">
-    <div><h1>Sale comps</h1><p>Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.</p></div>
-    <div class="actions"><button class="btn" id="b-export">Export to Excel</button><button class="btn primary" id="b-add">Add a comp</button></div>
-  </div>
   <div class="toolbar">
-    <div class="seg" id="f-type"><button data-v="investment" class="on">Investment</button><button data-v="land">Land</button></div>
     <select class="input" id="f-since" style="width:auto">
       <option value="">All dates</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option><option value="5">Last 5 years</option>
     </select>
@@ -57,7 +55,6 @@
     <span class="grow"></span>
     <input class="input" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker">
   </div>
-  <div class="figs" id="stats"></div>
   <div class="split">
     <section class="sec"><div class="sec-h"><h2 id="t-title">Sales</h2><span class="note">Click a heading to sort. Double-click a row to edit.</span></div>
       <div class="tablewrap"><table class="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></section>
@@ -91,6 +88,10 @@
   const P = new URLSearchParams(location.search);
   const near = P.get('near') ? { at: P.get('near').split(',').map(Number), mi: +(P.get('mi') || 3) } : null;
   const miles = (c) => { if (c.lat == null || !near) return Infinity; const [la, lo] = near.at, r = Math.PI / 180, a = Math.sin((c.lat - la) * r / 2) ** 2 + Math.cos(la * r) * Math.cos(c.lat * r) * Math.sin((c.lng - lo) * r / 2) ** 2; return 7917.5 * Math.asin(Math.sqrt(a)); };
+  WB.band({ eyebrow: 'Sale comps', title: 'Multifamily sales', lede: 'Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.',
+    actions: '<button class="b" id="b-export">Export to Excel</button><button class="b primary" id="b-add">Add a comp</button>',
+    figs: ' ', tabs: '<button data-v="investment" class="on" role="tab">Investment sales</button><button data-v="land" role="tab">Land sales</button>' });
+  document.querySelector('.wb-band .figs').id = 'stats'; document.querySelector('.wb-band .tabs').id = 'f-type';
   const state = { market: WB.getMarket(), type: 'investment', since: '', q: '', sort: 'sale_date', dir: -1, sel: null };
 
   // ---------- columns ----------
@@ -158,7 +159,7 @@
          [fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'median cap']]
       : [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), 'total volume'], [fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'median $/land SF'],
          [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/door'], [fmt.ac(median(list.map((c) => c.acres))), 'median acres']];
-    $('#stats').innerHTML = s.map(([n, l]) => `<div class="fig"><div class="v">${n}</div><div class="l">${l[0].toUpperCase() + l.slice(1)}</div></div>`).join('');
+    $('#stats').innerHTML = s.map(([n, l]) => WB.fig(n, l[0].toUpperCase() + l.slice(1))).join('');
     $('#t-title').textContent = `${list.length.toLocaleString('en-US')} ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}`;
     $('#near').innerHTML = near ? `<span class="chip-near">Within ${near.mi} miles of the selected deal<button type="button" id="near-x" title="Show all comps">×</button></span>` : '';
     drawMarkers(list);

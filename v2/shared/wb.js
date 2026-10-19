@@ -91,7 +91,7 @@
 
     // market strip: inline on Overview, a drop-down sheet on the tools
     const strip = document.createElement('section');
-    strip.className = 'wb-strip' + (active === 'home' ? '' : ' drop');
+    strip.className = 'wb-strip drop';
     strip.setAttribute('aria-label', 'Market snapshot');
     nav.after(strip);
     const btn = $('.strip-btn', nav);
@@ -102,11 +102,26 @@
     loadStrip();
   }
 
-  let STRIP = null;
-  async function loadStrip() {
-    const { data } = await sb.schema('market').from('strip_summary').select('*');
-    STRIP = data || []; paintStrip();
+  let STRIP = null, stripP = null;
+  function loadStrip() {
+    stripP = stripP || (async () => { try { STRIP = (await sb.schema('market').from('strip_summary').select('*')).data || []; } catch (e) { STRIP = []; } paintStrip(); return STRIP; })();
+    return stripP;
   }
+
+  /** The Midnight page band under the nav. o = {eyebrow, title, lede, actions, figs, tabs, compact} (HTML strings). */
+  function band(o = {}) {
+    let el = $('.wb-band');
+    if (!el) {
+      el = document.createElement('section'); el.className = 'wb-band';
+      const after = $('.wb-strip') || $('.wb-nav');
+      if (after) after.after(el); else document.body.prepend(el);
+    }
+    el.classList.toggle('compact', !!o.compact);
+    el.innerHTML = `<div class="in"><div class="top"><div>${o.eyebrow ? `<div class="eyebrow">${o.eyebrow}</div>` : ''}<h1>${o.title || ''}</h1>${o.lede ? `<p class="lede">${o.lede}</p>` : ''}</div>`
+      + `${o.actions ? `<div class="acts">${o.actions}</div>` : ''}</div>${(Array.isArray(o.figs) ? o.figs : o.figs ? [o.figs] : []).map((f) => `<div class="figs"${o.figsCols ? ` style="grid-template-columns:${o.figsCols}"` : ''}>${f}</div>`).join('')}${o.tabs ? `<div class="tabs" role="tablist">${o.tabs}</div>` : ''}</div>`;
+    return el;
+  }
+  const fig = (v, l, sub) => `<div class="fig"><div class="v">${v}${sub ? `<span>${sub}</span>` : ''}</div><div class="l">${l}</div></div>`;
   function paintStrip() {
     const el = $('.wb-strip'); if (!el || !STRIP) return;
     const cur = getMarket();
@@ -221,5 +236,5 @@
   };
   const median = (xs) => { const a = xs.filter((x) => x != null && !isNaN(x)).map(Number).sort((p, q) => p - q); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
 
-  window.WB = { sb, ready, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
+  window.WB = { sb, ready, band, fig, strip: () => loadStrip(), marketLabel: (id) => (MARKETS.find((m) => m.id === id) || {}).short || id, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
 })();

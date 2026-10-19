@@ -1,55 +1,75 @@
-/* Market Intel on the Willow Bridge Intel house style (light theme only; the dashboard's dark theme is left as is).
-   Loaded after the dashboard's own styles. */
+/* Market Intel on the shared Willow Bridge Intel system (light theme; the dashboard's dark theme is left as is).
+   The page band (wb-chrome.css) replaces the dashboard's header and tab strip; this file maps the dashboard's
+   own panels, KPI rows, toggles and tables onto the same tokens and type scale as the other tabs. */
 :root:not([data-theme="dark"]){
-  --bg-0:#F2F2F5; --bg-1:#FFFFFF; --bg-2:#F7F7F9; --bg-3:#F0EFF4; --bg-elev:#FFFFFF; --bg-inset:#FAFAFC; --bg-inset-warm:#FAFAFC;
-  --header-band:#FFFFFF; --header-band-strong:#F7F7F9; --header-ink:#16142B; --header-ink-muted:#6B6980;
-  --line:#E2E1E8; --line-strong:#C9C7D4; --line-hair:#ECEBF0;
-  --ink-1:#16142B; --ink-2:#2A2840; --ink-3:#3E3C55; --ink-4:#6B6980;
+  --bg-0:#F3F2EF; --bg-1:#FFFFFF; --bg-2:#F8F7F4; --bg-3:#F1EFEB; --bg-elev:#FFFFFF; --bg-inset:#F8F7F4; --bg-inset-warm:#F8F7F4;
+  --header-band:#FFFFFF; --header-band-strong:#F8F7F4; --header-ink:#1D1247; --header-ink-muted:#6E6886;
+  --line:#E3E0DB; --line-strong:#D3CEC7; --line-hair:#EEECE8;
+  --ink-1:#1D1247; --ink-2:#2E2650; --ink-3:#433C63; --ink-4:#6E6886;
   --accent:#432890; --accent-deep:#1D1247; --accent-light:#C7C9FE;
   --font-head:"Aptos Display",Aptos,"Segoe UI Variable Display","Segoe UI","Inter Display",Inter,sans-serif;
-  --shadow-sm:none; --shadow-md:0 10px 30px rgba(22,20,43,.14);
+  --shadow-sm:none; --shadow-md:0 12px 32px rgba(29,18,71,.14);
 }
-
-/* one type family across the dashboard */
 body, body *:not(svg):not(svg *){font-family:Aptos,"Segoe UI Variable Text","Segoe UI",Inter,system-ui,sans-serif !important}
-.page-title, .panel-title, .modal-title, h1, h2, h3{font-family:"Aptos Display",Aptos,"Segoe UI Variable Display","Segoe UI","Inter Display",Inter,sans-serif !important}
+.page-title,.panel-title,.modal-title,h1,h2,h3{font-family:"Aptos Display",Aptos,"Segoe UI Variable Display","Segoe UI","Inter Display",Inter,sans-serif !important}
 body{font-feature-settings:"tnum" 1,"lnum" 1}
-
-/* sentence case, no tracked-out labels */
 body *{text-transform:none !important;letter-spacing:normal !important}
-.page-title,.panel-title{letter-spacing:-.01em !important}
-.kpi-value,.big,.filter-summary .big{letter-spacing:-.015em !important}
+em,i{font-style:normal !important}
 
-/* hairlines instead of shadows and accent bars */
-:root:not([data-theme="dark"]) .panel,
-:root:not([data-theme="dark"]) .kpis,
-:root:not([data-theme="dark"]) .kpi,
-:root:not([data-theme="dark"]) .tab,
-:root:not([data-theme="dark"]) .toggle-btn,
-:root:not([data-theme="dark"]) .taxonomy-btn{box-shadow:none !important}
-:root:not([data-theme="dark"]) .kpi-row,:root:not([data-theme="dark"]) .kpis,:root:not([data-theme="dark"]) .oppc-block{border-top:1px solid var(--line) !important;box-shadow:none !important}
+/* ---------- shell: band replaces the topbar and tab strip ---------- */
+body.wb-shell .main>.topbar,body.wb-shell .main>.tabs{display:none !important}
 .sidebar-inner>.brand,.sidebar-inner>.brand-sub{display:none !important}
-.kpi::before{display:none !important}
-.kpi-label{color:var(--ink-4) !important;font-weight:400 !important;font-size:12px !important}
-.panel-sub{color:var(--ink-4) !important;font-size:12.5px !important;font-weight:400 !important}
-.panel-title em{color:inherit !important}
+.wb-band .tabs{position:static !important;padding:0 !important;background:none !important;border-bottom:0 !important;z-index:auto !important;top:auto !important}
+.wb-band .tabs .tab{background:none !important;border:0 !important;border-bottom:3px solid transparent !important;border-radius:0 !important;box-shadow:none !important;
+  color:rgba(255,255,255,.7) !important;font-size:14px !important;font-weight:400 !important;padding:11px 14px 10px !important}
+.wb-band .tabs .tab:first-child{padding-left:0 !important}
+.wb-band .tabs .tab:hover{color:#fff !important}
+.wb-band .tabs .tab.active{color:#fff !important;font-weight:600 !important;border-bottom-color:#fff !important;background:none !important}
+.wb-band .b{font-size:13px !important}
+.content{padding:16px 24px 40px !important}
 
-/* page header: white under the Midnight app bar */
-.topbar{top:var(--wb-nav-h,48px) !important;min-height:0 !important;padding:16px 32px !important;border-bottom:1px solid var(--line) !important}
-:root:not([data-theme="dark"]) .page-title{color:var(--ink-1) !important;font-size:24px !important}
-:root:not([data-theme="dark"]) .page-title em,
-:root:not([data-theme="dark"]) .page-title-tag,
-:root:not([data-theme="dark"]) .topbar-asof,
-:root:not([data-theme="dark"]) .page-eyebrow{color:var(--ink-4) !important}
-.page-eyebrow{font-size:12px !important;font-weight:400 !important;margin-bottom:4px !important}
-.topbar-brandmark{display:none !important}
-:root:not([data-theme="dark"]) .topbar-action-btn{background:#fff !important;border:1px solid var(--line) !important;color:var(--ink-3) !important;font-size:13px !important;padding:7px 13px !important;border-radius:6px !important}
-:root:not([data-theme="dark"]) .topbar-action-btn:hover{border-color:var(--line-strong) !important;background:var(--bg-2) !important}
-:root:not([data-theme="dark"]) .filter-summary .big{color:var(--ink-1) !important}
-.tabs{top:calc(var(--wb-nav-h,48px) + 74px) !important}
-.tab{font-size:13.5px !important;border-radius:6px !important}
-:root:not([data-theme="dark"]) .tab.active{background:var(--ink-1) !important;color:#fff !important}
+/* ---------- panels ---------- */
+:root:not([data-theme="dark"]) .panel{background:#fff !important;border:1px solid var(--line) !important;border-radius:8px !important;box-shadow:none !important}
+.panel-header{padding:10px 16px !important;border-bottom:1px solid var(--line-hair) !important;min-height:42px}
+.panel-title{font-size:14px !important;font-weight:600 !important;color:var(--ink-1) !important;letter-spacing:0 !important}
+.panel-title em{color:inherit !important;font-weight:600 !important}
+.panel-sub{color:var(--ink-4) !important;font-size:12px !important;font-weight:400 !important;margin-top:1px !important}
+.rent-dist-expand-hint{display:none !important}
+.grid-2,.grid-3{gap:16px !important}
+
+/* ---------- KPI rows: the same figures row as Overview and Sale comps ---------- */
+:root:not([data-theme="dark"]) .kpi-row,:root:not([data-theme="dark"]) .kpis{background:#fff !important;border:1px solid var(--line) !important;border-radius:8px !important;box-shadow:none !important;gap:0 !important;overflow:hidden;margin-bottom:16px !important}
+:root:not([data-theme="dark"]) .kpi{background:none !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;padding:11px 16px !important}
+:root:not([data-theme="dark"]) .kpi+.kpi{border-left:1px solid var(--line-hair) !important}
+.kpi::before{display:none !important}
+:root:not([data-theme="dark"]) .kpi{display:flex !important;flex-direction:column}
+.kpi-value{order:1}
+.kpi-sub{order:3}
+.kpi-label{color:var(--ink-4) !important;font-weight:400 !important;font-size:12px !important;order:2}
+.kpi-value{font-size:22px !important;font-weight:600 !important;color:var(--ink-1) !important;letter-spacing:-.015em !important;line-height:1.2 !important}
+.kpi-value .unit{font-size:12px !important;font-weight:400 !important;color:var(--ink-4) !important;margin-left:3px}
+.kpi-sub{color:var(--ink-4) !important;font-size:12px !important;font-weight:400 !important}
+
+/* ---------- controls ---------- */
+:root:not([data-theme="dark"]) .toggle-group{border:1px solid #D3CEC7 !important;border-radius:6px !important;overflow:hidden;background:#fff !important;box-shadow:none !important;padding:0 !important;gap:0 !important}
+:root:not([data-theme="dark"]) .toggle-btn{border:0 !important;border-radius:0 !important;background:none !important;color:var(--ink-3) !important;font-size:12.5px !important;padding:5px 11px !important;box-shadow:none !important}
+:root:not([data-theme="dark"]) .toggle-btn+.toggle-btn{border-left:1px solid var(--line) !important}
+:root:not([data-theme="dark"]) .toggle-btn:hover{background:#F7F6FB !important;color:var(--ink-1) !important}
+:root:not([data-theme="dark"]) .toggle-btn.active{background:#1D1247 !important;color:#fff !important;font-weight:600 !important}
+.btn-clear{border-radius:6px !important}
+
+/* sidebar filters */
+:root:not([data-theme="dark"]) .sidebar{background:#fff !important;border-right:1px solid var(--line) !important;box-shadow:none !important;padding:18px 18px 60px !important}
+.sidebar .filter-label,.sidebar .section-label,.sidebar h3,.sidebar h4{font-size:12px !important;color:var(--ink-4) !important;font-weight:600 !important}
+
+/* tables inside the dashboard */
+:root:not([data-theme="dark"]) table th{font-weight:400 !important;color:var(--ink-4) !important;font-size:12px !important;background:#F8F7F4 !important}
+:root:not([data-theme="dark"]) table td{font-size:13px}
 
 /* overlays sit above the app bar */
 .modal-backdrop{z-index:5600 !important}
 .panel.map-fullscreen{z-index:5500 !important}
+:root:not([data-theme="dark"]) .kpi{justify-content:flex-start !important;gap:0 !important;min-height:0 !important}
+.kpi-sub{margin-top:2px !important}
+/* sidebar selections in Midnight, like every other selected control */
+:root:not([data-theme="dark"]) .sidebar{--accent:#1D1247;--accent-deep:#1D1247}
