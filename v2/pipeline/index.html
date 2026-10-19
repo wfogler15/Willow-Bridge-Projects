@@ -321,6 +321,8 @@ details.manage summary{cursor:pointer;font-size:11px;letter-spacing:.12em;text-t
 .mg button{border:1px solid rgba(29,18,71,.2);background:#fff;border-radius:6px;padding:5px 10px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--text)}
 .mg button.save{background:var(--midnight);color:#fff;border-color:var(--midnight)}
 .mg .saved{font-size:12px;color:var(--forest);align-self:center}
+.mg .mg-h{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#432890;font-weight:600;margin-top:4px;padding-top:8px;border-top:1px solid rgba(29,18,71,.08)}
+.mg .mg-h:first-child{border-top:0;padding-top:0;margin-top:0}
 </style>
 </head>
 <body>
@@ -449,6 +451,17 @@ function manageBlock(d){
   const e = WB.esc, r = d._row || {};
   const v = (x) => x == null ? "" : e(x);
   return '<details class="manage"><summary>Update this deal</summary><div class="mg" data-deal="' + d.id + '">'
+    + '<div class="full mg-h">Deal details</div>'
+    + '<label class="full">Name<input name="name" value="' + v(r.name) + '"></label>'
+    + '<label class="full">Address<input name="address" value="' + v(r.address) + '" placeholder="Street address or nearest intersection"></label>'
+    + '<label>Type<select name="kind"><option value="land"' + (r.kind === "land" ? " selected" : "") + '>Development land</option><option value="asset"' + (r.kind === "asset" ? " selected" : "") + '>Existing asset</option></select></label>'
+    + '<label>Units<input type="number" name="units" step="1" value="' + v(r.units) + '"></label>'
+    + '<label>Acres<input type="number" name="acres" step="any" value="' + v(r.acres) + '"></label>'
+    + '<label>Market<select name="market_id"><option value="denver"' + (r.market_id === "denver" ? " selected" : "") + '>Denver</option><option value="phoenix"' + (r.market_id === "phoenix" ? " selected" : "") + '>Phoenix</option></select></label>'
+    + '<label>Latitude<input type="number" name="lat" step="any" value="' + v(r.lat) + '"></label>'
+    + '<label>Longitude<input type="number" name="lng" step="any" value="' + v(r.lng) + '"></label>'
+    + '<div class="full quick"><button type="button" data-pin>Set location on the map</button><span class="pinmsg" style="font-size:11.5px;color:var(--muted);align-self:center"></span></div>'
+    + '<div class="full mg-h">Status</div>'
     + '<label>Stage<select name="stage">' + STAGE_OPTS.map(o => '<option value="' + o[0] + '"' + (o[0] === d.stage ? " selected" : "") + ">" + o[1] + "</option>").join("") + "</select></label>"
     + '<label>Bids due<input type="date" name="bid_date" value="' + v(r.bid_date) + '"></label>'
     + '<label>Guidance ($)<input type="number" name="guidance" step="any" value="' + v(r.guidance) + '"></label>'
@@ -461,8 +474,29 @@ function manageBlock(d){
     + '<div class="full quick"><button type="button" class="save" data-save>Save</button><span class="saved"></span></div>'
     + "</div></details>";
 }
+/* "Set location on the map": the next click on the map fills Latitude / Longitude (saved with the rest of the form). */
+let pinBox = null, pinHooked = false;
+function hookPin(){
+  if(pinHooked || !map) return; pinHooked = true;
+  map.on("click", (e) => {
+    if(!pinBox) return;
+    const box = pinBox; pinBox = null; map.getCanvas().style.cursor = "";
+    box.querySelector("[name=lat]").value = e.lngLat.lat.toFixed(6);
+    box.querySelector("[name=lng]").value = e.lngLat.lng.toFixed(6);
+    box.querySelector(".pinmsg").textContent = "Location set. Press Save to keep it.";
+    hint.hidden = true;
+  });
+}
 document.addEventListener("click", async (ev) => {
   const box = ev.target.closest(".mg[data-deal]"); if(!box) return;
+  if(ev.target.closest("[data-pin]")){
+    if(!map){ box.querySelector(".pinmsg").textContent = "The map isn't loaded."; return; }
+    if(picking) setPick(false);
+    setPlaying(false); hookPin(); pinBox = box; map.getCanvas().style.cursor = "crosshair";
+    box.querySelector(".pinmsg").textContent = "Click the map where the deal is…";
+    hint.hidden = false; hint.textContent = "Click the map to place this deal. Drag and zoom first if you need to.";
+    return;
+  }
   const cb = ev.target.closest("[data-cb]");
   if(cb){
     const t = new Date(); t.setMonth(t.getMonth() + +cb.dataset.cb);
@@ -474,7 +508,12 @@ document.addEventListener("click", async (ev) => {
   const d = REPORT.deals.find(x => x.id === box.dataset.deal); if(!d) return;
   const f = n => box.querySelector("[name=" + n + "]").value.trim();
   const newStage = f("stage"), dbStage = newStage === "contract" ? "under_contract" : newStage;
-  const patch = {stage: dbStage, bid_date: f("bid_date") || null, guidance: f("guidance") === "" ? null : +f("guidance"),
+  const num = n => f(n) === "" ? null : +f(n);
+  const det = {name: f("name") || d._row.name, address: f("address") || null, kind: f("kind"), market_id: f("market_id"),
+    units: num("units") == null ? null : Math.round(num("units")), acres: num("acres"), lat: num("lat"), lng: num("lng")};
+  if((det.lat == null) !== (det.lng == null)){ box.querySelector(".saved").textContent = "Enter both latitude and longitude, or neither."; return; }
+  const moved = det.lat !== (d._row.lat == null ? null : +d._row.lat) || det.lng !== (d._row.lng == null ? null : +d._row.lng);
+  const patch = {...det, stage: dbStage, bid_date: f("bid_date") || null, guidance: f("guidance") === "" ? null : +f("guidance"),
     check_back_on: f("check_back_on") || null, outcome_winner: f("outcome_winner") || null,
     outcome_price: f("outcome_price") === "" ? null : +f("outcome_price")};
   if(["lost","closed"].includes(dbStage) && !d._row.outcome_date) patch.outcome_date = isoToday();
@@ -484,6 +523,7 @@ document.addEventListener("click", async (ev) => {
   if(error){ msg.textContent = error.message; return; }
   const notes = [];
   if(prevStage !== dbStage) notes.push({deal_id: d.id, kind: "stage", body: "Stage: " + prevLabel + " → " + (STAGES[newStage] || newStage) + (patch.check_back_on ? ", check back " + fmtDate(patch.check_back_on) : "") + "."});
+  if(moved && det.lat != null) notes.push({deal_id: d.id, kind: "note", body: "Location updated."});
   if(f("note")) notes.push({deal_id: d.id, kind: "note", body: f("note")});
   if(notes.length){ const { error: e2 } = await sb.schema("pipeline").from("deal_log").insert(notes); if(e2){ msg.textContent = e2.message; return; } }
   const log = d.log.concat(notes.map(n => [isoToday(), n.body]));
