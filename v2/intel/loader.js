@@ -1,0 +1,111 @@
+/* Market Intel loader: sign in, pull the chosen market from Supabase, then start the dashboard (app.js). */
+(function () {
+  // 1) Private storage. The old dashboards share this web address and their browser caches;
+  //    the dashboard re-pushes cached records on start, so v2 keeps its own namespaced copy.
+  const PREFIX = 'wbv2:intel:';
+  const proto = Storage.prototype, get = proto.getItem, set = proto.setItem, del = proto.removeItem;
+  proto.getItem = function (k) { return get.call(this, k === 'wb_dashboard_theme' ? k : PREFIX + k); };
+  proto.setItem = function (k, v) { return set.call(this, k === 'wb_dashboard_theme' ? k : PREFIX + k, v); };
+  proto.removeItem = function (k) { return del.call(this, k === 'wb_dashboard_theme' ? k : PREFIX + k); };
+
+  // 2) The dashboard hooks window 'load' in a couple of places; it starts after load has fired, so replay those.
+  const addEv = window.addEventListener.bind(window);
+  window.addEventListener = function (type, fn, opts) {
+    if (type === 'load' && document.readyState === 'complete') { setTimeout(fn, 0); return; }
+    return addEv(type, fn, opts);
+  };
+
+  const MARKETS = { denver: 'Denver', phoenix: 'Phoenix' };
+  const overlay = document.createElement('div');
+  overlay.id = 'wb-intel-loading';
+  overlay.style.cssText = 'position:fixed;inset:52px 0 0 0;z-index:9000;display:grid;place-items:center;background:var(--cloud,#FBFBF9);font:15px/1.4 Aptos,Inter,Arial,sans-serif;color:#1D1247';
+
+  async function boot() {
+    const { sb, user } = await WB.ready('intel');
+    const q = new URLSearchParams(location.search);
+    let market = q.get('market') || localStorage.getItem('market') || 'denver';
+    if (!MARKETS[market]) market = 'denver';
+    localStorage.setItem('market', market);
+    overlay.textContent = `Loading ${MARKETS[market]} market data…`;
+    document.body.appendChild(overlay);
+    addSwitcher(market);
+
+    const t0 = performance.now();
+    const [mrow, props, rp, trends] = await Promise.all([
+      sb.schema('core').from('markets').select('*').eq('id', market).single(),
+      WB.fetchAll('core', 'properties', '*', (x) => x.eq('market_id', market).neq('kind', 'land').order('costar_id')),
+      WB.fetchAll('market', 'rp_property_data', 'realpage_id,data', (x) => x.eq('market_id', market).order('realpage_id')),
+      WB.fetchAll('market', 'rp_trends', 'geography,data', (x) => x.eq('market_id', market)),
+    ]);
+    if (mrow.error) throw mrow.error;
+    const cfg = mrow.data.config || {};
+
+    // CoStar records back into the shape the dashboard was built on
+    const propByCostar = {}, costarByProp = {}, customProps = new Set();
+    const RAW_DATA = [];
+    for (const p of props) {
+      if (p.source !== 'costar') {   // custom properties arrive through the dashboard's own custom-property sync
+        customProps.add(p.id);
+        const lid = (p.attrs && p.attrs.legacy_id) || p.id;
+        propByCostar[lid] = p.id; costarByProp[p.id] = lid;
+        continue;
+      }
+      propByCostar[p.costar_id] = p.id; costarByProp[p.id] = p.costar_id;
+      RAW_DATA.push({
+        ...p.attrs,
+        id: p.costar_id, address: p.address, name: p.name, units: p.units, starRating: p.star_rating, class: p.class,
+        status: p.status, submarket: p.costar_submarket, city: p.city, state: p.state, zip: p.zip, avgUnitSF: p.avg_unit_sf,
+        monthBuilt: p.month_built, yearBuilt: p.year_built, stories: p.stories, developer: p.developer, lat: p.lat, lng: p.lng,
+        owner: p.owner, propertyManager: p.manager, style: p.style, acreage: p.acres, landAreaSF: p.land_sf,
+        market: (p.attrs && p.attrs.market) || mrow.data.label,
+      });
+    }
+    window.__WBD = {
+      market, label: mrow.data.label, title: cfg.title || mrow.data.title, msa_label: cfg.msa_label || cfg.title,
+      center: cfg.center || [39.74, -104.99], WB_SUBMARKETS: cfg.wb_submarkets || [], WB_RP_MAPPING: cfg.rp_mapping || {},
+      RAW_DATA, RP_PROPERTIES: Object.fromEntries(rp.map((r) => [r.realpage_id, r.data])),
+      RP_FORECAST: Object.fromEntries(trends.map((r) => [r.geography, r.data])),
+      propByCostar, costarByProp, customProps, user,
+    };
+    console.info(`[intel] ${market}: ${RAW_DATA.length} properties, ${rp.length} RealPage, ${trends.length} trend series in ${Math.round(performance.now() - t0)} ms`);
+
+    // tag edits with the signed-in user instead of asking for a name
+    if (!localStorage.getItem('wb_dashboard_editor_name')) localStorage.setItem('wb_dashboard_editor_name', user.email);
+
+    const titleEl = document.getElementById('wb-mkt-title'); if (titleEl) titleEl.textContent = window.__WBD.title;
+    const eyeEl = document.getElementById('wb-mkt-eyebrow'); if (eyeEl && cfg.eyebrow) eyeEl.textContent = market === 'denver' ? 'Greater Denver · Colorado' : cfg.eyebrow;
+    document.title = `Market Intel · ${MARKETS[market]} · Willow Bridge Intel`;
+    for (const id of ['trends-chart-caption-title', 'sc-panel-sub', 'trends-sm-blend-info']) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = el.innerHTML.replace(/Denver MSA/g, window.__WBD.title).replace('Denver-Aurora-Centennial MSA', window.__WBD.msa_label);
+    }
+
+    const s = document.createElement('script');
+    s.src = 'app.js?v=' + (window.WB_BUILD || '1');
+    s.onload = () => overlay.remove();
+    s.onerror = () => { overlay.textContent = 'The dashboard code failed to load. Reload the page.'; };
+    document.body.appendChild(s);
+  }
+
+  function addSwitcher(market) {
+    const nav = document.querySelector('.wb-nav');
+    if (!nav || nav.querySelector('.wb-mkt')) return;
+    const box = document.createElement('div');
+    box.className = 'seg wb-mkt';
+    box.style.cssText = 'margin-left:8px';
+    box.innerHTML = Object.entries(MARKETS).map(([id, label]) =>
+      `<button type="button" data-m="${id}" class="${id === market ? 'on' : ''}">${label}</button>`).join('');
+    box.onclick = (e) => {
+      const b = e.target.closest('button'); if (!b || b.dataset.m === market) return;
+      localStorage.setItem('market', b.dataset.m);
+      const u = new URL(location.href); u.searchParams.set('market', b.dataset.m); location.href = u.toString();
+    };
+    nav.querySelector('nav').after(box);
+  }
+
+  boot().catch((e) => {
+    console.error('[intel] load failed', e);
+    overlay.textContent = 'Could not load market data: ' + (e.message || e);
+    document.body.appendChild(overlay);
+  });
+})();
