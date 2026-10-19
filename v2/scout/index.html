@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en" data-placeholder>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site Scout · Willow Bridge Intel</title><link rel="icon" href="../shared/wb-mark.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../shared/wb.css">
+<style>main{max-width:640px;margin:0 auto;padding:48px 20px}h1{font:600 24px/1.2 var(--display);margin:0 0 10px}p{color:var(--body)}a{color:var(--purple);font-weight:600}</style>
+</head>
+<body><main id="app"><div class="loading">Loading…</div></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="../shared/wb.js"></script>
+<script>
+(async () => { await WB.ready('scout'); document.getElementById('app').innerHTML = `<h1>Site Scout</h1><p>This page is being moved onto the new database. Until it's ready, use <a href="https://wfogler15.github.io/WB-Site-Scout/">the current Site Scout</a>; it still works as before.</p>`; })();
+</script></body></html>
