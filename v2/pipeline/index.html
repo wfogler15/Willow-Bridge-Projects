@@ -601,7 +601,7 @@ const REPORT = await loadReport();
 /* ---------- light shell: the Midnight page band, the card and the map side by side ---------- */
 (function shell(){
   const band = WB.band({eyebrow: "Pipeline", title: "Pipeline", lede: " ", compact: true,
-    actions: "", tabs: '<button type="button" class="on" data-t="call" role="tab">Thursday call</button><button type="button" data-t="list" role="tab">All deals</button>'});
+    actions: "", tabs: '<button type="button" class="on" data-t="call" role="tab">Map</button><button type="button" data-t="list" role="tab">All deals</button>'});
   const acts = document.createElement("div"); acts.className = "acts";
   band.querySelector(".top").appendChild(acts);
   ["pick", "addb"].forEach(id => { const b = document.getElementById(id); if(b){ b.className = "b" + (id === "addb" ? " primary" : ""); acts.appendChild(b); } });
@@ -943,14 +943,13 @@ function renderSales(m){
 let SLIDES = [{t:"cover", ms:9000}];
 REPORT.markets.forEach(m => {
   const list = active.filter(d => d.market === m).sort(byMeeting);
-  if(!list.length && !salesFor(m).list.length) return;
+  if(!list.length) return;
   SLIDES.push({t:"market", m, ms:11000});
-  if(salesFor(m).list.length) SLIDES.push({t:"sales", m, ms:14000});
   list.forEach(d => SLIDES.push({t:"deal", d, ms:15000}));
 });
 arch.forEach(d => SLIDES.push({t:"deal", d, ms:15000, skip:true}));
 { const uw = active.filter(d => UWS.has(d.stage)).length, nw = active.filter(d => d.isNew).length, el = document.querySelector(".wb-band .lede");
-  if(el) el.textContent = plural(uw, "deal") + " in underwriting or later, " + nw + " new since " + fmtDate(LAST_MEETING) + ". Use the arrow keys or Play to run the meeting."; }
+  if(el) el.textContent = plural(uw, "deal") + " in underwriting or later, " + nw + " new since " + fmtDate(LAST_MEETING) + ". Past pursuits stay on the map for context."; }
 const START = (() => { const id = new URLSearchParams(location.search).get("deal"); const i = id ? SLIDES.findIndex(x => x.d && x.d.id === id) : -1; return i > 0 ? i : 0; })();   /* archived: reachable from the list, skipped by the player */
 
 /* Willow Bridge symbol (Willow Bridge Purple, for use on Cloud White; from the brand artwork in Site Scout). Used as the shorthand mark, never redrawn. */
@@ -978,18 +977,15 @@ function renderCover(){
     + groups;
 }
 function renderMarket(m){
-  const grp = (lbl, n, sub) => '<div class="grp"><div class="lbl">' + lbl + '</div><div class="n"><i>' + n + '</i><span>' + sub + '</span></div></div>';
-  const mine = active.filter(d => d.market === m);
-  const soon = mine.filter(d => { const n = daysTo(d.bidDate); return n != null && n >= 0 && n <= 14; });
-  const land = mine.filter(d => d.kind === "land"), acq = mine.filter(d => d.kind === "asset");
-  const dueList = soon.length
-    ? '<div class="due">' + soon.map(d => '<div><span>' + esc(d.name) + '</span><em>' + shortDate(d.bidDate) + '</em></div>').join("") + '</div>' : "";
-  const roster = '<div class="due">' + mine.slice().sort(byMeeting).map(d => '<div><span>' + esc(d.name) + '</span><em>' + esc(priceLine(d)) + '</em></div>').join("") + '</div>';
-  return head({market:m}) + "<h1>" + esc(m) + "</h1><div class=\"rule\"></div><div class=\"tally\">"
-    + grp("New this week", mine.filter(d => d.isNew).length, "since " + shortDate(LAST_MEETING)) + grp("Underwriting", mine.filter(d => UWS.has(d.stage)).length, "deals we are digging into")
-    + grp("Screening", mine.filter(d => !UWS.has(d.stage)).length, "new on market")
-    + "</div>" + marketStrip(m) + (dueList || roster)
-    + '<div class="meta">Green outlines are development sites. Lilac outlines are investment deals.</div>';
+  const size = d => d.kind === "land" ? (d.acres ? fmtNum(d.acres) + " ac" : "–") : (d.units ? fmtNum(d.units) + " units" : "–");
+  const mine = active.filter(d => d.market === m).sort(byMeeting);
+  const block = (title, list) => !list.length ? "" : '<div class="agenda"><div class="ag-row ag-head"><span>' + title + " (" + list.length + ')</span><span>Size</span><span>Guidance</span></div>'
+    + list.map(d => '<button type="button" class="ag-row" data-go="' + SLIDES.findIndex(x => x.d === d) + '"><span class="ag-name">' + esc(d.name) + (d.isNew ? ' <em class="agnew">New</em>' : "")
+      + '</span><span class="ag-num">' + size(d) + '</span><span class="ag-num ag-px">' + esc(priceLine(d)) + "</span></button>").join("") + "</div>";
+  return head({market:m}) + "<h1>" + esc(m) + "</h1><div class=\"rule\"></div>"
+    + block("Underwriting and pursuing", mine.filter(d => UWS.has(d.stage)))
+    + block("Screening, new on market", mine.filter(d => !UWS.has(d.stage)))
+    + '<div class="meta">Green dots are development sites, lilac dots are investment deals. Dimmed dots are past pursuits; click any dot to open it.</div>';
 }
 function marketStrip(m){
   const x = (REPORT.strip || {})[m]; if(!x) return "";
@@ -1134,6 +1130,9 @@ function addMarker(d, dim){
   const el = document.createElement("div"); el.className = "pin";
   const dot = document.createElement("div"); dot.className = "dot" + (d.kind === "land" ? " land" : "") + (dim ? " arch" : "");
   el.appendChild(dot);
+  el.title = d.name + (dim ? " (" + (d.outcome ? d.outcome.result : (STAGES[d.stage] || d.stage)) + ")" : "");
+  el.style.cursor = "pointer";
+  el.addEventListener("click", ev => { ev.stopPropagation(); const i = SLIDES.findIndex(x => x.d === d); if(i >= 0){ setPlaying(false); go(i); } });
   markers.push(new maplibregl.Marker({element:el, anchor:"center"}).setLngLat([d.lon, d.lat]).addTo(map));
 }
 function allBounds(list){
@@ -1158,6 +1157,7 @@ function camera(s){
     const list = s.t === "market" ? active.filter(d => d.market === s.m) : active;
     const o = {bounds:allBounds(list), padding:pad(), maxZoom:11};
     move(() => map.fitBounds(o.bounds, {padding:o.padding, maxZoom:o.maxZoom, duration:3200, essential:true}), o);
+    arch.filter(d => s.t !== "market" || d.market === s.m).forEach(d => addMarker(d, true));
     list.forEach(d => addMarker(d));
     return;
   }
@@ -1183,6 +1183,7 @@ function drawSite(d){
   clearMarkers();
   map.getSource("site").setData({type:"FeatureCollection", features:ps.map(p => ({type:"Feature", properties:{apn:p.apn, kind:d.kind}, geometry:{type:"Polygon", coordinates:p.coords}}))});
   if(!ps.length) addMarker(d, archived(d));
+  deals.filter(x => x !== d && x.market === d.market).forEach(x => addMarker(x, archived(x) || watching(x)));
 }
 
 /* ---------- player ---------- */
