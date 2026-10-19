@@ -420,12 +420,10 @@ html,body{background:#F3F2EF !important}
 #list td{padding:7px 10px !important;font-size:13px;white-space:nowrap}
 #list .tw{overflow-x:auto !important}
 /* numbers hug their content; spare width goes to the deal name and the text columns */
-#list th,#list td{width:1%}
-#list th:first-child,#list td.name{width:auto;min-width:220px}
-#list td.txt,#list th.txt{width:auto}
-#list th.num,#list td.num{padding-left:18px !important}
-#list table{width:100%}
-#list th,#list td{padding-left:8px !important;padding-right:8px !important}
+#list table{width:100%;table-layout:auto}
+#list th:first-child,#list td.name{width:15%;min-width:200px}
+#list th.num,#list td.num{padding-left:10px !important}
+#list th,#list td{padding-left:10px !important;padding-right:10px !important}
 #list th:first-child,#list td:first-child{padding-left:16px !important}
 #list .clip{display:inline-block;max-width:240px;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
 #list td.name{min-width:180px;white-space:normal}
@@ -545,7 +543,7 @@ body.listing .lyr{display:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610191717"></script>
+<script src="../shared/wb.js?v=202610191718"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
