@@ -60,6 +60,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .wb-login h1{font:600 22px/1.2 var(--display);margin:14px 0 4px}
 .wb-login p{color:var(--muted);margin:0 0 18px}
 .wb-login form{display:flex;flex-direction:column;gap:10px}
+.wb-login form[hidden]{display:none}
 .wb-login .msg{font-size:13px;margin-top:12px;color:var(--body)}
 .wb-login .msg.err{color:var(--brick)}
 

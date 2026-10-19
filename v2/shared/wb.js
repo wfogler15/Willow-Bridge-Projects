@@ -52,26 +52,45 @@
         <div class="card">
           <img src="${ROOT}shared/wb-mark.png" alt="">
           <h1>Willow Bridge Intel</h1>
-          <p>Sign in with your Willow Bridge email. We'll send you a link.</p>
-          <form>
+          <p>Sign in with your Willow Bridge email. We'll email you a sign-in code.</p>
+          <form id="wb-f1">
             <input class="input" type="email" name="email" required placeholder="you@willowbridgepc.com" autocomplete="email">
-            <button class="btn primary" type="submit">Email me a sign-in link</button>
+            <button class="btn primary" type="submit">Email me a code</button>
+          </form>
+          <form id="wb-f2" hidden>
+            <input class="input" name="code" required inputmode="numeric" autocomplete="one-time-code" placeholder="Code from the email" pattern="[0-9]{6,10}">
+            <button class="btn primary" type="submit">Sign in</button>
+            <button class="btn" type="button" id="wb-back">Use a different email</button>
           </form>
           <div class="msg ${isErr ? 'err' : ''}">${message ? esc(message) : ''}</div>
         </div>`;
       document.body.appendChild(el);
-      const form = $('form', el), msg = $('.msg', el);
-      form.onsubmit = async (e) => {
+      // Codes, not links: Outlook's link scanners open sign-in links before you can, which uses them up.
+      const f1 = $('#wb-f1', el), f2 = $('#wb-f2', el), msg = $('.msg', el);
+      let email = '';
+      const say = (t, err) => { msg.className = 'msg' + (err ? ' err' : ''); msg.textContent = t; };
+      const hashErr = new URLSearchParams(location.hash.slice(1)).get('error_description');
+      if (hashErr && !message) say(hashErr.replace(/\+/g, ' ') + '. Use the code option below instead.', true);
+      f1.onsubmit = async (e) => {
         e.preventDefault();
-        const email = form.email.value.trim();
-        const btn = $('button', form); btn.disabled = true;
-        const { error } = await sb.auth.signInWithOtp({
-          email, options: { emailRedirectTo: location.href.split('#')[0] },
-        });
+        email = f1.email.value.trim();
+        const btn = $('button', f1); btn.disabled = true;
+        const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
         btn.disabled = false;
-        msg.className = 'msg' + (error ? ' err' : '');
-        msg.textContent = error ? error.message : `Check ${email} for the sign-in link. You can close this tab.`;
+        if (error) return say(error.message, true);
+        f1.hidden = true; f2.hidden = false; f2.code.focus();
+        say(`We emailed a code to ${email}. Enter it here; ignore any link in the email.`);
       };
+      f2.onsubmit = async (e) => {
+        e.preventDefault();
+        const btn = $('button', f2); btn.disabled = true;
+        const { error } = await sb.auth.verifyOtp({ email, token: f2.code.value.trim(), type: 'email' });
+        btn.disabled = false;
+        if (error) return say(error.message, true);
+        history.replaceState(null, '', location.pathname + location.search);
+        location.reload();
+      };
+      $('#wb-back', el).onclick = () => { f2.hidden = true; f1.hidden = false; say(''); };
     });
   }
 
