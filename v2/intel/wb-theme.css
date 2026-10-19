@@ -16,17 +16,21 @@ body{font-feature-settings:"tnum" 1,"lnum" 1}
 body *{text-transform:none !important;letter-spacing:normal !important}
 em,i{font-style:normal !important}
 
-/* ---------- shell: band replaces the topbar and tab strip ---------- */
-body.wb-shell .main>.topbar,body.wb-shell .main>.tabs{display:none !important}
+/* ---------- shell: the dashboard's own tab strip, styled like the app's sub-bar; the topbar is hidden ---------- */
+body.wb-shell .main>.topbar{display:none !important}
 .sidebar-inner>.brand,.sidebar-inner>.brand-sub{display:none !important}
-.wb-band .tabs{position:static !important;padding:0 !important;background:none !important;border-bottom:0 !important;z-index:auto !important;top:auto !important}
-.wb-band .tabs .tab{background:none !important;border:0 !important;border-bottom:2px solid transparent !important;border-top:2px solid transparent !important;border-radius:0 !important;box-shadow:none !important;
-  color:#6E6886 !important;font-size:13px !important;font-weight:400 !important;padding:0 10px !important;height:44px}
-.wb-band .tabs .tab:hover{color:#1D1247 !important}
-.wb-band .tabs .tab.active{color:#1D1247 !important;font-weight:600 !important;border-bottom-color:#1D1247 !important;background:none !important}
-.wb-band .b{font-size:12px !important}
-/* the band is in the page flow; the dashboard's sticky offsets assumed a topbar */
-body.wb-shell .wb-band{position:sticky;top:var(--wb-nav-h,48px)}
+.main>.tabs{position:sticky !important;top:var(--wb-nav-h,48px) !important;z-index:40 !important;display:flex !important;align-items:stretch;gap:2px !important;height:44px;
+  padding:0 24px !important;background:#fff !important;border-bottom:1px solid #E3E0DB !important;box-shadow:none !important;overflow-x:auto;scrollbar-width:none}
+.main>.tabs .tab{background:none !important;border:0 !important;border-bottom:2px solid transparent !important;border-top:2px solid transparent !important;border-radius:0 !important;box-shadow:none !important;
+  color:#6E6886 !important;font-size:13px !important;font-weight:400 !important;padding:0 10px !important;flex:none;cursor:pointer}
+.main>.tabs .tab:first-child{margin-left:-10px}
+.main>.tabs .tab:hover{color:#1D1247 !important}
+.main>.tabs .tab.active{color:#1D1247 !important;font-weight:600 !important;border-bottom-color:#1D1247 !important;background:none !important}
+.wb-tab-acts{margin-left:auto;display:flex;gap:8px;align-items:center;flex:none;padding-left:16px}
+.wb-tab-btn{height:28px;padding:0 11px;border-radius:6px;border:1px solid #D3CEC7;background:#fff;color:#1D1247;font:600 12px Aptos,"Segoe UI",Inter,sans-serif;cursor:pointer;white-space:nowrap;transition:background .12s,border-color .12s}
+.wb-tab-btn:hover{background:#F8F7F4;border-color:#BDB6AD}
+.wb-tab-btn.primary{background:#1D1247;border-color:#1D1247;color:#fff}
+.wb-tab-btn.primary:hover{background:#2B1D63}
 .content{padding:16px 24px 40px !important}
 
 /* ---------- panels ---------- */

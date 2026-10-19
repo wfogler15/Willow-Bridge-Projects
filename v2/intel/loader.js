@@ -103,21 +103,20 @@
   }
 
   // The Midnight page band (shared with every tab) replaces the dashboard's own header and tab strip.
+  // Intel keeps its own tab strip (restyled to match the app); the topbar goes, its two buttons move to the right end of the tabs.
   function intelShell() {
-    const D = window.__WBD;
     const NAMES = { overview: 'Overview', absorption: 'Lease-up', pipeline: 'Supply', trends: 'Trends and forecast', yoc: 'Yield on cost',
       submarkets: 'Map', properties: 'Properties', salecomps: 'Sale comps', opportunities: 'Opportunities' };
-    const band = WB.band({ eyebrow: 'Market intel', title: D.title || 'Market', lede: (D.msa_label || '') + '. CoStar inventory and RealPage rents, refreshed from the shared database.', tabs: ' ' });
-    const acts = document.createElement('div'); acts.className = 'acts'; band.querySelector('.top').appendChild(acts);
+    const strip = document.querySelector('.main > .tabs'); if (!strip) return;
+    strip.querySelectorAll('.tab').forEach((t) => { t.textContent = NAMES[t.dataset.view] || t.textContent; });
+    const acts = document.createElement('div'); acts.className = 'wb-tab-acts';
     ['overview-report-btn', 'settings-btn'].forEach((id, i) => {
       const b = document.getElementById(id); if (!b) return;
       b.querySelectorAll('span').forEach((x) => x.remove());
-      b.className = 'b' + (i === 0 ? ' primary' : ''); acts.appendChild(b);
+      b.className = 'wb-tab-btn' + (i === 0 ? ' primary' : ''); acts.appendChild(b);
     });
-    const tabs = band.querySelector('.tabs'); tabs.textContent = '';
-    document.querySelectorAll('.main > .tabs .tab').forEach((t) => { t.textContent = NAMES[t.dataset.view] || t.textContent; tabs.appendChild(t); });
+    strip.appendChild(acts);
     document.body.classList.add('wb-shell');
-    // labels: commas, not middle dots
     const tidy = (root) => root.querySelectorAll('.kpi-label,.kpi-sub,.panel-sub,.lu-kpi-sub').forEach((el) => {
       if (el.children.length === 0 && el.textContent.includes(' · ')) el.textContent = el.textContent.replace(/ · /g, ', ');
     });
