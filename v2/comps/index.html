@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sale Comps · Willow Bridge Intel</title>
+<link rel="icon" href="../shared/wb-mark.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="../shared/wb.css">
+<style>
+  body{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;background:var(--white);border-bottom:1px solid var(--hair)}
+  .bar .input{width:220px}
+  .bar .grow{flex:1}
+  .stats{display:flex;gap:22px;padding:12px 20px;border-bottom:1px solid var(--hair2);flex-wrap:wrap}
+  .stats div{display:flex;flex-direction:column}
+  .stats b{font:600 18px/1.1 var(--display);font-variant-numeric:tabular-nums}
+  .stats span{font-size:11.5px;color:var(--muted)}
+  .split{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,38%);min-height:0}
+  @media (max-width:900px){body{height:auto;overflow:auto}.split{grid-template-columns:1fr}#map{height:360px;order:-1}}
+  .tablewrap{overflow:auto;min-height:0}
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+  th{position:sticky;top:0;background:var(--cloud);text-align:left;font-weight:600;font-size:11.5px;color:var(--muted);letter-spacing:.02em;
+     padding:9px 10px;border-bottom:1px solid var(--hair);cursor:pointer;white-space:nowrap;user-select:none;z-index:1}
+  th.r,td.r{text-align:right}
+  th .dir{color:var(--purple)}
+  td{padding:8px 10px;border-bottom:1px solid var(--hair2);vertical-align:top;font-variant-numeric:tabular-nums;white-space:nowrap}
+  td.name{white-space:normal;min-width:230px;max-width:320px}
+  td.t{max-width:170px;overflow:hidden;text-overflow:ellipsis}
+  td.name b{font-weight:600}
+  td.name div{color:var(--muted);font-size:12px}
+  tr.sel td{background:#f1effb}
+  tbody tr{cursor:pointer}
+  tbody tr:hover td{background:#f6f5fb}
+  .muted{color:var(--muted)}
+  .ok{color:var(--forest);font-size:12px}
+  #map{min-height:0;border-left:1px solid var(--hair)}
+  .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--midnight);background:var(--lilac);box-sizing:border-box;cursor:pointer}
+  .dot.land{background:var(--greentea);border-color:var(--forest)}
+  .dot.sel{width:18px;height:18px;border-color:var(--purple);border-width:3px}
+  .maplibregl-popup-content{font:13px/1.4 var(--font);color:var(--text);border-radius:10px;padding:10px 12px}
+  /* drawer */
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:var(--white);border-left:1px solid var(--hair);
+    box-shadow:-8px 0 32px rgba(29,18,71,.12);z-index:60;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .2s}
+  .drawer.open{transform:none}
+  .drawer header{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--hair)}
+  .drawer header h2{margin:0;font:600 17px/1.2 var(--display);flex:1}
+  .drawer form{flex:1;overflow:auto;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-content:start}
+  .drawer .input{width:100%}
+  .drawer .full{grid-column:1/-1}
+  .drawer footer{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--hair)}
+  .drawer .hint{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="bar">
+  <div class="seg" id="f-market"><button data-v="all" class="on">Both</button><button data-v="denver">Denver</button><button data-v="phoenix">Phoenix</button></div>
+  <div class="seg" id="f-type"><button data-v="investment" class="on">Investment</button><button data-v="land">Land</button></div>
+  <select class="input" id="f-since" style="width:auto">
+    <option value="">All dates</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option>
+  </select>
+  <input class="input" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker">
+  <span class="grow"></span>
+  <button class="btn" id="b-export">Export to Excel</button>
+  <button class="btn primary" id="b-add">Add comp</button>
+</div>
+<div class="stats" id="stats"></div>
+<div class="split">
+  <div class="tablewrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+  <div id="map"></div>
+</div>
+
+<aside class="drawer" id="drawer">
+  <header><h2 id="d-title">Add comp</h2><button class="btn" type="button" id="d-close">Close</button></header>
+  <form id="d-form" autocomplete="off"></form>
+  <footer><button class="btn primary" id="d-save">Save</button><span class="hint" id="d-hint">Click the map to set the location.</span></footer>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="../shared/wb.js"></script>
+<script>
+(async () => {
+  const { sb, user } = await WB.ready('comps');
+  const { esc, fmt, median } = WB;
+  const $ = (s) => document.querySelector(s);
+
+  let rows = await WB.fetchAll('comps', 'sale_comps', '*', (q) => q.order('sale_date', { ascending: false, nullsFirst: false }));
+  // fill per-door and per-land-SF figures when the inputs are there but the figure wasn't recorded
+  for (const c of rows) {
+    const doors = c.comp_type === 'land' ? c.proposed_units : c.units;
+    if (c.price_per_unit == null && c.sale_price && doors) c.price_per_unit = c.sale_price / doors;
+    if (c.comp_type === 'land' && c.price_per_land_sf == null && c.sale_price && c.acres) c.price_per_land_sf = c.sale_price / (c.acres * 43560);
+  }
+  const state = { market: 'all', type: 'investment', since: '', q: '', sort: 'sale_date', dir: -1, sel: null };
+
+  // ---------- columns ----------
+  const COLS = {
+    investment: [
+      ['sale_date', 'Date', (c) => fmt.date(c.sale_date)],
+      ['name', 'Property', (c) => `<b>${esc(c.name || '—')}</b><div>${esc([c.address, c.city || c.submarket].filter(Boolean).join(' · '))}</div>`, 'name'],
+      ['units', 'Units', (c) => fmt.int(c.units), 'r'],
+      ['year_built', 'Built', (c) => c.year_built ?? '—', 'r'],
+      ['sale_price', 'Price', (c) => fmt.usd(c.sale_price), 'r'],
+      ['price_per_unit', '$/unit', (c) => fmt.usd(c.price_per_unit), 'r'],
+      ['price_per_sf', '$/SF', (c) => c.price_per_sf ? '$' + fmt.int(c.price_per_sf) : '—', 'r'],
+      ['cap_rate', 'Cap', (c) => fmt.pct(c.cap_rate, 2), 'r'],
+      ['buyer', 'Buyer', (c) => `<span title="${esc(c.buyer || '')}">${esc(c.buyer || '—')}</span>`, 't'],
+      ['seller', 'Seller', (c) => `<span title="${esc(c.seller || '')}">${esc(c.seller || '—')}</span>`, 't'],
+      ['broker', 'Broker', (c) => `<span title="${esc(c.broker || '')}">${esc(c.broker || '—')}</span>`, 't'],
+      ['verified', '', (c) => c.verified ? '<span class="ok" title="Verified">✓</span>' : ''],
+    ],
+    land: [
+      ['sale_date', 'Date', (c) => fmt.date(c.sale_date)],
+      ['name', 'Site', (c) => `<b>${esc(c.name || '—')}</b><div>${esc([c.address, c.submarket || c.city].filter(Boolean).join(' · '))}</div>`, 'name'],
+      ['acres', 'Acres', (c) => fmt.ac(c.acres), 'r'],
+      ['proposed_units', 'Units', (c) => fmt.int(c.proposed_units), 'r'],
+      ['sale_price', 'Price', (c) => fmt.usd(c.sale_price), 'r'],
+      ['price_per_unit', '$/door', (c) => fmt.usd(c.price_per_unit), 'r'],
+      ['price_per_land_sf', '$/land SF', (c) => fmt.psf(c.price_per_land_sf), 'r'],
+      ['product_type', 'Product', (c) => esc([c.product_type, c.construction_type].filter(Boolean).join(' · ') || '—'), 't'],
+      ['buyer', 'Buyer', (c) => `<span title="${esc(c.buyer || '')}">${esc(c.buyer || '—')}</span>`, 't'],
+      ['seller', 'Seller', (c) => `<span title="${esc(c.seller || '')}">${esc(c.seller || '—')}</span>`, 't'],
+      ['verified', '', (c) => c.verified ? '<span class="ok" title="Verified">✓</span>' : ''],
+    ],
+  };
+
+  // ---------- filtering ----------
+  function filtered() {
+    const cut = state.since ? new Date(Date.now() - state.since * 365.25 * 864e5).toISOString().slice(0, 10) : null;
+    const q = state.q.toLowerCase();
+    const out = rows.filter((c) =>
+      c.comp_type === state.type &&
+      (state.market === 'all' || c.market_id === state.market) &&
+      (!cut || (c.sale_date && c.sale_date >= cut)) &&
+      (!q || [c.name, c.address, c.city, c.submarket, c.buyer, c.seller, c.broker, c.notes].some((v) => v && v.toLowerCase().includes(q))));
+    const k = state.sort, d = state.dir;
+    const TEXT = ['name', 'buyer', 'seller', 'broker', 'product_type', 'sale_date', 'verified'];
+    out.sort((a, b) => {
+      const x = a[k], y = b[k];
+      if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;   // blanks always last
+      return (TEXT.includes(k) ? String(x).localeCompare(String(y)) : (+x - +y)) * d;
+    });
+    return out;
+  }
+
+  // ---------- render ----------
+  function render() {
+    const list = filtered(), cols = COLS[state.type];
+    $('#thead').innerHTML = '<tr>' + cols.map(([k, l, , cls]) =>
+      `<th data-k="${k}" class="${cls === 'r' ? 'r' : ''}">${l}${state.sort === k ? ` <span class="dir">${state.dir > 0 ? '↑' : '↓'}</span>` : ''}</th>`).join('') + '</tr>';
+    $('#tbody').innerHTML = list.map((c) => `<tr data-id="${c.id}" class="${state.sel === c.id ? 'sel' : ''}">` +
+      cols.map(([k, , f, cls]) => `<td class="${cls || ''}">${f(c)}</td>`).join('') + '</tr>').join('')
+      || `<tr><td colspan="${cols.length}" class="muted" style="padding:20px">No comps match these filters.</td></tr>`;
+    const s = state.type === 'investment'
+      ? [[list.length, 'sales'], [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/unit'],
+         [list.some((c) => c.price_per_sf) ? '$' + fmt.int(median(list.map((c) => c.price_per_sf))) : '—', 'median $/SF'],
+         [fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'median cap'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), 'total volume']]
+      : [[list.length, 'sales'], [fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'median $/land SF'],
+         [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/door'], [fmt.ac(median(list.map((c) => c.acres))), 'median acres']];
+    $('#stats').innerHTML = s.map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
+    drawMarkers(list);
+  }
+
+  // ---------- map ----------
+  const map = new maplibregl.Map({
+    container: 'map', attributionControl: { compact: true },
+    style: { version: 8, sources: {
+      img: { type: 'raster', tileSize: 256, attribution: 'Esri', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'] },
+      roads: { type: 'raster', tileSize: 256, tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}'] } },
+      layers: [{ id: 'img', type: 'raster', source: 'img' }, { id: 'roads', type: 'raster', source: 'roads', paint: { 'raster-opacity': .7 } }] },
+    center: [-108.4, 36.6], zoom: 4.6,
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  map.on('load', () => { if (!map._fitOnce) drawMarkers(filtered()); });
+  let markers = [];
+  function drawMarkers(list) {
+    markers.forEach((m) => m.remove()); markers = [];
+    const pts = list.filter((c) => c.lat != null && c.lng != null);
+    for (const c of pts) {
+      const el = document.createElement('div'); el.style.cssText = 'width:18px;height:18px;display:grid;place-items:center';
+      const dot = document.createElement('div'); dot.className = 'dot' + (c.comp_type === 'land' ? ' land' : '') + (state.sel === c.id ? ' sel' : '');
+      el.appendChild(dot);
+      el.onclick = (e) => { e.stopPropagation(); select(c.id, true); };
+      markers.push(new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([c.lng, c.lat]).addTo(map));
+    }
+    if (!state.sel && pts.length && !map._fitOnce) {
+      const b = new maplibregl.LngLatBounds(); pts.forEach((c) => b.extend([c.lng, c.lat]));
+      map.fitBounds(b, { padding: 40, maxZoom: 12, duration: 0 });
+    }
+  }
+  function select(id, fromMap) {
+    state.sel = id; render();
+    const c = rows.find((r) => r.id === id);
+    const tr = document.querySelector(`tr[data-id="${id}"]`);
+    if (tr && fromMap) tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (c && c.lat != null && !fromMap) map.flyTo({ center: [c.lng, c.lat], zoom: Math.max(map.getZoom(), 13) });
+  }
+
+  // ---------- events ----------
+  const seg = (id, key) => $(id).addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    $(id).querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    state[key] = b.dataset.v; state.sel = null; map._fitOnce = false; render();
+  });
+  seg('#f-market', 'market'); seg('#f-type', 'type');
+  $('#f-since').onchange = (e) => { state.since = e.target.value; render(); };
+  $('#f-q').oninput = (e) => { state.q = e.target.value; render(); };
+  $('#thead').addEventListener('click', (e) => {
+    const th = e.target.closest('th'); if (!th || !th.dataset.k) return;
+    state.dir = state.sort === th.dataset.k ? -state.dir : (th.dataset.k === 'name' ? 1 : -1); state.sort = th.dataset.k; render();
+  });
+  $('#tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) select(tr.dataset.id, false); });
+  $('#tbody').addEventListener('dblclick', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) openDrawer(rows.find((r) => r.id === tr.dataset.id)); });
+  map.on('dragstart', () => { map._fitOnce = true; });
+
+  // ---------- export ----------
+  $('#b-export').onclick = () => {
+    const list = filtered();
+    const head = state.type === 'investment'
+      ? ['Sale date', 'Market', 'Property', 'Address', 'City', 'Submarket', 'Units', 'Year built', 'Price', '$/unit', '$/SF', 'Cap rate %', 'Buyer', 'Seller', 'Broker', 'Notes', 'Source', 'Source link', 'Verified']
+      : ['Sale date', 'Market', 'Site', 'Address', 'City', 'Submarket', 'Acres', 'Proposed units', 'Price', '$/door', '$/land SF', 'Product', 'Construction', 'Buyer', 'Seller', 'Broker', 'Notes', 'Source', 'Source link', 'Verified'];
+    const data = list.map((c) => state.type === 'investment'
+      ? [c.sale_date, c.market_id, c.name, c.address, c.city, c.submarket, c.units, c.year_built, num(c.sale_price), num(c.price_per_unit), num(c.price_per_sf), num(c.cap_rate), c.buyer, c.seller, c.broker, c.notes, c.source, c.source_url, c.verified ? 'Yes' : '']
+      : [c.sale_date, c.market_id, c.name, c.address, c.city, c.submarket, num(c.acres), c.proposed_units, num(c.sale_price), num(c.price_per_unit), num(c.price_per_land_sf), c.product_type, c.construction_type, c.buyer, c.seller, c.broker, c.notes, c.source, c.source_url, c.verified ? 'Yes' : '']);
+    const ws = XLSX.utils.aoa_to_sheet([head, ...data]);
+    ws['!cols'] = head.map((h) => ({ wch: Math.max(10, h.length + 2) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, state.type === 'investment' ? 'Investment sales' : 'Land sales');
+    const mk = state.market === 'all' ? 'Denver-Phoenix' : state.market[0].toUpperCase() + state.market.slice(1);
+    XLSX.writeFile(wb, `WB ${state.type === 'investment' ? 'Investment' : 'Land'} Sale Comps - ${mk} - ${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+  const num = (v) => (v == null || v === '' ? null : +v);
+
+  // ---------- add / edit ----------
+  const F = [
+    ['comp_type', 'Type', 'select:investment=Investment,land=Land'], ['market_id', 'Market', 'select:denver=Denver,phoenix=Phoenix'],
+    ['name', 'Name', 'text', 'full'], ['address', 'Address', 'text', 'full'], ['city', 'City', 'text'], ['submarket', 'Submarket', 'text'],
+    ['sale_date', 'Sale date', 'date'], ['sale_price', 'Sale price ($)', 'number'],
+    ['units', 'Units (existing)', 'number', '', 'investment'], ['year_built', 'Year built', 'number', '', 'investment'],
+    ['price_per_sf', '$/SF (net rentable)', 'number', '', 'investment'], ['cap_rate', 'Cap rate (%)', 'number', '', 'investment'],
+    ['acres', 'Acres', 'number', '', 'land'], ['proposed_units', 'Proposed units', 'number', '', 'land'],
+    ['product_type', 'Product', 'text'], ['construction_type', 'Construction', 'text', '', 'land'],
+    ['buyer', 'Buyer', 'text'], ['seller', 'Seller', 'text'], ['broker', 'Broker', 'text', 'full'],
+    ['source', 'Source', 'select:manual=Entered by hand,broker=Broker,article=Article,costar=CoStar,claude=Claude'], ['source_url', 'Source link', 'text'],
+    ['notes', 'Notes', 'textarea', 'full'], ['verified', 'Verified', 'checkbox', 'full'],
+    ['lat', 'Latitude', 'number'], ['lng', 'Longitude', 'number'],
+  ];
+  let editing = null, pin = null;
+  function openDrawer(c) {
+    editing = c || null;
+    const v = c || { comp_type: state.type, market_id: state.market === 'all' ? 'denver' : state.market, source: 'manual', verified: true };
+    $('#d-title').textContent = c ? 'Edit comp' : 'Add comp';
+    $('#d-form').innerHTML = F.map(([k, l, t, cls, only]) => {
+      const val = v[k] ?? '';
+      if (only && only !== v.comp_type) return '';
+      let inp;
+      if (t.startsWith('select:')) inp = `<select class="input" name="${k}">${t.slice(7).split(',').map((o) => { const [a, b] = o.split('='); return `<option value="${a}" ${a === val ? 'selected' : ''}>${b}</option>`; }).join('')}</select>`;
+      else if (t === 'textarea') inp = `<textarea class="input" name="${k}" rows="3">${esc(val)}</textarea>`;
+      else if (t === 'checkbox') return `<label class="full" style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="${k}" ${val ? 'checked' : ''}> ${l}</label>`;
+      else inp = `<input class="input" name="${k}" type="${t}" step="any" value="${esc(val)}">`;
+      return `<div class="field ${cls || ''}"><label>${l}</label>${inp}</div>`;
+    }).join('');
+    $('#d-form').comp_type.onchange = (e) => { const cur = readForm(); cur.comp_type = e.target.value; openDrawer(editing ? { ...editing, ...cur } : null); if (!editing) fill(cur); };
+    $('#drawer').classList.add('open');
+  }
+  function fill(v) { for (const [k] of F) { const el = $('#d-form')[k]; if (el && v[k] != null) { if (el.type === 'checkbox') el.checked = !!v[k]; else el.value = v[k]; } } }
+  function readForm() {
+    const f = $('#d-form'), o = {};
+    for (const [k, , t] of F) {
+      const el = f[k]; if (!el) continue;
+      if (t === 'checkbox') o[k] = el.checked;
+      else if (t === 'number') o[k] = el.value === '' ? null : +el.value;
+      else o[k] = el.value.trim() === '' ? null : el.value.trim();
+    }
+    return o;
+  }
+  $('#b-add').onclick = () => openDrawer(null);
+  $('#d-close').onclick = () => { $('#drawer').classList.remove('open'); if (pin) { pin.remove(); pin = null; } };
+  map.on('click', (e) => {
+    if (!$('#drawer').classList.contains('open')) return;
+    const f = $('#d-form'); f.lat.value = e.lngLat.lat.toFixed(6); f.lng.value = e.lngLat.lng.toFixed(6);
+    if (pin) pin.remove(); pin = new maplibregl.Marker({ color: '#432890' }).setLngLat(e.lngLat).addTo(map);
+  });
+  $('#d-save').onclick = async () => {
+    const o = readForm();
+    if (!o.name && !o.address) return WB.toast('Add a name or address');
+    // fill per-unit / per-acre figures when left blank
+    if (o.sale_price) {
+      const doors = o.comp_type === 'land' ? o.proposed_units : o.units;
+      if (doors) o.price_per_unit = Math.round(o.sale_price / doors * 100) / 100;
+      if (o.comp_type === 'land' && o.acres) o.price_per_land_sf = Math.round(o.sale_price / (o.acres * 43560) * 100) / 100;
+    }
+    if (o.comp_type === 'investment') { o.acres ??= editing?.acres ?? null; }
+    const q = sb.schema('comps').from('sale_comps');
+    const { data, error } = editing ? await q.update(o).eq('id', editing.id).select().single() : await q.insert(o).select().single();
+    if (error) return WB.toast(error.message);
+    if (editing) rows[rows.findIndex((r) => r.id === editing.id)] = data; else rows.unshift(data);
+    $('#d-close').click(); state.sel = data.id; render(); WB.toast(editing ? 'Comp updated' : 'Comp added');
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+/* Willow Bridge Intel: shared brand tokens and chrome. Aptos; purple used for accents only. */
+:root{
+  color-scheme: light;
+  --midnight:#1D1247; --purple:#432890; --cloud:#FBFBF9; --white:#fff;
+  --lilac:#C7C9FE; --greentea:#CCECC3; --forest:#102930; --breeze:#F9EEC4;
+  --brick:#722525; --sand:#C2B8AF;
+  --text:var(--midnight); --body:rgba(29,18,71,.86); --muted:rgba(29,18,71,.6);
+  --faint:rgba(29,18,71,.45); --hair:rgba(29,18,71,.12); --hair2:rgba(29,18,71,.07);
+  --font:Aptos, "Aptos Display", Inter, "Segoe UI", Arial, sans-serif;
+  --display:"Aptos Display", Aptos, Inter, "Segoe UI", Arial, sans-serif;
+  --nav-h:52px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--cloud);color:var(--text);font:14px/1.45 var(--font);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button,input,select,textarea{font:inherit;color:inherit}
+.num{font-variant-numeric:tabular-nums}
+
+/* top navigation */
+.wb-nav{position:sticky;top:0;z-index:50;height:var(--nav-h);display:flex;align-items:center;gap:20px;
+  padding:0 20px;background:var(--white);border-bottom:1px solid var(--hair)}
+.wb-nav .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:600;letter-spacing:.01em;white-space:nowrap}
+.wb-nav .brand img{width:26px;height:26px}
+.wb-nav nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.wb-nav nav a{padding:6px 10px;border-radius:6px;text-decoration:none;color:var(--muted);white-space:nowrap}
+.wb-nav nav a:hover{color:var(--text);background:var(--hair2)}
+.wb-nav nav a.on{color:var(--text);font-weight:600;box-shadow:inset 0 -2px 0 var(--purple);border-radius:0}
+.wb-nav .who{margin-left:auto;display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px;white-space:nowrap}
+.wb-nav .who button{border:1px solid var(--hair);background:none;border-radius:6px;padding:4px 10px;cursor:pointer}
+.wb-nav .who button:hover{border-color:var(--sand)}
+@media (max-width:720px){.wb-nav{gap:10px;padding:0 12px}.wb-nav .brand span,.wb-nav .who .email{display:none}}
+
+/* buttons & inputs */
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--hair);background:var(--white);
+  border-radius:8px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--sand)}
+.btn.primary{background:var(--midnight);color:#fff;border-color:var(--midnight)}
+.btn.primary:hover{background:#2b1d63}
+.btn[disabled]{opacity:.5;cursor:default}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11.5px;color:var(--muted);letter-spacing:.02em}
+.input,select.input,textarea.input{border:1px solid var(--hair);background:var(--white);border-radius:8px;padding:7px 10px;min-width:0}
+.input:focus{outline:2px solid rgba(67,40,144,.25);border-color:var(--purple)}
+.seg{display:inline-flex;border:1px solid var(--hair);border-radius:8px;overflow:hidden;background:var(--white)}
+.seg button{border:0;background:none;padding:6px 12px;cursor:pointer;color:var(--muted)}
+.seg button+button{border-left:1px solid var(--hair)}
+.seg button.on{background:var(--midnight);color:#fff}
+
+/* chips */
+.chip{display:inline-block;font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--hair2);color:var(--body);white-space:nowrap}
+.chip.land{background:var(--greentea);color:var(--forest)}
+.chip.asset{background:var(--lilac);color:var(--midnight)}
+.chip.warn{background:#f4e3e3;color:var(--brick)}
+
+/* login overlay */
+.wb-login{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:var(--cloud);padding:16px}
+.wb-login .card{width:min(400px,100%);background:var(--white);border:1px solid var(--hair);border-radius:14px;padding:28px}
+.wb-login img{width:40px;height:40px}
+.wb-login h1{font:600 22px/1.2 var(--display);margin:14px 0 4px}
+.wb-login p{color:var(--muted);margin:0 0 18px}
+.wb-login form{display:flex;flex-direction:column;gap:10px}
+.wb-login .msg{font-size:13px;margin-top:12px;color:var(--body)}
+.wb-login .msg.err{color:var(--brick)}
+
+/* toast */
+.wb-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:200;background:var(--midnight);color:#fff;
+  padding:9px 14px;border-radius:8px;font-size:13px;box-shadow:0 6px 24px rgba(29,18,71,.2);opacity:0;transition:opacity .2s}
+.wb-toast.show{opacity:1}
+
+.loading{padding:40px 20px;color:var(--muted)}

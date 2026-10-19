@@ -1,0 +1,117 @@
+/* Willow Bridge Intel: shared client.
+   - One Supabase client for every page (publishable key: safe in public code; the database
+     only serves rows to signed-in users on the approved list).
+   - Email-link login gate, top navigation, paged reads, small helpers. */
+(function () {
+  const SB_URL = 'https://wmydniiakotcliraajaa.supabase.co';
+  const SB_KEY = 'sb_publishable_FWrjAmI9VJZpXWJ5Q7AmFg_2zluUmIL';
+  const PAGES = [
+    { id: 'home', label: 'Home', href: '' },
+    { id: 'intel', label: 'Market Intel', href: 'intel/' },
+    { id: 'scout', label: 'Site Scout', href: 'scout/' },
+    { id: 'pipeline', label: 'Pipeline', href: 'pipeline/' },
+    { id: 'comps', label: 'Sale Comps', href: 'comps/' },
+  ];
+
+  // Root of the v2 site, worked out from where this script was loaded.
+  const scriptSrc = document.currentScript && document.currentScript.src;
+  const ROOT = scriptSrc ? scriptSrc.replace(/shared\/wb\.js.*$/, '') : './';
+
+  const sb = window.supabase.createClient(SB_URL, SB_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
+
+  const $ = (sel, el = document) => el.querySelector(sel);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  function toast(msg, ms = 2600) {
+    let t = $('.wb-toast');
+    if (!t) { t = document.createElement('div'); t.className = 'wb-toast'; document.body.appendChild(t); }
+    t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms);
+  }
+
+  function renderNav(active, user) {
+    if ($('.wb-nav')) return;
+    const nav = document.createElement('header');
+    nav.className = 'wb-nav';
+    nav.innerHTML = `
+      <a class="brand" href="${ROOT}"><img src="${ROOT}shared/wb-mark.png" alt=""><span>Willow Bridge Intel</span></a>
+      <nav>${PAGES.filter((p) => p.id !== 'home').map((p) =>
+        `<a href="${ROOT}${p.href}" class="${p.id === active ? 'on' : ''}">${p.label}</a>`).join('')}</nav>
+      <div class="who"><span class="email">${esc(user.email)}</span><button type="button" id="wb-signout">Sign out</button></div>`;
+    document.body.prepend(nav);
+    $('#wb-signout').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+  }
+
+  function loginScreen(message, isErr) {
+    return new Promise(() => {
+      const el = document.createElement('div');
+      el.className = 'wb-login';
+      el.innerHTML = `
+        <div class="card">
+          <img src="${ROOT}shared/wb-mark.png" alt="">
+          <h1>Willow Bridge Intel</h1>
+          <p>Sign in with your Willow Bridge email. We'll send you a link.</p>
+          <form>
+            <input class="input" type="email" name="email" required placeholder="you@willowbridgepc.com" autocomplete="email">
+            <button class="btn primary" type="submit">Email me a sign-in link</button>
+          </form>
+          <div class="msg ${isErr ? 'err' : ''}">${message ? esc(message) : ''}</div>
+        </div>`;
+      document.body.appendChild(el);
+      const form = $('form', el), msg = $('.msg', el);
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const email = form.email.value.trim();
+        const btn = $('button', form); btn.disabled = true;
+        const { error } = await sb.auth.signInWithOtp({
+          email, options: { emailRedirectTo: location.href.split('#')[0] },
+        });
+        btn.disabled = false;
+        msg.className = 'msg' + (error ? ' err' : '');
+        msg.textContent = error ? error.message : `Check ${email} for the sign-in link. You can close this tab.`;
+      };
+    });
+  }
+
+  /** Call once per page. Resolves with {sb, user} only for signed-in, approved users. */
+  async function ready(active) {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return loginScreen();
+    // Approved list check: the markets table only answers members.
+    const { data, error } = await sb.schema('core').from('markets').select('id').limit(1);
+    if (error || !data || data.length === 0) {
+      await sb.auth.signOut();
+      return loginScreen(`${session.user.email} isn't on the access list. Ask Will to add you.`, true);
+    }
+    renderNav(active, session.user);
+    return { sb, user: session.user };
+  }
+
+  /** Read every row of a table, 1,000 at a time. build(q) can add filters/order. */
+  async function fetchAll(schema, table, select = '*', build = (q) => q) {
+    const out = []; const size = 1000;
+    for (let from = 0; ; from += size) {
+      const { data, error } = await build(sb.schema(schema).from(table).select(select)).range(from, from + size - 1);
+      if (error) throw error;
+      out.push(...data);
+      if (data.length < size) break;
+    }
+    return out;
+  }
+
+  // formatting
+  const fmt = {
+    usd(v) { if (v == null || v === '') return '—'; const n = +v; if (n >= 1e9) return `$${(n / 1e9).toFixed(1)}B`; return n >= 1e6 ? `$${(n / 1e6).toFixed(n >= 1e8 ? 0 : 1)}M` : n >= 1e3 ? `$${Math.round(n / 1e3)}K` : `$${Math.round(n)}`; },
+    usdFull(v) { return v == null || v === '' ? '—' : '$' + Math.round(+v).toLocaleString('en-US'); },
+    psf(v) { return v == null || v === '' ? '—' : `$${(+v).toFixed(2)}`; },
+    int(v) { return v == null || v === '' ? '—' : Math.round(+v).toLocaleString('en-US'); },
+    ac(v) { return v == null || v === '' ? '—' : (+v).toFixed(2); },
+    pct(v, d = 1) { return v == null || v === '' ? '—' : `${(+v).toFixed(d)}%`; },
+    date(v) { if (!v) return '—'; const [y, m, d] = String(v).slice(0, 10).split('-'); return `${+m}/${+d}/${y.slice(2)}`; },
+  };
+  const median = (xs) => { const a = xs.filter((x) => x != null && !isNaN(x)).map(Number).sort((p, q) => p - q); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+
+  window.WB = { sb, ready, fetchAll, toast, esc, fmt, median, ROOT, SB_URL };
+})();
