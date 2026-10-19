@@ -14,12 +14,9 @@ body *{text-transform:none !important;letter-spacing:normal !important}
 /* the app bar spans the top; sidebar and map fill the rest */
 body{flex-wrap:wrap;align-content:flex-start;height:100vh;overflow:hidden}
 .wb-nav{flex:0 0 100%;width:100%}
-#sidebar,#mapWrap{height:calc(100vh - var(--top,140px))}
-.wb-band{flex:0 0 100%;width:100%}
+#sidebar,#mapWrap{height:calc(100vh - var(--wb-nav-h,48px))}
 
 /* flat Midnight panel heads (no gradients or sheen); the app bar carries the brand */
-#brand,#siteDetailHead,#sitesHomeHead,#settingsHead,#panelHead,.ac-head{background:#1D1247 !important;box-shadow:none !important}
-#brand{padding:12px 16px 12px !important}
 #brand .brand-mark,#brand .bd-mark{display:none !important}
 #brand h1{font-size:16px !important;font-weight:600 !important;margin:0 !important;font-family:"Aptos Display",Aptos,"Segoe UI Variable Display","Segoe UI","Inter Display",Inter,sans-serif !important}
 #brand #marketSeg{display:none !important}   /* the market comes from the app bar */
@@ -29,11 +26,16 @@ body{flex-wrap:wrap;align-content:flex-start;height:100vh;overflow:hidden}
 .seg button.active{box-shadow:none !important}
 #loginCard{background:#fff !important;box-shadow:0 20px 60px rgba(9,6,22,.4) !important}
 
-/* the page band carries the title and Settings; the panel head keeps only the collapse control */
-#brand .brand-lockup{display:none !important}
-#brand{padding:0 !important;min-height:44px !important;height:44px}
-#brand #railCollapse{top:8px !important;right:12px !important}
-.wb-band #settingsBtn{position:static !important;width:auto !important;height:32px !important;font-size:13px !important}
+/* panel heads: white with a hairline, like every other panel in the app; Midnight is only the app bar */
+#brand,#siteDetailHead,#sitesHomeHead,#settingsHead,#panelHead,.ac-head{background:#fff !important;color:#1D1247 !important;border-bottom:1px solid #E3E0DB !important}
+#brand *,#siteDetailHead *,#sitesHomeHead *,#settingsHead *,#panelHead *,.ac-head *{color:#1D1247 !important}
+#brand{padding:12px 16px !important;min-height:0 !important}
+#brand .brand-mark,#brand .bd-mark{display:none !important}
+#brand h1{font-size:14px !important;font-weight:600 !important;margin:0 !important}
+#settingsBtn,#railCollapse{background:#fff !important;border:1px solid #D3CEC7 !important;color:#1D1247 !important;border-radius:6px !important}
+#settingsBtn:hover,#railCollapse:hover{background:#F8F7F4 !important;border-color:#BDB6AD !important}
+#settingsBtn{top:9px !important;right:12px !important}
+#railCollapse{top:9px !important;right:46px !important}
 /* controls: Midnight selection, hover and pressed states like the other tabs */
 .seg button.active,.chip.active,.tab.active{background:#1D1247 !important;color:#fff !important;border-color:#1D1247 !important}
 button{transition:background-color .12s,border-color .12s,color .12s}

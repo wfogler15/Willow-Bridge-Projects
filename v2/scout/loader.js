@@ -19,13 +19,6 @@
   };
 
   WB.ready('scout', { marketMode: 'single' }).then(() => {
-    const band = WB.band({ title: 'Site scout', compact: true,
-      lede: 'Parcels, owners and nearby product for sites we are chasing. Deals checked "Show in Site Scout" in Pipeline appear here.' });
-    const acts = document.createElement('div'); acts.className = 'acts'; band.querySelector('.top').appendChild(acts);
-    const sb = document.getElementById('settingsBtn');
-    if (sb) { sb.textContent = 'Settings'; sb.className = 'b'; sb.removeAttribute('style'); acts.appendChild(sb); }
-    const setTop = () => { document.documentElement.style.setProperty('--top', Math.round(band.getBoundingClientRect().bottom) + 'px'); window.dispatchEvent(new Event('resize')); };
-    let last = 0; new ResizeObserver(() => { const b = Math.round(band.getBoundingClientRect().bottom); if (b !== last) { last = b; setTop(); } }).observe(band);
     const s = document.createElement('script');
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
     // the app bar's market dropdown drives Site Scout (its own Phoenix/Denver toggle is hidden)

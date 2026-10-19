@@ -13,7 +13,7 @@
   .page{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;width:100%;max-width:none;padding-top:16px;padding-bottom:20px}
   .wb-band{flex:none}
   .toolbar .input[type=search]{width:280px}
-  .chip-near{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 6px 0 10px;border-radius:6px;background:var(--selected);color:var(--ink);font-weight:600;font-size:var(--fs);border:1px solid var(--purple)}
+  .chip-near{display:inline-flex;align-items:center;gap:8px;height:28px;padding:0 6px 0 10px;border-radius:6px;background:var(--selected);color:var(--ink);font-weight:600;font-size:var(--fs);border:1px solid var(--purple)}
   .chip-near button{border:0;background:none;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 4px}
   .split{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,34%);gap:16px}
   .split>.sec{display:flex;flex-direction:column;min-height:0;margin:0}
@@ -47,14 +47,6 @@
 </head>
 <body>
 <main class="page">
-  <div class="toolbar">
-    <select class="input" id="f-since" style="width:auto">
-      <option value="">All dates</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option><option value="5">Last 5 years</option>
-    </select>
-    <span id="near"></span>
-    <span class="grow"></span>
-    <input class="input" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker">
-  </div>
   <div class="figs" id="stats"></div>
   <div class="split">
     <section class="sec"><div class="sec-h"><h2 id="t-title">Sales</h2><span class="note">Click a heading to sort. Double-click a row to edit.</span></div>
@@ -90,7 +82,9 @@
   const near = P.get('near') ? { at: P.get('near').split(',').map(Number), mi: +(P.get('mi') || 3) } : null;
   const miles = (c) => { if (c.lat == null || !near) return Infinity; const [la, lo] = near.at, r = Math.PI / 180, a = Math.sin((c.lat - la) * r / 2) ** 2 + Math.cos(la * r) * Math.cos(c.lat * r) * Math.sin((c.lng - lo) * r / 2) ** 2; return 7917.5 * Math.asin(Math.sqrt(a)); };
   WB.band({ title: 'Sale comps', lede: 'Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.',
-    actions: '<button class="b" id="b-export">Export to Excel</button><button class="b primary" id="b-add">Add a comp</button>',
+    actions: '<span id="near"></span><select class="fld" id="f-since"><option value="">All dates</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option><option value="5">Last 5 years</option></select>'
+      + '<input class="fld" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker" style="width:260px">'
+      + '<button class="b" id="b-export">Export to Excel</button><button class="b primary" id="b-add">Add a comp</button>',
     tabs: '<button data-v="investment" class="on" role="tab">Investment sales</button><button data-v="land" role="tab">Land sales</button>' });
   document.querySelector('.wb-band .tabs').id = 'f-type';
   const state = { market: WB.getMarket(), type: 'investment', since: '', q: '', sort: 'sale_date', dir: -1, sel: null };

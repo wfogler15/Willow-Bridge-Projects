@@ -20,12 +20,13 @@ em,i{font-style:normal !important}
 body.wb-shell .main>.topbar,body.wb-shell .main>.tabs{display:none !important}
 .sidebar-inner>.brand,.sidebar-inner>.brand-sub{display:none !important}
 .wb-band .tabs{position:static !important;padding:0 !important;background:none !important;border-bottom:0 !important;z-index:auto !important;top:auto !important}
-.wb-band .tabs .tab{background:none !important;border:0 !important;border-bottom:3px solid transparent !important;border-radius:0 !important;box-shadow:none !important;
-  color:rgba(255,255,255,.7) !important;font-size:14px !important;font-weight:400 !important;padding:11px 14px 10px !important}
-.wb-band .tabs .tab:first-child{padding-left:0 !important}
-.wb-band .tabs .tab:hover{color:#fff !important}
-.wb-band .tabs .tab.active{color:#fff !important;font-weight:600 !important;border-bottom-color:#fff !important;background:none !important}
-.wb-band .b{font-size:13px !important}
+.wb-band .tabs .tab{background:none !important;border:0 !important;border-bottom:2px solid transparent !important;border-top:2px solid transparent !important;border-radius:0 !important;box-shadow:none !important;
+  color:#6E6886 !important;font-size:13px !important;font-weight:400 !important;padding:0 10px !important;height:44px}
+.wb-band .tabs .tab:hover{color:#1D1247 !important}
+.wb-band .tabs .tab.active{color:#1D1247 !important;font-weight:600 !important;border-bottom-color:#1D1247 !important;background:none !important}
+.wb-band .b{font-size:12px !important}
+/* the band is in the page flow; the dashboard's sticky offsets assumed a topbar */
+body.wb-shell .wb-band{position:sticky;top:var(--wb-nav-h,48px)}
 .content{padding:16px 24px 40px !important}
 
 /* ---------- panels ---------- */

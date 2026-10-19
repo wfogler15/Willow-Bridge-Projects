@@ -470,18 +470,44 @@ html,body{background:#F3F2EF !important}
 .dlg .btn:focus-visible,.dlg .x:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px #432890}
 @media (max-width:700px){.dlg .grid{grid-template-columns:1fr 1fr}}
 
-/* floating view switch and actions */
-.ptool{position:fixed;z-index:20;top:calc(var(--top) + var(--g) + 10px);right:calc(var(--side) + 10px);display:flex;gap:8px;align-items:center}
-.ptool .pills{background:rgba(233,231,226,.94);box-shadow:0 2px 10px rgba(16,10,40,.18)}
-.ptool .lbtn{box-shadow:0 2px 10px rgba(16,10,40,.18)}
-.lbtn.primary{background:#1D1247;border-color:#1D1247;color:#fff}
-.lbtn.primary:hover{background:#2B1D63;border-color:#2B1D63}
-.lbtn[aria-pressed="true"]{background:#1D1247;border-color:#1D1247;color:#fff}
-body.listing .ptool{top:calc(var(--top) + 16px);right:var(--side)}
-body.listing .ptool .pills,body.listing .ptool .lbtn{box-shadow:none}
-body.listing #pick{display:none}
-body.listing .ltools{padding-right:262px;flex-wrap:nowrap}
-body.listing .lsearch{min-width:160px !important;flex:0 1 220px}
+#pick,#addb{display:none !important}
+
+/* card type scale: 12 labels, 13 body, 14 emphasis, 20 title, 28 headline price */
+#panel .brandrow,#panel h2.accent,#panel .rule{display:none !important}
+#panel h1,#panel h1.cover{font:600 20px/1.2 var(--display) !important;margin:0 !important;letter-spacing:-.01em !important}
+#panel h2{font-size:13px !important;color:#6E6886 !important;font-family:var(--font) !important;font-weight:400 !important}
+#panel .slide{gap:12px}
+#panel .ag-head,#panel .ag-head span{font-size:12px !important;font-weight:400 !important;color:#6E6886 !important;letter-spacing:0 !important}
+#panel .ag-head span:first-child{font-weight:600 !important;color:#1D1247 !important}
+#panel .ag-head{border-bottom:1px solid #E3E0DB !important}
+#panel .ag-row{padding:7px 6px !important}
+#panel .ag-name{font-size:13px !important;font-weight:600 !important}
+#panel .ag-num,#panel .ag-px{font-size:13px !important;font-family:var(--font) !important}
+#panel .agenda+.agenda{margin-top:14px}
+#panel .chip{font-size:11.5px !important;letter-spacing:0 !important;padding:1px 7px !important;border-radius:4px !important}
+#panel .meta{font-size:12px !important;color:#9C97AE !important}
+#panel .hv{font-size:28px !important;line-height:1.1 !important}
+#panel .tv{font-size:17px !important}
+#panel .tv small,#panel .hv small{font-size:12px !important}
+#panel dl,#panel dd,#panel dt{font-size:13px !important}
+#panel .sec h3{font-size:12px !important}
+#panel em.agnew,#list .tnew{font-size:11px !important;padding:0 6px !important;line-height:1.6}
+
+/* comps layers control and popups */
+.lyr{position:fixed;z-index:20;top:calc(var(--top) + var(--g) + 10px);right:calc(var(--side) + 10px);background:#fff;border:1px solid #E3E0DB;border-radius:8px;
+  padding:8px 12px 9px;box-shadow:0 4px 14px rgba(16,10,40,.16);font:13px var(--font);color:#1D1247;display:flex;flex-direction:column;gap:5px}
+.lyr-h{font-size:12px;font-weight:600;margin-bottom:1px}
+.lyr label{display:flex;align-items:center;gap:7px;cursor:pointer;white-space:nowrap}
+.lyr input{width:14px;height:14px;margin:0;accent-color:#1D1247}
+.lyr i{width:9px;height:9px;border-radius:50%;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(29,18,71,.3)}
+body.listing .lyr{display:none}
+.lyr-pop .maplibregl-popup-content{font:13px/1.4 var(--font);color:#1D1247;border-radius:8px;padding:10px 12px 10px;box-shadow:0 8px 24px rgba(16,10,40,.22)}
+.lyr-pop h4{margin:0 16px 1px 0;font-size:14px;font-weight:600}
+.lyr-pop p{margin:0 0 6px;color:#6E6886;font-size:12px}
+.lyr-pop div{display:flex;justify-content:space-between;gap:14px;padding:2px 0;border-top:1px solid #EEECE8}
+.lyr-pop div span{color:#6E6886}
+.lyr-pop a{display:inline-block;margin-top:6px;color:#432890;font-weight:600;font-size:12px}
+.lyr-pop .maplibregl-popup-close-button{font-size:16px;color:#6E6886;padding:2px 6px}
 
 .mg .mg-h{font-size:12px;color:var(--text);font-weight:600;margin-top:4px;padding-top:8px;border-top:1px solid rgba(29,18,71,.08)}
 .mg .mg-h:first-child{border-top:0;padding-top:0;margin-top:0}
@@ -498,7 +524,7 @@ body.listing .lsearch{min-width:160px !important;flex:0 1 220px}
 <section id="list" aria-label="All deals" hidden>
   <div class="ltools"><div class="pills" id="lkind" role="group" aria-label="Deal type"></div><div class="pills" id="lstat" role="group" aria-label="Status"></div>
     <span style="flex:1"></span><input class="lsearch" id="lq" type="search" placeholder="Search deals, brokers, sellers, notes">
-    <button type="button" class="lbtn" id="lmap">Show on map</button><button type="button" class="lbtn" id="lexport">Export to Excel</button><button type="button" class="lbtn" id="ladd" hidden>Add a deal</button></div>
+    <button type="button" class="lbtn" id="lmap">Show on map</button><button type="button" class="lbtn" id="lexport">Export to Excel</button><button type="button" class="lbtn primary" id="ladd">Add a deal</button></div>
   <div class="lpanel"><div class="lpanel-h"><div class="t" id="lcount"></div><div class="s">Click a heading to sort. Click a deal to open and edit it.</div></div>
     <div class="tw"><table><thead id="lth"></thead><tbody id="ltb"></tbody></table></div></div>
 </section>
@@ -613,20 +639,18 @@ const REPORT = await loadReport();
 
 /* ---------- light shell: the Midnight page band, the card and the map side by side ---------- */
 (function shell(){
-  /* no page header here: the map and card run up to the app bar; view switch and actions float on the map */
-  const bar = document.createElement("div"); bar.className = "ptool";
-  bar.innerHTML = '<div class="pills" role="tablist"><button type="button" data-t="call" aria-pressed="true">Map</button><button type="button" data-t="list" aria-pressed="false">All deals</button></div>';
-  ["pick", "addb"].forEach(id => { const b = document.getElementById(id); if(b){ b.className = "lbtn" + (id === "addb" ? " primary" : ""); bar.appendChild(b); } });
-  document.body.appendChild(bar);
+  /* sub-bar: Map and Deal log; Add a deal lives in the deal log, Fix parcel in each deal's settings */
+  const band = WB.band({title: "Pipeline", tabs: '<button type="button" class="on" data-t="call" role="tab">Map</button><button type="button" data-t="list" role="tab">Deal log</button>'});
   const row = document.createElement("div"); row.className = "pctl";
   ["prev", "play", "next"].forEach(id => { const b = document.getElementById(id); if(b) row.appendChild(b); });
   document.getElementById("pfoot").appendChild(row);
-  bar.querySelector(".pills").addEventListener("click", e => {
+  band.querySelector(".tabs").addEventListener("click", e => {
     const b = e.target.closest("button[data-t]"); if(!b) return;
     const open = !document.getElementById("list").hidden;
     if((b.dataset.t === "list") !== open) document.getElementById("listb").click();
   });
-  document.documentElement.style.setProperty("--top", "48px");
+  const setTop = () => { document.documentElement.style.setProperty("--top", Math.round(band.getBoundingClientRect().bottom) + "px"); if(window.__pmap) window.__pmap.resize(); };
+  new ResizeObserver(setTop).observe(band); setTop(); addEventListener("resize", setTop);
 })();
 
 /* ---------- deal context: this deal against its submarket (Market Intel) and sales nearby (Sale Comps) ---------- */
@@ -678,7 +702,7 @@ function manageBlock(d){
     + '<label>Market<select name="market_id"><option value="denver"' + (r.market_id === "denver" ? " selected" : "") + '>Denver</option><option value="phoenix"' + (r.market_id === "phoenix" ? " selected" : "") + '>Phoenix</option></select></label>'
     + '<label>Latitude<input type="number" name="lat" step="any" value="' + v(r.lat) + '"></label>'
     + '<label>Longitude<input type="number" name="lng" step="any" value="' + v(r.lng) + '"></label>'
-    + '<div class="full quick"><button type="button" data-pin>Set location on the map</button><span class="pinmsg" style="font-size:11.5px;color:var(--muted);align-self:center"></span></div>'
+    + '<div class="full quick"><button type="button" data-pin>Set location on the map</button><button type="button" data-fixparcel>Fix the parcel outline</button><span class="pinmsg" style="font-size:11.5px;color:var(--muted);align-self:center"></span></div>'
     + '<label>Broker<input name="broker" value="' + v(r.broker) + '"></label>'
     + '<label>Seller<input name="seller" value="' + v(r.seller) + '"></label>'
     + '<label>First seen<input type="date" name="first_seen" value="' + v(r.first_seen) + '"></label>'
@@ -715,6 +739,7 @@ function hookPin(){
 }
 document.addEventListener("click", async (ev) => {
   const box = ev.target.closest(".mg[data-deal]"); if(!box) return;
+  if(ev.target.closest("[data-fixparcel]")){ document.getElementById("pick").click(); return; }
   if(ev.target.closest("[data-pin]")){
     if(!map){ box.querySelector(".pinmsg").textContent = "The map isn't loaded."; return; }
     if(picking) setPick(false);
@@ -1391,7 +1416,7 @@ function renderList(){
 }
 function setList(open){
   $("#list").hidden = !open; $("#listb").setAttribute("aria-pressed", open);
-  document.querySelectorAll(".ptool .pills button").forEach(b => b.setAttribute("aria-pressed", (b.dataset.t === "list") === open)); document.body.classList.toggle("listing", open);
+  document.querySelectorAll(".wb-band .tabs button").forEach(b => b.classList.toggle("on", (b.dataset.t === "list") === open)); document.body.classList.toggle("listing", open);
   if(open){ if(picking) setPick(false); setPlaying(false); renderList(); }
 }
 function playDeal(d){ const i = SLIDES.findIndex(s => s.d === d); setList(false); if(i >= 0) go(i); }
@@ -1544,6 +1569,85 @@ if(new URLSearchParams(location.search).get("pin") === "1") setTimeout(() => {
   const det = document.querySelector("details.manage"); if(det) det.open = true;
   const b = document.querySelector(".mg [data-pin]"); if(b) b.click();
 }, 2500);
+
+/* ---------- comps layers on the map: investment sales, land sales, and property comps (rent, occupancy) ---------- */
+(function layers(){
+  const LAYERS = [
+    {id: "inv", label: "Investment sales", color: "#432890"},
+    {id: "land", label: "Land sales", color: "#2F6B3A"},
+    {id: "prop", label: "Property comps", color: "#8C8FE6"},
+  ];
+  const box = document.createElement("div"); box.className = "lyr";
+  box.innerHTML = '<div class="lyr-h">Comps on the map</div>' + LAYERS.map(l => '<label><input type="checkbox" data-l="' + l.id + '"><i style="background:' + l.color + '"></i>' + l.label + "</label>").join("");
+  document.body.appendChild(box);
+  const data = {}, E = WB.esc;
+  const n = v => v == null || v === "" || isNaN(+v) ? null : +v;
+  const M = v => v == null ? "–" : v >= 1e6 ? "$" + (v / 1e6).toFixed(1) + "M" : "$" + Math.round(v / 1e3) + "K";
+  const dt = s => { if(!s) return ""; const [y, m, d] = s.split("-"); return +m + "/" + +d + "/" + y.slice(2); };
+  const fc = feats => ({type: "FeatureCollection", features: feats});
+  const pt = (lng, lat, props) => ({type: "Feature", geometry: {type: "Point", coordinates: [lng, lat]}, properties: props});
+
+  async function load(id){
+    if(data[id]) return data[id];
+    if(id === "prop"){
+      const rows = await WB.fetchAll("core", "properties", "id,name,address,units,year_built,status,lat,lng,rent_sf:attrs->avgAskingSF,rent_mo:attrs->avgAskingUnit,vac:attrs->vacancy,conc:attrs->concessions",
+        q => q.neq("kind", "land").not("lat", "is", null));
+      data[id] = fc(rows.filter(r => r.lat != null && r.lng != null).map(r => pt(+r.lng, +r.lat, {
+        name: r.name || r.address || "Property", units: r.units, yb: r.year_built, status: r.status,
+        rsf: n(r.rent_sf), rmo: n(r.rent_mo), occ: n(r.vac) == null ? null : 100 - n(r.vac), conc: n(r.conc) == null ? null : n(r.conc) / 100 * 52})));
+    } else {
+      const rows = await WB.fetchAll("comps", "sale_comps", "id,name,city,comp_type,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_land_sf,cap_rate,buyer,lat,lng",
+        q => q.eq("comp_type", id === "inv" ? "investment" : "land").not("lat", "is", null));
+      data[id] = fc(rows.filter(r => r.lat != null && r.lng != null).map(r => pt(+r.lng, +r.lat, {
+        id: r.id, name: r.name || "Sale", city: r.city, date: r.sale_date, price: n(r.sale_price), units: r.units, pu: r.proposed_units, acres: n(r.acres), yb: r.year_built,
+        ppu: n(r.price_per_unit) ?? (n(r.sale_price) && (r.units || r.proposed_units) ? r.sale_price / (r.units || r.proposed_units) : null),
+        psf: n(r.price_per_land_sf) ?? (n(r.sale_price) && n(r.acres) ? r.sale_price / (r.acres * 43560) : null), cap: n(r.cap_rate), buyer: r.buyer})));
+    }
+    return data[id];
+  }
+  function popupHtml(id, p){
+    const row = (k, v) => v == null || v === "" ? "" : "<div><span>" + k + "</span><b>" + v + "</b></div>";
+    if(id === "prop") return "<h4>" + E(p.name) + "</h4><p>" + E([p.units ? p.units + " units" : "", p.yb, p.status].filter(Boolean).join(", ")) + "</p>"
+      + row("Asking rent / SF", p.rsf != null ? "$" + (+p.rsf).toFixed(2) : null) + row("Asking rent / month", p.rmo != null ? "$" + Math.round(p.rmo).toLocaleString("en-US") : null)
+      + row("Occupancy", p.occ != null ? (+p.occ).toFixed(1) + "%" : null) + row("Concessions", p.conc != null && p.conc > 0 ? (+p.conc).toFixed(1) + " wks free" : (p.conc === 0 ? "None" : null));
+    if(id === "land") return "<h4>" + E(p.name) + "</h4><p>" + E([p.city, dt(p.date)].filter(Boolean).join(", ")) + "</p>"
+      + row("Price", M(p.price)) + row("Acres", p.acres != null ? (+p.acres).toFixed(2) : null) + row("Per door", p.ppu ? M(p.ppu) : null)
+      + row("Per land SF", p.psf ? "$" + (+p.psf).toFixed(2) : null) + row("Buyer", p.buyer ? E(p.buyer) : null) + '<a href="../comps/?comp=' + p.id + '">Open in Sale comps</a>';
+    return "<h4>" + E(p.name) + "</h4><p>" + E([p.city, p.yb, p.units ? p.units + " units" : "", dt(p.date)].filter(Boolean).join(", ")) + "</p>"
+      + row("Price", M(p.price)) + row("Per unit", p.ppu ? M(p.ppu) : null) + row("Cap rate", p.cap ? (+p.cap).toFixed(2) + "%" : null)
+      + row("Buyer", p.buyer ? E(p.buyer) : null) + '<a href="../comps/?comp=' + p.id + '">Open in Sale comps</a>';
+  }
+  let popup = null;
+  async function toggle(id, on){
+    const map = window.__pmap; if(!map) return;
+    const src = "lyr-" + id;
+    if(!on){ if(map.getLayer(src)) map.setLayoutProperty(src, "visibility", "none"); return; }
+    const el = box.querySelector('[data-l="' + id + '"]'); el.disabled = true;
+    try {
+      const fcData = await load(id);
+      const add = () => {
+        if(!map.getSource(src)){
+          map.addSource(src, {type: "geojson", data: fcData});
+          const L = LAYERS.find(l => l.id === id);
+          map.addLayer({id: src, type: "circle", source: src, paint: {
+            "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, id === "prop" ? 2.5 : 3.5, 14, id === "prop" ? 6 : 8],
+            "circle-color": L.color, "circle-stroke-color": "#fff", "circle-stroke-width": 1.2, "circle-opacity": .95}});
+          map.on("click", src, e => {
+            const f = e.features && e.features[0]; if(!f) return;
+            if(popup) popup.remove();
+            popup = new maplibregl.Popup({closeButton: true, maxWidth: "280px", className: "lyr-pop"}).setLngLat(f.geometry.coordinates).setHTML(popupHtml(id, f.properties)).addTo(map);
+          });
+          map.on("mouseenter", src, () => { map.getCanvas().style.cursor = "pointer"; });
+          map.on("mouseleave", src, () => { map.getCanvas().style.cursor = ""; });
+        } else map.setLayoutProperty(src, "visibility", "visible");
+      };
+      if(map.isStyleLoaded()) add(); else map.once("load", add);
+      WB.toast(fcData.features.length.toLocaleString("en-US") + " " + LAYERS.find(l => l.id === id).label.toLowerCase() + " on the map");
+    } catch(err){ WB.toast(err.message || String(err)); el.checked = false; }
+    el.disabled = false;
+  }
+  box.addEventListener("change", e => { const c = e.target.closest("[data-l]"); if(c) toggle(c.dataset.l, c.checked); });
+})();
 
 initMap();
 })();
