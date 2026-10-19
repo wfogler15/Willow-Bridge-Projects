@@ -42,7 +42,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202610191638');
+    add(ROOT + 'shared/wb-chrome.css?v=202610191647');
   })();
 
   // ---------- market context shared across tabs ----------
@@ -100,6 +100,15 @@
       document.addEventListener('click', (e) => { if (!strip.contains(e.target)) { strip.classList.remove('open'); btn.setAttribute('aria-pressed', 'false'); } });
     }
     loadStrip();
+    // dense tools (Market intel) give the app bar's space back once you scroll; it returns at the top of the page or when the pointer touches the top edge
+    if (opts.navAutoHide) {
+      nav.classList.add('autohide');
+      let peek = false;
+      const sync = () => nav.classList.toggle('hid', window.scrollY > 60 && !peek && !nav.matches(':hover') && !$('.menu.open', nav) && !$('.wb-strip.drop.open'));
+      window.addEventListener('scroll', sync, { passive: true });
+      document.addEventListener('mousemove', (e) => { const p = e.clientY < 8 || (peek && e.clientY < 56); if (p !== peek) { peek = p; sync(); } }, { passive: true });
+      nav.addEventListener('mouseleave', () => setTimeout(sync, 300));
+    }
   }
 
   let STRIP = null, stripP = null;

@@ -28,7 +28,7 @@
   overlay.style.cssText = 'position:fixed;inset:48px 0 0 0;z-index:9000;display:grid;place-items:center;background:var(--cloud,#FBFBF9);font:15px/1.4 Aptos,Inter,Arial,sans-serif;color:#1D1247';
 
   async function boot() {
-    const { sb, user } = await WB.ready('intel', { marketMode: 'single' });
+    const { sb, user } = await WB.ready('intel', { marketMode: 'single', navAutoHide: true });
     // active markets drive the Settings picker; adding a market = a row in core.markets with config.active = true + its data
     const { data: mlist, error: mErr } = await sb.schema('core').from('markets').select('id,label,title,active:config->active').order('id');
     if (mErr) throw mErr;
@@ -97,9 +97,24 @@
 
     const s = document.createElement('script');
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
-    s.onload = () => overlay.remove();
+    s.onload = () => { overlay.remove(); compactHeader(); };
     s.onerror = () => { overlay.textContent = 'The dashboard code failed to load. Reload the page.'; };
     document.body.appendChild(s);
+  }
+
+  // More room for a dense tab: the Midnight header goes, its two buttons sit at the right end of the tab row, and the tab row stays pinned.
+  function compactHeader() {
+    const top = document.querySelector('.main > .topbar'), tabs = document.querySelector('.main > .tabs');
+    if (!top || !tabs) return;
+    const acts = document.createElement('div'); acts.className = 'tabs-acts';
+    ['overview-report-btn', 'settings-btn'].forEach((id) => { const b = document.getElementById(id); if (b) acts.appendChild(b); });
+    tabs.appendChild(acts); top.style.display = 'none';
+    const st = document.createElement('style');
+    st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}.main>.tabs{top:0 !important;align-items:center;z-index:30}'
+      + '.tabs-acts{margin-left:auto;display:flex;gap:8px;padding-left:12px}'
+      + '.tabs-acts .topbar-action-btn{background:var(--bg-1);border:1px solid var(--line);color:var(--accent-deep);padding:6px 12px;font-size:11px}'
+      + '.tabs-acts .topbar-action-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}';
+    document.head.appendChild(st);
   }
 
   boot().catch((e) => {

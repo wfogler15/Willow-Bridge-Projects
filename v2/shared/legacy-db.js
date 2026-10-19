@@ -144,6 +144,7 @@
       const patch = oppToDeal(o, c.market);
       const found = await findDeal(row.id);
       if (found) {
+        delete patch.market_id;
         patch.uw = { ...(found.uw || {}), ...patch.uw };
         const { error } = await S('pipeline').from('deals').update(patch).eq('id', found.id); if (error) throw error;
         if (found.stage !== patch.stage) await S('pipeline').from('deal_log').insert({ deal_id: found.id, kind: 'stage', body: `Stage set to ${o.status} in Market Intel.` });
@@ -166,7 +167,8 @@
     async custom_comps_upsert(row) {
       const c = ctx(), patch = legacyToCompRow(row.comp_type, row.data || {}, c.market);
       const found = await findComp(row.id);
-      if (found) { const { error } = await S('comps').from('sale_comps').update(patch).eq('id', found.id); if (error) throw error; }
+      // never move an existing comp to the market this page happens to show (the database sets market from location)
+      if (found) { delete patch.market_id; const { error } = await S('comps').from('sale_comps').update(patch).eq('id', found.id); if (error) throw error; }
       else {
         patch.legacy = { legacy_id: String(row.id), origin: 'market-intel' }; patch.source = 'manual'; patch.verified = true;
         const { error } = await S('comps').from('sale_comps').insert(patch); if (error) throw error;
@@ -218,7 +220,7 @@
     async custom_properties_upsert(row) {
       const c = ctx(), patch = legacyToPropRow(row.data || {}, c.market);
       const id = await propUuid(row.id);
-      if (id) { const { error } = await S('core').from('properties').update(patch).eq('id', id); if (error) throw error; }
+      if (id) { delete patch.market_id; const { error } = await S('core').from('properties').update(patch).eq('id', id); if (error) throw error; }
       else {
         const { data, error } = await S('core').from('properties').insert(patch).select('id').single(); if (error) throw error;
         c.propByCostar[String(row.id)] = data.id; c.costarByProp[data.id] = String(row.id); c.customProps.add(data.id);

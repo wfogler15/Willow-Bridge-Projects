@@ -49,6 +49,10 @@
 .wb-nav .menu .who{padding:8px 10px 10px;color:var(--wb-muted);font-size:12.5px;border-bottom:1px solid var(--wb-rule-2);margin-bottom:4px}
 .wb-nav .menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:5px;font:13px var(--wb-font);color:var(--wb-ink);cursor:pointer}
 .wb-nav .menu button:hover{background:var(--wb-ground)}
+/* auto-hiding app bar (Market intel) */
+.wb-nav.autohide{transition:transform .2s ease}
+.wb-nav.autohide.hid{transform:translateY(-100%)}
+@media (prefers-reduced-motion:reduce){.wb-nav.autohide{transition:none}}
 @media (max-width:900px){.wb-nav{gap:12px;padding:0 12px}.wb-nav .brand span{display:none}.wb-nav .strip-btn span{display:none}}
 
 /* ---------- market strip (inline on Home, drops down from the bar on tool pages) ---------- */
