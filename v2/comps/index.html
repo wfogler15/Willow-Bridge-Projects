@@ -221,20 +221,22 @@
   map.on('dragstart', () => { map._fitOnce = true; });
 
   // ---------- export ----------
+  // Export everything (every market, both types) so the quarterly archive is complete; one sheet per type.
   $('#b-export').onclick = () => {
-    const list = filtered();
-    const head = state.type === 'investment'
-      ? ['Sale date', 'Market', 'Property', 'Address', 'City', 'Submarket', 'Units', 'Year built', 'Price', '$/unit', '$/SF', 'Cap rate %', 'Buyer', 'Seller', 'Broker', 'Notes', 'Source', 'Source link', 'Verified']
-      : ['Sale date', 'Market', 'Site', 'Address', 'City', 'Submarket', 'Acres', 'Proposed units', 'Price', '$/door', '$/land SF', 'Product', 'Construction', 'Buyer', 'Seller', 'Broker', 'Notes', 'Source', 'Source link', 'Verified'];
-    const data = list.map((c) => state.type === 'investment'
-      ? [c.sale_date, c.market_id, c.name, c.address, c.city, c.submarket, c.units, c.year_built, num(c.sale_price), num(c.price_per_unit), num(c.price_per_sf), num(c.cap_rate), c.buyer, c.seller, c.broker, c.notes, c.source, c.source_url, c.verified ? 'Yes' : '']
-      : [c.sale_date, c.market_id, c.name, c.address, c.city, c.submarket, num(c.acres), c.proposed_units, num(c.sale_price), num(c.price_per_unit), num(c.price_per_land_sf), c.product_type, c.construction_type, c.buyer, c.seller, c.broker, c.notes, c.source, c.source_url, c.verified ? 'Yes' : '']);
-    const ws = XLSX.utils.aoa_to_sheet([head, ...data]);
-    ws['!cols'] = head.map((h) => ({ wch: Math.max(10, h.length + 2) }));
+    const INV = ['Sale date', 'Market', 'Property', 'Address', 'City', 'Submarket', 'Units', 'Year built', 'Price', '$/unit', '$/SF', 'Cap rate %', 'Product', 'Buyer', 'Seller', 'Broker', 'Notes', 'Source', 'Source link', 'Verified', 'Latitude', 'Longitude'];
+    const LAND = ['Sale date', 'Market', 'Site', 'Address', 'City', 'Submarket', 'Acres', 'Proposed units', 'Price', '$/door', '$/land SF', 'Product', 'Construction', 'Buyer', 'Seller', 'Broker', 'Notes', 'Source', 'Source link', 'Verified', 'Latitude', 'Longitude'];
+    const by = (t) => rows.filter((c) => c.comp_type === t).sort((a, b) => (b.sale_date || '').localeCompare(a.sale_date || ''));
+    const inv = by('investment').map((c) => [c.sale_date, WB.marketLabel(c.market_id), c.name, c.address, c.city, c.submarket, c.units, c.year_built, num(c.sale_price), num(c.price_per_unit), num(c.price_per_sf), num(c.cap_rate), c.product_type, c.buyer, c.seller, c.broker, c.notes, c.source, c.source_url, c.verified ? 'Yes' : '', num(c.lat), num(c.lng)]);
+    const land = by('land').map((c) => [c.sale_date, WB.marketLabel(c.market_id), c.name, c.address, c.city, c.submarket, num(c.acres), c.proposed_units, num(c.sale_price), num(c.price_per_unit), num(c.price_per_land_sf), c.product_type, c.construction_type, c.buyer, c.seller, c.broker, c.notes, c.source, c.source_url, c.verified ? 'Yes' : '', num(c.lat), num(c.lng)]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, state.type === 'investment' ? 'Investment sales' : 'Land sales');
-    const mk = state.market === 'all' ? 'Denver-Phoenix' : state.market[0].toUpperCase() + state.market.slice(1);
-    XLSX.writeFile(wb, `WB ${state.type === 'investment' ? 'Investment' : 'Land'} Sale Comps - ${mk} - ${new Date().toISOString().slice(0, 10)}.xlsx`);
+    [['Investment sales', INV, inv], ['Land sales', LAND, land]].forEach(([name, head, data]) => {
+      const ws = XLSX.utils.aoa_to_sheet([head, ...data]);
+      ws['!cols'] = head.map((h) => ({ wch: Math.max(10, h.length + 2) }));
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: data.length, c: head.length - 1 } }) };
+      XLSX.utils.book_append_sheet(wb, ws, name);
+    });
+    XLSX.writeFile(wb, `WB Sale Comps - all markets - ${new Date().toISOString().slice(0, 10)}.xlsx`);
+    WB.toast(`Exported ${inv.length + land.length} comps, all markets`);
   };
   const num = (v) => (v == null || v === '' ? null : +v);
 
