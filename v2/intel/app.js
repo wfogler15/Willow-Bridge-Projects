@@ -2741,21 +2741,21 @@ function chartGridColor() {
   return document.documentElement.getAttribute('data-theme') === 'dark'
     ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)';
 }
-Chart.defaults.font.family = "Aptos, 'Segoe UI', Inter, sans-serif";
-Chart.defaults.font.size = 11.5;
-Chart.defaults.color = () => chartThemeColor('--ink-4', '#6E6886');
+Chart.defaults.font.family = "'Inter Tight', sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = () => chartThemeColor('--ink-3', '#7a7468');
 Chart.defaults.borderColor = () => chartGridColor();
-Chart.defaults.plugins.legend.labels.color = () => chartThemeColor('--ink-2', '#433C63');
-Chart.defaults.plugins.legend.labels.font = { size: 12, family: "Aptos, 'Segoe UI', Inter, sans-serif" };
-Chart.defaults.plugins.tooltip.backgroundColor = '#1D1247';
-Chart.defaults.plugins.tooltip.borderColor = '#1D1247';
-Chart.defaults.plugins.tooltip.borderWidth = 0;
+Chart.defaults.plugins.legend.labels.color = () => chartThemeColor('--ink-2', '#3d3d3d');
+Chart.defaults.plugins.legend.labels.font = { size: 11, family: "'Inter Tight', sans-serif" };
+Chart.defaults.plugins.tooltip.backgroundColor = '#1a1a1a';
+Chart.defaults.plugins.tooltip.borderColor = '#432890';
+Chart.defaults.plugins.tooltip.borderWidth = 1;
 Chart.defaults.plugins.tooltip.padding = 10;
 Chart.defaults.plugins.tooltip.titleColor = '#ffffff';
-Chart.defaults.plugins.tooltip.bodyColor = '#ffffff';
-Chart.defaults.plugins.tooltip.titleFont = { family: "Aptos, 'Segoe UI', Inter, sans-serif", size: 12, weight: '600' };
-Chart.defaults.plugins.tooltip.bodyFont = { family: "Aptos, 'Segoe UI', Inter, sans-serif", size: 12 };
-Chart.defaults.plugins.tooltip.cornerRadius = 6;
+Chart.defaults.plugins.tooltip.bodyColor = '#C7C9FE';
+Chart.defaults.plugins.tooltip.titleFont = { family: "'Inter Tight', sans-serif", size: 10, weight: '500' };
+Chart.defaults.plugins.tooltip.bodyFont = { family: "'Inter Tight', sans-serif", size: 11 };
+Chart.defaults.plugins.tooltip.cornerRadius = 2;
 Chart.defaults.plugins.tooltip.displayColors = false;
 
 const charts = {};
@@ -3182,7 +3182,7 @@ function renderOverview() {
   document.getElementById('kpi-occ').innerHTML = (avgOcc == null) ? '—' : `${avgOcc.toFixed(1)}<span class="unit">%</span>`;
   document.getElementById('kpi-occ-sub').textContent = `Vacancy ${fmt.pct(avgVac)} · Existing`;
   document.getElementById('kpi-conc').innerHTML = (avgConc == null) ? '—' : `${(avgConc / 100 * 52).toFixed(1)}<span class="unit"> wks</span>`;
-  document.getElementById('kpi-conc-sub').textContent = 'Weeks free, existing, unit-weighted';
+  document.getElementById('kpi-conc-sub').textContent = 'Weeks Free · Existing · Unit-Weighted';
   document.getElementById('kpi-uc').innerHTML = fmt.int(ucData.length);
   document.getElementById('kpi-uc-sub').textContent = `${fmt.int(ucUnits)} Units · All Classes`;
 
@@ -3281,8 +3281,8 @@ function renderOverview() {
       datasets: [{
         label: psfLabel,
         data: rentChartValues,
-        backgroundColor: '#1D1247',
-        borderColor: '#1D1247',
+        backgroundColor: 'rgba(67,40,144,0.85)',
+        borderColor: 'rgba(67,40,144,1)',
         borderWidth: 1,
         borderRadius: 4
       }]
@@ -3350,7 +3350,7 @@ function renderOverview() {
       labels: Object.keys(mix),
       datasets: [{
         data: Object.values(mix),
-        backgroundColor: ['#C7C9FE', '#8C8FE6', '#432890', '#1D1247', '#5E9B57'],
+        backgroundColor: ['#C7C9FE', '#6a4fc0', '#432890', '#1d104b', '#7a8c6a'],
         borderColor: '#ffffff',
         borderWidth: 2
       }]
@@ -3451,8 +3451,8 @@ function renderOverview() {
       datasets: [{
         label: 'Units Delivered',
         data: Object.values(vintageData),
-        backgroundColor: Object.keys(vintageData).map(y => Number(y) > TODAY.getFullYear() ? '#D9B84A' : '#8C8FE6'),
-        borderColor: Object.keys(vintageData).map(y => Number(y) > TODAY.getFullYear() ? 'rgba(148,107,0,1)' : '#8C8FE6'),
+        backgroundColor: Object.keys(vintageData).map(y => Number(y) > TODAY.getFullYear() ? 'rgba(148,107,0,0.75)' : 'rgba(106,79,192,0.75)'),
+        borderColor: Object.keys(vintageData).map(y => Number(y) > TODAY.getFullYear() ? 'rgba(148,107,0,1)' : 'rgba(106,79,192,1)'),
         borderWidth: 1,
         borderRadius: 4
       }]
@@ -3507,7 +3507,7 @@ function renderOverview() {
         label: 'Properties',
         data: scatterData,
         backgroundColor: 'rgba(67,40,144,0.35)',
-        borderColor: '#1D1247',
+        borderColor: 'rgba(67,40,144,0.9)',
         borderWidth: 1,
         hoverBackgroundColor: 'rgba(106,79,192,0.7)',
         hoverBorderColor: 'rgba(29,18,71,1)',
@@ -3604,8 +3604,8 @@ function renderOverview() {
     //   90–94% healthy → medium violet
     //   < 90% soft → coral
     const colorFor = occ => {
-      if (occ >= 95) return '#1D1247';
-      if (occ >= 90) return '#8C8FE6';
+      if (occ >= 95) return 'rgba(67,40,144,0.9)';
+      if (occ >= 90) return 'rgba(106,79,192,0.85)';
       return 'rgba(156,74,58,0.75)';
     };
     // Bar fill width is anchored to occupancy directly (0-100% scale).
@@ -3807,8 +3807,8 @@ function renderAbsorption() {
         datasets: [{
           label: 'Leases / Month',
           data: top.map(p => +p.absorption.toFixed(1)),
-          backgroundColor: '#1D1247',
-          borderColor: '#1D1247',
+          backgroundColor: 'rgba(67,40,144,0.85)',
+          borderColor: 'rgba(67,40,144,1)',
           borderWidth: 1,
           borderRadius: 4,
           hoverBackgroundColor: 'rgba(106,79,192,0.95)',
@@ -3956,8 +3956,8 @@ function renderAbsorption() {
         {
           label: 'Leased',
           data: velocityRows.map(r => r.leased),
-          backgroundColor: '#1D1247',
-          borderColor: '#1D1247',
+          backgroundColor: 'rgba(67,40,144,0.9)',
+          borderColor: 'rgba(67,40,144,1)',
           borderWidth: 1,
           borderRadius: 4,
           stack: 'units'
@@ -3976,8 +3976,8 @@ function renderAbsorption() {
       velDatasets = [{
         label: 'Avg Leases / Month',
         data: velocityRows.map(r => +r.leasesPerMo.toFixed(1)),
-        backgroundColor: '#8C8FE6',
-        borderColor: '#1D1247',
+        backgroundColor: 'rgba(106,79,192,0.85)',
+        borderColor: 'rgba(67,40,144,1)',
         borderWidth: 1,
         borderRadius: 4,
         hoverBackgroundColor: 'rgba(67,40,144,0.95)',
@@ -4260,10 +4260,10 @@ function renderPipeline() {
     if (timelineEmpty) timelineEmpty.style.display = 'none';
     // Product type palette — Garden = brand purple, Mid-Rise = medium violet, High-Rise = deep aubergine, Other = aged gold
     const productColors = {
-      'Garden':    { bg: '#C7C9FE', border: '#C7C9FE' },
-      'Mid-Rise':  { bg: '#432890', border: '#432890' },
-      'High-Rise': { bg: '#1D1247', border: '#1D1247' },
-      'Other':     { bg: '#D9B84A', border: '#D9B84A' }
+      'Garden':    { bg: 'rgba(67,40,144,0.85)',  border: 'rgba(67,40,144,1)' },
+      'Mid-Rise':  { bg: 'rgba(106,79,192,0.85)', border: 'rgba(106,79,192,1)' },
+      'High-Rise': { bg: 'rgba(29,18,71,0.9)',    border: 'rgba(29,18,71,1)' },
+      'Other':     { bg: 'rgba(148,107,0,0.75)',  border: 'rgba(148,107,0,1)' }
     };
     const visibleBuckets = hasOther ? [...PRODUCT_BUCKETS, 'Other'] : PRODUCT_BUCKETS;
 
@@ -4334,10 +4334,10 @@ function renderPipeline() {
   const pipeSubEl = document.getElementById('pipeline-submarket-sub');
 
   const subProductColors = {
-    'Garden':    { bg: '#C7C9FE', border: '#C7C9FE' },
-    'Mid-Rise':  { bg: '#432890', border: '#432890' },
-    'High-Rise': { bg: '#1D1247', border: '#1D1247' },
-    'Other':     { bg: '#D9B84A', border: '#D9B84A' }
+    'Garden':    { bg: 'rgba(67,40,144,0.85)',  border: 'rgba(67,40,144,1)' },
+    'Mid-Rise':  { bg: 'rgba(106,79,192,0.85)', border: 'rgba(106,79,192,1)' },
+    'High-Rise': { bg: 'rgba(29,18,71,0.9)',    border: 'rgba(29,18,71,1)' },
+    'Other':     { bg: 'rgba(148,107,0,0.75)',  border: 'rgba(148,107,0,1)' }
   };
 
   let pipelineMode, subSorted, subVisibleBuckets, pipelinePropRows;
@@ -5085,7 +5085,7 @@ function renderTrendsSubmarketChart(forecast, windowYears) {
       label: 'Supply (Deliveries)',
       data: supplyData,
       yAxisID: 'yNet',
-      backgroundColor: 'rgba(217,184,74,0.55)',
+      backgroundColor: 'rgba(154,112,22,0.45)',
       borderWidth: 0,
       barPercentage: 0.9,
       categoryPercentage: 0.42,
@@ -5394,7 +5394,7 @@ function renderTrendsSmallMultiples(forecast, windowYears) {
       ? {
           type: 'bar',
           data,
-          backgroundColor: data.map(d => d.y == null ? 'rgba(0,0,0,0)' : (d.y >= 0 ? '#432890' : '#D9B84A')),
+          backgroundColor: data.map(d => d.y == null ? 'rgba(0,0,0,0)' : (d.y >= 0 ? 'rgba(67,40,144,0.55)' : 'rgba(154,112,22,0.6)')),
           borderWidth: 0,
           barPercentage: 0.7,
           categoryPercentage: 0.85
@@ -5590,13 +5590,13 @@ function renderTrendsSupplyChart(forecast, windowYears) {
       // Brand palette: deep purple (67,40,144) for net-positive (tightening),
       // gold/amber (148,107,0) for net-negative (oversupply). Forecast years
       // render at lower opacity so the actual/forecast split stays visible.
-      if (n >= 0) return fcst ? 'rgba(67,40,144,0.45)' : '#1D1247';
+      if (n >= 0) return fcst ? 'rgba(67,40,144,0.45)' : 'rgba(67,40,144,0.85)';
       return fcst ? 'rgba(148,107,0,0.45)' : 'rgba(148,107,0,0.85)';
     });
     const borderColors = windowYears.map(y => {
       const n = netFor(y);
       if (n == null) return 'rgba(0,0,0,0.1)';
-      return n >= 0 ? '#1D1247' : 'rgba(148,107,0,1)';
+      return n >= 0 ? 'rgba(67,40,144,1)' : 'rgba(148,107,0,1)';
     });
     charts['trends-supply'] = new Chart(ctx, {
       type: 'bar',
@@ -5654,8 +5654,8 @@ function renderTrendsSupplyChart(forecast, windowYears) {
       type: 'bar',
       data: {
         datasets: [
-          { label: 'Supply (Annual Deliveries)', data: supplyData, backgroundColor: '#1D1247', borderColor: '#1D1247', borderWidth: 1 },
-          { label: 'Demand (Absorbed Units)', data: demandData, backgroundColor: '#8C8FE6', borderColor: '#8C8FE6', borderWidth: 1 }
+          { label: 'Supply (Annual Deliveries)', data: supplyData, backgroundColor: 'rgba(67,40,144,0.75)', borderColor: 'rgba(67,40,144,1)', borderWidth: 1 },
+          { label: 'Demand (Absorbed Units)', data: demandData, backgroundColor: 'rgba(106,79,192,0.65)', borderColor: 'rgba(106,79,192,1)', borderWidth: 1 }
         ]
       },
       options: {
@@ -13671,8 +13671,8 @@ function renderSubmarkets() {
         datasets: [{
           label: 'Rent / SF',
           data: topPsf.map(s => +s.psf.toFixed(2)),
-          backgroundColor: '#1D1247',
-          borderColor: '#1D1247',
+          backgroundColor: 'rgba(67,40,144,0.85)',
+          borderColor: 'rgba(67,40,144,1)',
           borderWidth: 1,
           borderRadius: 4
         }]
@@ -13700,7 +13700,7 @@ function renderSubmarkets() {
         datasets: [{
           label: 'Vacancy %',
           data: lowVac.map(s => +s.vacancy.toFixed(1)),
-          backgroundColor: '#5E9B57',
+          backgroundColor: 'rgba(74,122,90,0.85)',
           borderColor: 'rgba(74,122,90,1)',
           borderWidth: 1,
           borderRadius: 4
