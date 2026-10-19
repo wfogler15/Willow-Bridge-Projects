@@ -14937,6 +14937,15 @@ function renderSettingsModal() {
     </div>
     <div class="modal-body" style="padding:22px 26px;">
 
+      <div class="detail-section-title">Market</div>
+      <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
+        Which market the dashboard shows. Each market loads its own properties, RealPage data, comps, comp sets and opportunities.
+      </div>
+      <select id="wb-market-select" class="wb-market-select" onchange="wbSwitchMarket(this.value)"
+        style="font-family:'Inter Tight',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg-2);color:var(--ink-1);min-width:260px;margin-bottom:22px;">
+        ${(window.__WBD.markets || []).map(m => `<option value="${m.id}"${m.id === ACTIVE_MARKET ? ' selected' : ''}>${escapeHTML(m.title || m.label || m.id)}</option>`).join('')}
+      </select>
+
       <div class="detail-section-title">Appearance</div>
       <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
         Switches the page background, panels, and text to a dark palette. The purple header stays the same in both. Saved to this browser.
@@ -14950,13 +14959,13 @@ function renderSettingsModal() {
       <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
         ${REQUIRE_MICROSOFT_SIGNIN
           ? 'Signed in with your Microsoft 365 account. Your name is tagged on opportunities, comp sets, and sale comps you add or edit, so the team can see who touched what.'
-          : 'Microsoft sign-in isn\'t enabled yet — using a manually-entered name for now. Your name is tagged on opportunities, comp sets, and sale comps you add or edit.'}
+          : 'Signed in with your Willow Bridge Intel login. Your email is tagged on everything you add or edit. Sign out from the top bar.'}
       </div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
         <div style="font-family:'Inter Tight',sans-serif;font-size:15px;font-weight:600;color:var(--ink-1);">${escapeHTML(syncState.editorName || 'Not set')}</div>
         ${REQUIRE_MICROSOFT_SIGNIN
           ? `<button class="modal-btn" style="color:var(--accent-text);background:var(--bg-2);border-color:var(--line);" onclick="signOut()">Sign Out</button>`
-          : `<button class="modal-btn" style="color:var(--accent-text);background:var(--bg-2);border-color:var(--line);" onclick="changeEditorNameFallback()">Change</button>`}
+          : ''}
       </div>
 
       <div class="detail-section-title">Sync</div>

@@ -15,20 +15,30 @@
     return addEv(type, fn, opts);
   };
 
-  const MARKETS = { denver: 'Denver', phoenix: 'Phoenix' };
+  let MARKETS = {};
+  // Switch markets from Settings: remember the choice, reload with that market's data
+  window.wbSwitchMarket = function (id) {
+    if (!id || id === (window.__WBD && window.__WBD.market)) return;
+    localStorage.setItem('market', id);
+    const u = new URL(location.href); u.searchParams.set('market', id); location.href = u.toString();
+  };
   const overlay = document.createElement('div');
   overlay.id = 'wb-intel-loading';
   overlay.style.cssText = 'position:fixed;inset:52px 0 0 0;z-index:9000;display:grid;place-items:center;background:var(--cloud,#FBFBF9);font:15px/1.4 Aptos,Inter,Arial,sans-serif;color:#1D1247';
 
   async function boot() {
     const { sb, user } = await WB.ready('intel');
+    // active markets drive the Settings picker; adding a market = a row in core.markets with config.active = true + its data
+    const { data: mlist, error: mErr } = await sb.schema('core').from('markets').select('id,label,title,active:config->active').order('id');
+    if (mErr) throw mErr;
+    const markets = (mlist || []).filter((m) => m.active === true);
+    MARKETS = Object.fromEntries(markets.map((m) => [m.id, (m.label || m.id).split(',')[0]]));
     const q = new URLSearchParams(location.search);
     let market = q.get('market') || localStorage.getItem('market') || 'denver';
-    if (!MARKETS[market]) market = 'denver';
+    if (!MARKETS[market]) market = markets.length ? markets.find((m) => m.id === 'denver')?.id || markets[0].id : 'denver';
     localStorage.setItem('market', market);
     overlay.textContent = `Loading ${MARKETS[market]} market data…`;
     document.body.appendChild(overlay);
-    addSwitcher(market);
 
     const t0 = performance.now();
     const [mrow, props, rp, trends] = await Promise.all([
@@ -65,7 +75,7 @@
       center: cfg.center || [39.74, -104.99], WB_SUBMARKETS: cfg.wb_submarkets || [], WB_RP_MAPPING: cfg.rp_mapping || {},
       RAW_DATA, RP_PROPERTIES: Object.fromEntries(rp.map((r) => [r.realpage_id, r.data])),
       RP_FORECAST: Object.fromEntries(trends.map((r) => [r.geography, r.data])),
-      propByCostar, costarByProp, customProps, user,
+      propByCostar, costarByProp, customProps, user, markets,
     };
     console.info(`[intel] ${market}: ${RAW_DATA.length} properties, ${rp.length} RealPage, ${trends.length} trend series in ${Math.round(performance.now() - t0)} ms`);
 
@@ -85,22 +95,6 @@
     s.onload = () => overlay.remove();
     s.onerror = () => { overlay.textContent = 'The dashboard code failed to load. Reload the page.'; };
     document.body.appendChild(s);
-  }
-
-  function addSwitcher(market) {
-    const nav = document.querySelector('.wb-nav');
-    if (!nav || nav.querySelector('.wb-mkt')) return;
-    const box = document.createElement('div');
-    box.className = 'seg wb-mkt';
-    box.style.cssText = 'margin-left:8px';
-    box.innerHTML = Object.entries(MARKETS).map(([id, label]) =>
-      `<button type="button" data-m="${id}" class="${id === market ? 'on' : ''}">${label}</button>`).join('');
-    box.onclick = (e) => {
-      const b = e.target.closest('button'); if (!b || b.dataset.m === market) return;
-      localStorage.setItem('market', b.dataset.m);
-      const u = new URL(location.href); u.searchParams.set('market', b.dataset.m); location.href = u.toString();
-    };
-    nav.querySelector('nav').after(box);
   }
 
   boot().catch((e) => {
