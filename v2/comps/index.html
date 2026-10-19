@@ -5,70 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sale Comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="../shared/wb.css">
 <style>
   body{display:flex;flex-direction:column;height:100vh;overflow:hidden}
-  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 20px;background:var(--white);border-bottom:1px solid var(--hair)}
-  .bar .input{width:220px}
-  .bar .grow{flex:1}
-  .stats{display:flex;gap:22px;padding:12px 20px;border-bottom:1px solid var(--hair2);flex-wrap:wrap}
-  .stats div{display:flex;flex-direction:column}
-  .stats b{font:600 18px/1.1 var(--display);font-variant-numeric:tabular-nums}
-  .stats span{font-size:11.5px;color:var(--muted)}
-  .split{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,38%);min-height:0}
-  @media (max-width:900px){body{height:auto;overflow:auto}.split{grid-template-columns:1fr}#map{height:360px;order:-1}}
-  .tablewrap{overflow:auto;min-height:0}
+  .wb-band{padding:20px 32px}
+  .wb-toolbar .input{width:260px}
+  .main{flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px 32px 20px}
+  #stats .kpi-value{font-size:24px}
+  .split{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,38%);gap:16px;min-height:0}
+  @media (max-width:900px){body{height:auto;overflow:auto}.split{grid-template-columns:1fr}#mapPanel{height:360px;order:-1}.main,.wb-band,.wb-toolbar{padding-left:16px;padding-right:16px}}
+  .split>.panel{display:flex;flex-direction:column;min-height:0}
+  .tablewrap{overflow:auto;min-height:0;flex:1}
   table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
-  th{position:sticky;top:0;background:var(--cloud);text-align:left;font-weight:600;font-size:11.5px;color:var(--muted);letter-spacing:.02em;
-     padding:9px 10px;border-bottom:1px solid var(--hair);cursor:pointer;white-space:nowrap;user-select:none;z-index:1}
+  th{position:sticky;top:0;background:var(--bg-1);text-align:left;font:600 10.5px var(--font);color:var(--ink-4);letter-spacing:.1em;text-transform:uppercase;
+     padding:11px 12px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none;z-index:1}
+  th:hover{color:var(--ink-1)}
   th.r,td.r{text-align:right}
-  th .dir{color:var(--purple)}
-  td{padding:8px 10px;border-bottom:1px solid var(--hair2);vertical-align:top;font-variant-numeric:tabular-nums;white-space:nowrap}
+  th .dir{color:var(--accent)}
+  td{padding:10px 12px;border-bottom:1px solid var(--line-hair);vertical-align:top;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink-2)}
   td.name{white-space:normal;min-width:230px;max-width:320px}
   td.t{max-width:170px;overflow:hidden;text-overflow:ellipsis}
-  td.name b{font-weight:600}
-  td.name div{color:var(--muted);font-size:12px}
-  tr.sel td{background:#f1effb}
+  td.name b{font-weight:600;color:var(--ink-1)}
+  td.name div{color:var(--ink-4);font-size:12px;margin-top:2px}
+  td:first-child{box-shadow:inset 3px 0 0 transparent}
+  tr.sel td{background:#f0edfa}
+  tr.sel td:first-child,tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
   tbody tr{cursor:pointer}
-  tbody tr:hover td{background:#f6f5fb}
-  .muted{color:var(--muted)}
-  .ok{color:var(--forest);font-size:12px}
-  #map{min-height:0;border-left:1px solid var(--hair)}
-  .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--midnight);background:var(--lilac);box-sizing:border-box;cursor:pointer}
+  tbody tr:hover td{background:#f7f6fc}
+  .muted{color:var(--ink-4)}
+  .ok{color:var(--positive);font-size:12px}
+  #map{flex:1;min-height:0}
+  .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--band);background:var(--accent-light);box-sizing:border-box;cursor:pointer}
   .dot.land{background:var(--greentea);border-color:var(--forest)}
-  .dot.sel{width:18px;height:18px;border-color:var(--purple);border-width:3px}
-  .maplibregl-popup-content{font:13px/1.4 var(--font);color:var(--text);border-radius:10px;padding:10px 12px}
+  .dot.sel{width:18px;height:18px;border-color:var(--accent);border-width:3px}
+  .maplibregl-popup-content{font:13px/1.4 var(--font);color:var(--ink-1);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow-md)}
   /* drawer */
-  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:var(--white);border-left:1px solid var(--hair);
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:var(--bg-1);border-left:1px solid var(--line);
     box-shadow:-8px 0 32px rgba(29,18,71,.12);z-index:60;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .2s}
   .drawer.open{transform:none}
-  .drawer header{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--hair)}
-  .drawer header h2{margin:0;font:600 17px/1.2 var(--display);flex:1}
+  .drawer header{display:flex;align-items:center;gap:10px;padding:16px 18px;background:var(--band);color:#fff}
+  .drawer header .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
+  .drawer header h2{margin:0;font:600 19px/1.2 var(--font-head);flex:1}
   .drawer form{flex:1;overflow:auto;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-content:start}
   .drawer .input{width:100%}
   .drawer .full{grid-column:1/-1}
-  .drawer footer{display:flex;gap:8px;padding:12px 18px;border-top:1px solid var(--hair)}
-  .drawer .hint{font-size:12px;color:var(--muted)}
+  .drawer footer{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--line);background:var(--bg-inset)}
+  .drawer .hint{font-size:12px;color:var(--ink-4)}
+  .drawer form label{font:600 10.5px var(--font);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4)}
 </style>
 </head>
 <body>
-<div class="bar">
+<header class="wb-band">
+  <div><div class="eyebrow">Willow Bridge · Pricing</div><h1>Sale Comps</h1>
+    <p class="lede">The master list of multifamily investment and land sales in Denver and Phoenix.</p></div>
+  <div class="actions"><button class="band-btn" id="b-export">Export to Excel</button><button class="band-btn solid" id="b-add">Add comp</button></div>
+</header>
+<div class="wb-toolbar">
   <div class="seg" id="f-market"><button data-v="all" class="on">Both</button><button data-v="denver">Denver</button><button data-v="phoenix">Phoenix</button></div>
   <div class="seg" id="f-type"><button data-v="investment" class="on">Investment</button><button data-v="land">Land</button></div>
   <select class="input" id="f-since" style="width:auto">
     <option value="">All dates</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option>
   </select>
-  <input class="input" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker">
   <span class="grow"></span>
-  <button class="btn" id="b-export">Export to Excel</button>
-  <button class="btn primary" id="b-add">Add comp</button>
+  <input class="input" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker">
 </div>
-<div class="stats" id="stats"></div>
-<div class="split">
-  <div class="tablewrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
-  <div id="map"></div>
+<div class="main">
+  <div class="kpis" id="stats"></div>
+  <div class="split">
+    <section class="panel"><div class="panel-header"><div><div class="panel-title" id="t-title">Sales</div><div class="panel-sub">Click a heading to sort · click a row to find it on the map</div></div></div>
+      <div class="tablewrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></section>
+    <section class="panel" id="mapPanel"><div id="map"></div></section>
+  </div>
 </div>
 
 <aside class="drawer" id="drawer">
@@ -155,12 +164,13 @@
       cols.map(([k, , f, cls]) => `<td class="${cls || ''}">${f(c)}</td>`).join('') + '</tr>').join('')
       || `<tr><td colspan="${cols.length}" class="muted" style="padding:20px">No comps match these filters.</td></tr>`;
     const s = state.type === 'investment'
-      ? [[list.length, 'sales'], [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/unit'],
+      ? [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), 'total volume'], [(() => { const r = list.filter((c) => c.sale_price && c.units); const u = r.reduce((t, c) => t + +c.units, 0); return u ? fmt.usd(r.reduce((t, c) => t + +c.sale_price, 0) / u) : '—'; })(), 'avg $/unit'], [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/unit'],
          [list.some((c) => c.price_per_sf) ? '$' + fmt.int(median(list.map((c) => c.price_per_sf))) : '—', 'median $/SF'],
-         [fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'median cap'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), 'total volume']]
-      : [[list.length, 'sales'], [fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'median $/land SF'],
+         [fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'median cap']]
+      : [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), 'total volume'], [fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'median $/land SF'],
          [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/door'], [fmt.ac(median(list.map((c) => c.acres))), 'median acres']];
-    $('#stats').innerHTML = s.map(([n, l]) => `<div><b>${n}</b><span>${l}</span></div>`).join('');
+    $('#stats').innerHTML = s.map(([n, l]) => `<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${n}</div></div>`).join('');
+    $('#t-title').innerHTML = `<em>${list.length}</em> ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}`;
     drawMarkers(list);
   }
 

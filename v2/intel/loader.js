@@ -24,7 +24,7 @@
   };
   const overlay = document.createElement('div');
   overlay.id = 'wb-intel-loading';
-  overlay.style.cssText = 'position:fixed;inset:52px 0 0 0;z-index:9000;display:grid;place-items:center;background:var(--cloud,#FBFBF9);font:15px/1.4 Aptos,Inter,Arial,sans-serif;color:#1D1247';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;display:grid;place-items:center;background:var(--cloud,#FBFBF9);font:15px/1.4 Aptos,Inter,Arial,sans-serif;color:#1D1247';
 
   async function boot() {
     const { sb, user } = await WB.ready('intel');

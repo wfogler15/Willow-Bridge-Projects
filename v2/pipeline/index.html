@@ -6,7 +6,6 @@
 <meta name="color-scheme" content="light">
 <title>Pipeline · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
-<link rel="stylesheet" href="../shared/wb.css">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
 <style>
@@ -245,15 +244,71 @@ button.ag-row:hover,button.ag-row:focus-visible{background:rgba(67,40,144,.06);o
 .ag-name{font-size:13.5px;font-weight:600;color:var(--text);min-width:0}
 .ag-num{text-align:right;font-size:13px;color:var(--body);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ag-px{font-weight:600;color:var(--text)}
-/* v2: sit below the shared navigation bar */
-#map,#veil,#list{top:var(--nav-h)}
-#panel{top:calc(var(--nav-h) + var(--gap));max-height:calc(100% - var(--nav-h) - var(--gap) * 2)}
-#credit{top:calc(var(--nav-h) + 12px)}
-#err{top:calc(var(--nav-h) + 36px)}
-#hint{top:calc(var(--nav-h) + var(--gap))}
-@media (max-width:760px){#panel{top:auto}}
+/* v2: house type (Georgia headlines, Inter Tight text), shared with Market Intel */
+:root{--font:'Inter Tight',Aptos,Inter,"Segoe UI",Arial,sans-serif;--display:'Inter Tight',Aptos,Inter,sans-serif;--serif:Georgia,"Times New Roman",serif}
+h1,h2.accent{font-family:var(--serif)}
 body{overflow:hidden}
-.lsearch{border:1px solid rgba(29,18,71,.2);border-radius:6px;padding:6px 10px;font:inherit;min-width:220px;background:#fff}
+/* ---------- list view, restyled to match Market Intel ---------- */
+#list{background:#eceef1;padding:0 0 90px;gap:0;color:#16161d}
+#list .lband{background:#1D1247;color:#fff;padding:26px 40px 24px;display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap}
+#list .leyebrow{font:600 11px/1 var(--font);letter-spacing:.18em;text-transform:uppercase;color:#c7c9fe;margin-bottom:8px}
+#list .lband h1{margin:0;font:600 26px/1.1 var(--serif);letter-spacing:-.01em;color:#fff}
+#list .lband p{margin:8px 0 0;color:#e4e4f7;font-size:13.5px;max-width:640px}
+#list .lacts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+#list .lacts button{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.3);color:#fff;padding:9px 14px;cursor:pointer;border-radius:8px;
+  font:600 11.5px var(--font);letter-spacing:.11em;text-transform:uppercase;white-space:nowrap}
+#list .lacts button:hover{background:rgba(255,255,255,.2)}
+#list .lacts button.solid{background:#fff;color:#432890;border-color:#fff}
+#list .lbody{padding:20px 40px 0;display:flex;flex-direction:column;gap:16px}
+.lkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));background:#fff;border:1px solid #dde0e5;border-top:2px solid #432890;border-radius:10px;
+  box-shadow:0 1px 3px rgba(20,18,40,.07),0 2px 6px rgba(20,18,40,.08);overflow:hidden}
+.lkpi{padding:16px 20px 15px 22px;border-right:1px solid #edeff2;position:relative;cursor:pointer;min-width:0}
+.lkpi:last-child{border-right:0}
+.lkpi:hover{background:#f7f6fc}
+.lkpi::before{content:'';position:absolute;top:18px;left:0;width:3px;height:12px;background:#432890;border-radius:0 2px 2px 0}
+.lkpi .k{font:600 11px var(--font);color:#432890;letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px}
+.lkpi .v{font:600 28px/1 var(--font);color:#16161d;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.lkpi .s{font-size:12.5px;color:#4a4a55;margin-top:8px}
+.ltools{display:flex;gap:10px 14px;align-items:center;flex-wrap:wrap}
+#filters{display:contents}
+.lseg{display:inline-flex;flex-wrap:wrap;border:1px solid #dde0e5;border-radius:8px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(20,18,40,.05)}
+.lseg button{border:0;background:none;padding:8px 13px;cursor:pointer;color:#4a4a55;font:600 11px var(--font);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.lseg button+button{border-left:1px solid #dde0e5}
+.lseg button:hover{color:#16161d;background:#f4f5f7}
+.lseg button[aria-pressed="true"]{background:#432890;color:#fff}
+.lseg button i{font-style:normal;opacity:.6;margin-left:6px;font-variant-numeric:tabular-nums}
+.lsearch{margin-left:auto;border:1px solid #dde0e5;border-radius:8px;padding:8px 12px 8px 32px;font:13.5px var(--font);min-width:260px;color:#16161d;
+  background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='none' stroke='%237a7a85' stroke-width='2'%3E%3Ccircle cx='6' cy='6' r='4.5'/%3E%3Cpath d='m9.5 9.5 3 3'/%3E%3C/svg%3E") 11px 50% no-repeat}
+.lsearch:focus{outline:2px solid rgba(67,40,144,.2);border-color:#432890}
+.lpanel{background:#fff;border:1px solid #dde0e5;border-radius:10px;box-shadow:0 1px 3px rgba(20,18,40,.07),0 2px 6px rgba(20,18,40,.08);overflow:hidden}
+.lpanel-h{padding:14px 20px;border-bottom:1px solid #edeff2;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.lpanel-h .s{margin-top:5px}
+.lpanel-h .t{font:600 17px/1.2 var(--serif);color:#16161d}
+.lpanel-h .t em{font-style:normal;color:#432890}
+.lpanel-h .s{font:500 11px var(--font);color:#7a7a85;letter-spacing:.11em;text-transform:uppercase}
+#list .tw{max-height:none}
+#list table{border-collapse:separate;border-spacing:0;font-size:13px}
+#list th{position:sticky;top:0;background:#fff;z-index:1;color:#7a7a85;border-bottom:1px solid #dde0e5;padding:11px 12px;letter-spacing:.1em}
+#list th[aria-sort]{color:#432890}
+#list td{padding:11px 12px;border-bottom:1px solid #edeff2;color:#25252e;vertical-align:middle}
+#list tbody tr:last-child td{border-bottom:0}
+#list td:first-child{box-shadow:inset 3px 0 0 transparent}
+#list tr.r:hover td{background:#f7f6fc}
+#list tr.r:hover td:first-child{box-shadow:inset 3px 0 0 #432890}
+#list td b{color:#16161d;font-size:13.5px}
+#list td small{color:#7a7a85}
+#list .chip{border-radius:999px;padding:3px 9px;font-size:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;font:600 10.5px var(--font);letter-spacing:.08em;text-transform:uppercase;padding:4px 9px;border-radius:999px;white-space:nowrap;background:#eef0f3;color:#4a4a55}
+.pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8}
+.pill.s-hot{background:#ece7fb;color:#432890}
+.pill.s-work{background:#eef0fb;color:#3b3f8f}
+.pill.s-watch{background:#fbf5df;color:#8a6a12}
+.pill.s-won{background:#e3f3e6;color:#2f7a52}
+.pill.s-out{background:#f4f4f6;color:#8a8a95}
+.pill.s-lost{background:#f6e9e9;color:#722525}
+#list .meta{padding:2px 2px 0;color:#7a7a85;font-size:12.5px}
+#list .empty{padding:36px 20px;text-align:center;color:#7a7a85}
+@media (max-width:760px){#list .lband{padding:56px 16px 20px}#list .lbody{padding:16px 16px 0}.lsearch{margin-left:0;min-width:0;width:100%}}
 /* deal management (stage, check-back, outcome, notes) */
 details.manage{margin:18px 0 6px;border-top:1px solid rgba(29,18,71,.12);padding-top:12px}
 details.manage summary{cursor:pointer;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -277,9 +332,16 @@ details.manage summary{cursor:pointer;font-size:11px;letter-spacing:.12em;text-t
 <div id="err" hidden></div>
 <div id="hint" role="status" hidden></div>
 <section id="list" aria-label="All deals" hidden>
-  <div class="lhead"><h1>All deals</h1><div class="filters" id="filters"></div><div class="filters"><input class="lsearch" id="lq" type="search" placeholder="Search deals, brokers, sellers"><button type="button" id="lmap">Show these on the map</button></div></div>
-  <div class="tw"><table><thead id="lth"></thead><tbody id="ltb"></tbody></table></div>
-  <div class="meta">Click a column heading to sort. Click a row to open that deal on the map. Prospect and Monitor deals, and archived deals (passed, lost, dead, closed), sit outside the meeting player but open from here.</div>
+  <header class="lband"><div><div class="leyebrow">Willow Bridge · Acquisitions pipeline</div><h1>All deals</h1>
+    <p>Every deal we have looked at in Denver and Phoenix. Filter, search, then open any deal on the map.</p></div>
+    <div class="lacts"><button type="button" id="lmap">Show these on the map</button><button type="button" class="solid" id="lback">Back to the player</button></div></header>
+  <div class="lbody">
+    <div class="lkpis" id="lkpis"></div>
+    <div class="ltools"><div id="filters"></div></div>
+    <div class="lpanel"><div class="lpanel-h"><div><div class="t" id="lcount"></div><div class="s">Click a heading to sort · click a row to fly to it</div></div><input class="lsearch" id="lq" type="search" placeholder="Search deals, brokers, sellers, notes"></div>
+      <div class="tw"><table><thead id="lth"></thead><tbody id="ltb"></tbody></table></div></div>
+    <div class="meta">Prospect and Monitor deals, and archived deals (passed, lost, dead, closed), sit outside the meeting player but open from here.</div>
+  </div>
 </section>
 <div id="ctl">
     <button id="pick" type="button" aria-pressed="false">Fix parcel</button>
@@ -923,9 +985,22 @@ function inFilter(d){
   return d.kind === lf;
 }
 function renderList(){
-  $("#filters").innerHTML = MKT_FILTERS.map(f => '<button type="button" data-m="' + f[0] + '" aria-pressed="' + (lm === f[0]) + '">' + f[1] + "</button>").join("")
-    + '<span style="width:14px"></span>'
-    + FILTERS.map(f => '<button type="button" data-f="' + f[0] + '" aria-pressed="' + (lf === f[0]) + '">' + f[1] + "</button>").join("");
+  const cnt = (f) => { const keep = lf; lf = f; const n = deals.filter(inFilter).length; lf = keep; return n; };
+  $("#filters").innerHTML = '<div class="lseg">' + MKT_FILTERS.map(f => '<button type="button" data-m="' + f[0] + '" aria-pressed="' + (lm === f[0]) + '">' + f[1] + "</button>").join("") + "</div>"
+    + '<div class="lseg">' + FILTERS.map(f => '<button type="button" data-f="' + f[0] + '" aria-pressed="' + (lf === f[0]) + '">' + f[1] + "<i>" + cnt(f[0]) + "</i></button>").join("") + "</div>";
+  // headline numbers for the selected market (ignore the search box and status filter)
+  const inMkt = deals.filter(d => lm === "all" || d.market === lm), live = inMkt.filter(d => !archived(d) && !watching(d));
+  const due = live.filter(d => { const n = daysTo(d.bidDate); return n != null && n >= 0 && n <= 14; });
+  const cbs = inMkt.filter(d => d.checkBack && daysTo(d.checkBack) <= 30);
+  const unitsLive = live.reduce((t, d) => t + (d.kind === "land" ? (d.doors || 0) : (d.units || 0)), 0);
+  const volLive = live.reduce((t, d) => t + (d.guidance || 0), 0), priced = live.filter(d => d.guidance).length;
+  const K = (f, k, v, s) => '<div class="lkpi" data-f="' + f + '" title="Filter the list"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + s + "</div></div>";
+  $("#lkpis").innerHTML = K("active", "Active deals", live.length, live.filter(d => d.kind === "land").length + " land · " + live.filter(d => d.kind !== "land").length + " existing")
+    + K("due", "Bids in 14 days", due.length, due.length ? esc(due.slice().sort(byBid)[0].name) + " first" : "Nothing due")
+    + K("active", "Units in play", fmtNum(unitsLive), "Existing units plus land doors")
+    + K("active", "Guidance in play", volLive ? usdM(volLive) : "—", priced + " of " + live.length + " priced")
+    + K("checkback", "Check-backs due", cbs.length, "Within the next 30 days")
+    + K("watch", "Watching", inMkt.filter(d => watching(d) && !archived(d)).length, "Prospect and Monitor");
   $("#lth").innerHTML = "<tr>" + COLS.map(k => '<th tabindex="0" data-k="' + k[0] + '"' + (k[2] ? ' class="num"' : "") + (lsort.k === k[0] ? ' aria-sort="' + (lsort.d > 0 ? "ascending" : "descending") + '"' : "") + ">" + k[1] + (lsort.k === k[0] ? (lsort.d > 0 ? " ↑" : " ↓") : "") + "</th>").join("") + "</tr>";
   const rows = deals.filter(inFilter);
   rows.sort((a, b) => {
@@ -935,9 +1010,11 @@ function renderList(){
   });
   $("#ltb").innerHTML = rows.map(d => {
     const isLand = d.kind === "land", basis = isLand ? ppd(d) : ppu(d);
+    const PC = {bidding:"s-hot", loi:"s-hot", contract:"s-won", closed:"s-won", screening:"s-work", underwriting:"s-work", prospect:"s-watch", monitor:"s-watch", lost:"s-lost", passed:"s-out", dead:"s-out"};
+    const pill = (t, st) => '<span class="pill ' + (PC[st] || "") + '">' + t + "</span>";
     const status = d.outcome
-      ? esc(d.outcome.result || "Sold") + (d.outcome.buyer ? "<small>" + esc(d.outcome.buyer) + (d.outcome.price ? " · " + usdM(d.outcome.price) : "") + "</small>" : "")
-      : esc(STAGES[d.stage] || d.stage || "") + (d.checkBack ? "<small>Check back " + shortDate(d.checkBack) + "</small>" : (archived(d) && !["lost","dead","closed"].includes(d.stage) ? "<small>Bid date passed, outcome pending</small>" : ""));
+      ? pill(esc(d.outcome.result || "Sold"), d.stage) + (d.outcome.buyer ? "<small>" + esc(d.outcome.buyer) + (d.outcome.price ? " · " + usdM(d.outcome.price) : "") + "</small>" : "")
+      : pill(esc(STAGES[d.stage] || d.stage || ""), d.stage) + (d.checkBack ? "<small>Check back " + shortDate(d.checkBack) + "</small>" : (archived(d) && !["lost","dead","closed"].includes(d.stage) ? "<small>Bid date passed, outcome pending</small>" : ""));
     return '<tr class="r" tabindex="0" data-i="' + deals.indexOf(d) + '"><td><b>' + esc(d.name) + "</b>" + (d.sample ? " (sample)" : "") + "<small>" + esc(d.where || "") + "</small></td><td>" + esc(d.market || "") + "</td>"
       + '<td><span class="chip' + (isLand ? " land" : "") + '">' + (isLand ? "Land" : "Existing") + "</span></td>"
       + '<td class="num">' + (isLand ? (d.doors ? fmtNum(d.doors) + "<small>doors</small>" : "") : (d.units ? fmtNum(d.units) : "")) + "</td>"
@@ -947,7 +1024,9 @@ function renderList(){
       + '<td class="num">' + (effPsf(d) ? "$" + effPsf(d).toFixed(2) + (effMo(d) ? "<small>" + usd(effMo(d)) + " / mo</small>" : "") : "") + "</td>"
       + '<td class="num">' + (d.occ != null ? d.occ + "%" : "") + "</td>"
       + "<td>" + (d.bidDate ? shortDate(d.bidDate) + " " + bidBadge(d) : "") + '</td><td class="st">' + status + "</td></tr>";
-  }).join("") || '<tr><td colspan="11">No deals match this filter.</td></tr>';
+  }).join("") || '<tr><td colspan="11" class="empty">No deals match this filter.</td></tr>';
+  const FL = Object.fromEntries(FILTERS);
+  $("#lcount").innerHTML = "<em>" + rows.length + "</em> " + (rows.length === 1 ? "deal" : "deals") + " · " + esc(lm === "all" ? "Denver and Phoenix" : lm) + " · " + esc(FL[lf] || "");
 }
 function setList(open){
   $("#list").hidden = !open; $("#listb").setAttribute("aria-pressed", open); $("#listb").textContent = open ? "Map" : "List";
@@ -962,6 +1041,8 @@ $("#listb").addEventListener("click", () => setList($("#list").hidden));
 $("#filters").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; if(b.dataset.m) lm = b.dataset.m; else lf = b.dataset.f; renderList(); });
 $("#lq").addEventListener("input", e => { lq = e.target.value; renderList(); });
 $("#lmap").addEventListener("click", () => { const list = deals.filter(inFilter); setList(false); showMany(list); });
+$("#lback").addEventListener("click", () => setList(false));
+$("#lkpis").addEventListener("click", e => { const k = e.target.closest("[data-f]"); if(k){ lf = k.dataset.f; renderList(); } });
 function sortBy(th){ if(!th) return; const k = th.dataset.k; lsort = {k, d: lsort.k === k ? -lsort.d : 1}; renderList(); }
 $("#lth").addEventListener("click", e => sortBy(e.target.closest("th")));
 $("#lth").addEventListener("keydown", e => { if(e.key === "Enter") sortBy(e.target.closest("th")); });

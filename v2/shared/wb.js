@@ -31,6 +31,13 @@
     clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms);
   }
 
+  // Shared chrome stylesheet + brand fonts, loaded once per page.
+  (function chrome() {
+    const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
+    add(ROOT + 'shared/wb-chrome.css');
+    add('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap');
+  })();
+
   function renderNav(active, user) {
     if ($('.wb-nav')) return;
     const nav = document.createElement('header');
@@ -42,6 +49,26 @@
       <div class="who"><span class="email">${esc(user.email)}</span><button type="button" id="wb-signout">Sign out</button></div>`;
     document.body.prepend(nav);
     $('#wb-signout').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+    if (active !== 'home') autoHide(nav, active);
+  }
+
+  // Tool pages: keep the nav tucked above the page. A small tab at the top edge pulls it down on hover;
+  // clicking the tab pins it open until clicked again (and is the way in on touch screens).
+  function autoHide(nav, active) {
+    nav.classList.add('auto');
+    const label = (PAGES.find((p) => p.id === active) || {}).label || 'Menu';
+    const tab = document.createElement('button');
+    tab.type = 'button'; tab.className = 'wb-tab'; tab.title = 'Show the Willow Bridge Intel menu';
+    tab.innerHTML = `<img src="${ROOT}shared/wb-mark.png" alt=""><span>${esc(label)}</span><svg viewBox="0 0 10 10"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const hot = document.createElement('div'); hot.className = 'wb-hot';
+    document.body.append(hot, tab);
+    let pinned = false, timer;
+    const set = (open) => { clearTimeout(timer); nav.classList.toggle('open', open); tab.classList.toggle('open', open); };
+    const show = () => set(true);
+    const hideSoon = () => { if (pinned) return; clearTimeout(timer); timer = setTimeout(() => set(false), 350); };
+    [hot, tab, nav].forEach((el) => { el.addEventListener('mouseenter', show); el.addEventListener('mouseleave', hideSoon); });
+    tab.addEventListener('click', () => { pinned = !pinned; tab.classList.toggle('pinned', pinned); set(pinned || nav.matches(':hover')); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && nav.classList.contains('open')) { pinned = false; tab.classList.remove('pinned'); set(false); } });
   }
 
   function loginScreen(message, isErr) {
