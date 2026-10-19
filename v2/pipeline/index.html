@@ -420,10 +420,13 @@ html,body{background:#F3F2EF !important}
 #list td{padding:7px 10px !important;font-size:13px;white-space:nowrap}
 #list .tw{overflow-x:auto !important}
 /* numbers hug their content; spare width goes to the deal name and the text columns */
-#list table{width:100%;table-layout:auto}
-#list th:first-child,#list td.name{width:15%;min-width:200px}
-#list th.num,#list td.num{padding-left:10px !important}
-#list th,#list td{padding-left:10px !important;padding-right:10px !important}
+#list table{width:100%;min-width:1240px;table-layout:fixed}
+#list th,#list td{padding-left:12px !important;padding-right:12px !important;text-align:left !important;overflow:hidden;text-overflow:ellipsis}
+#list td{font-variant-numeric:tabular-nums}
+#list th{white-space:normal !important;line-height:1.25;vertical-align:bottom}
+@media (max-width:1700px){#list th,#list td{padding-left:8px !important;padding-right:8px !important}#list th:first-child,#list td:first-child{padding-left:16px !important}}
+#list td.name,#list td.name b{overflow:hidden;text-overflow:ellipsis}
+#list .clip{max-width:100%}
 #list th:first-child,#list td:first-child{padding-left:16px !important}
 #list .clip{display:inline-block;max-width:240px;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
 #list td.name{min-width:180px;white-space:normal}
@@ -543,7 +546,7 @@ body.listing .lyr{display:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610191718"></script>
+<script src="../shared/wb.js?v=202610191722"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1415,6 +1418,10 @@ function renderList(){
   $("#lstat").innerHTML = SFILT.map(([k, l]) => '<button type="button" data-s="' + k + '" aria-pressed="' + (ls === k) + '">' + l + "<i>" + deals.filter(d => inFilter(d, lk, k)).length + "</i></button>").join("");
   const col = cols.find(c => c[0] === lsort.k) || cols[0];
   const TXT = ["broker", "seller", "product"];
+  const WT = {name: 2.3, broker: 1.7, seller: 1.5, product: 1.8, guidance: 1.2, stage: 1.35, type: 1.35, market: 0.95, rentTarget: 1.1, goingIn: 1.3, perBldgSf: 1.05},
+    wsum = cols.reduce((t, c) => t + (WT[c[0]] || 1), 0), tbl = $("#lth").parentElement;
+  let cg = tbl.querySelector("colgroup"); if(!cg){ cg = document.createElement("colgroup"); tbl.prepend(cg); }
+  cg.innerHTML = cols.map(c => '<col style="width:' + ((WT[c[0]] || 1) / wsum * 100).toFixed(2) + '%">').join("");
   $("#lth").innerHTML = "<tr>" + cols.map(c => '<th tabindex="0" data-k="' + c[0] + '"' + (c[4] ? ' class="num"' : TXT.includes(c[0]) ? ' class="txt"' : "") + (col[0] === c[0] ? ' aria-sort="' + (lsort.d > 0 ? "ascending" : "descending") + '"' : "") + ">" + c[1] + (col[0] === c[0] ? (lsort.d > 0 ? " ↑" : " ↓") : "") + "</th>").join("") + "</tr>";
   const rows = deals.filter(d => inFilter(d)).sort((a, b) => {
     const x = col[2](a), y = col[2](b);
