@@ -1,14 +1,975 @@
 <!doctype html>
-<html lang="en" data-placeholder>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pipeline · Willow Bridge Intel</title><link rel="icon" href="../shared/wb-mark.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Pipeline · Willow Bridge Intel</title>
+<link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="../shared/wb.css">
-<style>main{max-width:640px;margin:0 auto;padding:48px 20px}h1{font:600 24px/1.2 var(--display);margin:0 0 10px}p{color:var(--body)}a{color:var(--purple);font-weight:600}</style>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
+<style>
+/* Willow Bridge B2B treatment.
+   The satellite map is the slide and stays fully visible. Content sits on one hard-edged Cloud White
+   panel instead of a full-height colored scrim. Willow Bridge Midnight carries the text; Willow Bridge
+   Purple is reserved for small accents (rule, kickers, logo) so it never floods the page.
+   Type is Aptos, the firm's working font, with Inter as the fallback where Aptos isn't installed. */
+:root{
+  color-scheme: light;
+  --midnight:#1D1247;       /* WB Midnight: primary text */
+  --purple:#432890;         /* WB Purple: accents only */
+  --cloud:#FBFBF9;          /* Cloud White: panel and list ground */
+  --lilac:#C7C9FE;          /* Lilac Mist: existing assets */
+  --greentea:#CCECC3;       /* Green Tea: development land */
+  --forest:#102930;         /* Forest Green: text on Green Tea */
+  --breeze:#F9EEC4;         /* Summer Breeze: our take */
+  --brick:#722525;          /* Brick Red: bid deadlines, passed */
+  --sand:#C2B8AF;           /* Sand Grout: hairlines */
+  --text:var(--midnight);
+  --body:rgba(29,18,71,.86);
+  --muted:rgba(29,18,71,.6);
+  --faint:rgba(29,18,71,.45);
+  --hair:rgba(29,18,71,.12);
+  --font:Aptos, "Aptos Display", Inter, "Segoe UI", Arial, sans-serif;
+  --display:"Aptos Display", Aptos, Inter, "Segoe UI", Arial, sans-serif;
+  --panel:min(400px, calc(40vw - 20px));
+  --gap:20px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:#0f0c1d;color:var(--text);font-family:var(--font);line-height:1.35;overflow:hidden;-webkit-font-smoothing:antialiased}
+#map{position:fixed;inset:0;background:#0f0c1d}
+#scrim{display:none}
+#veil{position:fixed;inset:0;pointer-events:none;background:#0f0c1d;opacity:0;transition:opacity 1.4s ease}
+#veil.dim{opacity:.25}
+
+/* the panel: fixed card, inner scroller, progress bar pinned at its foot */
+#panel{position:fixed;left:var(--gap);top:var(--gap);max-height:calc(100% - var(--gap) * 2);width:var(--panel);
+  background:var(--cloud);border-radius:10px;box-shadow:0 12px 40px rgba(10,6,30,.38),0 0 0 1px rgba(29,18,71,.06);
+  display:flex;flex-direction:column;overflow:hidden}
+#pscroll{flex:0 1 auto;min-height:0;overflow-y:auto;padding:26px 26px 18px;scrollbar-width:thin;scrollbar-color:rgba(29,18,71,.2) transparent}
+#pfoot{flex:none;padding:12px 26px 16px;border-top:1px solid var(--hair);display:flex;align-items:center}
+.slide{display:flex;flex-direction:column;gap:12px;opacity:0;transform:translateY(6px);transition:opacity .6s ease, transform .6s ease}
+.slide.on{opacity:1;transform:none}
+.brandrow{display:flex;align-items:center;gap:12px}
+.brandrow img{width:28px;height:28px;flex:none;border-radius:3px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text);font-weight:600}
+.eyebrow small{display:block;margin-top:3px;font-size:10.5px;letter-spacing:.1em;color:var(--muted);font-weight:400}
+.kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--purple);font-weight:600}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(24px,2.1vw,30px);line-height:1.05;letter-spacing:-.01em;margin:10px 0 0;text-wrap:balance;color:var(--text)}
+h1.cover{font-size:clamp(28px,2.6vw,36px);margin:6px 0 0}
+.rule{width:40px;height:3px;background:var(--purple);border-radius:2px}
+h2{font-family:var(--font);font-weight:400;font-size:15px;line-height:1.2;color:var(--muted);margin:0;text-wrap:balance}
+h2.accent{font-family:var(--display);font-weight:600;color:var(--purple);font-size:17px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--midnight);background:var(--lilac);padding:4px 8px;border-radius:3px}
+.chip.land{background:var(--greentea);color:var(--forest)}
+.chip.stage{background:none;color:var(--muted);box-shadow:inset 0 0 0 1px rgba(29,18,71,.22)}
+.chip.stage.hot{color:var(--brick);box-shadow:inset 0 0 0 1px var(--brick)}
+.chip.sample{background:var(--brick);color:var(--cloud)}
+
+/* deal facts: label/value rows, numbers tabular */
+.facts{display:flex;flex-direction:column;gap:6px;font-size:13.5px;line-height:1.3;color:var(--body)}
+.facts .row{display:flex;flex-wrap:wrap;gap:3px 16px}
+.facts b{font-weight:400;color:var(--faint);letter-spacing:.08em;text-transform:uppercase;font-size:10.5px;margin-right:6px}
+.facts span{font-variant-numeric:tabular-nums}
+.facts .big{font-family:var(--display);font-size:19px;font-weight:600;color:var(--text)}
+.facts .sub{color:var(--muted);font-size:12.5px}
+.bid{color:var(--brick);font-size:13px;font-weight:600;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.badge{font-size:9.5px;letter-spacing:.1em;font-weight:600;color:var(--brick);box-shadow:inset 0 0 0 1px var(--brick);padding:2px 6px;border-radius:3px}
+.badge.solid{background:var(--brick);color:var(--cloud)}
+.request{font-size:13px;line-height:1.4;color:var(--body)}
+.callout{background:var(--breeze);border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.callout strong{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--midnight);font-weight:600}
+.callout p{margin:0;font-size:13px;line-height:1.4;color:var(--midnight)}
+.prev{display:flex;flex-direction:column;gap:5px;border-top:1px solid var(--hair);padding-top:10px}
+.prev .lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.prev div{font-size:12px;line-height:1.35;color:var(--body)}
+.prev div em{font-style:normal;color:var(--purple);font-weight:600}
+.outcome{border-radius:6px;box-shadow:inset 0 0 0 1px var(--hair);padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.outcome .lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+.outcome .v{font-size:14px;font-weight:600}
+.meta{font-size:11px;line-height:1.4;color:var(--faint)}
+.meta a{color:var(--muted)} .meta a:hover{color:var(--purple)}
+
+/* cover and market boards */
+.tally{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
+.tally .grp{display:flex;flex-direction:column;gap:4px;border-radius:6px;box-shadow:inset 0 0 0 1px var(--hair);padding:10px}
+.tally .lbl{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;order:2}
+.tally .n{display:flex;flex-direction:column;gap:2px;order:1}
+.tally .n i{font-style:normal;font-family:var(--display);font-size:28px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;color:var(--text)}
+.tally .n span{display:none}
+.due{display:flex;flex-direction:column}
+.due div{display:flex;justify-content:space-between;gap:12px;font-size:13px;color:var(--body);border-bottom:1px solid var(--hair);padding:7px 0}
+.due div em{font-style:normal;color:var(--text);font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+ul.bul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;font-size:13px;color:var(--body)}
+ul.bul li{padding-left:14px;position:relative}
+ul.bul li::before{content:"";position:absolute;left:0;top:.5em;width:5px;height:5px;border-radius:50%;background:var(--purple)}
+.lead{font-size:13px;color:var(--muted);line-height:1.4}
+
+#bar{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+#bar button{width:16px;height:12px;padding:5px 0;border:0;background:none;cursor:pointer}
+#bar button span{display:block;height:2px;background:rgba(29,18,71,.15);position:relative;overflow:hidden;border-radius:1px}
+#bar button span i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--purple)}
+#bar button:focus-visible, #ctl button:focus-visible{outline:2px solid var(--purple);outline-offset:2px}
+
+/* map controls: white pills, Midnight when active */
+#ctl{position:fixed;right:var(--gap);bottom:var(--gap);display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:55vw}
+#ctl button{font:600 11px var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--midnight);background:var(--cloud);border:0;box-shadow:0 4px 14px rgba(10,6,30,.3);padding:9px 13px;border-radius:6px;cursor:pointer}
+#ctl button:hover{color:var(--purple)}
+#ctl button[aria-pressed="true"]{background:var(--midnight);color:var(--cloud)}
+#credit{position:fixed;right:var(--gap);top:12px;font-size:10px;color:rgba(255,255,255,.75);text-shadow:0 1px 3px rgba(0,0,0,.6);text-align:right;pointer-events:none}
+#err{position:fixed;right:var(--gap);top:36px;max-width:320px;font-size:12px;line-height:1.4;background:var(--cloud);color:var(--midnight);border-left:3px solid var(--brick);border-radius:4px;padding:10px 12px;box-shadow:0 4px 14px rgba(10,6,30,.3)}
+#hint{position:fixed;left:calc(var(--panel) + var(--gap) * 2);right:var(--gap);margin:0 auto;top:var(--gap);max-width:520px;font-size:12.5px;line-height:1.4;background:var(--cloud);color:var(--midnight);border-radius:6px;padding:10px 14px;text-align:center;box-shadow:0 6px 20px rgba(10,6,30,.35)}
+#hint textarea{display:block;width:100%;min-height:90px;margin-top:8px;font:11px/1.4 monospace}
+
+.pin{width:18px;height:18px}   /* fixed-size marker box; MapLibre centers this on the coordinate */
+.dot{box-sizing:border-box;width:18px;height:18px;border-radius:50%;background:var(--lilac);border:2px solid var(--midnight);box-shadow:0 0 0 3px rgba(199,201,254,.45);position:relative}
+.dot::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid var(--lilac);opacity:.7;animation:ping 2.2s ease-out infinite}
+.dot.land{background:var(--greentea);box-shadow:0 0 0 3px rgba(204,236,195,.45)}
+.dot.land::after{border-color:var(--greentea)}
+.dot.arch{opacity:.5}.dot.arch::after{display:none}
+@keyframes ping{from{transform:scale(.6);opacity:.8}to{transform:scale(2.1);opacity:0}}
+.maplibregl-ctrl-bottom-right,.maplibregl-ctrl-bottom-left{display:none}
+[hidden]{display:none!important}
+
+/* list view: full Cloud White page */
+#list{position:fixed;inset:0;background:var(--cloud);color:var(--text);padding:36px 44px 90px;overflow-y:auto;display:flex;flex-direction:column;gap:16px;z-index:2}
+.lhead{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:center;justify-content:space-between}
+.lhead h1{margin:0}
+.filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.filters button{font:600 11px var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--midnight);background:none;border:0;box-shadow:inset 0 0 0 1px rgba(29,18,71,.2);padding:7px 11px;border-radius:6px;cursor:pointer}
+.filters button[aria-pressed="true"]{background:var(--midnight);color:var(--cloud);box-shadow:none}
+.tw{overflow-x:auto}
+#list table{border-collapse:collapse;width:100%;min-width:1000px;font-size:13px;line-height:1.3}
+#list th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid rgba(29,18,71,.25);cursor:pointer;white-space:nowrap;user-select:none}
+#list th[aria-sort]{color:var(--purple)}
+#list td{padding:10px;border-bottom:1px solid var(--hair);vertical-align:top;color:var(--body)}
+#list td b{font-weight:600;color:var(--text)}
+#list td.num,#list th.num{text-align:right;font-variant-numeric:tabular-nums}
+#list tr.r{cursor:pointer}
+#list tr.r:hover td,#list tr.r:focus-visible td{background:rgba(67,40,144,.05)}
+#list td small{display:block;color:var(--muted);font-size:11.5px}
+#list td.st{max-width:28ch}
+#list ~ #ctl{z-index:3}
+
+@media (max-width:760px){
+  :root{--panel:auto;--gap:10px}
+  #panel{left:var(--gap);right:var(--gap);top:auto;bottom:var(--gap);max-height:56%;width:auto}
+  #pscroll{padding:18px 16px 12px}
+  #pfoot{padding:10px 16px 12px}
+  #ctl{right:auto;left:var(--gap);bottom:auto;top:var(--gap);justify-content:flex-start;max-width:calc(100vw - 20px)}
+  #ctl button{padding:7px 9px}
+  #credit{display:none}
+  #hint{left:var(--gap);top:auto;bottom:calc(56% + 20px)}
+  #list{padding:60px 16px 60px}
+  .tally{grid-template-columns:repeat(3,1fr)}
+}
+@media (prefers-reduced-motion:reduce){
+  .slide,#veil{transition:none}
+  .dot::after{animation:none}
+}
+
+/* ---- deal card layout. Type scale: 11 caps labels · 13 body · 15 subtitle · 20 tile values · 26 headline.
+   Spacing scale: 4 / 8 / 12 / 16 / 24. ---- */
+.slide{gap:18px}
+.dh{display:flex;flex-direction:column;gap:8px}
+.dh h1{font-size:26px;margin:0}
+.dh h2{font-size:14.5px}
+.dh .chips{margin-top:2px}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--hair);border-radius:8px;overflow:hidden}
+.tiles .tile{box-shadow:1px 1px 0 var(--hair)}   /* inner grid lines; the outer edge is clipped by the container */
+.tile{background:var(--cloud);padding:10px 10px 11px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.tl{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tv small{font-size:11px;font-weight:600;color:var(--muted);margin-left:1px}
+.tv{font-family:var(--display);font-size:17px;font-weight:600;line-height:1.1;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ts{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.3}
+.sec{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--hair);padding-top:14px}
+.sec h3{margin:0;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--purple);font-weight:600}
+.kv{display:grid;grid-template-columns:104px 1fr;gap:7px 12px;margin:0;font-size:13px;line-height:1.4}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;color:var(--text)}
+.kv dd .badge{margin-left:6px;vertical-align:1px}
+.request{margin:0;font-size:13px;line-height:1.45;color:var(--body)}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--body)}
+.log li{display:grid;grid-template-columns:56px 1fr;gap:10px}
+.log li span{color:var(--purple);font-weight:600;font-variant-numeric:tabular-nums}
+.outcome .ov{font-size:14px;font-weight:600}
+.meta{margin:0}
+
+/* figures: one hero number, then a borderless two-column stat grid (replaces boxed tiles) */
+.figures{display:flex;flex-direction:column;gap:14px}
+.hero{display:flex;flex-direction:column;gap:3px}
+.hv{font-family:var(--display);font-size:32px;font-weight:600;line-height:1;letter-spacing:-.01em;color:var(--text);font-variant-numeric:tabular-nums}
+.hs{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;padding-top:14px;border-top:1px solid var(--hair)}
+.stat{display:flex;flex-direction:column;gap:3px;min-width:0}
+.stat .tv{font-size:18px}
+
+/* cover agenda */
+.agenda{display:flex;flex-direction:column;margin-top:4px}
+.ag-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-bottom:6px;border-bottom:1px solid rgba(29,18,71,.22)}
+.ag-head span{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--purple);font-weight:600}
+.ag-head em{font-style:normal;font-size:11.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.ag-row{display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:10px;width:100%;padding:9px 6px;margin:0 -6px;width:calc(100% + 12px);
+  background:none;border:0;border-bottom:1px solid var(--hair);border-radius:4px;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.ag-row:hover,.ag-row:focus-visible{background:rgba(67,40,144,.06);outline:none}
+.ag-name{font-size:13.5px;font-weight:600;color:var(--text);line-height:1.25;min-width:0}
+.ag-name small{display:block;font-size:11.5px;font-weight:400;color:var(--muted);margin-top:1px}
+.ag-px{font-family:var(--display);font-size:14px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ag-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--lilac);box-shadow:0 0 0 1.5px var(--midnight)}
+.ag-dot.land{background:var(--greentea)}
+.ag-key{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:11px;color:var(--muted)}
+.ag-key span{display:inline-flex;align-items:center;gap:6px}
+
+/* cover agenda: name · acres · guidance */
+.agenda{display:flex;flex-direction:column;margin-top:6px}
+.ag-row{display:grid;grid-template-columns:1fr 56px 78px;align-items:baseline;gap:12px;width:calc(100% + 12px);margin:0 -6px;padding:9px 6px;
+  background:none;border:0;border-bottom:1px solid var(--hair);border-radius:4px;font:inherit;color:inherit;text-align:left;cursor:pointer}
+button.ag-row:hover,button.ag-row:focus-visible{background:rgba(67,40,144,.06);outline:none}
+.ag-head{cursor:default;padding-bottom:6px;border-bottom:1px solid rgba(29,18,71,.22);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ag-head span:first-child{color:var(--purple);font-size:11px;letter-spacing:.14em}
+.ag-head span:not(:first-child){text-align:right}
+.ag-name{font-size:13.5px;font-weight:600;color:var(--text);min-width:0}
+.ag-num{text-align:right;font-size:13px;color:var(--body);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ag-px{font-weight:600;color:var(--text)}
+
+/* cover agenda: name · size · guidance */
+.agenda{display:flex;flex-direction:column;margin-top:6px}
+.ag-row{display:grid;grid-template-columns:1fr 72px 72px;align-items:baseline;gap:12px;width:calc(100% + 12px);margin:0 -6px;padding:9px 6px;
+  background:none;border:0;border-bottom:1px solid var(--hair);border-radius:4px;font:inherit;color:inherit;text-align:left;cursor:pointer}
+button.ag-row:hover,button.ag-row:focus-visible{background:rgba(67,40,144,.06);outline:none}
+.ag-head{cursor:default;padding-bottom:6px;border-bottom:1px solid rgba(29,18,71,.22);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.ag-head span:first-child{color:var(--purple);font-size:11px;letter-spacing:.14em}
+.ag-head span:not(:first-child){text-align:right}
+.ag-name{font-size:13.5px;font-weight:600;color:var(--text);min-width:0}
+.ag-num{text-align:right;font-size:13px;color:var(--body);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ag-px{font-weight:600;color:var(--text)}
+/* v2: sit below the shared navigation bar */
+#map,#veil,#list{top:var(--nav-h)}
+#panel{top:calc(var(--nav-h) + var(--gap));max-height:calc(100% - var(--nav-h) - var(--gap) * 2)}
+#credit{top:calc(var(--nav-h) + 12px)}
+#err{top:calc(var(--nav-h) + 36px)}
+#hint{top:calc(var(--nav-h) + var(--gap))}
+@media (max-width:760px){#panel{top:auto}}
+body{overflow:hidden}
+.lsearch{border:1px solid rgba(29,18,71,.2);border-radius:6px;padding:6px 10px;font:inherit;min-width:220px;background:#fff}
+/* deal management (stage, check-back, outcome, notes) */
+details.manage{margin:18px 0 6px;border-top:1px solid rgba(29,18,71,.12);padding-top:12px}
+details.manage summary{cursor:pointer;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.mg{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-top:12px}
+.mg input,.mg select,.mg textarea{width:100%;min-width:0;box-sizing:border-box}
+.mg label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--muted)}
+.mg .full{grid-column:1/-1}
+.mg input,.mg select,.mg textarea{border:1px solid rgba(29,18,71,.2);border-radius:6px;padding:6px 8px;font:inherit;font-size:13px;color:var(--text);background:#fff}
+.mg .quick{display:flex;gap:6px;flex-wrap:wrap}
+.mg button{border:1px solid rgba(29,18,71,.2);background:#fff;border-radius:6px;padding:5px 10px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--text)}
+.mg button.save{background:var(--midnight);color:#fff;border-color:var(--midnight)}
+.mg .saved{font-size:12px;color:var(--forest);align-self:center}
+</style>
 </head>
-<body><main id="app"><div class="loading">Loading…</div></main>
+<body>
+<div id="map" aria-label="Satellite map of the deal sites"></div>
+<div id="veil"></div>
+<div id="scrim"></div>
+<main id="panel" aria-live="polite"><div id="pscroll"><div class="slide" id="slide"></div></div><div id="pfoot"><nav id="bar" aria-label="Slides"></nav></div></main>
+<div id="credit">Imagery: Esri, Maxar, Earthstar Geographics · Powered by Esri</div>
+<div id="err" hidden></div>
+<div id="hint" role="status" hidden></div>
+<section id="list" aria-label="All deals" hidden>
+  <div class="lhead"><h1>All deals</h1><div class="filters" id="filters"></div><div class="filters"><input class="lsearch" id="lq" type="search" placeholder="Search deals, brokers, sellers"><button type="button" id="lmap">Show these on the map</button></div></div>
+  <div class="tw"><table><thead id="lth"></thead><tbody id="ltb"></tbody></table></div>
+  <div class="meta">Click a column heading to sort. Click a row to open that deal on the map. Prospect and Monitor deals, and archived deals (passed, lost, dead, closed), sit outside the meeting player but open from here.</div>
+</section>
+<div id="ctl">
+    <button id="pick" type="button" aria-pressed="false">Fix parcel</button>
+  <button id="listb" type="button" aria-pressed="false">List</button>
+  <button id="prev" type="button" aria-label="Previous slide">Prev</button>
+  <button id="play" type="button">Play</button>
+  <button id="next" type="button" aria-label="Next slide">Next</button>
+</div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="../shared/wb.js"></script>
 <script>
-(async () => { await WB.ready('pipeline'); document.getElementById('app').innerHTML = `<h1>Pipeline</h1><p>This page is being built now. Your deal list already lives in the new database, and the meeting player comes next.</p>`; })();
-</script></body></html>
+(async () => {
+const { sb, user } = await WB.ready("pipeline");
+/* ============================================================
+   DATA. This block is the only thing that changes week to week.
+   One record per deal. kind: "asset" (existing) or "land" (development).
+
+   Common:  market ("Denver" | "Phoenix"), name, address, where, lat, lon, coord,
+            parcels, parcelNote, broker, seller, owner (owner of record),
+            guidance (number, $) or guidanceNote, units, acres, zoning,
+            bidDate (call for offers, YYYY-MM-DD), stage, summary, take,
+            log [[date, text]], outcome {result, buyer, price, date}, src [[label,url]]
+   Asset:   yearBuilt, avgSf, units, effRentPsf/effRentMo, mktRentPsf/mktRentMo,
+            newLeasePsf, occ (%), concessionWeeks, tradeNew / tradeRenew (net effective %), noi (T-12), adjNoi, proformaNoi,
+            valueCap (our cap %, values T-12), lastSale {year, price, cap}, manager,
+            developer, noiNote
+   Land:    entitlement, doors (planned units for $/door), product,
+            rentPsf / rentMo (today's market rent in our UW), roc (untrended
+            return on cost %), reqRent ($/SF needed for a 6.50% YOC)
+
+   stage: screening | underwriting | bidding | loi | contract | passed
+   Archive rule: a deal archives once it has an outcome or its bid date has
+   passed (unless we're in LOI or under contract). Passed deals stay on the board.
+   ============================================================ */
+/* ============================================================
+   DATA: read live from Supabase (pipeline.deals, deal_log, deal_parcels, core.parcels).
+   Each row is mapped to the deal shape the report below expects.
+   ============================================================ */
+const MKT = {denver: "Denver", phoenix: "Phoenix"};
+const isoToday = () => { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+function num(v){ return v == null || v === "" || isNaN(+v) ? null : +v; }
+function ringsOf(geom){
+  if(!geom) return [];
+  if(geom.type === "Polygon") return [geom.coordinates];
+  if(geom.type === "MultiPolygon") return geom.coordinates;
+  return [];
+}
+function toDeal(r, logs, parcels){
+  const u = r.uw || {};
+  const yoc = u.roc != null ? num(u.roc) : (u.yieldOnCost != null ? (num(u.yieldOnCost) < 1 ? num(u.yieldOnCost) * 100 : num(u.yieldOnCost)) : null);
+  const rentPsf = num(u.rentPsf ?? u.uwRentsPerSF);
+  const land = r.kind === "land";
+  const stage = r.stage === "under_contract" ? "contract" : r.stage;
+  const bidFuture = r.bid_date && r.bid_date >= isoToday();
+  let outcome = null;
+  if(r.stage === "lost") outcome = {result: "Lost", buyer: r.outcome_winner, price: num(r.outcome_price), date: r.outcome_date};
+  else if(r.stage === "closed") outcome = {result: "Closed", buyer: r.outcome_winner || "Willow Bridge", price: num(r.outcome_price), date: r.outcome_date};
+  else if(r.stage === "dead") outcome = {result: "Dead"};
+  else if(r.stage === "passed" && !bidFuture) outcome = {result: "Passed"};
+  return {
+    id: r.id, property_id: r.property_id, _row: r,
+    market: MKT[r.market_id] || r.market_id, kind: r.kind, name: r.name, address: r.address,
+    where: u.where || u.submarket || null, lat: num(r.lat), lon: num(r.lng),
+    broker: r.broker, seller: r.seller, owner: r.owner_of_record,
+    guidance: num(r.guidance), guidanceNote: r.guidance_note,
+    units: land ? null : num(r.units), doors: land ? num(u.doors ?? r.units) : null, acres: num(r.acres),
+    zoning: r.zoning, entitlement: r.entitlement, bidDate: r.bid_date, stage, summary: r.summary, take: r.take,
+    product: u.product || u.productType || null,
+    rentPsf, rentMo: num(u.rentMo) ?? (rentPsf && u.uwAvgUnitSize ? rentPsf * num(u.uwAvgUnitSize) : null),
+    roc: yoc, reqRent: num(u.reqRent),
+    yearBuilt: num(u.yearBuilt), avgSf: num(u.avgSf), occ: num(u.occ), concessionWeeks: num(u.concessionWeeks),
+    effRentPsf: num(u.effRentPsf), effRentMo: num(u.effRentMo), mktRentPsf: num(u.mktRentPsf), mktRentMo: num(u.mktRentMo),
+    newLeasePsf: num(u.newLeasePsf), tradeNew: num(u.tradeNew), tradeRenew: num(u.tradeRenew),
+    noi: num(u.noi), adjNoi: num(u.adjNoi), proformaNoi: num(u.proformaNoi), valueCap: num(u.valueCap),
+    lastSale: u.lastSale || null, manager: u.manager || null, developer: u.developer || null, noiNote: u.noiNote || null,
+    parcelNote: u.parcel_note || null, src: Array.isArray(u.sources) ? u.sources : null,
+    log: (logs || []).map(l => [l.logged_on, l.body]),
+    _parcels: parcels || [], checkBack: r.check_back_on, outcome,
+  };
+}
+async function loadReport(){
+  const [rows, logs, links, parcels] = await Promise.all([
+    WB.fetchAll("pipeline", "deals", "*", q => q.is("merged_into", null)),
+    WB.fetchAll("pipeline", "deal_log", "id,deal_id,logged_on,kind,body", q => q.order("logged_on").order("id")),
+    WB.fetchAll("pipeline", "deal_parcels", "deal_id,parcel_id"),
+    WB.fetchAll("core", "parcels", "id,apn,geom"),
+  ]);
+  const pById = new Map(parcels.map(p => [p.id, p]));
+  const byDeal = (arr, k) => arr.reduce((m, x) => (m.get(x[k]) || m.set(x[k], []).get(x[k])).push(x) && m, new Map());
+  const L = byDeal(logs, "deal_id"), P = byDeal(links, "deal_id");
+  const deals = rows.map(r => toDeal(r, L.get(r.id), (P.get(r.id) || []).flatMap(x => {
+    const p = pById.get(x.parcel_id); if(!p) return [];
+    return ringsOf(p.geom).map(rings => ({id: p.id, apn: p.apn, coords: rings}));
+  })));
+  return {market: "Southwest", title: "On-Market Deal Report", date: isoToday(), markets: ["Denver", "Phoenix"], deals};
+}
+const REPORT = await loadReport();
+
+/* ---------- managing a deal from its card: stage, bids due, guidance, check-back, outcome, notes ---------- */
+const STAGE_OPTS = [["prospect","Prospect"],["screening","Screening"],["underwriting","Underwriting"],["loi","LOI"],["contract","Under contract"],
+  ["monitor","Monitor"],["passed","Passed"],["lost","Lost"],["dead","Dead"],["closed","Closed"]];
+function manageBlock(d){
+  const e = WB.esc, r = d._row || {};
+  const v = (x) => x == null ? "" : e(x);
+  return '<details class="manage"><summary>Update this deal</summary><div class="mg" data-deal="' + d.id + '">'
+    + '<label>Stage<select name="stage">' + STAGE_OPTS.map(o => '<option value="' + o[0] + '"' + (o[0] === d.stage ? " selected" : "") + ">" + o[1] + "</option>").join("") + "</select></label>"
+    + '<label>Bids due<input type="date" name="bid_date" value="' + v(r.bid_date) + '"></label>'
+    + '<label>Guidance ($)<input type="number" name="guidance" step="any" value="' + v(r.guidance) + '"></label>'
+    + '<label>Check back on<input type="date" name="check_back_on" value="' + v(r.check_back_on) + '"></label>'
+    + '<div class="full quick"><span style="font-size:11.5px;color:var(--muted);align-self:center">Check back in</span>'
+    + '<button type="button" data-cb="3">3 months</button><button type="button" data-cb="6">6 months</button><button type="button" data-cb="12">12 months</button></div>'
+    + '<label>Winner (if lost)<input name="outcome_winner" value="' + v(r.outcome_winner) + '"></label>'
+    + '<label>Winning price ($)<input type="number" name="outcome_price" step="any" value="' + v(r.outcome_price) + '"></label>'
+    + '<label class="full">Add a note to the deal log<textarea name="note" rows="2" placeholder="e.g. Broker says best and final due Friday"></textarea></label>'
+    + '<div class="full quick"><button type="button" class="save" data-save>Save</button><span class="saved"></span></div>'
+    + "</div></details>";
+}
+document.addEventListener("click", async (ev) => {
+  const box = ev.target.closest(".mg[data-deal]"); if(!box) return;
+  const cb = ev.target.closest("[data-cb]");
+  if(cb){
+    const t = new Date(); t.setMonth(t.getMonth() + +cb.dataset.cb);
+    box.querySelector("[name=check_back_on]").value = t.toISOString().slice(0, 10);
+    const st = box.querySelector("[name=stage]"); if(!["lost","dead","closed","passed"].includes(st.value)) st.value = "monitor";
+    return;
+  }
+  if(!ev.target.closest("[data-save]")) return;
+  const d = REPORT.deals.find(x => x.id === box.dataset.deal); if(!d) return;
+  const f = n => box.querySelector("[name=" + n + "]").value.trim();
+  const newStage = f("stage"), dbStage = newStage === "contract" ? "under_contract" : newStage;
+  const patch = {stage: dbStage, bid_date: f("bid_date") || null, guidance: f("guidance") === "" ? null : +f("guidance"),
+    check_back_on: f("check_back_on") || null, outcome_winner: f("outcome_winner") || null,
+    outcome_price: f("outcome_price") === "" ? null : +f("outcome_price")};
+  if(["lost","closed"].includes(dbStage) && !d._row.outcome_date) patch.outcome_date = isoToday();
+  const msg = box.querySelector(".saved"); msg.textContent = "Saving…";
+  const prevStage = d._row.stage, prevLabel = STAGES[d.stage] || d.stage;
+  const { data: row, error } = await sb.schema("pipeline").from("deals").update(patch).eq("id", d.id).select().single();
+  if(error){ msg.textContent = error.message; return; }
+  const notes = [];
+  if(prevStage !== dbStage) notes.push({deal_id: d.id, kind: "stage", body: "Stage: " + prevLabel + " → " + (STAGES[newStage] || newStage) + (patch.check_back_on ? ", check back " + fmtDate(patch.check_back_on) : "") + "."});
+  if(f("note")) notes.push({deal_id: d.id, kind: "note", body: f("note")});
+  if(notes.length){ const { error: e2 } = await sb.schema("pipeline").from("deal_log").insert(notes); if(e2){ msg.textContent = e2.message; return; } }
+  const log = d.log.concat(notes.map(n => [isoToday(), n.body]));
+  Object.assign(d, toDeal(row, [], d._parcels), {log});
+  repaintDeal();
+  WB.toast("Saved");
+});
+
+/* ---------- show a set of deals together on the map (list → "Show these on the map") ---------- */
+function showMany(list){
+  setPlaying(false);
+  if(!map || !map.getSource("site")) return;
+  clearMarkers();
+  const feats = [];
+  list.forEach(d => getParcels(d).forEach(p => feats.push({type:"Feature", properties:{apn:p.apn, kind:d.kind}, geometry:{type:"Polygon", coordinates:p.coords}})));
+  map.getSource("site").setData({type:"FeatureCollection", features:feats});
+  list.forEach(d => {
+    if(d.lat == null || d.lon == null) return;
+    const el = document.createElement("div"); el.className = "pin"; el.title = d.name + " · " + (STAGES[d.stage] || d.stage);
+    const dot = document.createElement("div"); dot.className = "dot" + (d.kind === "land" ? " land" : "") + (archived(d) || watching(d) ? " arch" : "");
+    el.appendChild(dot); el.style.cursor = "pointer";
+    el.addEventListener("click", () => { const i = SLIDES.findIndex(s => s.d === d); if(i >= 0) go(i); });
+    markers.push(new maplibregl.Marker({element:el, anchor:"center"}).setLngLat([d.lon, d.lat]).addTo(map));
+  });
+  const pts = list.filter(d => d.lat != null);
+  if(pts.length) map.fitBounds(allBounds(pts), {padding:pad(), maxZoom:13, duration:reduce ? 0 : 1600});
+  $("#slide").innerHTML = '<div class="brandrow"><img src="' + WB_MARK + '" alt="Willow Bridge"><div class="eyebrow">Pipeline map<small>' + fmtDate(REPORT.date) + "</small></div></div>"
+    + "<h1>" + plural(list.length, "deal") + "</h1><div class=\"rule\"></div>"
+    + '<div class="agenda">' + list.slice().sort((a, b) => a.name.localeCompare(b.name)).map(d => {
+        const i = SLIDES.findIndex(s => s.d === d);
+        return '<button type="button" class="ag-row" data-go="' + i + '"><span class="ag-name">' + esc(d.name) + "</span>"
+          + '<span class="ag-num">' + esc(d.market) + '</span><span class="ag-num ag-px">' + esc(STAGES[d.stage] || d.stage) + "</span></button>";
+      }).join("") + "</div>"
+    + '<div class="meta">Click a dot or a row to open that deal. Dimmed dots are archived, Prospect or Monitor deals.</div>';
+}
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function fmtDate(iso){ if(!iso) return ""; const [y,m,d] = iso.split("-").map(Number); return MONTHS[m-1] + " " + d + ", " + y; }
+function shortDate(iso){ if(!iso) return ""; const [,m,d] = iso.split("-").map(Number); return MONTHS[m-1].slice(0,3) + " " + d; }
+function fmtNum(n){ return n.toLocaleString("en-US", {maximumFractionDigits: n < 10 ? 2 : (n < 100 ? 1 : 0)}); }
+function usd(n){ return "$" + Math.round(n).toLocaleString("en-US"); }
+function usdM(n){ return n >= 1e6 ? "$" + (n/1e6).toFixed(n >= 1e8 ? 0 : 1) + "M" : usd(n); }
+function today(){ const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+function daysTo(iso){ if(!iso) return null; const [y,m,d] = iso.split("-").map(Number); return Math.round((new Date(y, m-1, d) - today()) / 864e5); }
+const STAGES = {prospect:"Prospect", screening:"Screening", underwriting:"Underwriting", bidding:"Bidding", loi:"LOI", contract:"Under contract", monitor:"Monitor", passed:"Passed", lost:"Lost", dead:"Dead", closed:"Closed"};
+const DB_STAGE = {contract:"under_contract"};
+function watching(d){ return d.stage === "prospect" || d.stage === "monitor"; }
+const HOT = new Set(["bidding","loi","contract"]);
+function archived(d){
+  if(d.outcome) return true;
+  if(["lost","dead","closed"].includes(d.stage)) return true;   /* passed deals stay on the board until they trade or their bid date passes */
+  const n = daysTo(d.bidDate);
+  return n != null && n < 0 && !["loi","contract"].includes(d.stage);
+}
+/* derived metrics */
+function ppu(d){ return (d.guidance && d.units) ? d.guidance / d.units : null; }
+function ppsf(d){ return (d.guidance && d.units && d.avgSf) ? d.guidance / (d.units * d.avgSf) : null; }
+function ppa(d){ return (d.guidance && d.acres) ? d.guidance / d.acres : null; }
+function ppland(d){ return (d.guidance && d.acres) ? d.guidance / (d.acres * 43560) : null; }
+function ppd(d){ return (d.guidance && d.doors) ? d.guidance / d.doors : null; }
+function density(d){ const u = d.kind === "land" ? d.doors : d.units; return (u && d.acres) ? u / d.acres : null; }
+function priceLine(d){ return d.guidance ? usdM(d.guidance) : (d.guidanceNote || "Unpriced"); }
+function bidBadge(d){
+  if(d.outcome) return '<span class="badge">' + esc(d.outcome.result || "Closed") + '</span>';
+  const n = daysTo(d.bidDate); if(n == null) return "";
+  if(n < 0) return '<span class="badge">PAST</span>';
+  if(n === 0) return '<span class="badge solid">DUE TODAY</span>';
+  return '<span class="badge' + (n <= 7 ? " solid" : "") + '">IN ' + n + ' DAY' + (n === 1 ? "" : "S") + '</span>';
+}
+
+/* ---------- parcels (same source and point lookup as Site Scout) ---------- */
+const PARCEL_SVC = "https://gis.colorado.gov/public/rest/services/Address_and_Parcel/Colorado_Public_Parcels/FeatureServer/0";
+const OV_KEY = "wb_dealreport_parcel_fixes";
+let OV = {};
+try{ OV = JSON.parse(localStorage.getItem(OV_KEY) || "{}") || {}; }catch(e){ OV = {}; }
+function saveOV(){ try{ localStorage.setItem(OV_KEY, JSON.stringify(OV)); }catch(e){} }
+function decodeRing(a){ const x0 = a[0], y0 = a[1], o = [[x0/1e5, y0/1e5]]; for(let i = 2; i < a.length; i += 2) o.push([(x0 + a[i])/1e5, (y0 + a[i+1])/1e5]); return o; }
+function slug(d){ return d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+function getParcels(d){ return d._parcels || []; }
+function ringAcres(r){ const k = Math.cos(r[0][1] * Math.PI/180) * 111320; let s = 0; for(let i = 0; i < r.length - 1; i++) s += (r[i][0]*k) * (r[i+1][1]*110950) - (r[i+1][0]*k) * (r[i][1]*110950); return s / 2 / 4046.86; }
+function parcelAcres(ps){ return ps.reduce((t, p) => t + Math.abs(p.coords.reduce((a, r) => a + ringAcres(r), 0)), 0); }
+function squareFor(d, scale){
+  const acres = d.acres || 4, half = Math.sqrt(acres * 4046.86) / 2 * (scale || 1);
+  const dLat = half / 111320, dLon = half / (111320 * Math.cos(d.lat * Math.PI / 180));
+  return [[d.lon - dLon, d.lat - dLat],[d.lon + dLon, d.lat - dLat],[d.lon + dLon, d.lat + dLat],[d.lon - dLon, d.lat + dLat],[d.lon - dLon, d.lat - dLat]];
+}
+function jsonp(url, params){
+  return new Promise((ok, no) => {
+    const cb = "_pcb" + Math.random().toString(36).slice(2), sc = document.createElement("script");
+    const done = () => { delete window[cb]; sc.remove(); };
+    window[cb] = j => { done(); ok(j); };
+    sc.onerror = () => { done(); no(new Error("jsonp")); };
+    params.set("callback", cb); sc.src = url + "?" + params; document.head.appendChild(sc);
+  });
+}
+const COUNTY_SVC = [
+  {name:"Adams",     svc:"https://services3.arcgis.com/4PNQOtAivErR7nbT/arcgis/rest/services/Parcels/FeatureServer/0", b:[39.79,-105.05,40.00,-103.70]},
+  {name:"Jefferson", svc:"https://arcgis.jeffco.us/arcgis/rest/services/Assessor/Parcels/MapServer/0", b:[39.13,-105.40,39.93,-105.05]},
+  {name:"Douglas",   svc:"https://gisapps.douglas.co.us/arcgis/rest/services/Public/Parcel_Information/MapServer/0", b:[39.13,-105.22,39.57,-104.60]},
+  {name:"Boulder",   svc:"https://maps.bouldercounty.org/arcgis/rest/services/POS/Parcels/MapServer/0", b:[39.91,-105.69,40.26,-105.05]}
+];
+function pick(a, names){ for(const n of names) for(const k in a) if(k.toLowerCase() === n.toLowerCase() && a[k] != null && a[k] !== "") return String(a[k]); return ""; }
+function timeout(ms){ return new Promise((_, no) => setTimeout(() => no(new Error("timeout")), ms)); }
+async function queryPoint(svc, lng, lat, fields){
+  const mk = () => new URLSearchParams({geometry:JSON.stringify({x:lng, y:lat, spatialReference:{wkid:4326}}), geometryType:"esriGeometryPoint",
+    inSR:4326, outSR:4326, spatialRel:"esriSpatialRelIntersects", outFields:fields, returnGeometry:true, geometryPrecision:6, resultRecordCount:1, f:"json"});
+  const viaFetch = fetch(svc + "/query?" + mk()).then(r => r.json());
+  const viaJsonp = viaFetch.catch(() => jsonp(svc + "/query", mk()));
+  const j = await Promise.race([viaJsonp, timeout(30000)]);
+  if(j && j.error) throw new Error(j.error.message || "service error");
+  const f = j && j.features && j.features[0];
+  if(!f || !f.geometry || !f.geometry.rings) return null;
+  const a = f.attributes || {};
+  return {apn:pick(a, ["parcel_id","APN_DASH","PARCELNB","PIN","SCHEDNUM","SCHEDULE","PARCEL_NO","PARCELNO","APN","ACCOUNT_NO","ACCOUNTNO","STATE_PARCEL_NO"]),
+          situs:pick(a, ["situsAdd","PHYSICAL_ADDRESS","CONCATADDR1","SITUS","SITUS_ADDRESS","SITEADDRESS","SITE_ADDRESS","PROP_ADDR","PROPERTY_ADDRESS","ADDRESS","LOCATION"]),
+          coords:f.geometry.rings};
+}
+/* Maricopa County Assessor, for Phoenix deals (same service Site Scout uses) */
+const MARICOPA_SVC = "https://gis.mcassessor.maricopa.gov/arcgis/rest/services/MaricopaDynamicQueryService/MapServer/3";
+async function parcelAt(lng, lat){
+  if(lat < 36){
+    const v = await queryPoint(MARICOPA_SVC, lng, lat, "APN_DASH,PHYSICAL_ADDRESS,OWNER_NAME");
+    return v;
+  }
+  const tries = [queryPoint(PARCEL_SVC, lng, lat, "parcel_id,situsAdd,owner,countyName")];
+  COUNTY_SVC.forEach(c => { if(lat >= c.b[0] && lat <= c.b[2] && lng >= c.b[1] && lng <= c.b[3]) tries.push(queryPoint(c.svc, lng, lat, "*")); });
+  const hits = tries.map(t => t.then(v => v || Promise.reject(new Error("none"))));
+  try{ return await Promise.any(hits); }
+  catch(e){
+    const res = await Promise.allSettled(tries);
+    if(res.some(r => r.status === "fulfilled")) return null;
+    throw new Error("unreachable");
+  }
+}
+
+/* ---------- slides ---------- */
+const deals = REPORT.deals;
+const KIND_ORDER = {land:0, asset:1};
+const byBid = (a, b) => (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || (a.bidDate || "9999").localeCompare(b.bidDate || "9999");
+const active = deals.filter(d => !archived(d) && !watching(d));
+const arch = deals.filter(d => archived(d) || watching(d));
+/* Meeting order: cover, then each market (market board slide, its development deals, then its acquisitions). */
+let SLIDES = [{t:"cover", ms:9000}];
+REPORT.markets.forEach(m => {
+  const list = active.filter(d => d.market === m).sort(byBid);
+  if(!list.length) return;
+  SLIDES.push({t:"market", m, ms:11000});
+  list.forEach(d => SLIDES.push({t:"deal", d, ms:15000}));
+});
+arch.forEach(d => SLIDES.push({t:"deal", d, ms:15000, skip:true}));   /* archived: reachable from the list, skipped by the player */
+
+/* Willow Bridge symbol (Willow Bridge Purple, for use on Cloud White; from the brand artwork in Site Scout). Used as the shorthand mark, never redrawn. */
+const WB_MARK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAA25ElEQVR42u2de5xcVZXvf2vtfaqquwPhGQUVFIF+BEEMiuKjpLsDeEHHV0XnMoM6ckGRPAF1dGYqPZfxqjySDiDoFd86Y5eOo4NeHukOrQIyGp0B0+kOkeEhoAFCgHTX4+y91v3jnKqu7gSSQKq7Kqn9UYNNp/vU2d+99tprr/Vb1NOxWlGPQ+EC22pDN37d4Njyi9PprB0e7nNokFF+3p6OVasD07Y0dBMOBLuXX5IyWRLxf2qZ0/Lqm9ZfOAGAAGgtPkt3+6pvBLbtQ64mn+XFDQJBVMe53sEgoITmqJPJIF/vj1j3QAvR043MgBKkthuZQoFg2+Nbk+Wv1IxnxTPUBPpFjycb2qoJb4+8gBrtX6ogQqKtNZmKvraydsyx1v1c1C3QSkqqAlI81sg8M+lELa1m/JNblBNtAJCt7eJ8VJtAv2Dbw6IhPOsfAWDe8Ig2ItAKPKO1A5oAVSJjQ/Fza/VL5g3Pjz4A+4dUHJTql5t6fTAlGPLixpOqDwFADgPSiEAT+CkooFCq0YJRJgMimQcAI5n5e/335LBBAcBQ4gEvJUegJtB7OklEBgR64JbRp/9cOZI00Jg3L7Zq6rcqfM3caFIIkwWBjwCALVs21OA39SkAcMk/DOARJgMA0gR6TyaJLQC9F+iTTGbANJxpzuXKy/NJUYdaWzUVeWUtf3wWWb5589IiICNMFqqqTaD3aKsmAHxn7axOjXlGlwKA58TjKlICaK9feEzuaAoQHTNlZ9jL4/Z0xIqA7iRiUJ3umFynNBsnBWUjvwCAtw+jAf3nlQoAydA/BehTRFwTnpVAqh4KHBdtDJmavKvJgyF+7jWs24Nh3T2UAsIUkIi/b2tL6wYA6ENfAwIdWbCbNy99VoHHmQy0BlaNoCzqQdBXnXVs/4HR79UaHAwXCQDYwK33UnrUkOV69KO5DjEQwwGI6Wfr118YptNZiwYdGWRMZETxUGTQauF3Eql6ZTKH+YQcAwDZ2lyuaCYzYG6757JxKN9mOFBoE+jdMTnsJYT38oMpW10Dji3pLordgj8QMUhr43eqqhhOkoieVO3v1o4a+b6okNYhP3X1QAqI4YC8lDboEU/fDYByWOTR4IOERmt8gFYCQcGn1jZws0gAkJ/Yts5J8QHDlrXO3I66AjqKqQZERDcOD/e5dDpb43BdlmO3oCajvLsIZLSWByklkKgDqZ4KAMPDfbUyAppOZ83wg30FUnzLcAKkTaCfc+MkZhO6/FYn7tsAaHh4ZU0mJossA0BP5yEnbes87ZTqr+3dg1R0wxYEcp9IqcCoTaiDABYJAaKu3q7VR0W/I1uTuR2OI07GBl8NfX6CiAxqmazSsEArecstpCRfG9506RORdaZaxlRJRd/hlV5fO78zumGb23XUowA9SGSjW/BaeDUq3nJLyou+GQDSNfOjo4uuWzd84mFV/11rWggK3wR6Os5s2PmJpwPo1ZF1rt1WFse1FZBzADmulp8rgwGTyy3yAO5lskCNbtgIpCCAiM4CanfBAgBduQ1RdoLg884XCiCuTZC9YYFW9ZZTLCJX3zK64rFMZoBRs9izUh/6JH3SqoOY7OtJ+ahaRlO2pKNbThX8mohqd8NGkdtBqj0LT7yiLVpEtUmI6kOfZDI5Hrxvxf1e3Q2BaWGo+ibQsZlkDkzJjz/g7bars8hyrW67oq14pQFAXER3ws6xSngloDWLppQXCjPdXeMbNvbqxHDyZRIm3wQAmUyuZvMbzVGWmYLLnZ/4M3FQFxctsw50nC1GIrJseKRve5T+WLs8gXnzRhRR/cAHRT1I8cruE/rnVeIFe/1gGC3OZBDc4324lclwbS5YJjPvVH1mJmYuk5lPg6OLn/SQTxpOcD1ctMwu0KpRZbdMfO/2TSt+nMlU/M2aueq5XM4vPOZL84j0zNBPKLM9SL22A0AGtbBopFlk+af3XvQUSH9nKEDNYrekxksRULzrtPYvHFBLtyOy0ot8JjNg1o0u/1boxm+ytsXqLLseswa0QoU5sM4XHmoJUhfX2tWocjfgk6X3BqbtQIWUDCfAgtdW+7s1iqqAQMO1vDEEiLw4H5jWl7Zq6h0AqPyZawd1dEAMSC/wvvj4bF+2zBLQqgRWBXwopXN/eu9FT42gtq4GUI6hKkHlb0QdJrOF6JRa/t7KBYvSoJcSQFo7yCg2FyTnA9DaZypGB8RbRlc85in8MJElBslsRT1mB2glH5gWI1paOrzp0l+m01lb6yvuDAYM0Kent695k6HE672UBAQrEgLA6zLImFrdsJUz1fIHu995CR9mCqhWBygCGScFJbKnn9559fw+9Gm2Rpcs1a5HOp216zZe8jPn85+1ptVC4fYPoFXDwM6xJTe+amh0xXUzpogUHZOUIYuZA0AhBCJVBwWO23b8W2t5w6aZzID51a8uyQMY4lpnqim8NUlLQhcB0FrUGe64+/X5dDprh8ZWfC50228M7JxAVcN9G+gI5iB02789NLZ8RSYzYGqYd1AZZf/8jFdfdSzIvMf5goJgAJBAfGBSCU9uQRTqqu3kM+EnUCWt4WENpMb5ghLRX3WfsPol5RBbrWd3eLjPZzBg3jK27YLQb/+3hJ0TYIah5hmE2QV2ThD68YHBsWXnVR0Ca+5rlUOB3vKywKSS8SUARXNPSsQA8VuB2pV7lQ+8haCwLvT5rczW1Cp8F+VIiw9M64HkZDFAmk7PyFxrDhnpw0oN3B8+GPqJ/xfMMNQ8EyRHwotzbOgnvjE4uuwDWWS5Dyt1Ziq5o4XT27X6KJD5sPP5snWO3XlwfEB8G6A1S4gCSDMYML+892+fItAthhMKraFWHKlxUlCALzrr2P7Do8+VnYH5JgVW0s2brylta0v9hfP5HwR2TgDA1W4BzxDQChWAydoWG7r8FwZHl35kZmEuuxCkIvrZwKTaREVQJSpAAHkJQaCunteselU5blyLZ6mEBZW+X3O3A0Qq4gPTenDJ+OXli5CZsZN9AmRp/foL3drRJZnQTVwbmFYLUMxEIwKt6iwnmckUQsmfPzi25NMZZMyMwoyMyeUWSe9xqzqZgg+FPi9EO8gJEFSdtamEluhtAKhWFR/l8wKnSmudFB4xHJiaWq3IlxYms/isY/tfnstlJDsjVroMtQLI8uDY0sWhG1/KFHhDCYaqaxig4xUogZ1jVeVe8e5tQxuX3RiF5nJ+RgVjMhkAUDH6eUNBUlUUzyv5QmcB0Bpmqmk6nbW33XPZuAI/NJxATd0OEIl6taZlTsnI5QDNSMRjqvvRpxkMmMGx5WtCLfSqyubAtlkFpBYXMHsTaNE4a44pYOfz1yDIv2lw07Jfz4ZYefkavfv4Ve+w3PKu0Od9nIy+U0vmpRTx1nXtnPj6vSYTX9boI6JvuCgWXtObPCIyoZ/whoPzejv635jLLfJRTH7mwgE5RHHq20cvGS4E29/gpfh/LSfYRvkfe9W3ftFAKyBQOCbLgW0zIu7XXlz32tElS26757Lx+MJihoPsSsgB6fTXU8S8SlU0Vq55Pksm1iRfylI6LV4QNdmao10qy4Mbl/5OpHSn4SRqnf+gUBAZEug1mcyAiWPyMyreMzzc58qH4ts2Lr5AtHS2qL8nsK2WyFJ8ESOzBbSqqldVbyhga1stVO8XV/hYOPqD04bGlq6LrQBFEzizI51eaXJY5O2ft/59YFraRUJPu/is5Uw1Vn5XLcN30fPFuR0GNxBxzcEikHG+4BOm9ZQn73l4WXyzN+PyatFtsFIGA2btxmU/s6G8wfn8cij+aG2rZbJc5govMJxLu99jRTW2xiBiYzkSjHdSHCXiG2woX79589JnKoexWQA5+t0DJodFvrf96lOIE3eJegKUd8MiCZNlr+H9h/LLOnMji0qoQb+SyeCK4pwjvtKSPzA/wmyP8uqUahp1UgWMEFHRi3vdurHlY1HEaXZEfMrzBABndF11iNfgo6R0oeHg1TFXgKpTUoreC9EuFu3z9ViJ4NVIY8opIESGAm4xCdtmAOS9Fn8qKCwKHF67duPi/ps3L30mFlWk2YK5nCqZPjqbUpivE7FVCO3m9sqiTiwljtnqH6mp2xE56yvNTY9dOAHSLxtOUO2rp4kUHoZsKxN9LYssl2srZ2OmYpgpkxkwt45csnVw45IrUk8nTvQ+PNdr6VYApcC22oBbDJGhsmurqj46TO7c746ccoVTqC9/E5EhQwEHptUEttVaTjCgTzop3uJ98WIWmr9249JzbhtZlrt589JipG6kFB+mZq22rOxqcGruFYFtPcH74p5pGSuEOQAIH6i9T7nSA0oTCXdj6PNPEbOp9cUDgUzo8z4wbaf9sn1udmakInZxYIxzttPprL3psQsn1o4t/t7ajUvOFJUTvS9e4n3xNqhus5zkwLbawLQYQwETGaoEIxAZXgCOzpz/lUiOWwWqHtGtGW0F9DGAxsD0O1W620vid8ObLnyi/CRZZHkE8ynOJJv1AslyJOXt7avflzDJH3hfciDdQxkxVaaAvISPebPt+OGRvu01dDsm26V1rP5iwrRdFrrxGWqXRt6QZY/iGYMbV6ytfWHF7j9YJjPAUY71pCvUfcLql8Dz60j0VCV9LQPHKXAEgIOZAhAxmAycFEHdx6/+KyaIh24nNk+x80+osVsGRxfv0CCmvE1FecX1I6BY9tlPb1/Vbjj4D6jOETiiXfhdz+Fs+cC0mJLk37dudPmP0ulsDaM0WQb6tPu4648kW9pIym0Kv7su0ouKTBkypIotoRs/ZXjzp/84m/70Tt9MzNrbhyE7PpfSOcd/5dAJW5hnVA4TrweDzBwl9bQrx31LegPNG56vUW1cPWoCRzdfp7W3trVwy52G7AlOip5A5gXOtrOmxYYy8eOh0eXvzmQyJper3ZmgbB17OlZdGZi2S8IZampZXrjeF+862Gx9O0ZGfNT2ox7nWCmTyfGWLWUWn3s3obK657x58xU5oAsbNL6eBupIEef5t6hFvqdj9Y+taXlX1OWU7IszYAQABWLtWDuy7KHYkkrtFuRKXXji9YdLKRwj4gNVHeEF7C4vgGoX2DYb+vHvDI4u/+vYBfKNMO+AIouVNIL5hMxkmLXhlPF35oP2dK6+NuC2T4Ru+4uFuWKlA9tqS27is0Njyz5X65vOqtbDn03YtstLbvy5bzX3vv8RFSr77f80OLri7xYsuCBYv/4rYaMy0bBAl198d8eqf0iYtr69vFULU8BeSpsTnk+4efPS0qT1rlW4cSWluw5vteJGmOzLRZ1ipvLVlZw1KRv6/LKhsWX9CxZ8OVi//sKGhJobE+YvRzC3r74kMK19oc+7vZwTwV5CH5iWY0ss70CsullDu6KZzHwaHrl4uwo+wxzQjDblITFOCt6a5Oqe9lV/s379heGCBV8OmkDPkJuxfv2FYXfH1Z+wJnWl8wUPiNnru035bMRYDNS+z0tZ42Jo09Lvhn7iDmtSZuY0LogAYS8lb0zyxp6Oqz8UQX1B0AS6pifdATM83OdOb++/NODWa70UPCBciwNUVD2dV6bg7ad39C/oi9MgUVuqAZAS8WJV7+LUbZ1ZqJ0YSn6jp+PqC9av/0q5JQg1gd7LkYAsVlIut8j3tvf/Y8KkrnBS8FGORg2jAUrecsAEWQ5AkcnVlmfkfCYzYAY3Lv2d01J/YFqNRhU2mDmoPUUaea1f7m3vv3R4uM9lMhnGjBUG7OOHwqokFu7t6L/empYLSn7CU61hrhwCCQQqeqcnrNu89A+1v4BQymARbzvxnSkpPvWfzPZYryWZ2XbEqgqSwLQY5/NXDo4uuyyai9lLOtsnLHRZgKan43OH9nZcc5M1rReEbsIRYGYkThuVZ3lrUik2uhyoTS/tHZz3DHDbPeeNK3BBJMHLM3yDR0QAO5d3gWm9tKdzTW7hiVe05ZDz9d6VrE4ttFIGOc5hke/pvPJkRvK7zInOvXBp8sIeBqyq4owNjr11wyceru1Fy+RijvI8rlqTMAcu3msx9j3fo1xgW62T0m9Lbvtf/fy+T2+s5wuYugO6Ok+2t2v1RyD2GiZu81KaocSdHTZfb03KeF+8O4/iwjvHJsbjVhM6E4sab3w4sXWb+Y3hRJfzxZ0V+c7ES3DGpKyIe8qLfGzdpqUD0+eq6XLsZALLLkbvMZ+f29Ox5msGqa8ppM1JUWYDZkCV2ZKoe1YsnXvn2KeezVZ865rbGgVyyP3qkrxC/lpFSkSsM6FtsRMPxDpf8CAcHNjE93va+69ZsCDbWq4VrCfDaOrhITKZATMycoI8+OCw9LavOhNB8l8Dk+oNZcITlGbFKlWiHCkjVPjo0Mjy4QwGzJdw8Yz5syMY0XQ6a29f/5lHXnlYz7aEaTtbxHnMQp/taA5ERb0mbOupyVLyna88fOGG23/zmQcm5zA36y7IrK6s6NQcZXj1dFxzKBH+kcAXAYBIaXZ8xqptNrBzbDF85oZ1my75+GxUrk/3p3s6V/1zwG0fjPKmZ/fdGE5agRdVvZpKE5evvf/TT5c1P2YzDXVWgK4qDvAA0NOx5jwC/W9rkkeFfqIsnjF7YuyV1MrCXU/NaUkfs/5gmd30WaUsVtLtXYe3WpW7DAUnOF+YuQSmnZ4VVQhEgWkl74v3qcjfra3yraOszZkHe0aBjrq2ZlABuf2atxNr1lDy7aIhRJybHV956kQZClhV/8Rh8Q23/uHSh+sh+b26iMGy/ZUCc0W90iyfg1TVGw4MkYVIeLMC/zg4uviu2QJ7RmK5Uc7ypIVb2LnqVIW9lEDvJzKIrA14hmLLzzs9gBEmFu9KPUP3rfhFHZUnTRHPMTbxMxFXs6v/PTMCUdFqwC3Gawiofk/grhoaXfHbeE/mTGY+xb3CtSGBnizXmvQ7uzvXvJWVloD0fYaT5PyEKiAvuLpkb+/rIG84aUvu2fPWbbrs27PpN+/Kn+7uuPITCXPAtaHLz/quVm2tichY0wLvSw7A9wG5du3o0l9VP//Oy6rqD2jKIksxxJWg+8ITr2jzpdQ7GXoBEZ/OHMD5fOXD1w0pijCwbUHJPfvZobEVn6tHmHeAuv3qzyXsAX8buvEQhLrJjKuAzS3wWoKK3grIV1xh7k+HH/xIoWw/0umVZm/DTS/WqJVrvaZPfk9n/8kEXgTVRYYTxygUXgqqCqkrkKMZCBN2TlD0268ZGl2+JI2sHUZ9wlyet3LxbnfH6hsTpu1vQrc9BFFQV29VVSKwU1AoRMNNBP4XqMvdNrrs99MX6d6oXaXd/z5FBjkuaxzv7Oqz+/jrTiR2Z4PoXaT6Rmta4KUEL6EHRSmZdYeGahjYA4LQP/vtwdHl58V+al1IM+zybIIM55CTno7VA4Fpe38dQl2x2CCQoYANJxD6vCfQXSD6sZD8bGhk6cjOFiwQiVvGoV3szpzQlBzfzI6abs8nWdDbfs2RMDhFRboBnA7gNYFpIVEHLyVA4eJLgPpMgir3fPHjA4OjSz+YxUqaSf3qvRXOu2nBkebgicKPLLeeXa9Qx0OgEBCs4SSYDEI/4aH0XyAaIuJ1IeG3wyMX/+k5TmY8vbVGubh7jyx0Op21qT/PPbyk5lWGaL4CrwP0dQA6DScOYDKohlgjQYxZk5naI5hl4l/fsnFrpg8AGgrmyUkG+rSrKxsc6Q/9obUt59Q51HE4SYWUNII7ASYLUQ+R0tNKtBHAeoX8zsD+3hv3wKG/P/KJ3ckboe7ONW+N2l9wCqJtxDgQag4C5EiFHgmiV0DpZYAeadi2MQeIRe8h4iDwQkqiBKYI4PqvbqhY5vzAW0af/Mu+yr+oH6GVFwJ1pisbPOUP+aG1rY0AdRXcUFKIEpiJmcmCyUZ+t4QQdc8C9CggjwL0oCoeI9BjwtjGHs/A+HEFisZDaGHndWUBbgAEIq5IKSsAVV+RCVP4SqObyAprHcSO9zCWofCRFkX+24OjT344ssorqXFhngY1Bnhr55++E3BLfEUOg4aq7o+KC0hjf5nUEBkimIrkV/VkqsbHHQWcFD31dKz2k9626vQ+1EpKEe5KDQbvTl9UwrSa0I1fOzi2fPFkY/dGczOeD+rIberp6L8+MK0fC/147UvVZmbu9Pn45Kgh0Xj5wMYEMIEMCLb6vwQyu6PPW+dmWQBGwCkTyvjfD44tXxxdw+9LME+6TFlkeXB06cedH19pOWUikVlt4B0oqqB5fj7BqmDGPj7KXQaYjAt9/iODG5dfnkbW5pCTfQvmyuRrH1ZqBgNm7eiyvlAL5zMZH+en+H19vnkfp9kFpsUAeEwkPGNobPk30unKpYnuux+cKo16hjYuu9H50plQ/VNgWkwtW6o1ga6pz6U+sHOsV3dXSZ49bXBs+e31fJ1dixELmtt1m1YMFaRwmtPwV4GdY6vF7ZtAN4CLQWQoLsG/3oZjpw+P/e0DZZGa2TuszY6uRaSrMWB+semy/w5Cebvz+esDE7d52AddkD1oGtQIZz/1xrRYVfe0aLhkcHT5t8qHpNnLZ1aa9NWr/3mGl1TVO+jpWHUek11DFMz1Pu8Q5dY0tBLtLpoGNZ5VBkCBbbMi4S+KbvubBkeXf6vcWm62YI5KkkjTx1/Z0dNx5fG17CO+y/hH9A4ogwEzOLr8WyVffKNI+PPAtlmA9hlr3eAWWhUKb0zKqrpQFZcfPPrzfyoLosyuvxxddKSPXjXXtvBvAXJ5zS+4c+yT22f7Iqfq3XBP55rPkPLfM5uE90UHUtOIIdqGt9Cq6glMgW2zqv4uwL117ejif8xhQLLI8uzCrJTBfMpggG2KBwwnXmU4OK6VUt8HVlIG82c1RWB4uM9FO4Xq4MYll0NLbxZ1dwa21RIa27duOKDjCwIJbKsh4qe9FD5V2ph7220bl98daUSQznL9H5Xby23tePSrgW1Z6H3BeV9w1rS+o7vj4P8bh9Rm1W+N3hFpOp21a8dW/ObgjT9/m3OFS4l4W2BbDaJ2aQ13GdMwLkfUeFHVmqQBFCL6/ZCLfzc8cslmxNUy9dDFqbydn95+9eeT9oBPTWnVNtnq4v8MjS37TL2EEeMDowLQnuOuPoZtcDnAf0nEiARmiKjOjV/Z5ah7oMsgGw4McwDvS3eryMrBTUtvnuYPzvoot3LoaV91mbVtX3Q7a5Oh5KxtsSU3/sl1Y8uvqKf2D9Xv8vSO/jMM0UrDyTeJOHgp1TXYdQ90NciGE3BSHAPhC2tHnvgm0CdRWX+X1kuWXBnM7varPxaY1uudFB2gO3MrFCBvOWmdG//E4KZLvlRfPU2ynJnUTKGejjV/zcSfYk50SaX6qP7Arlug4za3MJwwzAHEF+9T6JpU25Nfu2l93wRQfyKBlQZGx1/1UWtbvuol3IW8gCrAYjgwzuXPH9p0yY311n2q+h2nj86mgpZDzyfQEjbJ40TC2GLXT1ldnQGtcfEs2HCKCAQvpREFrnPM3xoeuXg7MKlLUU8LsAJz51UftdT6VS8lAWQ3Um1VAVbDCXY6cf7QxkturMer+ep3nu7Kzkn4Q88VxsWWEidMLXye3YzMegBaFSpQgNkYwymIlKCQ2xW44TF68kcjI32lqpdad4WrFTmB41d/1NrkHsC8M6iL5w9tXHZjneabVBqclt2rQ7aX3q2MjwHoNpyElwJEfNlqz3j53WwBXSm3KRdKEhl4KTwJpX9j5a/dOvaJO6cBU4/C2pMyAu2rLrQmeYOXcA9hnu5+JIz3pSWDY0uvqefPXQ02APR0XPMmIvowIO81nDxMVeClOOO1pTMItEbqSNMKIp0vOCXcQUL/Yij88S2jKx4rhwEymRzXr5RA5fl81CcxdaWT4guEeSrUlpMm1MJnhzYu+1y0K9Vrf/Ud5d26T1j9EoT8biZ8EMBbrEnZqYXTSrUsFKkh0JM1YeWiR0MJEDFCn/cA/YYIPyGVn1SLjWQyA6Yrt0H76rq2L8tZRJcS3e2rPxfY1r91fmIvlThVlYj5/FWDo0svLXeYred6xyyyPBLp1lWs9pmd1873Ku9Uwl9A9fWBaTGqAq8liIrEBbF7tSZ1LwEd1XqRRk0pJ6t2A0TSBh5eSlsB/BqgW4T41nUbL95Qbe3S6ZVmeHilr/fqkckOUFnu6Tz0ywGnzo905WTv5j4o4obyE9/Z1pb6m/XrLwzrsfXDznaunc1ld9f1XSylMxQ4C8DrDScOKbMhGlYAL/PzQmtXdwfoqJQWFGWCqyrFD6qxqj4RE5MFkYl/oIOXcJuqbiSiOwG+nUvmP267/6It0/3PWgr21erwt+CYz889KNH6vcC0/I8pN4B7P3bpAttmnRSGQl/8wPCmS59opOKEKqHOKeeAhcd8aZ4k/BsAeTspTlNCp+HgoLJkgaqHqIOqRDJiVbzFsW/EKbiY7pdXgO7uWOWqvkiorBBC3FIsrqmN/ozYLm8f/mkCPQClETD9jgnrPcuGod8v+/POPmAjQTwd5rd1fuG4hLbljAlOmpFuXKrO2lbrpTQKKS1aO3bJven0Ojs8fHpDVdw839x3n7D6JexxgoJfB9HXgdCl0KOZzFxDwRTeFFL1Z7lnU1U1eFz1TWd23VBZQQIPqEBUAJUQoHEATyvhKQI9CtVHifAHEN3vFX8IHR765ealjz/X9jNv3nyt44PNrg9/cWu57o7VC5nMd5jsPO8LM9cOQtUZk7Sq8pT40kcGN634MRp6VIt77tzNXHjMFfM0MEcp21dD9RioHgPCywAcoaqHgDCXlNpAZJlMbHQjD8FJEdTTsfocACCCeC8FZsqT2u2khe15SWw34dZnhx/sKzyvf5kZMFu2bKC9oR5ZX/4y0Hv8qmUwwVUAWCSccQlgVfXM1hAIXsOsSbirbrtne35mWsvNjNHYki6z8/znhPTRX08lzBMHwibbnIYHgm0b1KcMo0XBpKJ+t53v8tZR/v/RFtKIWnC752Kku7JzAj30WsupD4WRMPustX9QFW84YUS9Z6Hjbtu05IF6yS6sBeRZrKQdWdu9z0qZTJX6aKziGPXFAGIVHmCfLvnf0cVY2LXqtar265aTrw3dxCxXcZTbZBgVFN8xuHHF2kbouV2jQRGKKykLYARxm+rMlG9ojuqwWHf7mguZ+Som0zaj/vJzwExgbzhpnUx8eHB0xTfrMZ+lnobdvz9+1cHvhH96CbsD+w0nPuClAKehp1mFGVHjT9tii278k+vGVnwznc7aXG6Ra2L7vCa8aZW7O1e922jQzyZxVOjG66MjV/mCxW3/4uDY8k/Vc8P4JtCzOrKcwQjlkPPp4688LODk55nNR1WlLvokxp5GrF+9/YbB0eUfj3u+NGFuAj31s5Yz5ACgt7N/EZS/aEzyaFcH3Wt3hHn824Ojy86r8ySlJtCz4l5UHaROb1/Vzmw/Z8i+V9XXj1WOYHaBnWOdz3937eiSv45Cc/teaLQJ9Av2kzMm7qCk5xyRbc3PPfQSIrrMUOKAUCYk7lTAdQJzGNg5gfMT31s7uvTcqBK7CXMTaJQluCryV+jpXPMBVsqySXZGTT+lzpp+Rq3lnB9vwtwEeirII5MVy+jt6E8D/A+Gg+64w1Lcc6SOpK4m00W/MTi69CPVbSWaeO6nQEftJTIog9xz/OrXk+FPEfh9RAbOFwREqK/Se1Uo+ShNdOJLazcu/cRsWuZ95faxkYGOy4A2VLQ5zujoXyDgZSD8T0MJdjJRn62YoQqQBKbVlFWUorj4rEczyjWDjdBJd18BulwZMZns3tu1+i0qZjEB7zcmwZGfrL7+QI60+QhMlhMU+uKlQ2PLrppdmLMM9El315o3DI0s+Y/yV6OLnPqvJGpYoDPIGGQyqGhEpLPWbjnkbAJfRMAZTAk4qV+QI7us3rA1AIWK0kfXblzx7dm8AazIMLRf+dnAHni59/lfAHR9mD/gR8MPfqQQvfcoeS2HxrDadQ501Nu52hqnu659qVH9ACs+wmxPIgCuInZSnyDHNDtjklZUtqorfWDwvhVrZ7OsahLmq99vTUvOS9EbThgCw0tpTKHfJNbvrh1Z9lD136n3qiOqX4gh1dXOvV3XvkXVn0fAew23HKoawklJEDW1NXW9LqvKqTzC96/buGLDbMJcvmh62/FXvD5hWoahmlT4SvNVQwljOEAohWdI8e+G8I0DN/5i3eShsez2TZ2jJtBlhJ+j7uyMrmuPFa/vVpIPMJlTmBNVCj31L/Fa1iRJmDkmlPwtzpf+arYLXsu9Vt46/8pXJCVxF5F5mZeSxGpHsZ8PIYUQsTUmifhG9V4Fcsr6w6GRpSPTzzTx3M16Fc1sJa1XSm+mT+zpndcezapnQvV9RPo2a1pSUTV5Meoz3iAtE+LDH1uTgveFNWtHty6PVFNnU5IginG/4dg1Bxxg8XPDiZOcz3siNs+5IBUCIjIUsOEAoc87Av1SVf/VGPP/bh25ePN0V2Y2a0lppl5kJjOfouLIHbep3vnXdZL4hSJ6DginWZNqU9VYUkpdpNfQQN0GVB1zwiq0KOovHhpd+lWFEs2qaMxkaZP908E/DWzrGZEUw+7lfJet9hQJN58vqNLdxHST9XzrzZsuuncqxNXF0htmRPqY9v7Py1IG82lLegNFH2RHa3TWsf2H+4BOEaUeQHoAfU1gWk1ZF01UZk3078UbZvXWtlnxpfsE4YcGR5ffVQdik5NafB2rv5MwrefuCcw7LFdoLO1GsbSbQejzStDfA7SO1K71Qfgf0+Usyv77ZEH1Bt3bxb70QqHNAhiJrS7w/IWM6WP7Xx4EeqKqvhlKbwbhRMPJgyMFnen6Zw0HcZWLQRSYVgql8CPo9v81OPqZJ+tAIKYa5v6EaVsSuu17q7SsCm5YwwGYAsRpBk+Lyr0EuoOgd3p2/7Vu42UPPt8ZCgDmzZuvkSQc8EJgn1okC6AM6PSxO+GadDprWx455KUlg+MAfyJAJxPRSao4zppk284koGJ3gtDIt5YV/QwfisqnB0eXXg3UhzB7eUH1tK/uC2zrP4Q7a5Oxt95CrCyrpMxkpknCFfMEbFbFfxLpb4nNPQrZHB7+1KO7WvDTFQeqx7x58yeBz70AiNJHfz0VpLYfIuoPY5ZXqJpjlPRYAo5TxauJ6GXMts1QMCnvJA6CMsC1VaGcWasMAaAJ02acFH+vGl4wOLr8rnrJlivD3Nt+9aXWtl0R+rwDMEPdtyZVZ5VADDLMQUU2zmsIkXBClR4B6f2AbiLl+0D63yp4iMk8ERbmbC1f8Oy2ha4IzUBUlFsJlAChTVUPAHQuAQcr6FAiHKLAS6B6CAGHEPEcjv2n6PEFoh6qDrGQeZUAX4Nb4J3T7JitjfStwxvymv/knWOferZeNOgqDYw6Vl9kueU6J/m9pJL64i147LgygZjIIlJAigxw7K5AVbYrsBVEWwn4syq2MuEJVTwFoqcBbFfRCZAUmJCvCM2c0XW9TjrH8WeNNe3K7otC46atsb5YWWMM8KSYLqi378G7o1VGwrSy96WHvIRLhzYt/7fIxaiPjLVKm4z2qz9mTcv1Xkq76Pkyi85aJAqqpLEwY3SOMhVNxVhXMWKSKqQqJPrbMZ9lKTDrpOAnz4fRj6edbJVKkYhjlQIkEWAqa2B/qOZSdYYDS2TgpPiNgpNP/nLz8sfLyUU5kK8Xy9wAMMemE5X/VHOk8BqpkEYvvgz8tIM4lYVIY3rH7dRrY3pO2zoV2P2rWFyhnkAc5S4X7/dSvHRodNmP6uXgN9VnvjDsbl/9MWuS9Q7zbrBefvCdc1nNJIGiLoBojuc/2Kh6yylDZNX7Qn/Bbj9laHTZj6IsNKU6gZkqyUYdqy9ufJhf+LBNaJ/LKMMTW2tN0jhfvIMl/NRtm1bcUW9WGZNJ+a6nc9Vlllq+WAcHwFkbTQu9o032ACiwrZaAR7wUPz44uvitt21acUcUs68bqwzEPc5zuUW+u2P1/w647Yvhfgxz00Lv4CeDA9NqvJaKoZSu56Dwf9bec9mWGBzuqy+RRAIUfSDp6ehfHZjWpaGbcERq92cNzrpvXj8DIAsABJxiUQ8ocl7c5UOblt0D1Gf3WiC6Pct1wb5UDvpea3Do+ybCJ4sAguo00P0K5LjHCu/PICvUW06y5RSLuEEvvvu20YsXDW1adk/FvahT6do+rNTDD4cw8UAhfPqOgFuSlhOsqr4cK29a6P3EtQCILCc56ike3gF1X1w7tvwnZcsXAdNY6vi9Hdf+JaCXGZM4WdXDSdHHdwX7hdGqs+b1M3HWUyECG04RAIi4O0Rl9dDY0h/E30IZLOJG06aojrgsWHBBcMj2E85VoiWGg5MVgqjLbQOUqTWB3j2OoyoXWMupONNPBlml/7axpf++MygadVT7+mlkbdB+2CKQLmEOTo2uhQtxRTz2yQjIPg20Impmx2yN5SScL4QAfqxK1w2OLb590iJH6v370rxOby7f27HmbIAuBulZhlPwvgBVabwqoP0PaK3UHBpOEpOB88UtBPwzIF+d7Cu+T4K8S7C7u9a8gYUuAPT91qTmegnhNRSoKlFjFlXsi0BrnKoKZmMMpyASQtSvZ9DXjZOBm+PGoJGQY6Tcvz8dgjMYMFFXs1gu7dVXvkKC5P8EcB6z7SJieF+Iy94a9xDZyEDHieNQEFnLSSBKHXycQD9RxXcm3YrIt4xKevr221BWZUFn5lfCkF1d2cQRctgZBP0QoGdZ0zJnajlcY7kkjQb0tNq1ZFSYKYUiAT9X8L8Eof/3m6vaNDeqNtsMoL2DGlVv1+qjoOY9gH4A0DdZboFICK8lhZJvhCKNBgA61oQAwMSmXB3jfN4pcDcR/xtgf7x248fvq7bGyAH7uH+89/xsDDCQQ7Ub1tPZfzKB3wPFu0A4yXJyaiEzlOoxUlKHQE/WoIHUMFliSgAEOJ8vgPhuCH6qRn86VbmnbHGa1ngvWO0q0cgsd3cdegornaPQ/wHV1wamJZKa0FLdFTnXA9CicSWCEpiJJ6uEJYSoe0SBO0HmZvay7rZNS/67Cv661VbbF3zt26e5JABwZue18z20V1XOJMIbmBKHlmUoREIIxEdzOTtF0DMJtMZViVIpoyFYJgOmAEQcb2nhNgD3MNHtqmYoZF0/PHLx9ukQ17v65b7kkmSRpZ3Bfdax/YeHlk8llW4Q3qzACZaTrdFcRjIVqj4KoyK6pqQap7TWAmiND287FjySAcfVvYqKxNcjAN0L4FcCutMkCv91W5SqOSXkFOnfNS1xvVjunRmUM+Zf9wonfgEp3gzIqaroMmwPNZyIt2IXKwL46LYSZT5QXVRNtQZaJ/+gcn2tTi+iLasdEZiiKl0TV+oSVAVOCgDRY1C6D6r3kOHfqsp/OjL3TbXAk1Y4kolqNpus46ATZTI5jrQKdxRr7+m45lCj0u7In0wwJwP6GgDHEPFhhhIg4lizRWLIPRSiU3ZxVAqzgYpp1+riQtop0N0dq/2074hXS1w2ToglDagCKlWl3EZbjIOomyDF40T0kCjdTyRjChk1MPe16JwHfzJ2/rPPteqbADf+oXJSjHPnh/Mzuq46xEnilUTuOAg6AW4H9JUgvEKhhxkKkky2wlZkwqUCfuS2StmmVr4DsZhBXPc9Tmd0fUmr4wwKH/0AhQNQAlAE6TiUnlHoMwCeANEWqPyZmR5Wz48axh+LAf7cksfjN29eWnyuVZ1OrzRAWVas2bpsn7bgsVwyADxfy40FR2Rb5xx40LwEBy8RcS8n4iMEchQBhwN4CaCHAnQggAMAtAFIQhGAyBIRCAYUa3aEvijU3Xn1W6MfbaGiHoSiUS6BfUGcn7AB8omWOYWb1l+Q3z0AJ1frpPBeE97mmJTzBSJNut3VkM4iy3eeOKdFSmHKubYWa8NWFZtSpsCKT3ljOTLo6mnPV94i3pLuqvy9F6sW2RzNaEokwTxC1Vy90J2cyl2OyqMLGyp/OYJ0pVZ52E1Ym2OWoC+jt5KyVf9iBPOp+Xqaozmao9pazMg1b9PyNEdtx3T3bF/9nc2xf4BM0T9nzGntXzig1lZ04YlXtFWd87kJ9u6NphTY8x2YM5W2wB6AdneueffTXd2/TmniLTHoe/39lX+nFIOzzui64ee9Hf1poE+iZ1Bqgt0Eeg+HUjqdtQDiDl5Z7mm/5n29HWvuMGR/ZDhxMhkTzsSTWE69FUS393Zec1NP55pegLSc6x2D3/Szp7+z5iuY3NajnGByw8NwZx3bn3SBWaSQJYaCUwCB88UQgFGVGQHJ+bxX9Wq55WyBP3thxzVrFbp67eiSn1YkC5qVOU2gd3boymGRHx6GnNF11SEeiXOd4GOGg65IhSgf9wUhnkntOCIyqvChz3sQOOCWXoX29nSsuZsJ1z77bPjD4eFL8kBfs3Zy/wa6XCDQ58pb+Ontq9oN2w971Q8FnDzCU4jQTcSV0BHECsxKaRdRpHoUSeUSWU6cSsSnzjkAf9fbec1Xixp+N5db9Fj5s2UyOZ6t1sRNoGfykBcf4nIgPzwMB4B6Otf0kOr5AP7CcjLlpIiSG49ApvqSzyrLeTkpSdR/IWg3nLgCop/q7bxmAIKvrx2j3+RyqLgj+1tBxD4PdHVJUdkan9lx9RGOg/dD9TwmewqzgfMFRE0p1dQbyDuCDQYRvDrxLlRmc5jl5EVOCxf1dKwZJNJvopj/ydrhTz89HP+VqJvsvl8osY8CPVn02Yc+wTBkwYIvB4eMF05X4nOd6jkBJQ8RODgpqldIVJ2AhhILL4Ot6jVyj2ANJ3uIuMcl6OHezmtzEP3ntWOLf1Muo5rU59g3XZJ9BuhJS7zSAySRNQJOP+6qk9gG76Xx4vuIg/lMBr7arQAxCA0e2yUqtzt2UvBQwLB9heHECofCip7ONb8i0L8YcT/uG1v+AHLT39m+Y7kbGWjKIMNb0l1UbYmBPvR2rj6OlN4p4PcC/rSAU+QlrPieFNWL7ZMXFAQyIEDUi7gJiax24o1M9o2h6j/1dvbfTsq5EtMtfSMX/wnxwp9WM9iwacANBnRUPAAAudwin0POI3YSe+df16nen0XQd6nSm6xJJUk9vHiEbmJS2mr/6aUTt2AtHyKLysRthpJng+hsK4VtPZ1r1qngJwmfWtu3+YI/YhgSv06k01m7J0n4TaD3AODJYsw+ycXb5VnH9ieLxi5g9mdC9Ux4t8CaFqvq4aVUhjjSiCDY/flKreJrQzX0UUyd2RxkKPEeWHpPSIVne9rX3EVMPzOgtbdsvHjDVOmC6EzSCLWf9QR0RQcCKNehTQIMAOn2Va+04DcrsDAkeoslfbXhVEWqyrkJV65C398hfk5nO3a1VL2G8YURkznAmMQZRHxG6PPS09F/LxEPAbTWhv7XN29e+nj5TDIF8HnzNZfboPVUqTRLQEf1ZSPl2sPhEc0h5/vQp6h6celj+19uAjoF8G8jpTcD9BprUi0AYnWlUMU5P9USNzHefbajw7BCNJR8lRhm4iQme5KoXx4a91RPR/9vQXQ7qf4iGQT3/PTei56aCvikhspsQ25nEtzI8kZ5B32Aosr6nnVsf9Il7TFwcjLIv1FBp0K1y1BiDlOqIjkVuolIqCQSDGxa4r0XJjHlvvFOSkpaEiUwMx/MFPQwmR6vIQph6fGejjX3AHo3Md9NTu89bdOTD/ZhUeU8Mz3yBACRu7JBUeOC6RcKdFzjFdV3jWA+lUvWgXJxY5/sDFygDwtPvKJN8/YoGHSq0kkKep0jdKl3r7Q2xZFoiIOIg5NCrJkWWeF9NTpRX3CDEB2ioerVqa+IaBLZw5lsD5PpEfXwXCr8suPg+3tpzT0C+R2L/pcBxp6Y0/pI3/oLQwxPbzHXF0eoBriamXnD8zUSZl+pVXcBewy+jVMldznmzZuvyOWQw0B8KIiKZvvK31C1Oisn5aNXHWTa+EioHA1FO4M7lahdSnIsjB5puYWIGKoCUQdVV7HAZT20suVoWuFZdE2A2HoTVJ06dTIpzMgppqCL2XZZ0AeFHJwvleaO5//Y09F/H4BRVdmoqvexph5wgWwZHrl4e24nFr0K+MoOn0GOkQHKO/wugZ4uxLc7xrmsk6DF1FzP4cEkZh7BH6nML1Ovr2LCUSC8HKAjITjEcIqZTSxz46GI1JZCyUfWF0pRN4TJQwth8n+boz4Bj9WK1Guo4kKJEAQTUcKQOYbJHkPEZ0bqRx7eF0Pr6YmejlWPgvhBqDxM4AeU5DHywSPQ8ElJ0taJbf6ZX/3xkkKU/w0/dYffBdA97f3nTuO1TYGAVFoFaDPErQo9EKpzlehgqM79JdFBKOpBgJvDauawsWCkKm0eVQUKqQj0OSl6ihWc4igEVfttzYPcvuGiTJogVVGnXsMq4U4wEQdMfASROYJgFhBXvhtiPERJ4fTZtjnm2Z721duI6CmFPKOqTxPR0yB6WlXyqhhn4gmChqo6AZjovsxoaK1JfWe6dzyJGFXcGNXo0FrRGiOJpcMEIqF4LWlFVTLSlSSKxfUmt6wmvPsL5LHBmiKYGIMeS+3qFF7KXQGYzIEEPhBELytrKSKW+prCY7WWaMyVkwJs6Cf81Cd57hNoBGp521GaXKBgqrqBm4S2CW9zTAc9xnynvECrlEjLYou7ZjL+GQodt3sSNZhqXZuwNkdtgEdFPnfX0YBJX4KgCtMskm2OfWo0gW6OJtDN0RxNoJujOZpAN0dzNIFujv14WAWa7dJ2f4gCRMQ1T4skYo3nRrQZI93NlwaxhoKmld7NoVC2nECpNGFnYOlYaxMsGjI1N9LdcDUIoZTarGjpzubr2F2gIc6TBcyTwNT2HXtrdHVtiHMfZIuT/N2iLqSma7jL4ZUIQP7/Ax2TzF2hvIKEAAAAAElFTkSuQmCC";
+function head(d){ return '<div class="brandrow"><img src="' + WB_MARK + '" alt="Willow Bridge"><div class="eyebrow">' + esc(d ? d.market : REPORT.market) + " · " + esc(REPORT.title) + "<small>" + fmtDate(REPORT.date) + "</small></div></div>"; }
+function plural(n, w){ return n + " " + w + (n === 1 ? "" : "s"); }
+
+function renderCover(){
+  /* the opening card is the agenda: every deal on the board by market. Each row jumps to its slide.
+     Size is acres for development land and units for existing assets. */
+  const size = d => d.kind === "land" ? (d.acres ? fmtNum(d.acres) + " ac" : "–") : (d.units ? fmtNum(d.units) + " units" : "–");
+  const groups = REPORT.markets.map(m => {
+    const list = active.filter(d => d.market === m).sort(byBid);
+    if(!list.length) return "";
+    return '<div class="agenda"><div class="ag-row ag-head"><span>' + esc(m) + '</span><span>Size</span><span>Guidance</span></div>'
+      + list.map(d => {
+          const i = SLIDES.findIndex(x => x.d === d);
+          return '<button type="button" class="ag-row" data-go="' + i + '"><span class="ag-name">' + esc(d.name) + "</span>"
+            + '<span class="ag-num">' + size(d) + '</span><span class="ag-num ag-px">' + esc(priceLine(d)) + "</span></button>";
+        }).join("") + "</div>";
+  }).join("");
+  return '<div class="brandrow"><img src="' + WB_MARK + '" alt="Willow Bridge"><div class="eyebrow">Willow Bridge<small>' + fmtDate(REPORT.date) + '</small></div></div>'
+    + '<h1 class="cover">' + esc(REPORT.title) + '</h1>'
+    + '<h2 class="accent">' + esc(REPORT.market) + ' Development &amp; Acquisitions</h2>'
+    + groups;
+}
+function renderMarket(m){
+  const grp = (lbl, n, sub) => '<div class="grp"><div class="lbl">' + lbl + '</div><div class="n"><i>' + n + '</i><span>' + sub + '</span></div></div>';
+  const mine = active.filter(d => d.market === m);
+  const soon = mine.filter(d => { const n = daysTo(d.bidDate); return n != null && n >= 0 && n <= 14; });
+  const land = mine.filter(d => d.kind === "land"), acq = mine.filter(d => d.kind === "asset");
+  const dueList = soon.length
+    ? '<div class="due">' + soon.map(d => '<div><span>' + esc(d.name) + '</span><em>' + shortDate(d.bidDate) + '</em></div>').join("") + '</div>' : "";
+  const roster = '<div class="due">' + mine.sort(byBid).map(d => '<div><span>' + esc(d.name) + '</span><em>' + esc(priceLine(d)) + '</em></div>').join("") + '</div>';
+  return head({market:m}) + "<h1>" + esc(m) + "</h1><div class=\"rule\"></div><div class=\"tally\">"
+    + grp("Development land", land.length, "sites in review")
+    + grp("Acquisitions", acq.length, "existing assets in review")
+    + grp("Bids due", soon.length, "in the next 14 days")
+    + "</div>" + (dueList || roster)
+    + '<div class="meta">Green Tea outlines are development land. Lilac outlines are existing assets.</div>';
+}
+function row(items){ items = items.filter(Boolean); return items.length ? '<div class="row">' + items.join("") + "</div>" : ""; }
+function f(label, val){ return val == null || val === "" || val === false ? "" : "<span><b>" + label + "</b>" + val + "</span>"; }
+/* ---- deal card: header, metric tiles, take, then Site / Deal sections in aligned rows ---- */
+function tile(label, value, sub){
+  return value == null || value === "" ? "" :
+    '<div class="stat"><div class="tl">' + label + '</div><div class="tv">' + value + '</div>' + (sub ? '<div class="ts">' + sub + '</div>' : "") + '</div>';
+}
+function dl(rows){
+  rows = rows.filter(r => r[1] != null && r[1] !== "" && r[1] !== false);
+  return rows.length ? '<dl class="kv">' + rows.map(r => "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>").join("") + "</dl>" : "";
+}
+function section(title, body){ return body ? '<section class="sec"><h3>' + title + "</h3>" + body + "</section>" : ""; }
+const psf = n => "$" + n.toFixed(2);
+const usdM2 = n => "$" + (n/1e6).toFixed(2) + "M", usdK = n => "$" + Math.round(n/1000) + "K";
+const effPsf = d => d.effRentPsf || d.rentPsf, effMo = d => d.effRentMo || d.rentMo;
+const capOn = (d, noi) => (d.guidance && noi) ? (noi / d.guidance * 100).toFixed(2) + "%" : "";
+const pctChg = (now, then) => { const p = (now / then - 1) * 100; return (p >= 0 ? "+" : "−") + Math.abs(p).toFixed(0) + "% to guidance"; };
+const u = t => '<small>' + t + "</small>";   /* unit suffix inside a tile value */
+function renderDeal(d){
+  const isLand = d.kind === "land";
+  /* guidance is the hero figure with its per-unit math on one line; other metrics sit in a borderless grid */
+  const per = isLand
+    ? [ppd(d) && usd(ppd(d)) + " / door", ppland(d) && psf(ppland(d)) + " / land SF", ppa(d) && usdM(ppa(d)) + " / ac"]
+    : [ppu(d) && usd(ppu(d)) + " / unit", ppsf(d) && "$" + ppsf(d).toFixed(0) + " / SF", capOn(d, d.noi) && capOn(d, d.noi) + " cap on T-12"];
+  const hero = '<div class="hero"><div class="tl">Guidance</div><div class="hv">' + esc(priceLine(d)) + '</div>'
+    + (per.filter(Boolean).length ? '<div class="hs">' + per.filter(Boolean).join(" · ") + "</div>" : "") + "</div>";
+  const tiles = isLand ? [
+      tile("Site", d.acres ? fmtNum(d.acres) + u(" ac") : "", [d.doors && fmtNum(d.doors) + " doors", density(d) && fmtNum(density(d)) + " / ac"].filter(Boolean).join(" · ")),
+      tile("Rent (UW)", d.rentPsf ? psf(d.rentPsf) + u(" /SF") : "", d.rentMo ? usd(d.rentMo) + " / mo" : ""),
+      tile("Rent for 6.5% YOC", d.reqRent != null ? psf(d.reqRent) + u(" /SF") : "", ""),
+      tile("Untrended ROC", d.roc != null ? d.roc.toFixed(2) + "%" : "", "")
+    ] : [
+      tile("Units", d.units ? fmtNum(d.units) : (d.yearBuilt || ""), [d.units && d.yearBuilt && "Built " + d.yearBuilt, d.avgSf && fmtNum(d.avgSf) + " SF avg"].filter(Boolean).join(" · ")),
+      tile("Occupancy", d.occ != null ? d.occ + "%" : "", d.concessionWeeks != null ? (d.concessionWeeks === 0 ? "No concessions" : fmtNum(d.concessionWeeks) + " weeks free") : ""),
+      tile("Effective rent", effPsf(d) ? psf(effPsf(d)) + u(" /SF") : "", effMo(d) ? usd(effMo(d)) + " / mo" : ""),
+      tile("Market rent", d.mktRentPsf ? psf(d.mktRentPsf) + u(" /SF") : "", [d.mktRentMo && usd(d.mktRentMo) + " / mo", d.newLeasePsf && "new leases " + psf(d.newLeasePsf)].filter(Boolean).join(" · ")),
+      (d.tradeNew != null || d.tradeRenew != null) ? tile("Lease trade-outs", (d.tradeNew != null ? "+" + d.tradeNew.toFixed(1) + "%" : "") + u(" new"),
+          d.tradeRenew != null ? "+" + d.tradeRenew.toFixed(1) + "% renewals · net effective" : "") : "",
+      tile("T-12 NOI", d.noi ? usdM2(d.noi) : "", capOn(d, d.noi) ? capOn(d, d.noi) + " cap at ask" : ""),
+      d.adjNoi ? tile("Adjusted NOI", usdM2(d.adjNoi), capOn(d, d.adjNoi) ? capOn(d, d.adjNoi) + " cap at ask" : "")
+               : (d.proformaNoi ? tile("Broker Y1 NOI", usdM2(d.proformaNoi), d.valueCap ? usdM(d.proformaNoi / (d.valueCap/100)) + " at " + d.valueCap.toFixed(1) + "%" : "") : ""),
+      d.valueCap && d.noi ? tile("Our value", usdM(d.noi / (d.valueCap/100)), d.valueCap.toFixed(1) + "% on T-12 · " + usdK(d.noi / (d.valueCap/100) / d.units) + " / unit") : "",
+      d.lastSale ? tile("Last sale", usdM(d.lastSale.price) + u(" " + d.lastSale.year),
+          [d.units && usdK(d.lastSale.price / d.units) + " / unit", d.guidance && pctChg(d.guidance, d.lastSale.price), d.lastSale.cap && d.lastSale.cap.toFixed(2) + "% cap"].filter(Boolean).join(" · ")) : ""
+    ];
+  const stats = tiles.filter(Boolean).join("");
+  const strip = hero + (stats ? '<div class="stats">' + stats + "</div>" : "");
+
+  const bidTxt = d.outcome ? "" : (d.bidDate ? fmtDate(d.bidDate) : "Not set") + " " + bidBadge(d);
+  const site = dl([
+    ["Product", d.product && esc(d.product)],
+    ["Class", d.cls && esc(d.cls)],
+    ["Zoning", d.zoning && esc(d.zoning)],
+    ["Entitlement", d.entitlement && esc(d.entitlement)],
+    ["Address", d.address && esc(d.address)]
+  ]);
+  const deal = dl([
+    ["Call for offers", bidTxt],
+    ["Broker", d.broker && esc(d.broker)],
+    ["Seller", d.seller && esc(d.seller)],
+    ["Owner of record", d.owner && esc(d.owner)],
+    ["Manager", d.manager && esc(d.manager)],
+    ["Developer", d.developer && esc(d.developer)]
+  ]);
+  const outcome = d.outcome ? '<div class="outcome"><div class="tl">Outcome</div><div class="ov">'
+    + esc(d.outcome.result || "Sold") + (d.outcome.buyer ? " to " + esc(d.outcome.buyer) : "")
+    + (d.outcome.price ? " · " + usdM(d.outcome.price)
+        + (d.units && !isLand ? " (" + usd(d.outcome.price / d.units) + " / unit)" : "")
+        + (isLand && d.doors ? " (" + usd(d.outcome.price / d.doors) + " / door)" : "") : "")
+    + (d.outcome.date ? " · " + fmtDate(d.outcome.date) : "") + "</div></div>" : "";
+  const log = (d.log && d.log.length)
+    ? '<ul class="log">' + d.log.map(p => "<li><span>" + shortDate(p[0]) + "</span>" + esc(p[1]) + "</li>").join("") + "</ul>" : "";
+  const ps = getParcels(d), fixed = false;
+  const where = ps.length
+    ? "Outline: " + plural(ps.length, "county parcel") + ", " + fmtNum(parcelAcres(ps)) + " ac (" + ps.map(x => esc(x.apn || "no APN")).join(", ") + ")" + (fixed ? ", saved." : ".") + (d.parcelNote && !fixed ? " " + esc(d.parcelNote) : "")
+    : "Point marks the general location, not the parcel. Use Fix parcel to set the outline.";
+  const src = (d.src || []).map(s => s[1] ? '<a href="' + esc(s[1]) + '" target="_blank" rel="noopener">' + esc(s[0]) + "</a>" : esc(s[0])).join(" · ");
+
+  return head(d)
+    + '<header class="dh"><h1>' + esc(d.name) + "</h1><h2>" + esc(d.where || d.address || "") + "</h2>"
+    + '<div class="chips"><span class="chip' + (isLand ? " land" : "") + '">' + (isLand ? "Development land" : "Existing asset") + "</span>"
+    + (d.stage ? '<span class="chip stage' + (HOT.has(d.stage) ? " hot" : "") + '">' + esc(STAGES[d.stage] || d.stage) + "</span>" : "")
+    + (d.sample ? '<span class="chip sample">Sample</span>' : "") + "</div></header>"
+    + '<div class="figures">' + strip + "</div>"
+    + (d.take ? '<div class="callout"><strong>Our take</strong><p>' + esc(d.take) + "</p></div>" : "")
+    + outcome
+    + section("Site", site)
+    + section("Deal", deal)
+    + section("Notes", (d.summary ? '<p class="request">' + esc(d.summary) + "</p>" : "") + (d.noiNote ? '<p class="request">' + esc(d.noiNote) + "</p>" : ""))
+    + section("Deal log", log)
+    + '<p class="meta">' + where + (src ? "<br>Source: " + src : "") + "</p>"
+    + manageBlock(d);
+}
+
+/* ---------- map ---------- */
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const narrow = () => innerWidth <= 760;
+function pad(){
+  return narrow() ? {top:60, left:30, right:30, bottom:Math.round(innerHeight * 0.58) + 10}
+                  : {top:60, right:60, bottom:80, left:Math.round(20 + Math.min(400, innerWidth * 0.40 - 20) + 60)};   /* clear of the panel */
+}
+let map = null, markers = [];
+const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services/";
+function initMap(){
+  if(!window.maplibregl){ fail("The map library did not load. Check the network connection, then reload."); return; }
+  map = new maplibregl.Map({
+    container:"map", attributionControl:false, interactive:true, fadeDuration:300,
+    style:{ version:8,
+      sources:{
+        img:{type:"raster", tiles:[ESRI + "World_Imagery/MapServer/tile/{z}/{y}/{x}"], tileSize:256, maxzoom:19},
+        ref:{type:"raster", tiles:[ESRI + "Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}"], tileSize:256, maxzoom:19},
+        site:{type:"geojson", data:{type:"FeatureCollection", features:[]}}
+      },
+      layers:[
+        {id:"img", type:"raster", source:"img", paint:{"raster-brightness-max":0.86, "raster-saturation":-0.12, "raster-fade-duration":500}},
+        {id:"ref", type:"raster", source:"ref", paint:{"raster-opacity":0.55}},
+        {id:"site-fill", type:"fill", source:"site", paint:{"fill-color":["match",["get","kind"],"land","#CCECC3","#C7C9FE"], "fill-opacity":0.2}},
+        {id:"site-case", type:"line", source:"site", paint:{"line-color":"#1D1247", "line-width":5.5, "line-opacity":0.55}},
+        {id:"site-line", type:"line", source:"site", paint:{"line-color":["match",["get","kind"],"land","#CCECC3","#C7C9FE"], "line-width":2.75}}
+      ]},
+    center:[-104.99, 39.74], zoom:9
+  });
+  map.on("error", e => { if(e && e.sourceId === "img") fail("Satellite imagery is not loading. The slides still run; check the network connection."); });
+  map.on("click", onMapClick);
+  map.on("load", () => { if(ready){ camera(SLIDES[idx]); return; } ready = true; go(0); loop(); });
+  setTimeout(() => { if(!ready){ ready = true; go(0); loop(); } }, 4000);
+}
+function fail(msg){ const e = $("#err"); e.textContent = msg; e.hidden = false; if(!ready){ ready = true; go(0); loop(); } }
+function clearMarkers(){ markers.forEach(m => m.remove()); markers = []; }
+function addMarker(d, dim){
+  if(!map) return;
+  /* MapLibre positions the wrapper with its own absolute positioning and transforms. The styled dot lives
+     inside it, so our CSS (position, border, pulse) can never shift where the marker sits on zoom. */
+  const el = document.createElement("div"); el.className = "pin";
+  const dot = document.createElement("div"); dot.className = "dot" + (d.kind === "land" ? " land" : "") + (dim ? " arch" : "");
+  el.appendChild(dot);
+  markers.push(new maplibregl.Marker({element:el, anchor:"center"}).setLngLat([d.lon, d.lat]).addTo(map));
+}
+function allBounds(list){
+  const b = new maplibregl.LngLatBounds();
+  (list.length ? list : [{lon:-104.99, lat:39.74}]).forEach(d => b.extend([d.lon, d.lat])); return b;
+}
+function camera(s){
+  if(!map || !map.getSource("site")) return;
+  const move = (fn, o) => reduce ? map.jumpTo(map.cameraForBounds(o.bounds, {padding:o.padding, maxZoom:o.maxZoom})) : fn();
+  clearMarkers();
+  map.getSource("site").setData({type:"FeatureCollection", features:[]});
+  $("#veil").classList.toggle("dim", s.t !== "deal");
+  if(s.t === "cover" || s.t === "market"){
+    const list = s.t === "market" ? active.filter(d => d.market === s.m) : active;
+    const o = {bounds:allBounds(list), padding:pad(), maxZoom:11};
+    move(() => map.fitBounds(o.bounds, {padding:o.padding, maxZoom:o.maxZoom, duration:3200, essential:true}), o);
+    list.forEach(d => addMarker(d));
+    return;
+  }
+  const d = s.d, ps = getParcels(d);
+  let b;
+  if(ps.length){
+    let w = 180, e = -180, so = 90, n = -90;
+    ps.forEach(p => p.coords.forEach(r => r.forEach(q => { w = Math.min(w, q[0]); e = Math.max(e, q[0]); so = Math.min(so, q[1]); n = Math.max(n, q[1]); })));
+    const mx = Math.max((e - w) * 0.75, 0.0006), my = Math.max((n - so) * 0.75, 0.0005);
+    b = new maplibregl.LngLatBounds([w - mx, so - my], [e + mx, n + my]);
+  } else {
+    const frame = squareFor(d, 5); b = new maplibregl.LngLatBounds(frame[0], frame[2]);
+  }
+  const o = {bounds:b, padding:pad(), maxZoom:ps.length ? 17.6 : 15.6};
+  if(!s.keep) move(() => map.fitBounds(b, {padding:o.padding, maxZoom:o.maxZoom, duration:5200, curve:1.5, essential:true}), o);
+  drawSite(d);
+}
+function drawSite(d){
+  if(!map || !map.getSource("site")) return;
+  const ps = getParcels(d);
+  clearMarkers();
+  map.getSource("site").setData({type:"FeatureCollection", features:ps.map(p => ({type:"Feature", properties:{apn:p.apn, kind:d.kind}, geometry:{type:"Polygon", coordinates:p.coords}}))});
+  if(!ps.length) addMarker(d, archived(d));
+}
+
+/* ---------- player ---------- */
+let idx = 0, elapsed = 0, last = 0, playing = false, ready = false, swapT = 0, picking = false;
+const bar = $("#bar");
+SLIDES.forEach((s, i) => {
+  const b = document.createElement("button"); b.type = "button";
+  b.setAttribute("aria-label", "Go to slide " + (i + 1) + (s.d ? ": " + s.d.name : ""));
+  b.innerHTML = "<span><i></i></span>"; b.addEventListener("click", () => go(i));
+  if(s.skip) b.hidden = true;
+  bar.appendChild(b);
+});
+const fills = [...bar.querySelectorAll("i")];
+function go(i){
+  if(picking) setPick(false);
+  idx = (i + SLIDES.length) % SLIDES.length; elapsed = 0;
+  const s = SLIDES[idx], el = $("#slide");
+  el.classList.remove("on");
+  clearTimeout(swapT);
+  swapT = setTimeout(() => {
+    el.innerHTML = s.t === "cover" ? renderCover() : s.t === "market" ? renderMarket(s.m) : renderDeal(s.d);
+    $("#pscroll").scrollTop = 0; el.classList.add("on");
+  }, reduce ? 0 : 380);
+  fills.forEach((f, k) => f.style.width = k < idx ? "100%" : "0%");
+  camera(s);
+}
+function step(dir){
+  let j = idx;
+  do { j = (j + dir + SLIDES.length) % SLIDES.length; } while(SLIDES[j].skip && j !== idx);
+  go(j);
+}
+function loop(now){
+  requestAnimationFrame(loop);
+  if(now === undefined) return;
+  const dt = last ? Math.min(now - last, 250) : 0; last = now;
+  if(!playing) return;
+  elapsed += dt;
+  const s = SLIDES[idx];
+  fills[idx].style.width = Math.min(100, elapsed / s.ms * 100) + "%";
+  if(elapsed >= s.ms) step(1);
+}
+function setPlaying(p){ playing = p; $("#play").textContent = p ? "Pause" : "Play"; }
+$("#play").addEventListener("click", () => setPlaying(!playing));
+$("#next").addEventListener("click", () => step(1));
+$("#prev").addEventListener("click", () => step(-1));
+addEventListener("keydown", e => {
+  if(!$("#list").hidden) return;
+  if(e.key === "ArrowRight") step(1);
+  else if(e.key === "ArrowLeft") step(-1);
+  else if(e.key === " "){ e.preventDefault(); setPlaying(!playing); }
+});
+addEventListener("resize", () => { if(ready) camera(SLIDES[idx]); });
+
+/* ---------- fix parcel: click parcels on the map to set a deal's outline ---------- */
+const hint = $("#hint");
+let lookup = 0;
+function refreshCopy(){}
+function setPick(p){
+  if(p && (SLIDES[idx].t !== "deal" || !map)) { hint.textContent = "Open a deal slide first, then choose Fix parcel."; hint.hidden = false; setTimeout(() => { if(!picking) hint.hidden = true; }, 2600); return; }
+  if(!p && lookup){ clearInterval(lookup); lookup = 0; }
+  picking = p; $("#pick").textContent = p ? "Done" : "Fix parcel"; $("#pick").setAttribute("aria-pressed", p);
+  hint.hidden = !p; if(map) map.getCanvas().style.cursor = p ? "crosshair" : "";
+  if(p){ setPlaying(false); hint.textContent = "Click a parcel to add it to this deal. Click it again to remove it. Drag and zoom to find the site."; }
+}
+function repaintDeal(){ const d = SLIDES[idx].d; drawSite(d); $("#slide").innerHTML = renderDeal(d); refreshCopy(); }
+async function onMapClick(e){
+  if(!picking || lookup) return;
+  const d = SLIDES[idx].d, id = slug(d), t0 = Date.now();
+  hint.textContent = "Looking up the parcel… 0s (can take up to 15 seconds)";
+  lookup = setInterval(() => { hint.textContent = "Looking up the parcel… " + Math.round((Date.now() - t0) / 1000) + "s (can take up to 15 seconds)"; }, 1000);
+  let f = null, bad = false;
+  try{ f = await parcelAt(e.lngLat.lng, e.lngLat.lat); }catch(err){ bad = true; }
+  clearInterval(lookup); lookup = 0;
+  if(bad){ if(picking) hint.textContent = "The parcel services did not respond. Click the lot again to retry."; return; }
+  if(!picking) return;
+  if(!f){ hint.textContent = "No parcel record at that point. Try clicking inside a lot."; return; }
+  const cur = getParcels(d), key = x => (x.apn || "") + "@" + x.coords[0][0].map(v => v.toFixed(5)).join(",");
+  const i = cur.findIndex(x => key(x) === key(f) || (f.apn && x.apn === f.apn));
+  try{
+    if(i >= 0){
+      const p = cur[i];
+      const { error } = await sb.schema("pipeline").from("deal_parcels").delete().eq("deal_id", d.id).eq("parcel_id", p.id);
+      if(error) throw error;
+      cur.splice(i, 1);
+    } else {
+      const gj = JSON.stringify({type:"Polygon", coordinates:f.coords});
+      const { data, error } = await sb.schema("pipeline").rpc("add_deal_parcel", {p_deal:d.id, p_apn:f.apn || "", p_geojson:gj});
+      if(error) throw error;
+      cur.push({id:data, apn:f.apn, coords:f.coords});
+    }
+  }catch(err){ hint.textContent = "Couldn't save the parcel: " + (err.message || err); return; }
+  d._parcels = cur; repaintDeal();
+  const ps = getParcels(d);
+  hint.textContent = (i >= 0 ? "Removed. " : "Added " + (f.situs || f.apn || "parcel") + ". ") + ps.length + " parcel" + (ps.length === 1 ? "" : "s") + ", " + fmtNum(parcelAcres(ps)) + " acres" + (d.acres ? " (OM says " + d.acres + ")" : "") + ".";
+}
+$("#pick").addEventListener("click", () => setPick(!picking));
+$("#slide").addEventListener("click", e => { const r = e.target.closest("[data-go]"); if(r) go(+r.dataset.go); });
+if(false) $("#copy").addEventListener("click", async () => {
+  const txt = JSON.stringify(OV);
+  hint.hidden = false;
+  try{ await navigator.clipboard.writeText(txt); hint.textContent = "Parcel fixes copied. Paste them to Claude to bake them into the file."; setTimeout(() => { if(!picking) hint.hidden = true; }, 3200); }
+  catch(e){ hint.innerHTML = 'Copy this text:<textarea id="fixtxt" readonly></textarea>'; $("#fixtxt").value = txt; $("#fixtxt").select(); }
+});
+refreshCopy();
+
+/* ---------- list view ---------- */
+let lf = "active", lm = "all", lq = "", lsort = {k:"market", d:1};
+const MKT_FILTERS = [["all","All markets"]].concat(REPORT.markets.map(m => [m, m]));
+const FILTERS = [["active","Active"],["asset","Existing"],["land","Land"],["due","Bids ≤ 14 days"],["watch","Prospect & Monitor"],["checkback","Check-backs due"],["archive","Archive"],["all","All"]];
+const COLS = [["name","Deal"],["market","Market"],["kind","Type"],["units","Units",1],["acres","Acres",1],["guidance","Guidance",1],["basis","$/unit or door",1],["rent","Rent $/SF",1],["occ","Occ",1],["bid","Bids due"],["stage","Status"]];
+function val(d, k){
+  switch(k){
+    case "units": return d.kind === "land" ? (d.doors || null) : (d.units || null);
+    case "basis": return d.kind === "land" ? ppd(d) : ppu(d);
+    case "rent": return effPsf(d) || null;
+    case "bid": return d.bidDate || null;
+    case "stage": return d.outcome ? "zz" + (d.outcome.result || "") : (d.stage || null);
+    default: return d[k] == null ? null : d[k];
+  }
+}
+function inFilter(d){
+  if(lm !== "all" && d.market !== lm) return false;
+  if(lq){ const q = lq.toLowerCase(); if(![d.name, d.address, d.where, d.broker, d.seller, d.owner, d.summary].some(v => v && String(v).toLowerCase().includes(q))) return false; }
+  if(lf === "all") return true;
+  if(lf === "archive") return archived(d);
+  if(lf === "watch") return watching(d) && !archived(d);
+  if(lf === "checkback") return !!d.checkBack && daysTo(d.checkBack) <= 30;
+  if(archived(d) || watching(d)) return false;
+  if(lf === "active") return true;
+  if(lf === "due"){ const n = daysTo(d.bidDate); return n != null && n >= 0 && n <= 14; }
+  return d.kind === lf;
+}
+function renderList(){
+  $("#filters").innerHTML = MKT_FILTERS.map(f => '<button type="button" data-m="' + f[0] + '" aria-pressed="' + (lm === f[0]) + '">' + f[1] + "</button>").join("")
+    + '<span style="width:14px"></span>'
+    + FILTERS.map(f => '<button type="button" data-f="' + f[0] + '" aria-pressed="' + (lf === f[0]) + '">' + f[1] + "</button>").join("");
+  $("#lth").innerHTML = "<tr>" + COLS.map(k => '<th tabindex="0" data-k="' + k[0] + '"' + (k[2] ? ' class="num"' : "") + (lsort.k === k[0] ? ' aria-sort="' + (lsort.d > 0 ? "ascending" : "descending") + '"' : "") + ">" + k[1] + (lsort.k === k[0] ? (lsort.d > 0 ? " ↑" : " ↓") : "") + "</th>").join("") + "</tr>";
+  const rows = deals.filter(inFilter);
+  rows.sort((a, b) => {
+    const x = val(a, lsort.k), y = val(b, lsort.k);
+    if(x == null && y == null) return byBid(a, b); if(x == null) return 1; if(y == null) return -1;
+    return ((typeof x === "number" ? x - y : String(x).localeCompare(String(y))) * lsort.d) || byBid(a, b);
+  });
+  $("#ltb").innerHTML = rows.map(d => {
+    const isLand = d.kind === "land", basis = isLand ? ppd(d) : ppu(d);
+    const status = d.outcome
+      ? esc(d.outcome.result || "Sold") + (d.outcome.buyer ? "<small>" + esc(d.outcome.buyer) + (d.outcome.price ? " · " + usdM(d.outcome.price) : "") + "</small>" : "")
+      : esc(STAGES[d.stage] || d.stage || "") + (d.checkBack ? "<small>Check back " + shortDate(d.checkBack) + "</small>" : (archived(d) && !["lost","dead","closed"].includes(d.stage) ? "<small>Bid date passed, outcome pending</small>" : ""));
+    return '<tr class="r" tabindex="0" data-i="' + deals.indexOf(d) + '"><td><b>' + esc(d.name) + "</b>" + (d.sample ? " (sample)" : "") + "<small>" + esc(d.where || "") + "</small></td><td>" + esc(d.market || "") + "</td>"
+      + '<td><span class="chip' + (isLand ? " land" : "") + '">' + (isLand ? "Land" : "Existing") + "</span></td>"
+      + '<td class="num">' + (isLand ? (d.doors ? fmtNum(d.doors) + "<small>doors</small>" : "") : (d.units ? fmtNum(d.units) : "")) + "</td>"
+      + '<td class="num">' + (d.acres ? fmtNum(d.acres) : "") + "</td>"
+      + '<td class="num">' + esc(priceLine(d)) + "</td>"
+      + '<td class="num">' + (basis ? usd(basis) : "") + "</td>"
+      + '<td class="num">' + (effPsf(d) ? "$" + effPsf(d).toFixed(2) + (effMo(d) ? "<small>" + usd(effMo(d)) + " / mo</small>" : "") : "") + "</td>"
+      + '<td class="num">' + (d.occ != null ? d.occ + "%" : "") + "</td>"
+      + "<td>" + (d.bidDate ? shortDate(d.bidDate) + " " + bidBadge(d) : "") + '</td><td class="st">' + status + "</td></tr>";
+  }).join("") || '<tr><td colspan="11">No deals match this filter.</td></tr>';
+}
+function setList(open){
+  $("#list").hidden = !open; $("#listb").setAttribute("aria-pressed", open); $("#listb").textContent = open ? "Map" : "List";
+  if(open){ if(picking) setPick(false); setPlaying(false); renderList(); }
+}
+function openRow(tr){
+  if(!tr) return;
+  const d = deals[+tr.dataset.i], i = SLIDES.findIndex(s => s.d === d);
+  setList(false); if(i >= 0) go(i);
+}
+$("#listb").addEventListener("click", () => setList($("#list").hidden));
+$("#filters").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; if(b.dataset.m) lm = b.dataset.m; else lf = b.dataset.f; renderList(); });
+$("#lq").addEventListener("input", e => { lq = e.target.value; renderList(); });
+$("#lmap").addEventListener("click", () => { const list = deals.filter(inFilter); setList(false); showMany(list); });
+function sortBy(th){ if(!th) return; const k = th.dataset.k; lsort = {k, d: lsort.k === k ? -lsort.d : 1}; renderList(); }
+$("#lth").addEventListener("click", e => sortBy(e.target.closest("th")));
+$("#lth").addEventListener("keydown", e => { if(e.key === "Enter") sortBy(e.target.closest("th")); });
+$("#ltb").addEventListener("click", e => openRow(e.target.closest("tr.r")));
+$("#ltb").addEventListener("keydown", e => { if(e.key === "Enter") openRow(e.target.closest("tr.r")); });
+addEventListener("keydown", e => { if(e.key === "Escape"){ if(!$("#list").hidden) setList(false); else if(picking) setPick(false); } });
+initMap();
+})();
+</script>
+</body>
+</html>
