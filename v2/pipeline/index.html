@@ -807,7 +807,7 @@ function initMap(){
 function fail(msg){ const e = $("#err"); e.textContent = msg; e.hidden = false; if(!ready){ ready = true; go(0); loop(); } }
 function clearMarkers(){ markers.forEach(m => m.remove()); markers = []; }
 function addMarker(d, dim){
-  if(!map) return;
+  if(!map || d.lat == null || d.lon == null) return;
   /* MapLibre positions the wrapper with its own absolute positioning and transforms. The styled dot lives
      inside it, so our CSS (position, border, pulse) can never shift where the marker sits on zoom. */
   const el = document.createElement("div"); el.className = "pin";
@@ -817,7 +817,8 @@ function addMarker(d, dim){
 }
 function allBounds(list){
   const b = new maplibregl.LngLatBounds();
-  (list.length ? list : [{lon:-104.99, lat:39.74}]).forEach(d => b.extend([d.lon, d.lat])); return b;
+  const pts = list.filter(d => d.lat != null && d.lon != null);
+  (pts.length ? pts : [{lon:-104.99, lat:39.74}]).forEach(d => b.extend([d.lon, d.lat])); return b;
 }
 function camera(s){
   if(!map || !map.getSource("site")) return;
@@ -839,6 +840,8 @@ function camera(s){
     ps.forEach(p => p.coords.forEach(r => r.forEach(q => { w = Math.min(w, q[0]); e = Math.max(e, q[0]); so = Math.min(so, q[1]); n = Math.max(n, q[1]); })));
     const mx = Math.max((e - w) * 0.75, 0.0006), my = Math.max((n - so) * 0.75, 0.0005);
     b = new maplibregl.LngLatBounds([w - mx, so - my], [e + mx, n + my]);
+  } else if(d.lat == null || d.lon == null){
+    b = allBounds(deals.filter(x => x.market === d.market));   /* no location yet: show the market */
   } else {
     const frame = squareFor(d, 5); b = new maplibregl.LngLatBounds(frame[0], frame[2]);
   }
