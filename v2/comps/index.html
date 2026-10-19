@@ -3,87 +3,72 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sale Comps · Willow Bridge Intel</title>
+<title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="../shared/wb.css">
 <style>
-  body{display:flex;flex-direction:column;height:100vh;overflow:hidden}
-  .wb-band{padding:20px 32px}
-  .wb-toolbar .input{width:260px}
-  .main{flex:1;min-height:0;display:flex;flex-direction:column;gap:16px;padding:16px 32px 20px}
-  #stats .kpi-value{font-size:24px}
-  .split{flex:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,38%);gap:16px;min-height:0}
-  @media (max-width:900px){body{height:auto;overflow:auto}.split{grid-template-columns:1fr}#mapPanel{height:360px;order:-1}.main,.wb-band,.wb-toolbar{padding-left:16px;padding-right:16px}}
-  .split>.panel{display:flex;flex-direction:column;min-height:0}
-  .tablewrap{overflow:auto;min-height:0;flex:1}
-  table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
-  th{position:sticky;top:0;background:var(--bg-1);text-align:left;font:600 10.5px var(--font);color:var(--ink-4);letter-spacing:.1em;text-transform:uppercase;
-     padding:11px 12px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap;user-select:none;z-index:1}
-  th:hover{color:var(--ink-1)}
-  th.r,td.r{text-align:right}
-  th .dir{color:var(--accent)}
-  td{padding:10px 12px;border-bottom:1px solid var(--line-hair);vertical-align:top;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--ink-2)}
-  td.name{white-space:normal;min-width:230px;max-width:320px}
-  td.t{max-width:170px;overflow:hidden;text-overflow:ellipsis}
-  td.name b{font-weight:600;color:var(--ink-1)}
-  td.name div{color:var(--ink-4);font-size:12px;margin-top:2px}
-  td:first-child{box-shadow:inset 3px 0 0 transparent}
-  tr.sel td{background:#f0edfa}
-  tr.sel td:first-child,tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
-  tbody tr{cursor:pointer}
-  tbody tr:hover td{background:#f7f6fc}
-  .muted{color:var(--ink-4)}
-  .ok{color:var(--positive);font-size:12px}
+  html,body{height:100%}
+  body{display:flex;flex-direction:column;overflow:hidden}
+  .page{flex:1;min-height:0;display:flex;flex-direction:column;gap:14px;width:100%;padding-bottom:20px}
+  .page-head{margin-bottom:0}
+  .toolbar .input[type=search]{width:280px}
+  .chip-near{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 6px 0 10px;border-radius:6px;background:var(--selected);color:var(--purple);font-weight:600;font-size:12.5px}
+  .chip-near button{border:0;background:none;color:inherit;cursor:pointer;font-size:15px;line-height:1;padding:0 4px}
+  .split{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,36%);gap:14px}
+  .split>.sec{display:flex;flex-direction:column;min-height:0;margin:0}
+  .tablewrap{overflow:auto;flex:1;min-height:0;border-top:1px solid var(--rule-2)}
+  .tbl th{border-top:0}
+  .tbl td.t{max-width:180px;overflow:hidden;text-overflow:ellipsis}
+  .tbl td.name{max-width:300px}
+  #mapPanel{overflow:hidden}
   #map{flex:1;min-height:0}
-  .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--band);background:var(--accent-light);box-sizing:border-box;cursor:pointer}
-  .dot.land{background:var(--greentea);border-color:var(--forest)}
-  .dot.sel{width:18px;height:18px;border-color:var(--accent);border-width:3px}
-  .maplibregl-popup-content{font:13px/1.4 var(--font);color:var(--ink-1);border-radius:10px;padding:10px 12px;box-shadow:var(--shadow-md)}
+  .dot{width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:var(--asset);box-shadow:0 0 0 1px rgba(22,20,43,.35);cursor:pointer}
+  .dot.land{background:var(--land)}
+  .dot.sel{width:17px;height:17px;background:var(--purple);box-shadow:0 0 0 3px rgba(67,40,144,.3)}
+  .maplibregl-popup-content{font:13px/1.4 var(--font);color:var(--ink);border-radius:8px;padding:10px 12px}
+  @media (max-width:980px){body{height:auto;overflow:auto}.split{grid-template-columns:1fr}#mapPanel{height:360px;order:-1}}
   /* drawer */
-  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,100%);background:var(--bg-1);border-left:1px solid var(--line);
-    box-shadow:-8px 0 32px rgba(29,18,71,.12);z-index:60;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .2s}
+  .drawer{position:fixed;top:var(--wb-nav-h,48px);right:0;bottom:0;width:min(460px,100%);background:var(--surface);border-left:1px solid var(--rule);
+    box-shadow:-12px 0 32px rgba(22,20,43,.12);z-index:60;display:flex;flex-direction:column;transform:translateX(105%);transition:transform .2s}
   .drawer.open{transform:none}
-  .drawer header{display:flex;align-items:center;gap:10px;padding:16px 18px;background:var(--band);color:#fff}
-  .drawer header .btn{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.3);color:#fff}
-  .drawer header h2{margin:0;font:600 19px/1.2 var(--font-head);flex:1}
+  .drawer header{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--rule)}
+  .drawer header h2{margin:0;font:600 18px/1.2 var(--font-display);flex:1}
   .drawer form{flex:1;overflow:auto;padding:16px 18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-content:start}
   .drawer .input{width:100%}
   .drawer .full{grid-column:1/-1}
-  .drawer footer{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--line);background:var(--bg-inset)}
-  .drawer .hint{font-size:12px;color:var(--ink-4)}
-  .drawer form label{font:600 10.5px var(--font);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4)}
+  .drawer footer{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--rule);background:var(--sunk)}
+  .drawer .hint{font-size:12px;color:var(--muted)}
+  @media (prefers-reduced-motion:reduce){.drawer{transition:none}}
 </style>
 </head>
 <body>
-<header class="wb-band">
-  <div><div class="eyebrow">Willow Bridge · Pricing</div><h1>Sale Comps</h1>
-    <p class="lede">The master list of multifamily investment and land sales in Denver and Phoenix.</p></div>
-  <div class="actions"><button class="band-btn" id="b-export">Export to Excel</button><button class="band-btn solid" id="b-add">Add comp</button></div>
-</header>
-<div class="wb-toolbar">
-  <div class="seg" id="f-market"><button data-v="all" class="on">Both</button><button data-v="denver">Denver</button><button data-v="phoenix">Phoenix</button></div>
-  <div class="seg" id="f-type"><button data-v="investment" class="on">Investment</button><button data-v="land">Land</button></div>
-  <select class="input" id="f-since" style="width:auto">
-    <option value="">All dates</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option>
-  </select>
-  <span class="grow"></span>
-  <input class="input" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker">
-</div>
-<div class="main">
-  <div class="kpis" id="stats"></div>
-  <div class="split">
-    <section class="panel"><div class="panel-header"><div><div class="panel-title" id="t-title">Sales</div><div class="panel-sub">Click a heading to sort · click a row to find it on the map</div></div></div>
-      <div class="tablewrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></section>
-    <section class="panel" id="mapPanel"><div id="map"></div></section>
+<main class="page">
+  <div class="page-head">
+    <div><h1>Sale comps</h1><p>Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.</p></div>
+    <div class="actions"><button class="btn" id="b-export">Export to Excel</button><button class="btn primary" id="b-add">Add a comp</button></div>
   </div>
-</div>
+  <div class="toolbar">
+    <div class="seg" id="f-type"><button data-v="investment" class="on">Investment</button><button data-v="land">Land</button></div>
+    <select class="input" id="f-since" style="width:auto">
+      <option value="">All dates</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option><option value="5">Last 5 years</option>
+    </select>
+    <span id="near"></span>
+    <span class="grow"></span>
+    <input class="input" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker">
+  </div>
+  <div class="figs" id="stats"></div>
+  <div class="split">
+    <section class="sec"><div class="sec-h"><h2 id="t-title">Sales</h2><span class="note">Click a heading to sort. Double-click a row to edit.</span></div>
+      <div class="tablewrap"><table class="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></section>
+    <section class="sec" id="mapPanel"><div id="map"></div></section>
+  </div>
+</main>
 
 <aside class="drawer" id="drawer">
-  <header><h2 id="d-title">Add comp</h2><button class="btn" type="button" id="d-close">Close</button></header>
+  <header><h2 id="d-title">Add a comp</h2><button class="btn" type="button" id="d-close">Close</button></header>
   <form id="d-form" autocomplete="off"></form>
-  <footer><button class="btn primary" id="d-save">Save</button><span class="hint" id="d-hint">Click the map to set the location.</span></footer>
+  <footer><button class="btn primary" id="d-save">Save comp</button><span class="hint" id="d-hint">Click the map to set the location.</span></footer>
 </aside>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
@@ -103,13 +88,16 @@
     if (c.price_per_unit == null && c.sale_price && doors) c.price_per_unit = c.sale_price / doors;
     if (c.comp_type === 'land' && c.price_per_land_sf == null && c.sale_price && c.acres) c.price_per_land_sf = c.sale_price / (c.acres * 43560);
   }
-  const state = { market: 'all', type: 'investment', since: '', q: '', sort: 'sale_date', dir: -1, sel: null };
+  const P = new URLSearchParams(location.search);
+  const near = P.get('near') ? { at: P.get('near').split(',').map(Number), mi: +(P.get('mi') || 3) } : null;
+  const miles = (c) => { if (c.lat == null || !near) return Infinity; const [la, lo] = near.at, r = Math.PI / 180, a = Math.sin((c.lat - la) * r / 2) ** 2 + Math.cos(la * r) * Math.cos(c.lat * r) * Math.sin((c.lng - lo) * r / 2) ** 2; return 7917.5 * Math.asin(Math.sqrt(a)); };
+  const state = { market: WB.getMarket(), type: 'investment', since: '', q: '', sort: 'sale_date', dir: -1, sel: null };
 
   // ---------- columns ----------
   const COLS = {
     investment: [
       ['sale_date', 'Date', (c) => fmt.date(c.sale_date)],
-      ['name', 'Property', (c) => `<b>${esc(c.name || '—')}</b><div>${esc([c.address, c.city || c.submarket].filter(Boolean).join(' · '))}</div>`, 'name'],
+      ['name', 'Property', (c) => `${esc(c.name || '—')}<small>${esc([c.address, c.city || c.submarket].filter(Boolean).join(', '))}</small>`, 'name'],
       ['units', 'Units', (c) => fmt.int(c.units), 'r'],
       ['year_built', 'Built', (c) => c.year_built ?? '—', 'r'],
       ['sale_price', 'Price', (c) => fmt.usd(c.sale_price), 'r'],
@@ -123,13 +111,13 @@
     ],
     land: [
       ['sale_date', 'Date', (c) => fmt.date(c.sale_date)],
-      ['name', 'Site', (c) => `<b>${esc(c.name || '—')}</b><div>${esc([c.address, c.submarket || c.city].filter(Boolean).join(' · '))}</div>`, 'name'],
+      ['name', 'Site', (c) => `${esc(c.name || '—')}<small>${esc([c.address, c.submarket || c.city].filter(Boolean).join(', '))}</small>`, 'name'],
       ['acres', 'Acres', (c) => fmt.ac(c.acres), 'r'],
       ['proposed_units', 'Units', (c) => fmt.int(c.proposed_units), 'r'],
       ['sale_price', 'Price', (c) => fmt.usd(c.sale_price), 'r'],
       ['price_per_unit', '$/door', (c) => fmt.usd(c.price_per_unit), 'r'],
       ['price_per_land_sf', '$/land SF', (c) => fmt.psf(c.price_per_land_sf), 'r'],
-      ['product_type', 'Product', (c) => esc([c.product_type, c.construction_type].filter(Boolean).join(' · ') || '—'), 't'],
+      ['product_type', 'Product', (c) => esc([c.product_type, c.construction_type].filter(Boolean).join(', ') || '—'), 't'],
       ['buyer', 'Buyer', (c) => `<span title="${esc(c.buyer || '')}">${esc(c.buyer || '—')}</span>`, 't'],
       ['seller', 'Seller', (c) => `<span title="${esc(c.seller || '')}">${esc(c.seller || '—')}</span>`, 't'],
       ['verified', '', (c) => c.verified ? '<span class="ok" title="Verified">✓</span>' : ''],
@@ -143,6 +131,7 @@
     const out = rows.filter((c) =>
       c.comp_type === state.type &&
       (state.market === 'all' || c.market_id === state.market) &&
+      (!near || miles(c) <= near.mi) &&
       (!cut || (c.sale_date && c.sale_date >= cut)) &&
       (!q || [c.name, c.address, c.city, c.submarket, c.buyer, c.seller, c.broker, c.notes].some((v) => v && v.toLowerCase().includes(q))));
     const k = state.sort, d = state.dir;
@@ -159,18 +148,19 @@
   function render() {
     const list = filtered(), cols = COLS[state.type];
     $('#thead').innerHTML = '<tr>' + cols.map(([k, l, , cls]) =>
-      `<th data-k="${k}" class="${cls === 'r' ? 'r' : ''}">${l}${state.sort === k ? ` <span class="dir">${state.dir > 0 ? '↑' : '↓'}</span>` : ''}</th>`).join('') + '</tr>';
+      `<th data-k="${k}" class="sortable ${cls === 'r' ? 'r' : ''} ${state.sort === k ? 'sorted' : ''}">${l}${state.sort === k ? (state.dir > 0 ? ' ↑' : ' ↓') : ''}</th>`).join('') + '</tr>';
     $('#tbody').innerHTML = list.map((c) => `<tr data-id="${c.id}" class="${state.sel === c.id ? 'sel' : ''}">` +
       cols.map(([k, , f, cls]) => `<td class="${cls || ''}">${f(c)}</td>`).join('') + '</tr>').join('')
-      || `<tr><td colspan="${cols.length}" class="muted" style="padding:20px">No comps match these filters.</td></tr>`;
+      || `<tr><td colspan="${cols.length}" class="empty">No comps match these filters. Widen the date range or clear the search.</td></tr>`;
     const s = state.type === 'investment'
       ? [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), 'total volume'], [(() => { const r = list.filter((c) => c.sale_price && c.units); const u = r.reduce((t, c) => t + +c.units, 0); return u ? fmt.usd(r.reduce((t, c) => t + +c.sale_price, 0) / u) : '—'; })(), 'avg $/unit'], [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/unit'],
          [list.some((c) => c.price_per_sf) ? '$' + fmt.int(median(list.map((c) => c.price_per_sf))) : '—', 'median $/SF'],
          [fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'median cap']]
       : [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), 'total volume'], [fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'median $/land SF'],
          [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/door'], [fmt.ac(median(list.map((c) => c.acres))), 'median acres']];
-    $('#stats').innerHTML = s.map(([n, l]) => `<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${n}</div></div>`).join('');
-    $('#t-title').innerHTML = `<em>${list.length}</em> ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}`;
+    $('#stats').innerHTML = s.map(([n, l]) => `<div class="fig"><div class="v">${n}</div><div class="l">${l[0].toUpperCase() + l.slice(1)}</div></div>`).join('');
+    $('#t-title').textContent = `${list.length.toLocaleString('en-US')} ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}`;
+    $('#near').innerHTML = near ? `<span class="chip-near">Within ${near.mi} miles of the selected deal<button type="button" id="near-x" title="Show all comps">×</button></span>` : '';
     drawMarkers(list);
   }
 
@@ -215,7 +205,9 @@
     $(id).querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
     state[key] = b.dataset.v; state.sel = null; map._fitOnce = false; render();
   });
-  seg('#f-market', 'market'); seg('#f-type', 'type');
+  seg('#f-type', 'type');
+  window.addEventListener('wb:market', (e) => { state.market = e.detail; state.sel = null; map._fitOnce = false; render(); });
+  document.addEventListener('click', (e) => { if (e.target.id === 'near-x') { location.href = location.pathname; } });
   $('#f-since').onchange = (e) => { state.since = e.target.value; render(); };
   $('#f-q').oninput = (e) => { state.q = e.target.value; render(); };
   $('#thead').addEventListener('click', (e) => {
@@ -262,7 +254,7 @@
   function openDrawer(c) {
     editing = c || null;
     const v = c || { comp_type: state.type, market_id: state.market === 'all' ? 'denver' : state.market, source: 'manual', verified: true };
-    $('#d-title').textContent = c ? 'Edit comp' : 'Add comp';
+    $('#d-title').textContent = c ? 'Edit comp' : 'Add a comp';
     $('#d-form').innerHTML = F.map(([k, l, t, cls, only]) => {
       const val = v[k] ?? '';
       if (only && only !== v.comp_type) return '';
@@ -292,7 +284,7 @@
   map.on('click', (e) => {
     if (!$('#drawer').classList.contains('open')) return;
     const f = $('#d-form'); f.lat.value = e.lngLat.lat.toFixed(6); f.lng.value = e.lngLat.lng.toFixed(6);
-    if (pin) pin.remove(); pin = new maplibregl.Marker({ color: '#432890' }).setLngLat(e.lngLat).addTo(map);
+    if (pin) pin.remove(); pin = new maplibregl.Marker({ color: '#1D1247' }).setLngLat(e.lngLat).addTo(map);
   });
   $('#d-save').onclick = async () => {
     const o = readForm();
@@ -311,7 +303,11 @@
     $('#d-close').click(); state.sel = data.id; render(); WB.toast(editing ? 'Comp updated' : 'Comp added');
   };
 
+  if (near) { state.since = ''; }
   render();
+  if (near) map.once('load', () => map.flyTo({ center: [near.at[1], near.at[0]], zoom: 12, duration: 0 }));
+  if (P.get('comp')) { const c = rows.find((r) => r.id === P.get('comp')); if (c) { state.type = c.comp_type; document.querySelectorAll('#f-type button').forEach((b) => b.classList.toggle('on', b.dataset.v === c.comp_type)); select(c.id, true); } }
+  if (P.get('add')) openDrawer(null);
 })();
 </script>
 </body>

@@ -6,11 +6,11 @@
   const SB_URL = 'https://wmydniiakotcliraajaa.supabase.co';
   const SB_KEY = 'sb_publishable_FWrjAmI9VJZpXWJ5Q7AmFg_2zluUmIL';
   const PAGES = [
-    { id: 'home', label: 'Home', href: '' },
-    { id: 'intel', label: 'Market Intel', href: 'intel/' },
-    { id: 'scout', label: 'Site Scout', href: 'scout/' },
+    { id: 'home', label: 'Overview', href: '' },
+    { id: 'intel', label: 'Market intel', href: 'intel/' },
+    { id: 'scout', label: 'Site scout', href: 'scout/' },
     { id: 'pipeline', label: 'Pipeline', href: 'pipeline/' },
-    { id: 'comps', label: 'Sale Comps', href: 'comps/' },
+    { id: 'comps', label: 'Sale comps', href: 'comps/' },
   ];
 
   // Root of the v2 site, worked out from where this script was loaded.
@@ -31,44 +31,97 @@
     clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), ms);
   }
 
-  // Shared chrome stylesheet + brand fonts, loaded once per page.
+  // Browser storage as it was before any tool page re-scopes it (Intel and Scout prefix their own keys),
+  // so the market choice is shared by every tab.
+  const _get = Storage.prototype.getItem, _set = Storage.prototype.setItem;
+  const store = {
+    get(k) { try { return _get.call(window.localStorage, 'wb:' + k); } catch (e) { return null; } },
+    set(k, v) { try { _set.call(window.localStorage, 'wb:' + k, v); } catch (e) { /* private mode */ } },
+  };
+
+  // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
     add(ROOT + 'shared/wb-chrome.css');
-    add('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap');
   })();
 
-  function renderNav(active, user) {
+  // ---------- market context shared across tabs ----------
+  let MARKETS = [];   // [{id, label, short}]
+  const shortName = (label, id) => String(label || id || '').split(',')[0];
+  function getMarket() { const m = store.get('market'); return m && (m === 'all' || MARKETS.some((x) => x.id === m)) ? m : 'all'; }
+  // the market this page is showing (single-market pages fall back to the first market when 'All' is chosen elsewhere)
+  function activeMarket() { const el = document.querySelector('.wb-nav select[data-market]'); return el ? el.value : getMarket(); }
+  function showMarket(id) { document.querySelectorAll('.wb-nav select[data-market]').forEach((el) => { if ([...el.options].some((o) => o.value === id)) el.value = id; }); }
+  function setMarket(id) {
+    store.set('market', id);
+    document.querySelectorAll('.wb-nav select[data-market]').forEach((s) => { if ([...s.options].some((o) => o.value === id)) s.value = id; });
+    paintStrip();
+    window.dispatchEvent(new CustomEvent('wb:market', { detail: id }));
+  }
+  const ICON = {
+    strip: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 10V6M5 10V2M8 10V5M11 10V7"/></svg>',
+  };
+
+  function renderNav(active, user, opts) {
     if ($('.wb-nav')) return;
     const nav = document.createElement('header');
     nav.className = 'wb-nav';
+    const single = opts.marketMode === 'single';
+    let cur = getMarket(); if (single && cur === 'all') cur = (MARKETS[0] || {}).id;
+    const local = (user.email || '?').split('@')[0], parts = local.split(/[._-]/).filter(Boolean);
+    const initials = (parts.length > 1 ? parts[0][0] + parts[1][0] : local.slice(0, 2)).toUpperCase();
     nav.innerHTML = `
       <a class="brand" href="${ROOT}"><img src="${ROOT}shared/wb-mark.png" alt=""><span>Willow Bridge Intel</span></a>
-      <nav>${PAGES.filter((p) => p.id !== 'home').map((p) =>
-        `<a href="${ROOT}${p.href}" class="${p.id === active ? 'on' : ''}">${p.label}</a>`).join('')}</nav>
-      <div class="who"><span class="email">${esc(user.email)}</span><button type="button" id="wb-signout">Sign out</button></div>`;
+      <nav>${PAGES.map((p) => `<a href="${ROOT}${p.href}" class="${p.id === active ? 'on' : ''}">${p.label}</a>`).join('')}</nav>
+      <div class="right">
+        <select class="ctl" data-market aria-label="Market">
+          ${single ? '' : `<option value="all"${cur === 'all' ? ' selected' : ''}>All markets</option>`}
+          ${MARKETS.map((m) => `<option value="${m.id}"${m.id === cur ? ' selected' : ''}>${esc(m.short)}</option>`).join('')}
+        </select>
+        ${active === 'home' ? '' : `<button type="button" class="ctl strip-btn" aria-pressed="false" title="Show the market snapshot">${ICON.strip}<span>Market snapshot</span></button>`}
+        <div class="me"><button type="button" aria-haspopup="true" title="${esc(user.email)}">${esc(initials)}</button>
+          <div class="menu"><div class="who">Signed in as<br>${esc(user.email)}</div><button type="button" data-signout>Sign out</button></div></div>
+      </div>`;
     document.body.prepend(nav);
-    $('#wb-signout').onclick = async () => { await sb.auth.signOut(); location.reload(); };
-    if (active !== 'home') autoHide(nav, active);
+    $('select[data-market]', nav).onchange = (e) => setMarket(e.target.value);
+    const me = $('.me', nav), menu = $('.menu', me);
+    $('button', me).onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
+    document.addEventListener('click', () => menu.classList.remove('open'));
+    $('[data-signout]', nav).onclick = async () => { await sb.auth.signOut(); location.reload(); };
+
+    // market strip: inline on Overview, a drop-down sheet on the tools
+    const strip = document.createElement('section');
+    strip.className = 'wb-strip' + (active === 'home' ? '' : ' drop');
+    strip.setAttribute('aria-label', 'Market snapshot');
+    nav.after(strip);
+    const btn = $('.strip-btn', nav);
+    if (btn) {
+      btn.onclick = (e) => { e.stopPropagation(); const open = !strip.classList.contains('open'); strip.classList.toggle('open', open); btn.setAttribute('aria-pressed', open); };
+      document.addEventListener('click', (e) => { if (!strip.contains(e.target)) { strip.classList.remove('open'); btn.setAttribute('aria-pressed', 'false'); } });
+    }
+    loadStrip();
   }
 
-  // Tool pages: keep the nav tucked above the page. A small tab at the top edge pulls it down on hover;
-  // clicking the tab pins it open until clicked again (and is the way in on touch screens).
-  function autoHide(nav, active) {
-    nav.classList.add('auto');
-    const label = (PAGES.find((p) => p.id === active) || {}).label || 'Menu';
-    const tab = document.createElement('button');
-    tab.type = 'button'; tab.className = 'wb-tab'; tab.title = 'Show the Willow Bridge Intel menu';
-    tab.innerHTML = `<img src="${ROOT}shared/wb-mark.png" alt=""><span>${esc(label)}</span><svg viewBox="0 0 10 10"><path d="M1.5 3.5 5 7l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-    const hot = document.createElement('div'); hot.className = 'wb-hot';
-    document.body.append(hot, tab);
-    let pinned = false, timer;
-    const set = (open) => { clearTimeout(timer); nav.classList.toggle('open', open); tab.classList.toggle('open', open); };
-    const show = () => set(true);
-    const hideSoon = () => { if (pinned) return; clearTimeout(timer); timer = setTimeout(() => set(false), 350); };
-    [hot, tab, nav].forEach((el) => { el.addEventListener('mouseenter', show); el.addEventListener('mouseleave', hideSoon); });
-    tab.addEventListener('click', () => { pinned = !pinned; tab.classList.toggle('pinned', pinned); set(pinned || nav.matches(':hover')); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && nav.classList.contains('open')) { pinned = false; tab.classList.remove('pinned'); set(false); } });
+  let STRIP = null;
+  async function loadStrip() {
+    const { data } = await sb.schema('market').from('strip_summary').select('*');
+    STRIP = data || []; paintStrip();
+  }
+  function paintStrip() {
+    const el = $('.wb-strip'); if (!el || !STRIP) return;
+    const cur = getMarket();
+    const rows = MARKETS.map((m) => STRIP.find((r) => r.market_id === m.id)).filter(Boolean);
+    el.style.setProperty('--n', rows.length || 1);
+    const usd = (v) => v == null ? '—' : '$' + Math.round(+v).toLocaleString('en-US');
+    el.innerHTML = rows.map((r) => `
+      <div class="m${cur !== 'all' && cur !== r.market_id ? ' dim' : ''}">
+        <div class="nm">${esc(shortName(r.label, r.market_id))}</div>
+        <div><div class="v">$${(+r.asking_rent_psf).toFixed(2)}<span>${usd(r.asking_rent_mo)}/mo</span></div><div class="l">Asking rent per SF</div></div>
+        <div><div class="v">${(+r.occupancy_pct).toFixed(1)}%</div><div class="l">Occupancy</div></div>
+        <div><div class="v">${(+r.concessions_weeks).toFixed(1)} wks</div><div class="l">Concessions</div></div>
+        <div><div class="v">${Math.round(+r.uc_units).toLocaleString('en-US')}</div><div class="l">Units under construction</div></div>
+        <div><div class="v">${r.price_per_unit_24m ? '$' + Math.round(r.price_per_unit_24m / 1000) + 'K' : '—'}<span>${r.median_cap_24m ? (+r.median_cap_24m).toFixed(2) + '% cap' : ''}</span></div><div class="l">Sales per unit, 24 mo</div></div>
+      </div>`).join('');
   }
 
   function loginScreen(message, isErr) {
@@ -130,16 +183,17 @@
   }
 
   /** Call once per page. Resolves with {sb, user} only for signed-in, approved users. */
-  async function ready(active) {
+  async function ready(active, opts = {}) {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return loginScreen();
     // Approved list check: the markets table only answers members.
-    const { data, error } = await sb.schema('core').from('markets').select('id').limit(1);
+    const { data, error } = await sb.schema('core').from('markets').select('id,label,active:config->active').order('id');
     if (error || !data || data.length === 0) {
       await sb.auth.signOut();
       return loginScreen(`${session.user.email} isn't on the access list. Ask Will to add you.`, true);
     }
-    renderNav(active, session.user);
+    MARKETS = data.filter((m) => m.active !== false).map((m) => ({ id: m.id, label: m.label, short: shortName(m.label, m.id) }));
+    renderNav(active, session.user, opts);
     return { sb, user: session.user };
   }
 
@@ -167,5 +221,5 @@
   };
   const median = (xs) => { const a = xs.filter((x) => x != null && !isNaN(x)).map(Number).sort((p, q) => p - q); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
 
-  window.WB = { sb, ready, fetchAll, toast, esc, fmt, median, ROOT, SB_URL };
+  window.WB = { sb, ready, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
 })();

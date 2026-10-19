@@ -52,14 +52,23 @@
       return { _parcelId: p.id, apn: p.apn || '', apnDash: a.APN_DASH || a.apnDash || p.apn || '', acres: num(p.acres), geometry: p.geom,
         _lat: lat, _lng: lng, attrs: a, ...(overrides ? { overrides } : {}) };
     });
-    if (!parcels.length) return null;   // Site Scout is parcel-based; deals without an outline stay in Pipeline only
+    let pinOnly = false;
+    if (!parcels.length) {
+      // Every pipeline deal shows in Site Scout. A deal with a location but no parcel outline gets a placeholder
+      // square sized to its acreage; it is never saved as a parcel, and drawing real parcels replaces it.
+      if (d.lat == null || d.lng == null) return null;
+      const lat = +d.lat, lng = +d.lng, side = Math.sqrt(Math.max(+d.acres || 2.5, 0.5) * 4046.86), dy = side / 2 / 111320, dx = side / 2 / (111320 * Math.cos(lat * Math.PI / 180));
+      parcels.push({ _synthetic: true, apn: '', apnDash: '', acres: num(d.acres), _lat: lat, _lng: lng, attrs: { note: 'Location from Pipeline (no parcel outline yet)' },
+        geometry: { type: 'Polygon', coordinates: [[[lng - dx, lat - dy], [lng + dx, lat - dy], [lng + dx, lat + dy], [lng - dx, lat + dy], [lng - dx, lat - dy]]] } });
+      pinOnly = true;
+    }
     const id = (d.legacy && d.legacy.site_scout_ids && d.legacy.site_scout_ids[0]) || d.id;
     const notes = (all.logsByDeal.get(d.id) || []).map((l) => ({ t: new Date(l.created_at || l.logged_on).getTime(), text: l.body }));
     const status = u.scoutStatus === 'contacted' && d.stage === 'prospect' ? 'contacted' : (TO_SITE[d.stage] || 'prospect');
     const site = { id, _dealId: d.id, name: d.name, status, market: d.market_id, notes, parcels,
       entitlement: d.entitlement || '', flu: u.flu || '', created: new Date(d.created_at).getTime(), updated: new Date(d.updated_at).getTime() };
     const sum = parcels.reduce((t, p) => t + (p.acres || 0), 0);
-    if (d.acres != null && Math.abs(+d.acres - sum) > 0.05) site.acresOverride = +d.acres;
+    if (d.acres != null && (pinOnly || Math.abs(+d.acres - sum) > 0.05)) site.acresOverride = +d.acres;
     return site;
   }
   async function findDeal(siteId, dealId) {
@@ -69,7 +78,7 @@
     return data && data[0];
   }
   async function saveSite(site) {
-    const pts = (site.parcels || []).filter((p) => p._lat != null);
+    const pts = (site.parcels || []).filter((p) => p._lat != null && !p._synthetic);
     const lat = pts.length ? pts.reduce((t, p) => t + p._lat, 0) / pts.length : null;
     const lng = pts.length ? pts.reduce((t, p) => t + p._lng, 0) / pts.length : null;
     const sumAc = (site.parcels || []).reduce((t, p) => t + (+p.acres || 0), 0);
@@ -99,6 +108,7 @@
     const linkedIds = new Set((linked || []).map((l) => l.parcel_id));
     const keep = new Set();
     for (const p of site.parcels || []) {
+      if (p._synthetic) continue;   // placeholder square for a deal with no parcel outline; never stored
       const attrs = { ...(p.attrs || {}), ...(p.overrides ? { overrides: p.overrides } : {}) };
       let pid = p._parcelId && linkedIds.has(p._parcelId) ? p._parcelId : null;
       if (!pid && p.apn) {

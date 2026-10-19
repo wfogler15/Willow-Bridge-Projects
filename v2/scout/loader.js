@@ -18,9 +18,14 @@
     return addDocEv(type, fn, opts);
   };
 
-  WB.ready('scout').then(() => {
+  WB.ready('scout', { marketMode: 'single' }).then(() => {
     const s = document.createElement('script');
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
+    // the app bar's market dropdown drives Site Scout (its own Phoenix/Denver toggle is hidden)
+    let shown = null;
+    const follow = () => { const m = WB.activeMarket(); if (m && m !== 'all' && m !== shown && typeof window.setMarket === 'function') { shown = m; window.setMarket(m); } };
+    s.onload = () => setTimeout(follow, 0);
+    window.addEventListener('wb:market', follow);
     document.body.appendChild(s);
   });
 })();

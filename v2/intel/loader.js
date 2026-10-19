@@ -20,23 +20,26 @@
   window.wbSwitchMarket = function (id) {
     if (!id || id === (window.__WBD && window.__WBD.market)) return;
     localStorage.setItem('market', id);
+    if (window.WB && WB.getMarket() !== id) WB.setMarket(id);   // keep the top-bar market in step
     const u = new URL(location.href); u.searchParams.set('market', id); location.href = u.toString();
   };
   const overlay = document.createElement('div');
   overlay.id = 'wb-intel-loading';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;display:grid;place-items:center;background:var(--cloud,#FBFBF9);font:15px/1.4 Aptos,Inter,Arial,sans-serif;color:#1D1247';
+  overlay.style.cssText = 'position:fixed;inset:48px 0 0 0;z-index:9000;display:grid;place-items:center;background:var(--cloud,#FBFBF9);font:15px/1.4 Aptos,Inter,Arial,sans-serif;color:#1D1247';
 
   async function boot() {
-    const { sb, user } = await WB.ready('intel');
+    const { sb, user } = await WB.ready('intel', { marketMode: 'single' });
     // active markets drive the Settings picker; adding a market = a row in core.markets with config.active = true + its data
     const { data: mlist, error: mErr } = await sb.schema('core').from('markets').select('id,label,title,active:config->active').order('id');
     if (mErr) throw mErr;
     const markets = (mlist || []).filter((m) => m.active === true);
     MARKETS = Object.fromEntries(markets.map((m) => [m.id, (m.label || m.id).split(',')[0]]));
     const q = new URLSearchParams(location.search);
-    let market = q.get('market') || localStorage.getItem('market') || 'denver';
+    const shared = WB.getMarket();
+    let market = q.get('market') || (shared !== 'all' ? shared : null) || localStorage.getItem('market') || 'denver';
     if (!MARKETS[market]) market = markets.length ? markets.find((m) => m.id === 'denver')?.id || markets[0].id : 'denver';
     localStorage.setItem('market', market);
+    WB.showMarket(market);
     overlay.textContent = `Loading ${MARKETS[market]} market data…`;
     document.body.appendChild(overlay);
 
@@ -77,6 +80,8 @@
       RP_FORECAST: Object.fromEntries(trends.map((r) => [r.geography, r.data])),
       propByCostar, costarByProp, customProps, user, markets,
     };
+    // the top-bar market dropdown drives this page too
+    window.addEventListener('wb:market', (e) => { if (e.detail && e.detail !== 'all') window.wbSwitchMarket(e.detail); });
     console.info(`[intel] ${market}: ${RAW_DATA.length} properties, ${rp.length} RealPage, ${trends.length} trend series in ${Math.round(performance.now() - t0)} ms`);
 
     // tag edits with the signed-in user instead of asking for a name

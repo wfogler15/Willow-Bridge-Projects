@@ -3,270 +3,230 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Willow Bridge Intel</title>
+<title>Overview · Willow Bridge Intel</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="shared/wb.css">
 <style>
-  /* hero */
-  .hero{position:relative;overflow:hidden;background:
-      radial-gradient(900px 420px at 88% -20%,rgba(106,79,192,.55),transparent 62%),
-      radial-gradient(600px 300px at -5% 120%,rgba(67,40,144,.45),transparent 60%),var(--band);color:#fff}
-  .hero::after{content:'';position:absolute;right:-60px;top:50%;width:340px;height:340px;transform:translateY(-50%);
-    background:url(shared/wb-mark.png) center/contain no-repeat;filter:brightness(0) invert(1);opacity:.05;pointer-events:none}
-  .hero-in{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:44px 32px 92px}
-  .hero .eyebrow{font:600 11px/1 var(--font);letter-spacing:.2em;text-transform:uppercase;color:var(--band-muted)}
-  .hero h1{margin:12px 0 0;font:600 40px/1.05 var(--font-head);letter-spacing:-.015em}
-  .hero h1 em{font-style:normal;color:var(--accent-light)}
-  .hero .lede{margin:14px 0 0;max-width:660px;font-size:16px;line-height:1.55;color:#e4e4f7}
-  .hero .meta{margin-top:22px;display:flex;gap:10px;flex-wrap:wrap}
-  .hero .meta span{font:600 10.5px var(--font);letter-spacing:.12em;text-transform:uppercase;color:#d8d9ff;
-    border:1px solid rgba(199,201,254,.3);background:rgba(255,255,255,.06);padding:6px 10px;border-radius:999px}
+  .page-head p{max-width:none}
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:20px;align-items:start}
+  @media (max-width:1180px){.grid{grid-template-columns:1fr}}
+  .tblwrap{overflow-x:auto}
 
-  /* tool cards */
-  .wrap{max-width:1240px;margin:-64px auto 0;padding:0 32px 56px;position:relative;z-index:2}
-  .cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
-  @media (max-width:900px){.cards{grid-template-columns:1fr}}
-  .card{display:flex;flex-direction:column;background:var(--bg-1);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-md);
-    overflow:hidden;text-decoration:none;color:inherit;transition:transform .18s ease,box-shadow .18s ease;min-width:0}
-  .card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(20,18,40,.12),0 14px 34px rgba(20,18,40,.12)}
-  .card-h{display:flex;align-items:flex-start;gap:14px;padding:20px 22px 16px;border-bottom:1px solid var(--line-hair)}
-  .card-ico{flex:0 0 40px;height:40px;border-radius:10px;background:var(--band);display:grid;place-items:center;color:var(--accent-light)}
-  .card-ico svg{width:20px;height:20px}
-  .card-h .k{font:600 10.5px var(--font);letter-spacing:.16em;text-transform:uppercase;color:var(--accent)}
-  .card-h h2{margin:4px 0 0;font:600 21px/1.15 var(--font-head)}
-  .card-h p{margin:5px 0 0;color:var(--ink-4);font-size:13px}
-  .card-b{padding:16px 22px 18px;flex:1;display:flex;flex-direction:column;gap:14px}
-  .card-f{padding:12px 22px;border-top:1px solid var(--line-hair);background:var(--bg-inset);display:flex;align-items:center;justify-content:space-between;
-    font:600 11px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
-  .card-f .go{display:flex;align-items:center;gap:6px}
-  .card:hover .card-f .go{gap:10px}
-  .card-f .note{color:var(--ink-4);letter-spacing:.06em;text-transform:none;font-weight:500;font-size:12px}
+  /* deal context */
+  .ctx .top{padding:16px 18px 14px;border-bottom:1px solid var(--rule-2)}
+  .ctx .kick{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .ctx h3{font:600 20px/1.2 var(--font-display);margin:0;letter-spacing:-.01em}
+  .ctx .addr{color:var(--muted);margin-top:3px}
+  .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--rule-2)}
+  .facts>div{padding:12px 18px;min-width:0}
+  .facts>div+div{border-left:1px solid var(--rule-2)}
+  .facts .v{font-size:17px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+  .facts .l{font-size:12px;color:var(--muted)}
+  .blk{padding:14px 18px;border-bottom:1px solid var(--rule-2)}
+  .blk h4{margin:0 0 10px;font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:10px}
+  .near{width:100%;border-collapse:collapse}
+  .near td{padding:7px 0;border-bottom:1px solid var(--rule-2);vertical-align:top}
+  .near tr:last-child td{border-bottom:0}
+  .near b{font-weight:600}
+  .ctx .foot{display:flex;gap:8px;padding:14px 18px;flex-wrap:wrap}
+  .ctx .none{color:var(--muted);font-size:12.5px}
 
-  /* market rows inside a card */
-  .mrow{display:grid;grid-template-columns:84px repeat(4,minmax(0,1fr));align-items:end;gap:10px;padding:12px 0;border-top:1px solid var(--line-hair)}
-  .mrow:first-child{border-top:0;padding-top:2px}
-  .mrow.hd{padding:0 0 2px;border:0}
-  .mrow.hd span{font:600 10px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4)}
-  .mrow .mk{font:600 15px var(--font-head);align-self:center}
-  .mrow .v{font:600 22px/1 var(--font);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-  .mrow .v small{display:block;font:500 11.5px var(--font);letter-spacing:0;color:var(--ink-4);margin-top:5px}
-  @media (max-width:520px){.mrow{grid-template-columns:70px repeat(2,minmax(0,1fr))}.mrow .opt{display:none}}
-
-  /* big-number strip inside a card */
-  .big{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:0;border:1px solid var(--line-hair);border-radius:10px;overflow:hidden}
-  .big>div{padding:13px 14px 12px 16px;position:relative;border-right:1px solid var(--line-hair)}
-  .big>div:last-child{border-right:0}
-  .big>div::before{content:'';position:absolute;left:0;top:15px;width:3px;height:11px;background:var(--accent);border-radius:0 2px 2px 0}
-  .big .l{font:600 10px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:7px}
-  .big .n{font:600 26px/1 var(--font);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-  .big .s{font-size:11.5px;color:var(--ink-4);margin-top:6px}
-  .mini{display:flex;flex-direction:column}
-  .mini .t{font:600 10px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4);margin-bottom:4px}
-  .mini .it{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid var(--line-hair);font-size:13px}
-  .mini .it:first-of-type{border-top:0}
-  .mini .it b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .mini .it span{color:var(--ink-4);white-space:nowrap;font-variant-numeric:tabular-nums}
-  .bar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--bg-3)}
+  .stages{padding:2px 18px 16px}
+  .srow{display:grid;grid-template-columns:72px 1fr 28px;align-items:center;gap:10px;margin-top:10px}
+  .srow .lbl{font-weight:600}
+  .bar{display:flex;height:10px;border-radius:3px;overflow:hidden;background:var(--rule-2)}
   .bar i{display:block;height:100%}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-3)}
-  .legend span::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;background:var(--c)}
-  .per{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
-  .per button{border:0;background:none;padding:4px 9px;font:600 10px var(--font);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);cursor:pointer}
-  .per button+button{border-left:1px solid var(--line)}
-  .per button.on{background:var(--accent);color:#fff}
+  .leg{display:flex;gap:14px;margin-top:12px;color:var(--muted);font-size:12px;flex-wrap:wrap}
+  .leg span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:var(--c)}
 
-  /* lower panels */
-  .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:22px}
-  @media (max-width:900px){.cols{grid-template-columns:1fr}}
-  .row{display:flex;gap:14px;align-items:center;padding:12px 20px;border-top:1px solid var(--line-hair)}
-  .row:first-child{border-top:0}
-  .row .date{flex:0 0 52px;text-align:center;border-radius:8px;background:var(--bg-2);padding:6px 0}
-  .row .date b{display:block;font:600 18px/1 var(--font);font-variant-numeric:tabular-nums}
-  .row .date span{font:600 9.5px var(--font);letter-spacing:.12em;text-transform:uppercase;color:var(--ink-4)}
-  .row .date.due{background:#f6e9e9}.row .date.due b,.row .date.due span{color:var(--brick)}
-  .row .what{flex:1;min-width:0}
-  .row .what b{font-weight:600}
-  .row .what div{color:var(--ink-4);font-size:12.5px;margin-top:2px}
-  .row .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-  .row .acts .btn{padding:5px 10px;font-size:10.5px}
-  .empty{padding:22px 20px;color:var(--ink-4);font-size:13px}
-  .skeleton{height:140px;border-radius:8px;background:linear-gradient(90deg,var(--bg-2),var(--bg-3),var(--bg-2));background-size:200% 100%;animation:sk 1.2s infinite}
-  @keyframes sk{to{background-position:-200% 0}}
-  @media (max-width:600px){.hero-in{padding:36px 16px 84px}.hero h1{font-size:32px}.wrap{padding:0 16px 40px}}
+  .feed .row{display:flex;gap:12px;align-items:flex-start;padding:10px 18px;border-top:1px solid var(--rule-2)}
+  .feed .row:first-child{border-top:0}
+  .feed .when{flex:0 0 48px;color:var(--muted);font-size:12.5px;padding-top:1px}
+  .feed .when.due{color:var(--brick);font-weight:600}
+  .feed .what{flex:1;min-width:0}
+  .feed .what b{font-weight:600}
+  .feed .what div{color:var(--muted);font-size:12.5px}
+  .feed .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .feed .acts .btn{height:28px;font-size:12.5px}
 </style>
 </head>
 <body>
-<header class="hero"><div class="hero-in">
-  <div class="eyebrow">Willow Bridge · Acquisitions</div>
-  <h1>Willow Bridge <em>Intel</em></h1>
-  <p class="lede">Our acquisitions workspace for Denver and Phoenix. Market rents and supply, the sites we're tracking, every deal we've underwritten and the sales that set pricing, kept in one shared database.</p>
-  <div class="meta" id="meta"><span>Loading…</span></div>
-</div></header>
-<div class="wrap">
-  <div class="cards" id="cards">
-    <div class="card"><div class="card-b"><div class="skeleton"></div></div></div><div class="card"><div class="card-b"><div class="skeleton"></div></div></div>
-    <div class="card"><div class="card-b"><div class="skeleton"></div></div></div><div class="card"><div class="card-b"><div class="skeleton"></div></div></div>
+<main class="page">
+  <div class="page-head">
+    <div><h1 id="today">Overview</h1><p id="lede">Loading…</p></div>
+    <div class="actions"><a class="btn" href="comps/?add=1">Add a comp</a><a class="btn primary" href="pipeline/">Open pipeline</a></div>
   </div>
-  <div class="cols">
-    <section class="panel"><div class="panel-header"><div><div class="panel-title">Coming <em>up</em></div><div class="panel-sub">Bid dates and check-backs, next 30 days</div></div></div><div id="upcoming"></div></section>
-    <section class="panel"><div class="panel-header"><div><div class="panel-title">Needs your <em>call</em></div><div class="panel-sub" id="rq-count">Open review items</div></div></div><div id="review"></div></section>
+  <div class="grid">
+    <div>
+      <section class="sec">
+        <div class="sec-h"><h2>Active pursuits</h2><a class="link" href="pipeline/">Open pipeline</a></div>
+        <div class="tblwrap"><table class="tbl" id="active"><tbody><tr><td><div class="skel"></div></td></tr></tbody></table></div>
+      </section>
+      <section class="sec">
+        <div class="sec-h"><h2>Recent trades</h2><a class="link" id="allcomps" href="comps/">All comps</a></div>
+        <div class="tblwrap"><table class="tbl" id="trades"><tbody><tr><td><div class="skel"></div></td></tr></tbody></table></div>
+      </section>
+    </div>
+    <aside>
+      <section class="sec ctx" id="ctx"><div class="blk"><div class="skel"></div></div></section>
+      <section class="sec feed"><div class="sec-h"><h2>Coming up</h2><span class="note">Next 30 days</span></div><div id="upcoming"></div></section>
+      <section class="sec"><div class="sec-h"><h2>Pipeline by stage</h2><span class="note" id="dealcount"></span></div><div class="stages" id="stages"></div></section>
+      <section class="sec feed" id="rq-sec" hidden><div class="sec-h"><h2>Needs your call</h2><span class="note" id="rq-count"></span></div><div id="review"></div></section>
+    </aside>
   </div>
-</div>
+</main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="shared/wb.js"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('home');
-  const { esc, fmt } = WB;
+  const { esc } = WB;
   const $ = (s) => document.querySelector(s);
-  const MK = { denver: 'Denver', phoenix: 'Phoenix' };
   const rows = async (q) => ((await q).data || []);
 
-  const [kpi, markets, deals, links, logs, comps, review] = await Promise.all([
-    rows(sb.schema('market').from('kpi_summary').select('*')),
-    rows(sb.schema('core').from('markets').select('id,label,active:config->active')).then((r) => r.filter((m) => m.active !== false)),
-    WB.fetchAll('pipeline', 'deals', 'id,name,market_id,kind,stage,bid_date,check_back_on,guidance,units,acres,created_at', (q) => q.is('merged_into', null)),
-    WB.fetchAll('pipeline', 'deal_parcels', 'deal_id'),
-    WB.fetchAll('pipeline', 'deal_log', 'deal_id,logged_on'),
-    WB.fetchAll('comps', 'sale_comps', 'market_id,comp_type,sale_date,sale_price,units,proposed_units,acres'),
+  const [deals, comps, review] = await Promise.all([
+    WB.fetchAll('pipeline', 'deals', 'id,name,market_id,kind,stage,address,units,acres,guidance,bid_date,check_back_on,lat,lng,uw', (q) => q.is('merged_into', null)),
+    rows(sb.schema('comps').from('sale_comps').select('id,name,city,market_id,sale_date,sale_price,units,price_per_unit,cap_rate,buyer').eq('comp_type', 'investment').order('sale_date', { ascending: false, nullsFirst: false }).limit(40)),
     WB.fetchAll('core', 'review_queue', '*', (q) => q.eq('status', 'open').order('id')),
   ]);
-  const mkts = markets.map((m) => m.id).filter((id) => kpi.some((k) => k.market_id === id));
-  const today = new Date().toISOString().slice(0, 10);
-  const in30 = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
-  const yr = new Date().getFullYear(), ytd = `${yr}-01-01`;
-  const ACTIVE = ['screening', 'underwriting', 'bidding', 'loi', 'under_contract'];
-  const WATCH = ['prospect', 'monitor'], ARCH = ['passed', 'lost', 'dead', 'closed'];
-  const label = (id) => String((markets.find((m) => m.id === id) || {}).label || MK[id] || id).split(',')[0];
-  const usd0 = (v) => v == null ? '—' : '$' + Math.round(v).toLocaleString('en-US');
-  const usdK = (v) => v == null ? '—' : `$${Math.round(v / 1000)}K`;
+  const { count: compCount } = await sb.schema('comps').from('sale_comps').select('id', { count: 'exact', head: true });
 
-  const ICON = {
-    intel: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 17V9M8 17V4M13 17v-6M18 17V7"/></svg>',
-    scout: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M10 18s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10Z"/><circle cx="10" cy="8" r="2.2"/></svg>',
-    pipeline: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 4h14l-5 6v5l-4 2v-7L3 4Z" stroke-linejoin="round"/></svg>',
-    comps: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 3h9l3 3v11H4z" stroke-linejoin="round"/><path d="M7 9h6M7 12h6M7 15h4"/></svg>',
-  };
-  const card = (href, id, k, title, blurb, body, foot) => `
-    <a class="card" href="${href}">
-      <div class="card-h"><div class="card-ico">${ICON[id]}</div><div><div class="k">${k}</div><h2>${title}</h2><p>${blurb}</p></div></div>
-      <div class="card-b">${body}</div>
-      <div class="card-f"><span class="note">${foot || ''}</span><span class="go">Open ${title} <span aria-hidden="true">→</span></span></div></a>`;
+  const MK = Object.fromEntries(WB.markets.map((m) => [m.id, m.short]));
+  const ACTIVE = ['screening', 'underwriting', 'loi', 'under_contract'];
+  const STAGE = { prospect: ['Prospect', 's-pr'], screening: ['Screening', 's-sc'], underwriting: ['Underwriting', 's-uw'], loi: ['LOI', 's-loi'], under_contract: ['Under contract', 's-won'],
+    monitor: ['Monitor', 's-mo'], passed: ['Passed', ''], lost: ['Lost', 's-lost'], dead: ['Dead', ''], closed: ['Closed', 's-won'] };
+  const today = new Date(), iso = (d) => d.toISOString().slice(0, 10), todayIso = iso(today), in30 = iso(new Date(Date.now() + 30 * 864e5));
+  const M = (v) => v == null || v === '' ? null : +v;
+  const usdM = (v) => v == null ? null : v >= 1e6 ? `$${(v / 1e6).toFixed(v >= 1e8 ? 0 : 1)}M` : `$${Math.round(v / 1e3)}K`;
+  const usdK = (v) => v == null ? null : v >= 1e6 ? usdM(v) : `$${(v / 1e3).toFixed(v >= 1e5 ? 0 : 1)}K`;
+  const dash = '<span class="dim">–</span>';
+  const mon = (d) => new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const monYr = (d) => new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const stageTag = (s) => `<span class="st ${(STAGE[s] || [])[1] || ''}">${esc((STAGE[s] || [s])[0])}</span>`;
+  const kindTag = (k) => k === 'land' ? '<span class="k land">Land</span>' : '<span class="k asset">Existing</span>';
+  const inMkt = (m) => { const cur = WB.getMarket(); return cur === 'all' || m === cur; };
+  const place = (d) => (d.uw && (d.uw.where || d.uw.submarket)) || (d.address || '').split(',').slice(-1)[0].trim() || '';
 
-  // ---------- Market Intel: rents, occupancy, concessions, supply ----------
-  const intelBody = `<div>
-      <div class="mrow hd"><span></span><span>Asking rent</span><span>Occupancy</span><span class="opt">Concessions</span><span class="opt">Under constr.</span></div>
-      ${mkts.map((id) => { const k = kpi.find((x) => x.market_id === id);
-        const weeks = k.concessions_pct != null ? (k.concessions_pct * 52 / 100) : null;
-        return `<div class="mrow"><div class="mk">${esc(label(id))}</div>
-          <div class="v">${usd0(k.asking_rent_mo)}<small>$${(+k.asking_rent_psf).toFixed(2)} / SF</small></div>
-          <div class="v">${fmt.pct(k.occupancy_pct)}<small>${fmt.int(k.units)} units</small></div>
-          <div class="v opt">${weeks != null ? weeks.toFixed(1) + ' wks' : '—'}<small>${fmt.pct(k.concessions_pct, 2)} of rent</small></div>
-          <div class="v opt">${fmt.int(k.uc_units)}<small>units · ${fmt.int(k.uc_properties)} projects</small></div></div>`; }).join('')}
-    </div>`;
+  $('#today').textContent = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  $('#allcomps').textContent = `All ${(compCount || 0).toLocaleString('en-US')} comps`;
+  let selected = null;
 
-  // ---------- Site Scout: sites and when they were added ----------
-  const siteIds = new Set(links.map((l) => l.deal_id));
-  const firstLog = new Map(); logs.forEach((l) => { const f = firstLog.get(l.deal_id); if (!f || l.logged_on < f) firstLog.set(l.deal_id, l.logged_on); });
-  const sites = deals.filter((d) => siteIds.has(d.id)).map((d) => ({ ...d, added: firstLog.get(d.id) || d.created_at.slice(0, 10) }));
-  const newSites = sites.filter((s) => s.added >= ytd).sort((a, b) => b.added.localeCompare(a.added));
-  const liveSites = sites.filter((s) => !ARCH.includes(s.stage));
-  const scoutBody = `
-    <div class="big">
-      <div><div class="l">Added in ${yr}</div><div class="n">${newSites.length}</div><div class="s">${mkts.map((m) => `${newSites.filter((s) => s.market_id === m).length} ${label(m)}`).join(' · ')}</div></div>
-      <div><div class="l">Sites tracked</div><div class="n">${sites.length}</div><div class="s">${liveSites.length} still live</div></div>
-      <div><div class="l">Acres mapped</div><div class="n">${fmt.int(deals.filter((d) => siteIds.has(d.id)).reduce((t, d) => t + (+d.acres || 0), 0)) || '—'}</div><div class="s">Across saved parcels</div></div>
-    </div>
-    <div class="mini"><div class="t">Latest added</div>
-      ${newSites.slice(0, 3).map((s) => `<div class="it"><b>${esc(s.name)}</b><span>${esc(label(s.market_id))} · ${fmt.date(s.added)}</span></div>`).join('') || '<div class="it"><span>No new sites yet this year</span></div>'}
-    </div>`;
+  function render() {
+    const act = deals.filter((d) => ACTIVE.includes(d.stage) && inMkt(d.market_id))
+      .sort((a, b) => a.market_id.localeCompare(b.market_id) || a.name.localeCompare(b.name));
+    if (!selected || !act.some((d) => d.id === selected)) selected = (act.find((d) => d.lat != null && d.uw && d.uw.rentPsf) || act.find((d) => d.lat != null) || act[0] || {}).id;
+    const due = deals.filter((d) => inMkt(d.market_id) && d.bid_date && d.bid_date >= todayIso && d.bid_date <= in30 && !['passed', 'lost', 'dead', 'closed'].includes(d.stage));
+    const since = iso(new Date(today.getFullYear(), today.getMonth() - 1, 1));
+    const tr = comps.filter((c) => inMkt(c.market_id));
+    const recent = tr.filter((c) => (c.sale_date || '') >= since).length;
+    const where = WB.getMarket() === 'all' ? 'across both markets' : 'in ' + MK[WB.getMarket()];
+    $('#lede').textContent = `${act.length} active ${act.length === 1 ? 'pursuit' : 'pursuits'} ${where}. `
+      + (due.length ? `${due.length} bid ${due.length === 1 ? 'date' : 'dates'} in the next 30 days. ` : 'No bid dates in the next 30 days. ')
+      + `${recent} ${recent === 1 ? 'trade' : 'trades'} recorded since ${new Date(since + 'T12:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}.`;
 
-  // ---------- Pipeline: where the deals stand ----------
-  const act = deals.filter((d) => ACTIVE.includes(d.stage)), wat = deals.filter((d) => WATCH.includes(d.stage)), arc = deals.filter((d) => ARCH.includes(d.stage));
-  const nextBid = deals.filter((d) => d.bid_date && d.bid_date >= today && !ARCH.includes(d.stage)).sort((a, b) => a.bid_date.localeCompare(b.bid_date))[0];
-  const tot = Math.max(1, act.length + wat.length + arc.length);
-  const pipeBody = `
-    <div class="big">
-      <div><div class="l">Active</div><div class="n">${act.length}</div><div class="s">${act.filter((d) => d.kind === 'land').length} land · ${act.filter((d) => d.kind !== 'land').length} existing</div></div>
-      <div><div class="l">Watching</div><div class="n">${wat.length}</div><div class="s">Prospect and Monitor</div></div>
-      <div><div class="l">Archived</div><div class="n">${arc.length}</div><div class="s">Passed, lost, dead, closed</div></div>
-    </div>
-    <div class="bar"><i style="width:${act.length / tot * 100}%;background:var(--accent)"></i><i style="width:${wat.length / tot * 100}%;background:var(--accent-light)"></i><i style="width:${arc.length / tot * 100}%;background:var(--line-strong)"></i></div>
-    <div class="legend">${mkts.map((m) => `<span style="--c:${m === 'denver' ? 'var(--accent)' : 'var(--accent-2)'}">${esc(label(m))}: ${act.filter((d) => d.market_id === m).length} active, ${wat.filter((d) => d.market_id === m).length} watching</span>`).join('')}</div>`;
-  const pipeFoot = nextBid ? `Next bid: ${esc(nextBid.name)}, ${fmt.date(nextBid.bid_date)}` : 'No bid dates on the calendar';
+    // active pursuits
+    $('#active').innerHTML = `<thead><tr><th>Deal</th><th>Type</th><th class="r">Units</th><th class="r">Acres</th><th class="r">Guidance</th><th class="r">Per door</th><th class="r">UW rent / SF</th><th class="r">UW yield</th><th>Stage</th></tr></thead><tbody>`
+      + (act.map((d) => {
+        const u = d.uw || {}, g = M(d.guidance), units = M(d.units);
+        return `<tr data-id="${d.id}" class="${d.id === selected ? 'sel' : ''}">
+          <td class="name">${esc(d.name)}<small>${esc([place(d), MK[d.market_id]].filter(Boolean).join(', '))}</small></td>
+          <td>${kindTag(d.kind)}</td><td class="r">${units ?? dash}</td><td class="r">${M(d.acres) != null ? (+d.acres).toFixed(1) : dash}</td>
+          <td class="r">${g ? usdM(g) : '<span class="dim">Unpriced</span>'}</td><td class="r">${g && units ? usdK(g / units) : dash}</td>
+          <td class="r">${u.rentPsf ? '$' + (+u.rentPsf).toFixed(2) : dash}</td><td class="r">${u.roc ? (+u.roc).toFixed(2) + '%' : dash}</td><td>${stageTag(d.stage)}</td></tr>`;
+      }).join('') || `<tr><td colspan="9" class="empty">No active pursuits ${where}.</td></tr>`) + '</tbody>';
 
-  // ---------- Sale Comps: count, volume, $/unit by market, for a chosen period ----------
-  const PERIODS = [['12m', 'T12'], ['24m', '24 mo'], ['ytd', String(yr)], ['all', 'All']];
-  let per = '24m';
-  const since = (p) => p === 'all' ? '0000' : p === 'ytd' ? ytd : new Date(Date.now() - (p === '12m' ? 365 : 730) * 864e5).toISOString().slice(0, 10);
-  function compsBody() {
-    const from = since(per), inv = comps.filter((c) => c.comp_type !== 'land' && (c.sale_date || '') >= from);
-    const land = comps.filter((c) => c.comp_type === 'land' && (c.sale_date || '') >= from);
-    const ppu = (rows) => { const r = rows.filter((c) => c.sale_price && c.units); const u = r.reduce((t, c) => t + +c.units, 0); return u ? r.reduce((t, c) => t + +c.sale_price, 0) / u : null; };
-    const vol = (rows) => rows.reduce((t, c) => t + (+c.sale_price || 0), 0);
-    return `<div>
-      <div class="mrow hd"><span>Investment</span><span>Sales</span><span>Volume</span><span>Avg $ / unit</span><span class="opt">Land sales</span></div>
-      ${mkts.map((m) => { const r = inv.filter((c) => c.market_id === m), l = land.filter((c) => c.market_id === m);
-        return `<div class="mrow"><div class="mk">${esc(label(m))}</div>
-          <div class="v">${r.length}<small>${fmt.int(r.reduce((t, c) => t + (+c.units || 0), 0))} units</small></div>
-          <div class="v">${r.length ? fmt.usd(vol(r)) : '—'}<small>total price</small></div>
-          <div class="v">${usdK(ppu(r))}<small>volume ÷ units</small></div>
-          <div class="v opt">${l.length}<small>${l.length ? fmt.usd(vol(l)) : 'none on file'}</small></div></div>`; }).join('')}
-    </div>`;
+    // recent trades
+    $('#trades').innerHTML = `<thead><tr><th>Closed</th><th>Property</th><th>Market</th><th class="r">Units</th><th class="r">Price</th><th class="r">Per unit</th><th class="r">Cap</th><th>Buyer</th></tr></thead><tbody>`
+      + (tr.slice(0, 8).map((c) => `<tr data-comp="${c.id}"><td>${c.sale_date ? mon(c.sale_date) : dash}</td><td class="name">${esc(c.name)}<small>${esc(c.city || '')}</small></td>
+          <td class="muted">${esc(MK[c.market_id] || '')}</td><td class="r">${c.units ?? dash}</td><td class="r">${usdM(M(c.sale_price)) || dash}</td>
+          <td class="r">${usdK(M(c.price_per_unit)) || dash}</td><td class="r">${c.cap_rate ? (+c.cap_rate).toFixed(2) + '%' : dash}</td><td>${esc(c.buyer || '') || dash}</td></tr>`).join('')
+        || `<tr><td colspan="8" class="empty">No trades recorded ${where}.</td></tr>`) + '</tbody>';
+
+    // coming up
+    const up = [...due.map((d) => ({ d, when: d.bid_date, what: 'Bids due' })),
+      ...deals.filter((d) => inMkt(d.market_id) && d.check_back_on && d.check_back_on <= in30).map((d) => ({ d, when: d.check_back_on, what: 'Check back' }))]
+      .sort((a, b) => a.when.localeCompare(b.when));
+    $('#upcoming').innerHTML = up.length ? up.map(({ d, when, what }) => `<div class="row"><div class="when ${when <= todayIso ? 'due' : ''}">${mon(when)}</div>
+        <div class="what"><b>${esc(d.name)}</b><div>${what}, ${esc(MK[d.market_id] || '')}${d.guidance ? ', ' + usdM(+d.guidance) : ''}</div></div></div>`).join('')
+      : '<div class="row"><div class="what"><div>Nothing due. Set a check-back date on any deal from its card in Pipeline.</div></div></div>';
+
+    // pipeline by stage
+    const GROUPS = [['Active', ACTIVE, 'var(--purple)'], ['Prospect', ['prospect'], '#C9C2E8'], ['Monitor', ['monitor'], 'var(--lilac)'], ['Archive', ['passed', 'lost', 'dead', 'closed'], '#DAD8E2']];
+    const mkts = WB.markets.filter((m) => inMkt(m.id));
+    $('#dealcount').textContent = `${deals.filter((d) => inMkt(d.market_id)).length} deals`;
+    $('#stages').innerHTML = mkts.map((m) => {
+      const ds = deals.filter((d) => d.market_id === m.id), n = ds.length || 1;
+      return `<div class="srow"><span class="lbl">${esc(m.short)}</span><div class="bar">${GROUPS.map(([, st, c]) => `<i style="width:${ds.filter((d) => st.includes(d.stage)).length / n * 100}%;background:${c}"></i>`).join('')}</div><span class="muted">${ds.length}</span></div>`;
+    }).join('') + `<div class="leg">${GROUPS.map(([l, st, c]) => `<span style="--c:${c}">${l} ${deals.filter((d) => inMkt(d.market_id) && st.includes(d.stage)).length}</span>`).join('')}</div>`;
+
+    renderCtx();
   }
-  const compsHead = `<div style="display:flex;justify-content:flex-end;margin-bottom:-6px"><div class="per" id="per">${PERIODS.map(([k, t]) => `<button type="button" data-p="${k}" class="${k === per ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
 
-  $('#cards').innerHTML =
-      card('intel/', 'intel', 'Market data', 'Market Intel', 'CoStar and RealPage by submarket: rents, occupancy, comp sets and new supply.', intelBody, `${fmt.int(kpi.filter((k) => mkts.includes(k.market_id)).reduce((t, k) => t + +k.properties, 0))} properties tracked`)
-    + card('scout/', 'scout', 'Land', 'Site Scout', 'Parcels, owners and the development sites we are tracking, on the map.', scoutBody, `${sites.length} sites with mapped parcels`)
-    + card('pipeline/', 'pipeline', 'Deals', 'Pipeline', 'Every on-market deal we have looked at, plus the weekly meeting fly-through.', pipeBody, pipeFoot)
-    + card('comps/', 'comps', 'Pricing', 'Sale Comps', 'Master list of investment and land sales. Filter, map and export to Excel.', compsHead + `<div id="compsBody">${compsBody()}</div>`, `${comps.length} comps on file`);
-  $('#per').addEventListener('click', (e) => {
-    const b = e.target.closest('button'); if (!b) return;
-    e.preventDefault(); e.stopPropagation(); per = b.dataset.p;
-    $('#per').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
-    $('#compsBody').innerHTML = compsBody();
+  // ---------- deal context: the selected deal against its submarket (Market Intel) and nearby sales (Sale Comps) ----------
+  const ctxCache = {};
+  async function renderCtx() {
+    const el = $('#ctx'), d = deals.find((x) => x.id === selected);
+    if (!d) { el.innerHTML = '<div class="blk none">Select a deal to see it against its submarket and nearby sales.</div>'; return; }
+    const u = d.uw || {}, g = M(d.guidance), units = M(d.units);
+    const head = `<div class="top"><div class="kick">${kindTag(d.kind)}${stageTag(d.stage)}</div><h3>${esc(d.name)}</h3><div class="addr">${esc(d.address || MK[d.market_id] || '')}</div></div>
+      <div class="facts"><div><div class="v">${units ?? '–'}</div><div class="l">${d.kind === 'land' ? 'Units planned' : 'Units'}</div></div>
+        <div><div class="v">${g ? usdM(g) : '–'}</div><div class="l">${g ? 'Guidance' : 'Unpriced'}</div></div>
+        <div><div class="v">${u.roc ? (+u.roc).toFixed(2) + '%' : g && units ? usdK(g / units) : '–'}</div><div class="l">${u.roc ? 'UW yield on cost' : 'Per door'}</div></div></div>`;
+    const links = `<div class="foot"><a class="btn primary" href="pipeline/?deal=${d.id}">Open deal</a><a class="btn" href="intel/?market=${d.market_id}">Market intel</a>${d.lat != null ? `<a class="btn" href="comps/?near=${d.lat},${d.lng}&mi=3">Comps nearby</a>` : ''}</div>`;
+    if (d.lat == null) { el.innerHTML = head + '<div class="blk none">Set this deal\'s location in Pipeline to compare it with its submarket and nearby sales.</div>' + links; return; }
+    el.innerHTML = head + '<div class="blk"><div class="skel"></div></div>' + links;
+    const c = ctxCache[d.id] || (ctxCache[d.id] = (await sb.schema('pipeline').rpc('deal_context', { p_deal: d.id })).data);
+    if (selected !== d.id) return;
+    if (!c) { el.innerHTML = head + '<div class="blk none">No market data near this deal yet.</div>' + links; return; }
+    const s = c.stats || {}, ours = M(u.rentPsf);
+    const diff = (a, b) => a && b ? `<span class="d ${a >= b ? 'pos' : 'neg'}">${a >= b ? '+' : ''}${((a / b - 1) * 100).toFixed(1)}%</span>` : '<span class="d"></span>';
+    const newest = (c.newest || [])[0];
+    let note = '';
+    if (ours && s.new_rent_psf) {
+      const p = (ours / s.new_rent_psf - 1) * 100;
+      note = `Underwritten rent is ${Math.abs(p).toFixed(0)}% ${p >= 0 ? 'above' : 'below'} product built in the last eight years in ${esc(c.submarket)}.`
+        + (newest ? ` ${esc(newest.name)} (${newest.year_built}, ${newest.miles} mi) asks $${(+newest.rent_psf).toFixed(2)}.` : '');
+    }
+    const market = `<div class="blk"><h4>Against the ${esc(c.submarket || 'submarket')} submarket <a class="link" href="intel/?market=${d.market_id}">Open in market intel</a></h4>
+      <div class="ctx-cmp">
+        ${ours ? `<span>Our rent per SF</span><span class="v">$${ours.toFixed(2)}</span><span class="d"></span>` : ''}
+        ${s.new_rent_psf ? `<span>Built in the last 8 years</span><span class="v">$${(+s.new_rent_psf).toFixed(2)}</span>${diff(ours, +s.new_rent_psf)}` : ''}
+        ${s.rent_psf ? `<span>Submarket average</span><span class="v">$${(+s.rent_psf).toFixed(2)}</span>${diff(ours, +s.rent_psf)}` : ''}
+        ${s.occupancy_pct ? `<span>Occupancy</span><span class="v">${(+s.occupancy_pct).toFixed(1)}%</span><span class="d"></span>` : ''}
+        ${s.uc_units ? `<span>Under construction</span><span class="v">${(+s.uc_units).toLocaleString('en-US')} units</span><span class="d"></span>` : ''}
+      </div>${note ? `<div class="callout">${note}</div>` : ''}</div>`;
+    const sales = (c.sales || []);
+    const near = `<div class="blk"><h4>Sales within ${c.miles} miles, last 3 years <a class="link" href="comps/?near=${d.lat},${d.lng}&mi=${c.miles}">View in sale comps</a></h4>
+      ${sales.length ? `<table class="near"><tbody>${sales.slice(0, 4).map((x) => `<tr><td><b>${esc(x.name)}</b><br><span class="muted">${[x.year_built, x.units ? x.units + ' units' : '', x.miles + ' mi'].filter(Boolean).join(', ')}</span></td>
+        <td style="text-align:right"><b>${usdK(+x.price_per_unit) || usdM(+x.sale_price) || '–'}</b><br><span class="muted">${[x.sale_date ? monYr(x.sale_date) : '', x.cap_rate ? (+x.cap_rate).toFixed(2) + '%' : ''].filter(Boolean).join(', ')}</span></td></tr>`).join('')}</tbody></table>`
+        : `<div class="none">No recorded sales within ${c.miles} miles in the last three years.</div>`}</div>`;
+    el.innerHTML = head + market + near + links;
+  }
+
+  document.addEventListener('click', (e) => {
+    const r = e.target.closest('#active tr[data-id]'); if (r) { selected = r.dataset.id; document.querySelectorAll('#active tr.sel').forEach((x) => x.classList.remove('sel')); r.classList.add('sel'); renderCtx(); return; }
+    const c = e.target.closest('#trades tr[data-comp]'); if (c) location.href = 'comps/?comp=' + c.dataset.comp;
   });
+  window.addEventListener('wb:market', render);
+  render();
 
-  const totalUnits = kpi.filter((k) => mkts.includes(k.market_id)).reduce((t, k) => t + +k.units, 0);
-  $('#meta').innerHTML = `<span>${mkts.map(label).join(' · ')}</span><span>${fmt.int(totalUnits)} units tracked</span><span>${deals.length} deals</span><span>${comps.length} sale comps</span>`;
-
-  // ---------- coming up ----------
-  const up = [
-    ...deals.filter((d) => d.bid_date && d.bid_date >= today && d.bid_date <= in30 && !ARCH.includes(d.stage)).map((d) => ({ d, when: d.bid_date, label: 'Bids due' })),
-    ...deals.filter((d) => d.check_back_on && d.check_back_on <= in30).map((d) => ({ d, when: d.check_back_on, label: 'Check back' })),
-  ].sort((a, b) => a.when.localeCompare(b.when));
-  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  $('#upcoming').innerHTML = up.length ? up.map(({ d, when, label: l }) => `
-    <div class="row"><div class="date ${when <= today ? 'due' : ''}"><b>${+when.slice(8, 10)}</b><span>${MON[+when.slice(5, 7) - 1]}</span></div>
-      <div class="what"><b>${esc(d.name)}</b><div>${l} · ${esc(label(d.market_id))} · ${d.guidance ? fmt.usd(d.guidance) : 'unpriced'}</div></div></div>`).join('')
-    : '<div class="empty">No bid dates or check-backs in the next 30 days.</div>';
-
-  // ---------- review queue: Will settles items here ----------
-  const rqEl = $('#review');
+  // ---------- review queue (only shown when something needs a decision) ----------
   const renderReview = () => {
-    $('#rq-count').textContent = review.length ? `${review.length} open item${review.length === 1 ? '' : 's'}` : 'All clear';
-    rqEl.innerHTML = review.length ? review.map((r) => `
-      <div class="row" data-id="${r.id}"><div class="what">${esc(r.reason)}
-        <div class="acts">
-          ${/duplicate/i.test(r.reason) ? '<button class="btn" data-act="merged">Same deal, merged</button><button class="btn" data-act="kept_separate">Keep separate</button>' : '<button class="btn" data-act="fixed">Done</button>'}
-          <button class="btn" data-act="dismissed">Dismiss</button>
-        </div></div></div>`).join('')
-      : '<div class="empty">Nothing waiting on you.</div>';
+    $('#rq-sec').hidden = !review.length;
+    $('#rq-count').textContent = review.length ? `${review.length} open` : '';
+    $('#review').innerHTML = review.map((r) => `<div class="row" data-id="${r.id}"><div class="what">${esc(r.reason)}<div class="acts">
+      ${/duplicate/i.test(r.reason) ? '<button class="btn" data-act="merged">Same deal, merge</button><button class="btn" data-act="kept_separate">Keep separate</button>' : '<button class="btn" data-act="fixed">Done</button>'}
+      <button class="btn" data-act="dismissed">Dismiss</button></div></div></div>`).join('');
   };
   renderReview();
-  rqEl.addEventListener('click', async (e) => {
+  $('#review').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-act]'); if (!b) return;
-    const id = +b.closest('.row').dataset.id;
-    const r = review.find((x) => x.id === id);
-    // "Same deal": merge the two deals (first one is kept). Already-merged pairs just get closed.
+    const id = +b.closest('.row').dataset.id, r = review.find((x) => x.id === id);
     if (b.dataset.act === 'merged' && r.kind === 'deal' && Array.isArray(r.record_ids) && r.record_ids.length === 2) {
       const { error: mErr } = await sb.schema('pipeline').rpc('merge_deals', { p_keep: r.record_ids[0], p_drop: r.record_ids[1] });
       if (mErr && !/already-merged/.test(mErr.message)) return WB.toast(mErr.message);
     }
-    const { error } = await sb.schema('core').from('review_queue')
-      .update({ status: b.dataset.act, resolution: `Marked ${b.dataset.act.replace('_', ' ')} by ${user.email}` }).eq('id', id);
+    const { error } = await sb.schema('core').from('review_queue').update({ status: b.dataset.act, resolution: `Marked ${b.dataset.act.replace('_', ' ')} by ${user.email}` }).eq('id', id);
     if (error) return WB.toast(error.message);
     review.splice(review.findIndex((x) => x.id === id), 1); renderReview(); WB.toast('Saved');
   });

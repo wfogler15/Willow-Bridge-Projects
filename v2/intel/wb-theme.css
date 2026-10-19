@@ -1,0 +1,55 @@
+/* Market Intel on the Willow Bridge Intel house style (light theme only; the dashboard's dark theme is left as is).
+   Loaded after the dashboard's own styles. */
+:root:not([data-theme="dark"]){
+  --bg-0:#F2F2F5; --bg-1:#FFFFFF; --bg-2:#F7F7F9; --bg-3:#F0EFF4; --bg-elev:#FFFFFF; --bg-inset:#FAFAFC; --bg-inset-warm:#FAFAFC;
+  --header-band:#FFFFFF; --header-band-strong:#F7F7F9; --header-ink:#16142B; --header-ink-muted:#6B6980;
+  --line:#E2E1E8; --line-strong:#C9C7D4; --line-hair:#ECEBF0;
+  --ink-1:#16142B; --ink-2:#2A2840; --ink-3:#3E3C55; --ink-4:#6B6980;
+  --accent:#432890; --accent-deep:#1D1247; --accent-light:#C7C9FE;
+  --font-head:"Aptos Display",Aptos,"Segoe UI Variable Display","Segoe UI","Inter Display",Inter,sans-serif;
+  --shadow-sm:none; --shadow-md:0 10px 30px rgba(22,20,43,.14);
+}
+
+/* one type family across the dashboard */
+body, body *:not(svg):not(svg *){font-family:Aptos,"Segoe UI Variable Text","Segoe UI",Inter,system-ui,sans-serif !important}
+.page-title, .panel-title, .modal-title, h1, h2, h3{font-family:"Aptos Display",Aptos,"Segoe UI Variable Display","Segoe UI","Inter Display",Inter,sans-serif !important}
+body{font-feature-settings:"tnum" 1,"lnum" 1}
+
+/* sentence case, no tracked-out labels */
+body *{text-transform:none !important;letter-spacing:normal !important}
+.page-title,.panel-title{letter-spacing:-.01em !important}
+.kpi-value,.big,.filter-summary .big{letter-spacing:-.015em !important}
+
+/* hairlines instead of shadows and accent bars */
+:root:not([data-theme="dark"]) .panel,
+:root:not([data-theme="dark"]) .kpis,
+:root:not([data-theme="dark"]) .kpi,
+:root:not([data-theme="dark"]) .tab,
+:root:not([data-theme="dark"]) .toggle-btn,
+:root:not([data-theme="dark"]) .taxonomy-btn{box-shadow:none !important}
+:root:not([data-theme="dark"]) .kpi-row,:root:not([data-theme="dark"]) .kpis,:root:not([data-theme="dark"]) .oppc-block{border-top:1px solid var(--line) !important;box-shadow:none !important}
+.sidebar-inner>.brand,.sidebar-inner>.brand-sub{display:none !important}
+.kpi::before{display:none !important}
+.kpi-label{color:var(--ink-4) !important;font-weight:400 !important;font-size:12px !important}
+.panel-sub{color:var(--ink-4) !important;font-size:12.5px !important;font-weight:400 !important}
+.panel-title em{color:inherit !important}
+
+/* page header: white under the Midnight app bar */
+.topbar{top:var(--wb-nav-h,48px) !important;min-height:0 !important;padding:16px 32px !important;border-bottom:1px solid var(--line) !important}
+:root:not([data-theme="dark"]) .page-title{color:var(--ink-1) !important;font-size:24px !important}
+:root:not([data-theme="dark"]) .page-title em,
+:root:not([data-theme="dark"]) .page-title-tag,
+:root:not([data-theme="dark"]) .topbar-asof,
+:root:not([data-theme="dark"]) .page-eyebrow{color:var(--ink-4) !important}
+.page-eyebrow{font-size:12px !important;font-weight:400 !important;margin-bottom:4px !important}
+.topbar-brandmark{display:none !important}
+:root:not([data-theme="dark"]) .topbar-action-btn{background:#fff !important;border:1px solid var(--line) !important;color:var(--ink-3) !important;font-size:13px !important;padding:7px 13px !important;border-radius:6px !important}
+:root:not([data-theme="dark"]) .topbar-action-btn:hover{border-color:var(--line-strong) !important;background:var(--bg-2) !important}
+:root:not([data-theme="dark"]) .filter-summary .big{color:var(--ink-1) !important}
+.tabs{top:calc(var(--wb-nav-h,48px) + 74px) !important}
+.tab{font-size:13.5px !important;border-radius:6px !important}
+:root:not([data-theme="dark"]) .tab.active{background:var(--ink-1) !important;color:#fff !important}
+
+/* overlays sit above the app bar */
+.modal-backdrop{z-index:5600 !important}
+.panel.map-fullscreen{z-index:5500 !important}
