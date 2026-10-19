@@ -419,10 +419,15 @@ html,body{background:#F3F2EF !important}
 #list th{border-top:0 !important}
 #list td{padding:7px 10px !important;font-size:13px;white-space:nowrap}
 #list .tw{overflow-x:auto !important}
+/* numbers hug their content; spare width goes to the deal name and the text columns */
+#list th,#list td{width:1%}
+#list th:first-child,#list td.name{width:auto;min-width:220px}
+#list td.txt,#list th.txt{width:auto}
+#list th.num,#list td.num{padding-left:18px !important}
 #list table{width:100%}
 #list th,#list td{padding-left:8px !important;padding-right:8px !important}
 #list th:first-child,#list td:first-child{padding-left:16px !important}
-#list .clip{display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
+#list .clip{display:inline-block;max-width:240px;overflow:hidden;text-overflow:ellipsis;vertical-align:bottom}
 #list td.name{min-width:180px;white-space:normal}
 #list td.name b{font-weight:600;color:#1D1247}
 #list td.name small,#list td small{display:block;color:#6E6886;font-size:12px}
@@ -539,7 +544,7 @@ body.listing .lyr{display:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610191655"></script>
+<script src="../shared/wb.js?v=202610191659"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1410,13 +1415,14 @@ function renderList(){
   $("#lkind").innerHTML = [["land", "Development"], ["asset", "Investment"]].map(([k, l]) => '<button type="button" data-k="' + k + '" aria-pressed="' + (lk === k) + '">' + l + "<i>" + deals.filter(d => inFilter(d, k)).length + "</i></button>").join("");
   $("#lstat").innerHTML = SFILT.map(([k, l]) => '<button type="button" data-s="' + k + '" aria-pressed="' + (ls === k) + '">' + l + "<i>" + deals.filter(d => inFilter(d, lk, k)).length + "</i></button>").join("");
   const col = cols.find(c => c[0] === lsort.k) || cols[0];
-  $("#lth").innerHTML = "<tr>" + cols.map(c => '<th tabindex="0" data-k="' + c[0] + '"' + (c[4] ? ' class="num"' : "") + (col[0] === c[0] ? ' aria-sort="' + (lsort.d > 0 ? "ascending" : "descending") + '"' : "") + ">" + c[1] + (col[0] === c[0] ? (lsort.d > 0 ? " ↑" : " ↓") : "") + "</th>").join("") + "</tr>";
+  const TXT = ["broker", "seller", "product"];
+  $("#lth").innerHTML = "<tr>" + cols.map(c => '<th tabindex="0" data-k="' + c[0] + '"' + (c[4] ? ' class="num"' : TXT.includes(c[0]) ? ' class="txt"' : "") + (col[0] === c[0] ? ' aria-sort="' + (lsort.d > 0 ? "ascending" : "descending") + '"' : "") + ">" + c[1] + (col[0] === c[0] ? (lsort.d > 0 ? " ↑" : " ↓") : "") + "</th>").join("") + "</tr>";
   const rows = deals.filter(d => inFilter(d)).sort((a, b) => {
     const x = col[2](a), y = col[2](b);
     if(x == null && y == null) return a.name.localeCompare(b.name); if(x == null) return 1; if(y == null) return -1;
     return ((typeof x === "number" ? x - y : String(x).localeCompare(String(y))) * lsort.d) || a.name.localeCompare(b.name);
   });
-  $("#ltb").innerHTML = rows.map(d => '<tr class="r" tabindex="0" data-id="' + d.id + '">' + cols.map(c => c[0] === "name" ? c[3](d) : "<td" + (c[4] ? ' class="num"' : "") + ">" + (c[3] ? c[3](d) : esc(c[2](d) ?? "")) + "</td>").join("") + "</tr>").join("")
+  $("#ltb").innerHTML = rows.map(d => '<tr class="r" tabindex="0" data-id="' + d.id + '">' + cols.map(c => c[0] === "name" ? c[3](d) : "<td" + (c[4] ? ' class="num"' : TXT.includes(c[0]) ? ' class="txt"' : "") + ">" + (c[3] ? c[3](d) : esc(c[2](d) ?? "")) + "</td>").join("") + "</tr>").join("")
     || '<tr><td colspan="' + cols.length + '" class="empty">No ' + (lk === "land" ? "development" : "investment") + " deals match. Try another status or clear the search.</td></tr>";
   $("#lcount").textContent = rows.length + " " + (lk === "land" ? "development" : "investment") + " " + (rows.length === 1 ? "deal" : "deals") + ", " + (lm === "all" ? "all markets" : lm) + ", " + SFILT.find(s => s[0] === ls)[1].toLowerCase();
 }
