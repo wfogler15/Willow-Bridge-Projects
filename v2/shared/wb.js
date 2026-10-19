@@ -52,10 +52,11 @@
         <div class="card">
           <img src="${ROOT}shared/wb-mark.png" alt="">
           <h1>Willow Bridge Intel</h1>
-          <p>Sign in with your Willow Bridge email. We'll email you a sign-in code.</p>
+          <p>Sign in with your Willow Bridge email and password, or leave the password blank to get a code by email.</p>
           <form id="wb-f1">
             <input class="input" type="email" name="email" required placeholder="you@willowbridgepc.com" autocomplete="email">
-            <button class="btn primary" type="submit">Email me a code</button>
+            <input class="input" type="password" name="password" placeholder="Password (leave blank to get an emailed code)" autocomplete="current-password">
+            <button class="btn primary" type="submit">Sign in</button>
           </form>
           <form id="wb-f2" hidden>
             <input class="input" name="code" required inputmode="numeric" autocomplete="one-time-code" placeholder="Code from the email" pattern="[0-9]{6,10}">
@@ -75,6 +76,13 @@
         e.preventDefault();
         email = f1.email.value.trim();
         const btn = $('button', f1); btn.disabled = true;
+        if (f1.password.value) {
+          const { error: pErr } = await sb.auth.signInWithPassword({ email, password: f1.password.value });
+          btn.disabled = false;
+          if (pErr) return say(pErr.message, true);
+          history.replaceState(null, '', location.pathname + location.search);
+          return location.reload();
+        }
         const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
         btn.disabled = false;
         if (error) return say(error.message, true);
