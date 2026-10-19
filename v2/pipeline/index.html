@@ -545,7 +545,7 @@ body.listing .lyr{display:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610191712"></script>
+<script src="../shared/wb.js?v=202610191717"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1606,7 +1606,7 @@ if(new URLSearchParams(location.search).get("pin") === "1") setTimeout(() => {
       const rows = await WB.fetchAll("core", "properties", "id,name,address,units,year_built,status,lat,lng,rent_sf:attrs->avgAskingSF,rent_mo:attrs->avgAskingUnit,vac:attrs->vacancy,conc:attrs->concessions",
         q => q.neq("kind", "land").not("lat", "is", null));
       data[id] = fc(rows.filter(r => r.lat != null && r.lng != null).map(r => pt(+r.lng, +r.lat, {
-        name: r.name || r.address || "Property", units: r.units, yb: r.year_built, status: r.status,
+        id: r.id, name: r.name || r.address || "Property", units: r.units, yb: r.year_built, status: r.status,
         rsf: n(r.rent_sf), rmo: n(r.rent_mo), occ: n(r.vac) == null ? null : 100 - n(r.vac), conc: n(r.conc) == null ? null : n(r.conc) / 100 * 52})));
     } else {
       const rows = await WB.fetchAll("comps", "sale_comps", "id,name,city,comp_type,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_land_sf,cap_rate,buyer,lat,lng",
@@ -1630,31 +1630,93 @@ if(new URLSearchParams(location.search).get("pin") === "1") setTimeout(() => {
       + row("Price", M(p.price)) + row("Per unit", p.ppu ? M(p.ppu) : null) + row("Cap rate", p.cap ? (+p.cap).toFixed(2) + "%" : null)
       + row("Buyer", p.buyer ? E(p.buyer) : null) + '<a href="../comps/?comp=' + p.id + '">Open in Sale comps</a>';
   }
+  /* ---------- parcel outlines for comps in view (looked up by point, cached in this browser) ---------- */
+  const PZ = 13, PKEY = "wb_comp_parcels_v1", on = new Set();
+  let PC = {}; try { PC = JSON.parse(localStorage.getItem(PKEY) || "{}") || {}; } catch(e){ PC = {}; }
+  let saveT = null, drawT = null, queue = [], busy = 0, hinted = false;
+  const savePC = () => { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(PKEY, JSON.stringify(PC)); } catch(e){ /* storage full: keep in memory only */ } }, 800); };
+  const colorExpr = ["match", ["get", "t"], "inv", "#432890", "land", "#2F6B3A", "#8C8FE6"];
+  function ensureParcelLayers(map){
+    if(map.getSource("lyr-parcels")) return;
+    map.addSource("lyr-parcels", {type: "geojson", data: fc([])});
+    map.addLayer({id: "lyr-parcels-fill", type: "fill", source: "lyr-parcels", minzoom: 12, paint: {"fill-color": colorExpr, "fill-opacity": .14}});
+    map.addLayer({id: "lyr-parcels-line", type: "line", source: "lyr-parcels", minzoom: 12, paint: {"line-color": colorExpr, "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1, 16, 2.2], "line-opacity": .95}});
+    map.on("click", "lyr-parcels-fill", e => {
+      const f = e.features && e.features[0]; if(!f) return;
+      const t = f.properties.t, src = data[t] && data[t].features.find(x => String(x.properties.id) === String(f.properties.id));
+      if(src) openPopup(map, t, src.geometry.coordinates, src.properties);
+    });
+    map.on("mouseenter", "lyr-parcels-fill", () => { map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "lyr-parcels-fill", () => { map.getCanvas().style.cursor = ""; });
+  }
+  function drawParcels(){
+    clearTimeout(drawT);
+    drawT = setTimeout(() => {
+      const map = window.__pmap; if(!map || !map.getSource("lyr-parcels")) return;
+      const feats = [];
+      on.forEach(t => (data[t] ? data[t].features : []).forEach(f => {
+        const c = PC[t + ":" + f.properties.id];
+        if(c) feats.push({type: "Feature", properties: {t, id: f.properties.id}, geometry: {type: "Polygon", coordinates: c}});
+      }));
+      map.getSource("lyr-parcels").setData(fc(feats));
+    }, 120);
+  }
+  function pump(){
+    while(busy < 4 && queue.length){
+      const job = queue.shift(); busy++;
+      parcelAt(job.lng, job.lat).then(r => {
+        PC[job.k] = r && r.coords ? r.coords.map(ring => ring.map(xy => [+xy[0].toFixed(6), +xy[1].toFixed(6)])) : 0;
+        savePC(); drawParcels();
+      }).catch(() => {}).finally(() => { busy--; pump(); });
+    }
+  }
+  function fetchInView(){
+    const map = window.__pmap; if(!map || !on.size) return;
+    if(map.getZoom() < PZ){ if(!hinted){ hinted = true; WB.toast("Zoom in to see comp parcels"); } return; }
+    const b = map.getBounds(), c = map.getCenter(), seen = new Set(queue.map(j => j.k));
+    const want = [];
+    on.forEach(t => (data[t] ? data[t].features : []).forEach(f => {
+      const [lng, lat] = f.geometry.coordinates, k = t + ":" + f.properties.id;
+      if(k in PC || seen.has(k) || !b.contains([lng, lat])) return;
+      want.push({k, lng, lat, d: (lng - c.lng) ** 2 + (lat - c.lat) ** 2});
+    }));
+    queue = queue.concat(want.sort((a, z) => a.d - z.d).slice(0, 60));
+    pump();
+  }
   let popup = null;
-  async function toggle(id, on){
+  function openPopup(map, id, coords, props){
+    if(popup) popup.remove();
+    popup = new maplibregl.Popup({closeButton: true, maxWidth: "280px", className: "lyr-pop"}).setLngLat(coords).setHTML(popupHtml(id, props)).addTo(map);
+  }
+  let moveHooked = false;
+  function onSet(id, v){ if(v) on.add(id); else { on.delete(id); queue = queue.filter(j => !j.k.startsWith(id + ":")); } drawParcels(); if(v) fetchInView(); }
+  async function toggle(id, show){
     const map = window.__pmap; if(!map) return;
     const src = "lyr-" + id;
-    if(!on){ if(map.getLayer(src)) map.setLayoutProperty(src, "visibility", "none"); return; }
+    if(!show){ if(map.getLayer(src)) map.setLayoutProperty(src, "visibility", "none"); onSet(id, false); return; }
     const el = box.querySelector('[data-l="' + id + '"]'); el.disabled = true;
     try {
       const fcData = await load(id);
       const add = () => {
         if(!map.getSource(src)){
           map.addSource(src, {type: "geojson", data: fcData});
+          ensureParcelLayers(map);
           const L = LAYERS.find(l => l.id === id);
           map.addLayer({id: src, type: "circle", source: src, paint: {
             "circle-radius": ["interpolate", ["linear"], ["zoom"], 8, id === "prop" ? 2.5 : 3.5, 14, id === "prop" ? 6 : 8],
             "circle-color": L.color, "circle-stroke-color": "#fff", "circle-stroke-width": 1.2, "circle-opacity": .95}});
           map.on("click", src, e => {
             const f = e.features && e.features[0]; if(!f) return;
-            if(popup) popup.remove();
-            popup = new maplibregl.Popup({closeButton: true, maxWidth: "280px", className: "lyr-pop"}).setLngLat(f.geometry.coordinates).setHTML(popupHtml(id, f.properties)).addTo(map);
+            openPopup(map, id, f.geometry.coordinates, f.properties);
           });
           map.on("mouseenter", src, () => { map.getCanvas().style.cursor = "pointer"; });
           map.on("mouseleave", src, () => { map.getCanvas().style.cursor = ""; });
         } else map.setLayoutProperty(src, "visibility", "visible");
+        if(!moveHooked){ moveHooked = true; map.on("moveend", fetchInView); }
+        onSet(id, true);
       };
-      if(map.isStyleLoaded()) add(); else map.once("load", add);
+      await new Promise(ok => { const go = () => (map.style && map.style._loaded) ? ok() : setTimeout(go, 120); go(); });
+      add();
       WB.toast(fcData.features.length.toLocaleString("en-US") + " " + LAYERS.find(l => l.id === id).label.toLowerCase() + " on the map");
     } catch(err){ WB.toast(err.message || String(err)); el.checked = false; }
     el.disabled = false;
