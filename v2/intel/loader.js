@@ -20,7 +20,7 @@
   window.wbSwitchMarket = function (id) {
     if (!id || id === (window.__WBD && window.__WBD.market)) return;
     localStorage.setItem('market', id);
-    if (window.WB && WB.getMarket() !== id) WB.setMarket(id);   // keep the top-bar market in step
+    if (window.WB && WB.getMarket() !== id) WB.setMarket(id);   // keep this tab's market toggle in step
     const u = new URL(location.href); u.searchParams.set('market', id); location.href = u.toString();
   };
   const overlay = document.createElement('div');
@@ -108,10 +108,11 @@
     if (!top || !tabs) return;
     const acts = document.createElement('div'); acts.className = 'tabs-acts';
     ['overview-report-btn', 'settings-btn'].forEach((id) => { const b = document.getElementById(id); if (b) acts.appendChild(b); });
+    acts.prepend(WB.marketToggle());
     tabs.appendChild(acts); top.style.display = 'none';
     const st = document.createElement('style');
-    st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}.main>.tabs{top:0 !important;align-items:center;z-index:30}'
-      + '.tabs-acts{margin-left:auto;display:flex;gap:8px;padding-left:12px}'
+    st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}.main>.tabs{top:0 !important;align-items:center;z-index:30;flex-wrap:wrap;row-gap:6px}'
+      + '.tabs-acts{margin-left:auto;display:flex;gap:8px;padding-left:12px;align-items:center}'
       + '.tabs-acts .topbar-action-btn{background:var(--bg-1);border:1px solid var(--line);color:var(--accent-deep);padding:6px 12px;font-size:11px}'
       + '.tabs-acts .topbar-action-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}';
     document.head.appendChild(st);

@@ -539,7 +539,7 @@ body.listing .lyr{display:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610191647"></script>
+<script src="../shared/wb.js?v=202610191652"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1329,7 +1329,13 @@ refreshCopy();
 /* ---------- list view ---------- */
 /* ---------- All deals: Development and Investment as separate tables, a deal editor, and an Excel export ---------- */
 let lk = "land", ls = "active", lm = WB.getMarket() === "all" ? "all" : (MKT[WB.getMarket()] || "all"), lq = "", lsort = {k: "name", d: 1};
-window.addEventListener("wb:market", e => { lm = e.detail === "all" ? "all" : (MKT[e.detail] || "all"); if(!$("#list").hidden) renderList(); });
+window.addEventListener("wb:market", e => {
+  lm = e.detail === "all" ? "all" : (MKT[e.detail] || "all");
+  if(!$("#list").hidden){ renderList(); return; }
+  /* on the map, picking a market jumps to that market's card (All goes back to the overview card) */
+  const i = lm === "all" ? 0 : SLIDES.findIndex(x => x.t === "market" && x.m === lm);
+  if(i >= 0){ setPlaying(false); go(i); }
+});
 
 const RW = d => d._row || {};
 const N = v => v == null || v === "" || isNaN(+v) ? null : +v;

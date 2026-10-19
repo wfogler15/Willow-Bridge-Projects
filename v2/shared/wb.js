@@ -42,21 +42,31 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202610191647');
+    add(ROOT + 'shared/wb-chrome.css?v=202610191652');
   })();
 
   // ---------- market context shared across tabs ----------
   let MARKETS = [];   // [{id, label, short}]
   const shortName = (label, id) => String(label || id || '').split(',')[0];
-  function getMarket() { const m = store.get('market'); return m && (m === 'all' || MARKETS.some((x) => x.id === m)) ? m : 'all'; }
-  // the market this page is showing (single-market pages fall back to the first market when 'All' is chosen elsewhere)
-  function activeMarket() { const el = document.querySelector('.wb-nav select[data-market]'); return el ? el.value : getMarket(); }
-  function showMarket(id) { document.querySelectorAll('.wb-nav select[data-market]').forEach((el) => { if ([...el.options].some((o) => o.value === id)) el.value = id; }); }
+  // Each tab keeps its own market (no app-wide switch). The toggle is a small segmented control a page places where it wants.
+  let PAGE = 'home', SINGLE = false;
+  const valid = (m) => m === 'all' ? !SINGLE : MARKETS.some((x) => x.id === m);
+  function getMarket() { const m = store.get('market:' + PAGE); return m && valid(m) ? m : (SINGLE ? (MARKETS[0] || {}).id : 'all'); }
+  function activeMarket() { return getMarket(); }
+  function paintToggles(id) { document.querySelectorAll('.wb-mkt button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.m === id)); }
+  function showMarket(id) { paintToggles(id); }
   function setMarket(id) {
-    store.set('market', id);
-    document.querySelectorAll('.wb-nav select[data-market]').forEach((s) => { if ([...s.options].some((o) => o.value === id)) s.value = id; });
-    paintStrip();
+    if (!valid(id)) return;
+    store.set('market:' + PAGE, id); paintToggles(id); paintStrip();
     window.dispatchEvent(new CustomEvent('wb:market', { detail: id }));
+  }
+  /** A market toggle (All / Denver / Phoenix; no All on single-market tabs). Returns the element; the page puts it where it fits. */
+  function marketToggle() {
+    const el = document.createElement('div'); el.className = 'wb-mkt'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Market');
+    const cur = getMarket();
+    el.innerHTML = (SINGLE ? [] : [{ id: 'all', short: 'All' }]).concat(MARKETS).map((m) => `<button type="button" data-m="${m.id}" aria-pressed="${m.id === cur}">${esc(m.short)}</button>`).join('');
+    el.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b && b.dataset.m !== getMarket()) setMarket(b.dataset.m); });
+    return el;
   }
   const ICON = {
     strip: '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 10V6M5 10V2M8 10V5M11 10V7"/></svg>',
@@ -64,26 +74,21 @@
 
   function renderNav(active, user, opts) {
     if ($('.wb-nav')) return;
+    PAGE = active; SINGLE = opts.marketMode === 'single';
     const nav = document.createElement('header');
     nav.className = 'wb-nav';
-    const single = opts.marketMode === 'single';
-    let cur = getMarket(); if (single && cur === 'all') cur = (MARKETS[0] || {}).id;
     const local = (user.email || '?').split('@')[0], parts = local.split(/[._-]/).filter(Boolean);
     const initials = (parts.length > 1 ? parts[0][0] + parts[1][0] : local.slice(0, 2)).toUpperCase();
     nav.innerHTML = `
       <a class="brand" href="${ROOT}"><img src="${ROOT}shared/wb-mark.png" alt=""><span>Willow Bridge Intel</span></a>
       <nav>${PAGES.map((p) => `<a href="${ROOT}${p.href}" class="${p.id === active ? 'on' : ''}">${p.label}</a>`).join('')}</nav>
       <div class="right">
-        <select class="ctl" data-market aria-label="Market">
-          ${single ? '' : `<option value="all"${cur === 'all' ? ' selected' : ''}>All markets</option>`}
-          ${MARKETS.map((m) => `<option value="${m.id}"${m.id === cur ? ' selected' : ''}>${esc(m.short)}</option>`).join('')}
-        </select>
+
         ${`<button type="button" class="ctl strip-btn" aria-pressed="false" title="Show the market snapshot">${ICON.strip}<span>Market snapshot</span></button>`}
         <div class="me"><button type="button" aria-haspopup="true" title="${esc(user.email)}">${esc(initials)}</button>
           <div class="menu"><div class="who">Signed in as<br>${esc(user.email)}</div><button type="button" data-signout>Sign out</button></div></div>
       </div>`;
     document.body.prepend(nav);
-    $('select[data-market]', nav).onchange = (e) => setMarket(e.target.value);
     const me = $('.me', nav), menu = $('.menu', me);
     $('button', me).onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };
     document.addEventListener('click', () => menu.classList.remove('open'));
@@ -127,7 +132,8 @@
     }
     el.classList.toggle('compact', !!o.compact);
     el.innerHTML = `<div class="in"><div class="top"><div>${o.eyebrow ? `<div class="eyebrow">${o.eyebrow}</div>` : ''}<h1>${o.title || ''}</h1>${o.lede ? `<p class="lede">${o.lede}</p>` : ''}</div>`
-      + `${o.actions ? `<div class="acts">${o.actions}</div>` : ''}</div>${(Array.isArray(o.figs) ? o.figs : o.figs ? [o.figs] : []).map((f) => `<div class="figs"${o.figsCols ? ` style="grid-template-columns:${o.figsCols}"` : ''}>${f}</div>`).join('')}${o.tabs ? `<div class="tabs" role="tablist">${o.tabs}</div>` : ''}</div>`;
+      + `<div class="acts">${o.actions || ''}</div></div>${(Array.isArray(o.figs) ? o.figs : o.figs ? [o.figs] : []).map((f) => `<div class="figs"${o.figsCols ? ` style="grid-template-columns:${o.figsCols}"` : ''}>${f}</div>`).join('')}${o.tabs ? `<div class="tabs" role="tablist">${o.tabs}</div>` : ''}</div>`;
+    if (o.market !== false) el.querySelector('.acts').prepend(marketToggle());
     return el;
   }
   const fig = (v, l, sub) => `<div class="fig"><div class="v">${v}${sub ? `<span>${sub}</span>` : ''}</div><div class="l">${l}</div></div>`;
@@ -245,5 +251,5 @@
   };
   const median = (xs) => { const a = xs.filter((x) => x != null && !isNaN(x)).map(Number).sort((p, q) => p - q); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
 
-  window.WB = { sb, ready, band, fig, strip: () => loadStrip(), marketLabel: (id) => (MARKETS.find((m) => m.id === id) || {}).short || id, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
+  window.WB = { sb, ready, band, marketToggle, fig, strip: () => loadStrip(), marketLabel: (id) => (MARKETS.find((m) => m.id === id) || {}).short || id, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
 })();

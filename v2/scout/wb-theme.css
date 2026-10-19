@@ -46,3 +46,6 @@ button:focus-visible{outline:none !important;box-shadow:0 0 0 2px #fff,0 0 0 4px
 .wb-band #settingsBtn:hover{background:rgba(255,255,255,.14) !important;border-color:rgba(255,255,255,.38) !important}
 #openSitesHome{background:#1D1247 !important;border-color:#1D1247 !important;color:#fff !important}
 #openSitesHome:hover{background:#2B1D63 !important}
+#brand .scout-mkt{position:absolute;top:9px;right:80px}
+#brand .scout-mkt button{color:#433C63 !important}
+#brand .scout-mkt button[aria-pressed="true"]{color:#1D1247 !important}

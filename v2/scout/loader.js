@@ -22,9 +22,13 @@
     const s = document.createElement('script');
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
     // the app bar's market dropdown drives Site Scout (its own Phoenix/Denver toggle is hidden)
-    let shown = null;
-    const follow = () => { const m = WB.activeMarket(); if (m && m !== 'all' && m !== shown && typeof window.setMarket === 'function') { shown = m; window.setMarket(m); } };
-    s.onload = () => setTimeout(follow, 0);
+    // Site scout's own market toggle sits in its panel header
+    const follow = () => { const m = WB.getMarket(); if (m && typeof window.setMarket === 'function') window.setMarket(m); };
+    s.onload = () => setTimeout(() => {
+      follow();
+      const head = document.getElementById('brand');
+      if (head) { const t = WB.marketToggle(); t.classList.add('scout-mkt'); head.appendChild(t); }
+    }, 0);
     window.addEventListener('wb:market', follow);
     document.body.appendChild(s);
   });
