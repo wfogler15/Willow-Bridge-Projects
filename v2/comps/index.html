@@ -6,7 +6,7 @@
 <title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610191652">
+<link rel="stylesheet" href="../shared/wb.css?v=202610191655">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -22,6 +22,9 @@
   .tbl td.t{max-width:180px;overflow:hidden;text-overflow:ellipsis}
   .tbl td.name{max-width:300px}
   .tbl td.name small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #stats{grid-template-columns:repeat(auto-fit,minmax(118px,1fr))}
+  #stats .fig:nth-child(4){border-right:1px solid var(--rule)}
+  #stats .fig .v{font-size:19px}
   #mapPanel{overflow:hidden}
   #map{flex:1;min-height:0}
   .dot{width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:var(--asset);box-shadow:0 0 0 1px rgba(22,20,43,.35);cursor:pointer}
@@ -64,7 +67,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610191652"></script>
+<script src="../shared/wb.js?v=202610191655"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -121,8 +124,8 @@
   };
 
   // ---------- filtering ----------
-  function filtered() {
-    const cut = state.since ? new Date(Date.now() - state.since * 365.25 * 864e5).toISOString().slice(0, 10) : null;
+  function filtered(ignoreDate) {
+    const cut = state.since && !ignoreDate ? new Date(Date.now() - state.since * 365.25 * 864e5).toISOString().slice(0, 10) : null;
     const q = state.q.toLowerCase();
     const out = rows.filter((c) =>
       c.comp_type === state.type &&
@@ -149,12 +152,23 @@
       cols.map(([k, , f, cls]) => `<td class="${cls || ''}">${f(c)}</td>`).join('') + '</tr>').join('')
       || `<tr><td colspan="${cols.length}" class="empty">No comps match these filters. Widen the date range or clear the search.</td></tr>`;
     const s = state.type === 'investment'
-      ? [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), 'total volume'], [(() => { const r = list.filter((c) => c.sale_price && c.units); const u = r.reduce((t, c) => t + +c.units, 0); return u ? fmt.usd(r.reduce((t, c) => t + +c.sale_price, 0) / u) : '—'; })(), 'avg $/unit'], [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/unit'],
+      ? [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), state.since ? 'volume in date range' : 'total volume, all years'], [(() => { const r = list.filter((c) => c.sale_price && c.units); const u = r.reduce((t, c) => t + +c.units, 0); return u ? fmt.usd(r.reduce((t, c) => t + +c.sale_price, 0) / u) : '—'; })(), 'avg $/unit'], [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/unit'],
          [list.some((c) => c.price_per_sf) ? '$' + fmt.int(median(list.map((c) => c.price_per_sf))) : '—', 'median $/SF'],
          [fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'median cap']]
-      : [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), 'total volume'], [fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'median $/land SF'],
+      : [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), state.since ? 'volume in date range' : 'total volume, all years'], [fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'median $/land SF'],
          [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/door'], [fmt.ac(median(list.map((c) => c.acres))), 'median acres']];
-    $('#stats').innerHTML = s.map(([n, l]) => WB.fig(n, l[0].toUpperCase() + l.slice(1))).join('');
+    // this year to date against the same stretch of last year (same filters, ignoring the date filter), then the full set
+    const base = filtered(true), now = new Date(), Y = now.getFullYear(), md = now.toISOString().slice(5, 10);
+    const vol = (xs) => xs.reduce((t, c) => t + (+c.sale_price || 0), 0);
+    const ytd = base.filter((c) => (c.sale_date || '') >= `${Y}-01-01` && c.sale_date <= `${Y}-${md}`);
+    const lytd = base.filter((c) => (c.sale_date || '') >= `${Y - 1}-01-01` && c.sale_date <= `${Y - 1}-${md}`);
+    const lyFull = base.filter((c) => (c.sale_date || '').startsWith(String(Y - 1)));
+    const chg = vol(lytd) ? (vol(ytd) / vol(lytd) - 1) * 100 : null;
+    const yoy = WB.fig(fmt.usd(vol(ytd)), `${Y} YTD volume`, `${ytd.length} sales`)
+      + WB.fig(fmt.usd(vol(lytd)), `${Y - 1} same period`, `${lytd.length} sales`)
+      + `<div class="fig"><div class="v ${chg == null ? '' : chg >= 0 ? 'pos' : 'neg'}">${chg == null ? '—' : (chg >= 0 ? '+' : '−') + Math.abs(chg).toFixed(0) + '%'}</div><div class="l">YTD vs. last year</div></div>`
+      + WB.fig(fmt.usd(vol(lyFull)), `${Y - 1} full year`, `${lyFull.length} sales`);
+    $('#stats').innerHTML = yoy + s.map(([n, l]) => WB.fig(n, l[0].toUpperCase() + l.slice(1))).join('');
     $('#t-title').textContent = `${list.length.toLocaleString('en-US')} ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}`;
     $('#near').innerHTML = near ? `<span class="chip-near">Within ${near.mi} miles of the selected deal<button type="button" id="near-x" title="Show all comps">×</button></span>` : '';
     drawMarkers(list);
