@@ -509,8 +509,9 @@ body.listing .lyr{display:none}
 .lyr-pop .maplibregl-popup-content{font:13px/1.4 var(--font);color:#1D1247;border-radius:8px;padding:10px 12px 10px;box-shadow:0 8px 24px rgba(16,10,40,.22)}
 .lyr-pop h4{margin:0 16px 1px 0;font-size:14px;font-weight:600}
 .lyr-pop p{margin:0 0 6px;color:#6E6886;font-size:12px}
-.lyr-pop div{display:flex;justify-content:space-between;gap:14px;padding:2px 0;border-top:1px solid #EEECE8}
-.lyr-pop div span{color:#6E6886}
+.lyr-pop .r{display:flex;justify-content:space-between;gap:14px;padding:2px 0;border-top:1px solid #EEECE8}
+.lyr-pop .r span{color:#6E6886}
+.lyr-pop .r b{font-weight:600;white-space:nowrap}
 .lyr-pop a{display:inline-block;margin-top:6px;color:#432890;font-weight:600;font-size:12px}
 .lyr-pop .maplibregl-popup-close-button{font-size:16px;color:#6E6886;padding:2px 6px}
 
@@ -544,7 +545,7 @@ body.listing .lyr{display:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610191659"></script>
+<script src="../shared/wb.js?v=202610191712"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1618,7 +1619,7 @@ if(new URLSearchParams(location.search).get("pin") === "1") setTimeout(() => {
     return data[id];
   }
   function popupHtml(id, p){
-    const row = (k, v) => v == null || v === "" ? "" : "<div><span>" + k + "</span><b>" + v + "</b></div>";
+    const row = (k, v) => v == null || v === "" ? "" : '<div class="r"><span>' + k + "</span><b>" + v + "</b></div>";
     if(id === "prop") return "<h4>" + E(p.name) + "</h4><p>" + E([p.units ? p.units + " units" : "", p.yb, p.status].filter(Boolean).join(", ")) + "</p>"
       + row("Asking rent / SF", p.rsf != null ? "$" + (+p.rsf).toFixed(2) : null) + row("Asking rent / month", p.rmo != null ? "$" + Math.round(p.rmo).toLocaleString("en-US") : null)
       + row("Occupancy", p.occ != null ? (+p.occ).toFixed(1) + "%" : null) + row("Concessions", p.conc != null && p.conc > 0 ? (+p.conc).toFixed(1) + " wks free" : (p.conc === 0 ? "None" : null));
