@@ -257,6 +257,7 @@ h1,h2.accent{font-family:var(--display)}
 #err{top:calc(var(--nav-h) + 36px)}
 #hint{top:calc(var(--nav-h) + var(--gap))}
 @media (max-width:760px){#panel{top:auto}#ctl{top:calc(var(--nav-h) + var(--gap))}}
+#panel em.agnew{font-style:normal;font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;background:#1D1247;color:#fff;margin-left:4px}
 #ctl button{font-family:var(--font) !important;text-transform:none !important;letter-spacing:normal !important;font-size:13px !important;border-radius:6px !important}
 /* ---------- list view on the shared design ---------- */
 #list{background:#F2F2F5;padding:24px 32px 90px;gap:14px;color:#16142B}
@@ -337,6 +338,32 @@ details.manage summary{cursor:pointer;font-size:11px;letter-spacing:.12em;text-t
 .mg button{border:1px solid rgba(29,18,71,.2);background:#fff;border-radius:6px;padding:5px 10px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--text)}
 .mg button.save{background:#1D1247;color:#fff;border-color:#1D1247;font-weight:600}
 .mg .saved{font-size:12px;color:var(--forest);align-self:center}
+
+/* add-a-deal dialog */
+.adm{position:fixed;inset:0;z-index:5600;background:rgba(22,20,43,.45);display:grid;place-items:center;padding:16px}
+.adm[hidden]{display:none}
+.adm-card{width:min(560px,100%);max-height:calc(100vh - 80px);overflow:auto;background:#fff;border-radius:10px;padding:22px 22px 18px;box-shadow:0 20px 60px rgba(22,20,43,.3);font-family:var(--font)}
+.adm-card h2{margin:0;font:600 20px var(--display);color:#16142B}
+.adm-card p{margin:4px 0 0;color:#6B6980;font-size:13px}
+.adm-card .mg{margin-top:14px}
+.mg label.check{flex-direction:row;align-items:center;gap:8px;color:var(--text);font-size:13px}
+.mg label.check input{width:auto}
+#ctl #addb{background:#1D1247;color:#fff;border-color:#1D1247}
+/* Thursday-call additions */
+#panel .chip.new{background:#1D1247;color:#fff}
+#list .tnew{display:inline-block;margin-left:6px;font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;background:#1D1247;color:#fff;vertical-align:1px}
+#list select.lstage{height:28px;border:1px solid #E2E1E8;border-radius:6px;background:#fff;font:13px var(--font);color:#16142B;padding:0 6px;cursor:pointer}
+#list select.lstage:hover{border-color:#C9C7D4}
+#list input.lscout{width:16px;height:16px;cursor:pointer;accent-color:#432890}
+.sales{width:100%;border-collapse:collapse;margin-top:6px;font-size:13px}
+.sales td{padding:8px 0;border-bottom:1px solid rgba(29,18,71,.08);vertical-align:top}
+.sales td.n{text-align:right;white-space:nowrap;padding-left:12px}
+.sales b{font-weight:600;color:var(--text)}
+.sales small{display:block;color:var(--muted);font-size:12px}
+.mstrip{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 16px;margin:14px 0 4px;padding:12px 0;border-top:1px solid rgba(29,18,71,.1);border-bottom:1px solid rgba(29,18,71,.1)}
+.mstrip div b{display:block;font-size:17px;font-weight:600;color:var(--text)}
+.mstrip div span{font-size:12px;color:var(--muted)}
+
 .mg .mg-h{font-size:12px;color:var(--text);font-weight:600;margin-top:4px;padding-top:8px;border-top:1px solid rgba(29,18,71,.08)}
 .mg .mg-h:first-child{border-top:0;padding-top:0;margin-top:0}
 </style>
@@ -351,7 +378,7 @@ details.manage summary{cursor:pointer;font-size:11px;letter-spacing:.12em;text-t
 <div id="hint" role="status" hidden></div>
 <section id="list" aria-label="All deals" hidden>
   <div class="lhead2"><div><h1>Pipeline</h1><p>Every deal we have looked at. Filter and search, then open any deal on the map.</p></div>
-    <div class="lacts"><button type="button" id="lmap">Show these on the map</button><button type="button" class="primary" id="lback">Back to the player</button></div></div>
+    <div class="lacts"><button type="button" id="ladd">Add a deal</button><button type="button" id="lmap">Show these on the map</button><button type="button" class="primary" id="lback">Back to the player</button></div></div>
   <div class="lkpis" id="lkpis"></div>
   <div class="ltools"><div id="filters"></div><span style="flex:1"></span><input class="lsearch" id="lq" type="search" placeholder="Search deals, brokers, sellers, notes"></div>
   <div class="lpanel"><div class="lpanel-h"><div><div class="t" id="lcount"></div><div class="s">Click a heading to sort. Click a row to open the deal.</div></div></div>
@@ -359,7 +386,8 @@ details.manage summary{cursor:pointer;font-size:11px;letter-spacing:.12em;text-t
   <div class="meta">Prospect and Monitor deals, and archived deals (passed, lost, dead, closed), sit outside the meeting player but open from here.</div>
 </section>
 <div id="ctl">
-    <button id="pick" type="button" aria-pressed="false">Fix parcel</button>
+    <button id="addb" type="button">Add a deal</button>
+  <button id="pick" type="button" aria-pressed="false">Fix parcel</button>
   <button id="listb" type="button" aria-pressed="false">List</button>
   <button id="prev" type="button" aria-label="Previous slide">Prev</button>
   <button id="play" type="button">Play</button>
@@ -398,6 +426,8 @@ const { sb, user } = await WB.ready("pipeline");
    Each row is mapped to the deal shape the report below expects.
    ============================================================ */
 const MKT = {denver: "Denver", phoenix: "Phoenix"};
+/* The Thursday pipeline call: "new" means first seen since the last meeting (the most recent Thursday before today). */
+const LAST_MEETING = (() => { const t = new Date(); const back = ((t.getDay() - 4 + 7) % 7) || 7; t.setDate(t.getDate() - back); return new Date(t.getTime() - t.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); })();
 const isoToday = () => { const t = new Date(); return new Date(t.getTime() - t.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
 function num(v){ return v == null || v === "" || isNaN(+v) ? null : +v; }
 function ringsOf(geom){
@@ -437,14 +467,19 @@ function toDeal(r, logs, parcels){
     parcelNote: u.parcel_note || null, src: Array.isArray(u.sources) ? u.sources : null,
     log: (logs || []).map(l => [l.logged_on, l.body]),
     _parcels: parcels || [], checkBack: r.check_back_on, outcome,
+    inScout: !!r.in_scout, firstSeen: r.first_seen, isNew: !!r.first_seen && r.first_seen >= LAST_MEETING, folder: r.folder_path || null,
   };
 }
 async function loadReport(){
-  const [rows, logs, links, parcels] = await Promise.all([
+  const since = new Date(Date.now() - 120 * 864e5).toISOString().slice(0, 10);
+  const [rows, logs, links, parcels, trades, strip] = await Promise.all([
     WB.fetchAll("pipeline", "deals", "*", q => q.is("merged_into", null)),
     WB.fetchAll("pipeline", "deal_log", "id,deal_id,logged_on,kind,body", q => q.order("logged_on").order("id")),
     WB.fetchAll("pipeline", "deal_parcels", "deal_id,parcel_id"),
     WB.fetchAll("core", "parcels", "id,apn,geom"),
+    WB.fetchAll("comps", "sale_comps", "id,market_id,name,city,sale_date,sale_price,units,year_built,price_per_unit,cap_rate,buyer,lat,lng",
+      q => q.eq("comp_type", "investment").gte("sale_date", since).order("sale_date", {ascending: false})),
+    WB.fetchAll("market", "strip_summary", "*").catch(() => []),
   ]);
   const pById = new Map(parcels.map(p => [p.id, p]));
   const byDeal = (arr, k) => arr.reduce((m, x) => (m.get(x[k]) || m.set(x[k], []).get(x[k])).push(x) && m, new Map());
@@ -453,7 +488,9 @@ async function loadReport(){
     const p = pById.get(x.parcel_id); if(!p) return [];
     return ringsOf(p.geom).map(rings => ({id: p.id, apn: p.apn, coords: rings}));
   })));
-  return {market: "Southwest", title: "On-Market Deal Report", date: isoToday(), markets: ["Denver", "Phoenix"], deals};
+  return {market: "Southwest", title: "Pipeline", date: isoToday(), markets: ["Denver", "Phoenix"], deals,
+    trades: trades.map(c => ({...c, market: MKT[c.market_id] || c.market_id, lat: num(c.lat), lon: num(c.lng)})),
+    strip: Object.fromEntries((strip || []).map(x => [MKT[x.market_id] || x.market_id, x]))};
 }
 const REPORT = await loadReport();
 
@@ -507,6 +544,14 @@ function manageBlock(d){
     + '<label>Latitude<input type="number" name="lat" step="any" value="' + v(r.lat) + '"></label>'
     + '<label>Longitude<input type="number" name="lng" step="any" value="' + v(r.lng) + '"></label>'
     + '<div class="full quick"><button type="button" data-pin>Set location on the map</button><span class="pinmsg" style="font-size:11.5px;color:var(--muted);align-self:center"></span></div>'
+    + '<label>Broker<input name="broker" value="' + v(r.broker) + '"></label>'
+    + '<label>Seller<input name="seller" value="' + v(r.seller) + '"></label>'
+    + '<label>First seen<input type="date" name="first_seen" value="' + v(r.first_seen) + '"></label>'
+    + '<label>Guidance note<input name="guidance_note" value="' + v(r.guidance_note) + '" placeholder="e.g. Unpriced, call for offers"></label>'
+    + '<label class="full">Deal folder (OneDrive link or folder path)<input name="folder_path" value="' + v(r.folder_path) + '" placeholder="Paste the OneDrive link to the OM, T-12 and rent roll"></label>'
+    + '<label class="full">Summary<textarea name="summary" rows="3" placeholder="What it is: size, vintage, location, how it is being marketed">' + v(r.summary) + '</textarea></label>'
+    + '<label class="full">Our take<textarea name="take" rows="2" placeholder="Why it matters to us, or why we would pass">' + v(r.take) + '</textarea></label>'
+    + '<label class="full check"><input type="checkbox" name="in_scout"' + (r.in_scout ? " checked" : "") + '> Show in Site Scout</label>'
     + '<div class="full mg-h">Status</div>'
     + '<label>Stage<select name="stage">' + STAGE_OPTS.map(o => '<option value="' + o[0] + '"' + (o[0] === d.stage ? " selected" : "") + ">" + o[1] + "</option>").join("") + "</select></label>"
     + '<label>Bids due<input type="date" name="bid_date" value="' + v(r.bid_date) + '"></label>'
@@ -552,11 +597,13 @@ document.addEventListener("click", async (ev) => {
   }
   if(!ev.target.closest("[data-save]")) return;
   const d = REPORT.deals.find(x => x.id === box.dataset.deal); if(!d) return;
-  const f = n => box.querySelector("[name=" + n + "]").value.trim();
+  const f = n => (box.querySelector("[name=" + n + "]").value || "").trim();
   const newStage = f("stage"), dbStage = newStage === "contract" ? "under_contract" : newStage;
   const num = n => f(n) === "" ? null : +f(n);
   const det = {name: f("name") || d._row.name, address: f("address") || null, kind: f("kind"), market_id: f("market_id"),
-    units: num("units") == null ? null : Math.round(num("units")), acres: num("acres"), lat: num("lat"), lng: num("lng")};
+    units: num("units") == null ? null : Math.round(num("units")), acres: num("acres"), lat: num("lat"), lng: num("lng"),
+    broker: f("broker") || null, seller: f("seller") || null, first_seen: f("first_seen") || d._row.first_seen, guidance_note: f("guidance_note") || null,
+    folder_path: f("folder_path") || null, summary: f("summary") || null, take: f("take") || null, in_scout: box.querySelector("[name=in_scout]").checked};
   if((det.lat == null) !== (det.lng == null)){ box.querySelector(".saved").textContent = "Enter both latitude and longitude, or neither."; return; }
   const moved = det.lat !== (d._row.lat == null ? null : +d._row.lat) || det.lng !== (d._row.lng == null ? null : +d._row.lng);
   const patch = {...det, stage: dbStage, bid_date: f("bid_date") || null, guidance: f("guidance") === "" ? null : +f("guidance"),
@@ -570,6 +617,7 @@ document.addEventListener("click", async (ev) => {
   const notes = [];
   if(prevStage !== dbStage) notes.push({deal_id: d.id, kind: "stage", body: "Stage: " + prevLabel + " → " + (STAGES[newStage] || newStage) + (patch.check_back_on ? ", check back " + fmtDate(patch.check_back_on) : "") + "."});
   if(moved && det.lat != null) notes.push({deal_id: d.id, kind: "note", body: "Location updated."});
+  if(det.in_scout !== !!d._row.in_scout) notes.push({deal_id: d.id, kind: "note", body: det.in_scout ? "Added to Site Scout." : "Removed from Site Scout."});
   if(f("note")) notes.push({deal_id: d.id, kind: "note", body: f("note")});
   if(notes.length){ const { error: e2 } = await sb.schema("pipeline").from("deal_log").insert(notes); if(e2){ msg.textContent = e2.message; return; } }
   const log = d.log.concat(notes.map(n => [isoToday(), n.body]));
@@ -577,6 +625,44 @@ document.addEventListener("click", async (ev) => {
   repaintDeal();
   WB.toast("Saved");
 });
+
+
+/* ---------- add a deal (anything we want to track: on-market assets we would not buy, new sites, broker calls) ---------- */
+function openAddDeal(){
+  let m = document.getElementById("addDeal");
+  if(!m){
+    m = document.createElement("div"); m.id = "addDeal"; m.className = "adm";
+    const mk = WB.activeMarket ? WB.activeMarket() : "denver";
+    m.innerHTML = '<form class="adm-card" autocomplete="off"><h2>Add a deal</h2><p>It goes into Pipeline as Screening. You can set its location on the map next.</p><div class="mg">'
+      + '<label class="full">Name<input name="name" required placeholder="Property or site name"></label>'
+      + '<label>Market<select name="market_id">' + WB.markets.map(x => '<option value="' + x.id + '"' + (x.id === mk ? " selected" : "") + ">" + WB.esc(x.short) + "</option>").join("") + "</select></label>"
+      + '<label>Type<select name="kind"><option value="asset">Existing asset</option><option value="land">Development land</option></select></label>'
+      + '<label>Stage<select name="stage">' + STAGE_OPTS.map(o => '<option value="' + o[0] + '"' + (o[0] === "screening" ? " selected" : "") + ">" + o[1] + "</option>").join("") + "</select></label>"
+      + '<label>Bids due<input type="date" name="bid_date"></label>'
+      + '<label class="full">Address<input name="address" placeholder="Street address or nearest intersection"></label>'
+      + '<label>Units<input type="number" name="units" step="1"></label><label>Acres<input type="number" name="acres" step="any"></label>'
+      + '<label>Guidance ($)<input type="number" name="guidance" step="any"></label><label>Broker<input name="broker"></label>'
+      + '<label class="full">Deal folder (OneDrive link or folder path)<input name="folder_path"></label>'
+      + '<label class="full">Summary<textarea name="summary" rows="3"></textarea></label>'
+      + '<label class="full check"><input type="checkbox" name="in_scout"> Show in Site Scout</label>'
+      + '<div class="full quick"><button type="submit" class="save">Add deal</button><button type="button" data-close>Cancel</button><span class="saved"></span></div></div></form>';
+    document.body.appendChild(m);
+    m.addEventListener("click", e => { if(e.target === m || e.target.closest("[data-close]")) m.hidden = true; });
+    m.querySelector("form").addEventListener("submit", async e => {
+      e.preventDefault();
+      const F = e.target, val = n => (F[n].value || "").trim(), nn = n => val(n) === "" ? null : +val(n);
+      const row = {name: val("name"), market_id: val("market_id"), kind: val("kind"), stage: val("stage"), bid_date: val("bid_date") || null,
+        address: val("address") || null, units: nn("units") == null ? null : Math.round(nn("units")), acres: nn("acres"), guidance: nn("guidance"),
+        broker: val("broker") || null, folder_path: val("folder_path") || null, summary: val("summary") || null, in_scout: F.in_scout.checked, first_seen: isoToday()};
+      const msg = F.querySelector(".saved"); msg.textContent = "Saving…";
+      const { data, error } = await sb.schema("pipeline").from("deals").insert(row).select("id").single();
+      if(error){ msg.textContent = error.message; return; }
+      await sb.schema("pipeline").from("deal_log").insert({deal_id: data.id, kind: "note", body: "Added to Pipeline."});
+      const u = new URL(location.href); u.searchParams.set("deal", data.id); u.searchParams.set("pin", "1"); location.href = u.toString();
+    });
+  }
+  m.hidden = false; m.querySelector("[name=name]").focus();
+}
 
 /* ---------- show a set of deals together on the map (list → "Show these on the map") ---------- */
 function showMany(list){
@@ -714,12 +800,29 @@ const KIND_ORDER = {land:0, asset:1};
 const byBid = (a, b) => (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || (a.bidDate || "9999").localeCompare(b.bidDate || "9999");
 const active = deals.filter(d => !archived(d) && !watching(d));
 const arch = deals.filter(d => archived(d) || watching(d));
+const UWS = new Set(["underwriting","bidding","loi","contract"]);
+const byMeeting = (a, b) => (UWS.has(b.stage) - UWS.has(a.stage)) || ((b.isNew ? 1 : 0) - (a.isNew ? 1 : 0)) || byBid(a, b);
+/* trades since the last meeting; if fewer than three, the last 30 days */
+function salesFor(m){
+  const all = (REPORT.trades || []).filter(c => c.market === m);
+  let list = all.filter(c => c.sale_date >= LAST_MEETING), label = "since " + fmtDate(LAST_MEETING);
+  if(list.length < 3){ const d30 = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10); list = all.filter(c => c.sale_date >= d30); label = "in the last 30 days"; }
+  return {list: list.slice(0, 9), label};
+}
+function renderSales(m){
+  const {list, label} = salesFor(m), K = n => n ? "$" + Math.round(n / 1000) + "K" : "–";
+  return head({market: m}) + "<h1>Recent trades</h1><h2 class=\"accent\">" + esc(m) + ", " + plural(list.length, "sale") + " " + label + "</h2><div class=\"rule\"></div>"
+    + '<table class="sales"><tbody>' + list.map(c => "<tr><td><b>" + esc(c.name) + "</b><small>" + esc([c.city, c.year_built, c.units ? c.units + " units" : ""].filter(Boolean).join(", ")) + (c.buyer ? "<br>To " + esc(c.buyer) : "") + "</small></td>"
+      + '<td class="n"><b>' + K(c.price_per_unit) + "/unit</b><small>" + [c.sale_price ? usdM(+c.sale_price) : "", c.cap_rate ? (+c.cap_rate).toFixed(2) + "% cap" : "", shortDate(c.sale_date)].filter(Boolean).join(", ") + "</small></td></tr>").join("") + "</tbody></table>"
+    + '<div class="meta">From Sale comps. Dots on the map are these trades.</div>';
+}
 /* Meeting order: cover, then each market (market board slide, its development deals, then its acquisitions). */
 let SLIDES = [{t:"cover", ms:9000}];
 REPORT.markets.forEach(m => {
-  const list = active.filter(d => d.market === m).sort(byBid);
-  if(!list.length) return;
+  const list = active.filter(d => d.market === m).sort(byMeeting);
+  if(!list.length && !salesFor(m).list.length) return;
   SLIDES.push({t:"market", m, ms:11000});
+  if(salesFor(m).list.length) SLIDES.push({t:"sales", m, ms:14000});
   list.forEach(d => SLIDES.push({t:"deal", d, ms:15000}));
 });
 arch.forEach(d => SLIDES.push({t:"deal", d, ms:15000, skip:true}));
@@ -735,12 +838,12 @@ function renderCover(){
      Size is acres for development land and units for existing assets. */
   const size = d => d.kind === "land" ? (d.acres ? fmtNum(d.acres) + " ac" : "–") : (d.units ? fmtNum(d.units) + " units" : "–");
   const groups = REPORT.markets.map(m => {
-    const list = active.filter(d => d.market === m).sort(byBid);
+    const list = active.filter(d => d.market === m).sort(byMeeting);
     if(!list.length) return "";
     return '<div class="agenda"><div class="ag-row ag-head"><span>' + esc(m) + '</span><span>Size</span><span>Guidance</span></div>'
       + list.map(d => {
           const i = SLIDES.findIndex(x => x.d === d);
-          return '<button type="button" class="ag-row" data-go="' + i + '"><span class="ag-name">' + esc(d.name) + "</span>"
+          return '<button type="button" class="ag-row" data-go="' + i + '"><span class="ag-name">' + esc(d.name) + (d.isNew ? ' <em class="agnew">New</em>' : "") + "</span>"
             + '<span class="ag-num">' + size(d) + '</span><span class="ag-num ag-px">' + esc(priceLine(d)) + "</span></button>";
         }).join("") + "</div>";
   }).join("");
@@ -756,13 +859,18 @@ function renderMarket(m){
   const land = mine.filter(d => d.kind === "land"), acq = mine.filter(d => d.kind === "asset");
   const dueList = soon.length
     ? '<div class="due">' + soon.map(d => '<div><span>' + esc(d.name) + '</span><em>' + shortDate(d.bidDate) + '</em></div>').join("") + '</div>' : "";
-  const roster = '<div class="due">' + mine.sort(byBid).map(d => '<div><span>' + esc(d.name) + '</span><em>' + esc(priceLine(d)) + '</em></div>').join("") + '</div>';
+  const roster = '<div class="due">' + mine.slice().sort(byMeeting).map(d => '<div><span>' + esc(d.name) + '</span><em>' + esc(priceLine(d)) + '</em></div>').join("") + '</div>';
   return head({market:m}) + "<h1>" + esc(m) + "</h1><div class=\"rule\"></div><div class=\"tally\">"
-    + grp("Development land", land.length, "sites in review")
-    + grp("Acquisitions", acq.length, "existing assets in review")
-    + grp("Bids due", soon.length, "in the next 14 days")
-    + "</div>" + (dueList || roster)
+    + grp("New this week", mine.filter(d => d.isNew).length, "since " + shortDate(LAST_MEETING)) + grp("Underwriting", mine.filter(d => UWS.has(d.stage)).length, "deals we are digging into")
+    + grp("Screening", mine.filter(d => !UWS.has(d.stage)).length, "new on market")
+    + "</div>" + marketStrip(m) + (dueList || roster)
     + '<div class="meta">Green Tea outlines are development land. Lilac outlines are existing assets.</div>';
+}
+function marketStrip(m){
+  const x = (REPORT.strip || {})[m]; if(!x) return "";
+  return '<div class="mstrip"><div><b>$' + (+x.asking_rent_psf).toFixed(2) + "</b><span>Asking rent / SF, $" + Math.round(x.asking_rent_mo).toLocaleString("en-US") + "/mo</span></div>"
+    + "<div><b>" + (+x.occupancy_pct).toFixed(1) + "%</b><span>Occupancy</span></div><div><b>" + (+x.concessions_weeks).toFixed(1) + " wks</b><span>Concessions</span></div>"
+    + "<div><b>" + Math.round(x.uc_units).toLocaleString("en-US") + "</b><span>Units under construction</span></div></div>";
 }
 function row(items){ items = items.filter(Boolean); return items.length ? '<div class="row">' + items.join("") + "</div>" : ""; }
 function f(label, val){ return val == null || val === "" || val === false ? "" : "<span><b>" + label + "</b>" + val + "</span>"; }
@@ -821,6 +929,7 @@ function renderDeal(d){
     ["Address", d.address && esc(d.address)]
   ]);
   const deal = dl([
+    ["Deal folder", d.folder ? (/^https?:/i.test(d.folder) ? '<a href="' + esc(d.folder) + '" target="_blank" rel="noopener">Open deal folder</a>' : '<span title="' + esc(d.folder) + '">' + esc(d.folder.split(/[\\/]/).slice(-1)[0]) + "</span>") : ""],
     ["Call for offers", bidTxt],
     ["Broker", d.broker && esc(d.broker)],
     ["Seller", d.seller && esc(d.seller)],
@@ -846,7 +955,7 @@ function renderDeal(d){
     + '<header class="dh"><h1>' + esc(d.name) + "</h1><h2>" + esc(d.where || d.address || "") + "</h2>"
     + '<div class="chips"><span class="chip' + (isLand ? " land" : "") + '">' + (isLand ? "Development land" : "Existing asset") + "</span>"
     + (d.stage ? '<span class="chip stage' + (HOT.has(d.stage) ? " hot" : "") + '">' + esc(STAGES[d.stage] || d.stage) + "</span>" : "")
-    + (d.sample ? '<span class="chip sample">Sample</span>' : "") + "</div></header>"
+    + (d.isNew ? '<span class="chip new">New this week</span>' : "") + (d.sample ? '<span class="chip sample">Sample</span>' : "") + "</div></header>"
     + '<div class="figures">' + strip + "</div>"
     + (d.take ? '<div class="callout"><strong>Our take</strong><p>' + esc(d.take) + "</p></div>" : "")
     + outcome
@@ -913,6 +1022,13 @@ function camera(s){
   clearMarkers();
   map.getSource("site").setData({type:"FeatureCollection", features:[]});
   $("#veil").classList.toggle("dim", s.t !== "deal");
+  if(s.t === "sales"){
+    const pts = salesFor(s.m).list.filter(c => c.lat != null && c.lon != null);
+    const o = {bounds:allBounds(pts.length ? pts : active.filter(d => d.market === s.m)), padding:pad(), maxZoom:12};
+    move(() => map.fitBounds(o.bounds, {padding:o.padding, maxZoom:o.maxZoom, duration:3200, essential:true}), o);
+    pts.forEach(c => addMarker({lat:c.lat, lon:c.lon, kind:"asset"}, false));
+    return;
+  }
   if(s.t === "cover" || s.t === "market"){
     const list = s.t === "market" ? active.filter(d => d.market === s.m) : active;
     const o = {bounds:allBounds(list), padding:pad(), maxZoom:11};
@@ -962,7 +1078,7 @@ function go(i){
   el.classList.remove("on");
   clearTimeout(swapT);
   swapT = setTimeout(() => {
-    el.innerHTML = s.t === "cover" ? renderCover() : s.t === "market" ? renderMarket(s.m) : renderDeal(s.d);
+    el.innerHTML = s.t === "cover" ? renderCover() : s.t === "market" ? renderMarket(s.m) : s.t === "sales" ? renderSales(s.m) : renderDeal(s.d);
     $("#pscroll").scrollTop = 0; el.classList.add("on");
   }, reduce ? 0 : 380);
   fills.forEach((f, k) => f.style.width = k < idx ? "100%" : "0%");
@@ -1052,13 +1168,14 @@ let lf = "active", lm = WB.getMarket() === "all" ? "all" : (MKT[WB.getMarket()] 
 window.addEventListener("wb:market", e => { lm = e.detail === "all" ? "all" : (MKT[e.detail] || "all"); if(!$("#list").hidden) renderList(); });
 const MKT_FILTERS = [["all","All markets"]].concat(REPORT.markets.map(m => [m, m]));
 const FILTERS = [["active","Active"],["asset","Existing"],["land","Land"],["due","Bids ≤ 14 days"],["watch","Prospect & Monitor"],["checkback","Check-backs due"],["archive","Archive"],["all","All"]];
-const COLS = [["name","Deal"],["market","Market"],["kind","Type"],["units","Units",1],["acres","Acres",1],["guidance","Guidance",1],["basis","$/unit or door",1],["rent","Rent $/SF",1],["occ","Occ",1],["bid","Bids due"],["stage","Status"]];
+const COLS = [["scout","Scout"],["name","Deal"],["market","Market"],["kind","Type"],["units","Units",1],["acres","Acres",1],["guidance","Guidance",1],["basis","$/unit or door",1],["rent","Rent $/SF",1],["occ","Occ",1],["bid","Bids due"],["stage","Status"]];
 function val(d, k){
   switch(k){
     case "units": return d.kind === "land" ? (d.doors || null) : (d.units || null);
     case "basis": return d.kind === "land" ? ppd(d) : ppu(d);
     case "rent": return effPsf(d) || null;
     case "bid": return d.bidDate || null;
+    case "scout": return d.inScout ? 0 : 1;
     case "stage": return d.outcome ? "zz" + (d.outcome.result || "") : (d.stage || null);
     default: return d[k] == null ? null : d[k];
   }
@@ -1105,7 +1222,7 @@ function renderList(){
     const status = d.outcome
       ? pill(esc(d.outcome.result || "Sold"), d.stage) + (d.outcome.buyer ? "<small>" + esc(d.outcome.buyer) + (d.outcome.price ? " · " + usdM(d.outcome.price) : "") + "</small>" : "")
       : pill(esc(STAGES[d.stage] || d.stage || ""), d.stage) + (d.checkBack ? "<small>Check back " + shortDate(d.checkBack) + "</small>" : (archived(d) && !["lost","dead","closed"].includes(d.stage) ? "<small>Bid date passed, outcome pending</small>" : ""));
-    return '<tr class="r" tabindex="0" data-i="' + deals.indexOf(d) + '"><td><b>' + esc(d.name) + "</b>" + (d.sample ? " (sample)" : "") + "<small>" + esc(d.where || "") + "</small></td><td>" + esc(d.market || "") + "</td>"
+    return '<tr class="r" tabindex="0" data-i="' + deals.indexOf(d) + '"><td><input type="checkbox" class="lscout" data-id="' + d.id + '"' + (d.inScout ? " checked" : "") + ' title="Show in Site Scout"></td><td><b>' + esc(d.name) + "</b>" + (d.isNew ? '<span class="tnew">New</span>' : "") + (d.sample ? " (sample)" : "") + "<small>" + esc(d.where || "") + "</small></td><td>" + esc(d.market || "") + "</td>"
       + '<td><span class="chip' + (isLand ? " land" : "") + '">' + (isLand ? "Land" : "Existing") + "</span></td>"
       + '<td class="num">' + (isLand ? (d.doors ? fmtNum(d.doors) + "<small>doors</small>" : "") : (d.units ? fmtNum(d.units) : "")) + "</td>"
       + '<td class="num">' + (d.acres ? fmtNum(d.acres) : "") + "</td>"
@@ -1113,7 +1230,9 @@ function renderList(){
       + '<td class="num">' + (basis ? usd(basis) : "") + "</td>"
       + '<td class="num">' + (effPsf(d) ? "$" + effPsf(d).toFixed(2) + (effMo(d) ? "<small>" + usd(effMo(d)) + " / mo</small>" : "") : "") + "</td>"
       + '<td class="num">' + (d.occ != null ? d.occ + "%" : "") + "</td>"
-      + "<td>" + (d.bidDate ? shortDate(d.bidDate) + " " + bidBadge(d) : "") + '</td><td class="st">' + status + "</td></tr>";
+      + "<td>" + (d.bidDate ? shortDate(d.bidDate) + " " + bidBadge(d) : "") + '</td><td class="st"><select class="lstage" data-id="' + d.id + '" title="Change stage">'
+      + STAGE_OPTS.map(o => '<option value="' + o[0] + '"' + (o[0] === d.stage ? " selected" : "") + ">" + o[1] + "</option>").join("") + "</select>"
+      + (d.checkBack ? "<small>Check back " + shortDate(d.checkBack) + "</small>" : "") + "</td></tr>";
   }).join("") || '<tr><td colspan="11" class="empty">No deals match this filter.</td></tr>';
   const FL = Object.fromEntries(FILTERS);
   $("#lcount").textContent = rows.length + " " + (rows.length === 1 ? "deal" : "deals") + ", " + (lm === "all" ? "all markets" : lm) + ", " + (FL[lf] || "").toLowerCase();
@@ -1136,7 +1255,27 @@ $("#lkpis").addEventListener("click", e => { const k = e.target.closest("[data-f
 function sortBy(th){ if(!th) return; const k = th.dataset.k; lsort = {k, d: lsort.k === k ? -lsort.d : 1}; renderList(); }
 $("#lth").addEventListener("click", e => sortBy(e.target.closest("th")));
 $("#lth").addEventListener("keydown", e => { if(e.key === "Enter") sortBy(e.target.closest("th")); });
-$("#ltb").addEventListener("click", e => openRow(e.target.closest("tr.r")));
+$("#ltb").addEventListener("click", e => { if(e.target.closest("select,input")) return; openRow(e.target.closest("tr.r")); });
+$("#ltb").addEventListener("change", async e => {
+  const el = e.target, d = deals.find(x => x.id === el.dataset.id); if(!d) return;
+  let patch, note;
+  if(el.matches(".lstage")){ const st = el.value; patch = {stage: DB_STAGE[st] || st}; note = {deal_id: d.id, kind: "stage", body: "Stage: " + (STAGES[d.stage] || d.stage) + " → " + (STAGES[st] || st) + "."}; }
+  else if(el.matches(".lscout")){ patch = {in_scout: el.checked}; note = {deal_id: d.id, kind: "note", body: el.checked ? "Added to Site Scout." : "Removed from Site Scout."}; }
+  else return;
+  const { data: row, error } = await sb.schema("pipeline").from("deals").update(patch).eq("id", d.id).select().single();
+  if(error){ WB.toast(error.message); renderList(); return; }
+  await sb.schema("pipeline").from("deal_log").insert(note);
+  Object.assign(d, toDeal(row, [], d._parcels), {log: d.log.concat([[isoToday(), note.body]])});
+  WB.toast(el.matches(".lstage") ? "Stage saved. The player picks up the new order next time the page loads." : "Saved");
+  renderList();
+});
+$("#ladd").addEventListener("click", openAddDeal);
+$("#addb").addEventListener("click", openAddDeal);
+/* after adding a deal, open it and start "set location" */
+if(new URLSearchParams(location.search).get("pin") === "1") setTimeout(() => {
+  const det = document.querySelector("details.manage"); if(det) det.open = true;
+  const b = document.querySelector(".mg [data-pin]"); if(b) b.click();
+}, 2500);
 $("#ltb").addEventListener("keydown", e => { if(e.key === "Enter") openRow(e.target.closest("tr.r")); });
 addEventListener("keydown", e => { if(e.key === "Escape"){ if(!$("#list").hidden) setList(false); else if(picking) setPick(false); } });
 initMap();

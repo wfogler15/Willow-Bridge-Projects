@@ -45,6 +45,7 @@
     return { deals, pById, linksByDeal, logsByDeal };
   }
   function dealToSite(d, all) {
+    if (!d.in_scout) return null;   // only deals flagged "Show in Site Scout" in Pipeline (or saved from Scout)
     const u = d.uw || {};
     const parcels = (all.linksByDeal.get(d.id) || []).map((pid) => all.pById.get(pid)).filter((p) => p && p.geom).map((p) => {
       const a = { ...(p.attrs || {}) }; const overrides = a.overrides; delete a.overrides; delete a.source; delete a.note;
@@ -97,7 +98,7 @@
       const { data: prop, error: pe } = await S('core').from('properties').insert({ market_id: market, kind: 'land', name: site.name, lat, lng, acres, source: 'manual' }).select('id').single();
       if (pe) throw pe;
       const { data, error } = await S('pipeline').from('deals').insert({ market_id: market, property_id: prop.id, name: site.name || 'Untitled site', kind: 'land',
-        stage: siteToStage(site.status, null), lat, lng, acres, entitlement: site.entitlement || null, uw: uwPatch,
+        stage: siteToStage(site.status, null), lat, lng, acres, in_scout: true, entitlement: site.entitlement || null, uw: uwPatch,
         legacy: { site_scout_ids: [String(site.id)] } }).select('*').single();
       if (error) throw error;
       d = data;
@@ -149,8 +150,9 @@
     // removing a site only takes it off the Site Scout map: the deal (and its underwriting, log, comps) stays in the pipeline
     async sites_remove(f) {
       const d = await findDeal(f.id); if (!d) return;
-      const { error } = await S('pipeline').from('deal_parcels').delete().eq('deal_id', d.id); if (error) throw error;
-      await S('pipeline').from('deal_log').insert({ deal_id: d.id, kind: 'note', body: 'Removed from Site Scout (parcel outlines detached).' });
+      // the deal and its parcel outline stay in Pipeline; it just stops showing in Site Scout
+      const { error } = await S('pipeline').from('deals').update({ in_scout: false }).eq('id', d.id); if (error) throw error;
+      await S('pipeline').from('deal_log').insert({ deal_id: d.id, kind: 'note', body: 'Removed from Site Scout.' });
     },
     async pois_select() { const rows = await WB.fetchAll('core', 'pois', '*'); return rows.map((r) => ({ id: r.id, data: poiData(r) })); },
     async pois_upsert(row) { const { error } = await S('core').from('pois').upsert(poiRow(row.data || row)); if (error) throw error; },

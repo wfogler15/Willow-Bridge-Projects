@@ -85,7 +85,7 @@
   const rows = async (q) => ((await q).data || []);
 
   const [deals, comps, review] = await Promise.all([
-    WB.fetchAll('pipeline', 'deals', 'id,name,market_id,kind,stage,address,units,acres,guidance,bid_date,check_back_on,lat,lng,uw', (q) => q.is('merged_into', null)),
+    WB.fetchAll('pipeline', 'deals', 'id,name,market_id,kind,stage,address,units,acres,guidance,bid_date,check_back_on,lat,lng,uw,first_seen', (q) => q.is('merged_into', null)),
     rows(sb.schema('comps').from('sale_comps').select('id,name,city,market_id,sale_date,sale_price,units,price_per_unit,cap_rate,buyer').eq('comp_type', 'investment').order('sale_date', { ascending: false, nullsFirst: false }).limit(40)),
     WB.fetchAll('core', 'review_queue', '*', (q) => q.eq('status', 'open').order('id')),
   ]);
@@ -104,6 +104,9 @@
   const monYr = (d) => new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   const stageTag = (s) => `<span class="st ${(STAGE[s] || [])[1] || ''}">${esc((STAGE[s] || [s])[0])}</span>`;
   const kindTag = (k) => k === 'land' ? '<span class="k land">Land</span>' : '<span class="k asset">Existing</span>';
+  const LAST_MEETING = (() => { const t = new Date(); const back = ((t.getDay() - 4 + 7) % 7) || 7; t.setDate(t.getDate() - back); return iso(new Date(t.getTime() - t.getTimezoneOffset() * 6e4)); })();
+  const isNew = (d) => !!d.first_seen && d.first_seen >= LAST_MEETING;
+  const UWS = ['underwriting', 'loi', 'under_contract'];
   const inMkt = (m) => { const cur = WB.getMarket(); return cur === 'all' || m === cur; };
   const place = (d) => (d.uw && (d.uw.where || d.uw.submarket)) || (d.address || '').split(',').slice(-1)[0].trim() || '';
 
@@ -113,14 +116,16 @@
 
   function render() {
     const act = deals.filter((d) => ACTIVE.includes(d.stage) && inMkt(d.market_id))
-      .sort((a, b) => a.market_id.localeCompare(b.market_id) || a.name.localeCompare(b.name));
+      .sort((a, b) => a.market_id.localeCompare(b.market_id) || (UWS.includes(b.stage) - UWS.includes(a.stage)) || (isNew(b) - isNew(a)) || a.name.localeCompare(b.name));
     if (!selected || !act.some((d) => d.id === selected)) selected = (act.find((d) => d.lat != null && d.uw && d.uw.rentPsf) || act.find((d) => d.lat != null) || act[0] || {}).id;
     const due = deals.filter((d) => inMkt(d.market_id) && d.bid_date && d.bid_date >= todayIso && d.bid_date <= in30 && !['passed', 'lost', 'dead', 'closed'].includes(d.stage));
     const since = iso(new Date(today.getFullYear(), today.getMonth() - 1, 1));
     const tr = comps.filter((c) => inMkt(c.market_id));
     const recent = tr.filter((c) => (c.sale_date || '') >= since).length;
     const where = WB.getMarket() === 'all' ? 'across both markets' : 'in ' + MK[WB.getMarket()];
-    $('#lede').textContent = `${act.length} active ${act.length === 1 ? 'pursuit' : 'pursuits'} ${where}. `
+    const nUw = act.filter((d) => UWS.includes(d.stage)).length, nNew = deals.filter((d) => inMkt(d.market_id) && isNew(d)).length;
+    $('#lede').textContent = `${act.length} active ${act.length === 1 ? 'pursuit' : 'pursuits'} ${where}, ${nUw} in underwriting or later. `
+      + (nNew ? `${nNew} new ${nNew === 1 ? 'deal' : 'deals'} since ${mon(LAST_MEETING)}. ` : '')
       + (due.length ? `${due.length} bid ${due.length === 1 ? 'date' : 'dates'} in the next 30 days. ` : 'No bid dates in the next 30 days. ')
       + `${recent} ${recent === 1 ? 'trade' : 'trades'} recorded since ${new Date(since + 'T12:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}.`;
 
@@ -129,7 +134,7 @@
       + (act.map((d) => {
         const u = d.uw || {}, g = M(d.guidance), units = M(d.units);
         return `<tr data-id="${d.id}" class="${d.id === selected ? 'sel' : ''}">
-          <td class="name">${esc(d.name)}<small>${esc([place(d), MK[d.market_id]].filter(Boolean).join(', '))}</small></td>
+          <td class="name">${esc(d.name)}${isNew(d) ? ' <span class="k new">New</span>' : ''}<small>${esc([place(d), MK[d.market_id]].filter(Boolean).join(', '))}</small></td>
           <td>${kindTag(d.kind)}</td><td class="r">${units ?? dash}</td><td class="r">${M(d.acres) != null ? (+d.acres).toFixed(1) : dash}</td>
           <td class="r">${g ? usdM(g) : '<span class="dim">Unpriced</span>'}</td><td class="r">${g && units ? usdK(g / units) : dash}</td>
           <td class="r">${u.rentPsf ? '$' + (+u.rentPsf).toFixed(2) : dash}</td><td class="r">${u.roc ? (+u.roc).toFixed(2) + '%' : dash}</td><td>${stageTag(d.stage)}</td></tr>`;

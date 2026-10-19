@@ -93,6 +93,7 @@ textarea.input{height:auto;padding:8px 10px}
 .k{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 7px;border-radius:4px;white-space:nowrap;background:var(--sunk);color:var(--ink-2)}
 .k.land{background:var(--land-bg);color:var(--land)}
 .k.asset{background:var(--asset-bg);color:var(--asset)}
+.k.new{background:var(--midnight);color:#fff;vertical-align:1px;margin-left:4px}
 .st{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2);white-space:nowrap}
 .st::before{content:"";width:7px;height:7px;border-radius:50%;background:#D3D1DC}
 .st.s-uw::before{background:var(--purple)} .st.s-sc::before{background:#8C84C4} .st.s-pr::before{background:#C9C2E8}
