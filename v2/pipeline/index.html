@@ -532,7 +532,7 @@ const REPORT = await loadReport();
 
 /* ---------- light shell: the Midnight page band, the card and the map side by side ---------- */
 (function shell(){
-  const band = WB.band({eyebrow: "Pipeline", title: "Thursday pipeline call", lede: " ", compact: true,
+  const band = WB.band({eyebrow: "Pipeline", title: "Pipeline", lede: " ", compact: true,
     actions: "", tabs: '<button type="button" class="on" data-t="call" role="tab">Thursday call</button><button type="button" data-t="list" role="tab">All deals</button>'});
   const acts = document.createElement("div"); acts.className = "acts";
   band.querySelector(".top").appendChild(acts);
@@ -1297,7 +1297,7 @@ function renderList(){
 function setList(open){
   $("#list").hidden = !open; $("#listb").setAttribute("aria-pressed", open); $("#listb").textContent = open ? "Map" : "List";
   document.querySelectorAll(".wb-band .tabs button").forEach(b => b.classList.toggle("on", (b.dataset.t === "list") === open));
-  const t = document.querySelector(".wb-band h1"); if(t) t.textContent = open ? "All deals" : "Thursday pipeline call";
+  const t = document.querySelector(".wb-band h1"); if(t) t.textContent = "Pipeline";
   const ld = document.querySelector(".wb-band .lede"); if(ld){ ld.dataset.call = ld.dataset.call || ld.textContent; ld.textContent = open ? "Every deal we have looked at. Change a stage or the Site Scout box right in the table; click a row to open the deal." : ld.dataset.call; }
   if(open){ if(picking) setPick(false); setPlaying(false); renderList(); }
 }

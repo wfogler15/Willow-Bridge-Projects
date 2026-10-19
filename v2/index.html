@@ -116,9 +116,8 @@
       + WB.fig((+r.concessions_weeks).toFixed(1) + ' wks', 'Concessions')
       + WB.fig(Math.round(r.uc_units).toLocaleString('en-US'), 'Units under construction')
       + WB.fig(r.price_per_unit_24m ? '$' + Math.round(r.price_per_unit_24m / 1000) + 'K' : '–', 'Sales per unit, 24 mo', r.median_cap_24m ? (+r.median_cap_24m).toFixed(2) + '% cap' : ''));
-    WB.band({ eyebrow: 'Overview', title: dateTxt, lede,
-      actions: '<a class="b" href="comps/?add=1">Add a comp</a><a class="b primary" href="pipeline/">Open pipeline</a>',
-      figs, figsCols: '96px repeat(5,minmax(0,1fr))' });
+    WB.band({ title: dateTxt, lede,
+      actions: '<a class="b" href="comps/?add=1">Add a comp</a><a class="b primary" href="pipeline/">Open pipeline</a>' });
   }
   $('#allcomps').textContent = `All ${(compCount || 0).toLocaleString('en-US')} comps`;
   let selected = null;

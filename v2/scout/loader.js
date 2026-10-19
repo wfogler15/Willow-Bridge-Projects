@@ -19,7 +19,7 @@
   };
 
   WB.ready('scout', { marketMode: 'single' }).then(() => {
-    const band = WB.band({ eyebrow: 'Site scout', title: 'Off-market sites', compact: true,
+    const band = WB.band({ title: 'Site scout', compact: true,
       lede: 'Parcels, owners and nearby product for sites we are chasing. Deals checked "Show in Site Scout" in Pipeline appear here.' });
     const acts = document.createElement('div'); acts.className = 'acts'; band.querySelector('.top').appendChild(acts);
     const sb = document.getElementById('settingsBtn');

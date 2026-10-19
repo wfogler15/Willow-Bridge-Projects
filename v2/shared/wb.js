@@ -78,7 +78,7 @@
           ${single ? '' : `<option value="all"${cur === 'all' ? ' selected' : ''}>All markets</option>`}
           ${MARKETS.map((m) => `<option value="${m.id}"${m.id === cur ? ' selected' : ''}>${esc(m.short)}</option>`).join('')}
         </select>
-        ${active === 'home' ? '' : `<button type="button" class="ctl strip-btn" aria-pressed="false" title="Show the market snapshot">${ICON.strip}<span>Market snapshot</span></button>`}
+        ${`<button type="button" class="ctl strip-btn" aria-pressed="false" title="Show the market snapshot">${ICON.strip}<span>Market snapshot</span></button>`}
         <div class="me"><button type="button" aria-haspopup="true" title="${esc(user.email)}">${esc(initials)}</button>
           <div class="menu"><div class="who">Signed in as<br>${esc(user.email)}</div><button type="button" data-signout>Sign out</button></div></div>
       </div>`;

@@ -55,6 +55,7 @@
     <span class="grow"></span>
     <input class="input" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker">
   </div>
+  <div class="figs" id="stats"></div>
   <div class="split">
     <section class="sec"><div class="sec-h"><h2 id="t-title">Sales</h2><span class="note">Click a heading to sort. Double-click a row to edit.</span></div>
       <div class="tablewrap"><table class="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></section>
@@ -88,10 +89,10 @@
   const P = new URLSearchParams(location.search);
   const near = P.get('near') ? { at: P.get('near').split(',').map(Number), mi: +(P.get('mi') || 3) } : null;
   const miles = (c) => { if (c.lat == null || !near) return Infinity; const [la, lo] = near.at, r = Math.PI / 180, a = Math.sin((c.lat - la) * r / 2) ** 2 + Math.cos(la * r) * Math.cos(c.lat * r) * Math.sin((c.lng - lo) * r / 2) ** 2; return 7917.5 * Math.asin(Math.sqrt(a)); };
-  WB.band({ eyebrow: 'Sale comps', title: 'Multifamily sales', lede: 'Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.',
+  WB.band({ title: 'Sale comps', lede: 'Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.',
     actions: '<button class="b" id="b-export">Export to Excel</button><button class="b primary" id="b-add">Add a comp</button>',
-    figs: ' ', tabs: '<button data-v="investment" class="on" role="tab">Investment sales</button><button data-v="land" role="tab">Land sales</button>' });
-  document.querySelector('.wb-band .figs').id = 'stats'; document.querySelector('.wb-band .tabs').id = 'f-type';
+    tabs: '<button data-v="investment" class="on" role="tab">Investment sales</button><button data-v="land" role="tab">Land sales</button>' });
+  document.querySelector('.wb-band .tabs').id = 'f-type';
   const state = { market: WB.getMarket(), type: 'investment', since: '', q: '', sort: 'sale_date', dir: -1, sel: null };
 
   // ---------- columns ----------
