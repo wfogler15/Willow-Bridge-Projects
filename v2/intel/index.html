@@ -8941,7 +8941,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201028">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201031">
 <!-- Minimal direction (Oct 2026): white ground, hairline rules, text tabs, no shadows or boxed fills.
      Applied last so it wins over the dashboard's own styles. Charts and numbers are unchanged. -->
 <style id="wb-minimal">
@@ -9013,7 +9013,21 @@ body { font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif; back
 /* panels: hairline header, no card chrome */
 .panel { margin-bottom:36px !important; border-top:0 !important; }
 .panel-header { border-bottom:1px solid var(--line-hair) !important; padding:12px 0 !important; background:#ffffff !important; }
-.panel-body { padding:16px 0 0 !important; }
+.panel-body { padding:14px 0 0 !important; }
+
+/* Density: this is a data-dense view, so the grid is tight and paired panels share a line.
+   Spacing is set by one rhythm (20px), headers sit on the same baseline across each row,
+   and paired charts stretch to equal height so their rules and bottoms line up. */
+.panel { margin-bottom:20px !important; }
+.grid-2, .grid-3, .grid-asymmetric { gap:20px 24px !important; margin-bottom:20px !important; align-items:stretch; }
+.grid-2 > .panel, .grid-3 > .panel, .grid-asymmetric > .panel { margin-bottom:0 !important; display:flex; flex-direction:column; min-width:0; }
+.grid-2 > .panel > .panel-body, .grid-3 > .panel > .panel-body, .grid-asymmetric > .panel > .panel-body { flex:1 1 auto; }
+.panel-header { padding:10px 0 !important; }
+.panel-sub { margin-top:1px !important; line-height:1.35; }
+.kpi { padding:14px 20px 12px !important; }
+.kpi-value { font-size:24px !important; }
+.kpi-label, .kpi-sub { line-height:1.3; }
+.content { padding-top:16px !important; }
 .panel-title { font-size:15px !important; color:var(--ink-1) !important; }
 .panel-title em, .panel-title-sm em { color:var(--ink-1) !important; font-style:normal !important; font-weight:600 !important; }
 .panel-sub { font-size:12px !important; color:var(--ink-3) !important; margin-top:2px; }
@@ -9021,10 +9035,10 @@ body { font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif; back
 .toggle-btn { background:transparent !important; border:0 !important; padding:4px 10px !important; color:var(--ink-3) !important; font-weight:500 !important; }
 .toggle-btn.active { color:var(--ink-1) !important; box-shadow:inset 0 -2px 0 var(--accent) !important; }
 </style>
-<script src="../shared/wb.js?v=202610201028"></script>
-<script src="../shared/legacy-db.js?v=202610201028"></script>
-<script>window.WB_BUILD = '202610201028';</script>
-<script src="loader.js?v=202610201028"></script>
+<script src="../shared/wb.js?v=202610201031"></script>
+<script src="../shared/legacy-db.js?v=202610201031"></script>
+<script>window.WB_BUILD = '202610201031';</script>
+<script src="loader.js?v=202610201031"></script>
 
 
 
