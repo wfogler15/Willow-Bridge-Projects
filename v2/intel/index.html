@@ -8941,7 +8941,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201948">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201950">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9168,16 +9168,28 @@ body { background:#fff; color:var(--ink-1); }
 .wbi-sum { margin:0 !important; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .wbi-acts { padding-top:0 !important; }
 .wbi-fpanel { top:56px !important; }
+/* contrast pass: hard colors so theme variables can't wash these out */
+.wbi-rail-h { color:#1D1247 !important; font-weight:600 !important; font-size:12px !important; letter-spacing:.02em; }
+.wbi-rail .tab { color:#3A3456 !important; }
+.wbi-rail .tab:hover, .wbi-rail .tab.active { color:#1D1247 !important; }
+.wbi-fpanel, .wbi-fpanel .chip, .wbi-fpanel .taxonomy-btn, .wbi-fpanel .cs-side-btn, .wbi-fpanel label, .wbi-fpanel .select-item, .wbi-fpanel .select-list * { color:#3A3456 !important; }
+.wbi-fpanel .chip.active, .wbi-fpanel .taxonomy-toggle .taxonomy-btn.active, .wbi-fpanel .wbi-fsec-h, .wbi-fpanel .chip:hover { color:#1D1247 !important; }
+.wbi-fpanel .cs-side-btn-primary { color:#432890 !important; }
+.wbi-fpanel .search-input::placeholder { color:#6B6583 !important; }
+.wbi-ffoot #clear-filters { color:#3A3456 !important; }
+.wbi-fpanel .wbi-fdone { background:#1D1247 !important; color:#fff !important; }
+/* Sale Comps and Opportunities now live in their own pages */
+.tab[data-view="salecomps"], .tab[data-view="opportunities"] { display:none !important; }
 .wbi-hero-kpis { margin-top:14px !important; padding-top:14px !important; }
 .wbi-hero .kpi-label { margin-bottom:4px !important; }
 .wbi-hero .kpi-value { font-size:28px !important; }
 .wbi-hero .kpi-sub { margin-top:3px !important; }
 .wbi-hero-deco::after { width:180px !important; height:180px !important; top:-36px !important; right:-28px !important; }
 </style>
-<script src="../shared/wb.js?v=202610201948"></script>
-<script src="../shared/legacy-db.js?v=202610201948"></script>
-<script>window.WB_BUILD = '202610201948';</script>
-<script src="loader.js?v=202610201948"></script>
+<script src="../shared/wb.js?v=202610201950"></script>
+<script src="../shared/legacy-db.js?v=202610201950"></script>
+<script>window.WB_BUILD = '202610201950';</script>
+<script src="loader.js?v=202610201950"></script>
 
 
 
