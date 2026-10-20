@@ -26,6 +26,7 @@ Live site: GitHub Pages for repo `wfogler15/Willow-Bridge-Projects` (public), un
   - Structured columns on `pipeline.deals`: year_built, product_type, avg_unit_sf, building_sf, going_in_yield, uw_rent_psf, uw_rent_mo, uw_yoc, rent_for_target, target_yoc (default 6.5).
   - Also: broker, broker_contact, seller, guidance_note, bid_date, acres, zoning, entitlement, summary, take.
   - `uw` is jsonb; `uw.offer` holds the LOI terms.
+  - Investment valuation inputs live in `uw` (T-12 NOI `noi`, `mktRentPsf`/`mktRentMo`, `effRentPsf`/`effRentMo`, `occ`, `concessionWeeks`) plus `going_in_yield`. The deal slide shows price on T-12 NOI at that yield and four steps either side (0.25% apart). Set in the deal editor under "Valuation and rents".
 - **deal_log:** offers are logged as `kind='offer'` with a date.
 - **Market is set by location.** Triggers on sale_comps, deals and properties set `market_id` using `comps.nearest_market(lat, lng)`. Clients must never write `market_id` on update; `shared/legacy-db.js` strips it.
 - **Writes:** schema and data changes go through the Supabase MCP `apply_migration`, with fill-only `coalesce` updates. Never overwrite numbers Will entered.
