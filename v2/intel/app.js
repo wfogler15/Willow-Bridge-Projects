@@ -1465,9 +1465,9 @@ function activeStyle(p) {
 
 // Filter state
 const state = {
-  // Multi-select building class. Default to A + B (Willow Bridge builds luxury,
-  // so C/F is off by default but available). Empty Set = include all classes.
-  classes: new Set(['A', 'B']),
+  // Multi-select building class. Default is all classes (empty Set = no class filter);
+  // pick A, B, C or F to narrow.
+  classes: new Set(),
   status: 'all',
   minUnitSF: 0,             // avg unit-size floor — 0 = all, or 650 for "650 SF+"
   productTypes: new Set(),  // empty = include all product types
@@ -3025,7 +3025,7 @@ function attachFilterEvents() {
   });
   // Clear
   document.getElementById('clear-filters').addEventListener('click', () => {
-    state.classes = new Set(['A', 'B']);   // back to default luxury-relevant view
+    state.classes = new Set();   // back to the default: all classes
     state.status = 'all';
     state.minUnitSF = 0;
     state.productTypes.clear();
