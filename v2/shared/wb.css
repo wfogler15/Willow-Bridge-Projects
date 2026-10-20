@@ -173,7 +173,7 @@ select.input{appearance:none;-webkit-appearance:none;padding-right:26px;
    Minimal direction: no boxed panels, no chips, no tinted fills.
    Sections are separated by a dark rule under the heading and hairlines between rows.
    ===================================================================== */
-:root{--ground:#FFFFFF;--sunk:#FAFAFB;--hover:#F7F7FA;--selected:#F3F2F8;--rule:#E6E4EC;--rule-2:#EFEEF3;--rule-3:#DAD7E2;--muted:#77728C;--ink-2:#4A4560}
+:root{--ground:#FFFFFF;--sunk:#FAFAFB;--hover:#F7F7FA;--selected:#F3F2F8;--rule:#E6E4EC;--rule-2:#EFEEF3;--rule-3:#DAD7E2;--muted:#6B6683;--ink-2:#4A4560}
 body{font-size:14px}
 .page{padding:48px 48px 80px;max-width:1320px}
 .sec{background:none;border:0;border-radius:0;overflow:visible}

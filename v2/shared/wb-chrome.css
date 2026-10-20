@@ -25,7 +25,7 @@
 .wb-nav .brand{display:flex;align-items:center;gap:10px;white-space:nowrap;font:600 15px/1 var(--wb-font-display);letter-spacing:-.005em}
 .wb-nav .brand img{width:22px;height:22px;filter:brightness(0) invert(1)}
 .wb-nav nav{display:flex;height:100%;overflow-x:auto;scrollbar-width:none}
-.wb-nav nav a{display:flex;align-items:center;padding:0 13px;font-size:13.5px;transition:color .12s;color:rgba(255,255,255,.72);border-bottom:2px solid transparent;white-space:nowrap}
+.wb-nav nav a{display:flex;align-items:center;padding:0 13px;font-size:14px;transition:color .12s;color:rgba(255,255,255,.72);border-bottom:2px solid transparent;white-space:nowrap}
 .wb-nav nav a:hover{color:#fff}
 .wb-nav nav a.on{color:#fff;font-weight:600;border-bottom-color:#fff}
 .wb-nav .right{margin-left:auto;display:flex;align-items:center;gap:10px}
@@ -42,11 +42,11 @@
   background:rgba(255,255,255,.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='none' stroke='%23FFFFFF' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M2 3.5 5 6.5l3-3'/%3E%3C/svg%3E") right 10px center no-repeat}
 .wb-nav select.ctl option{color:#16142B}
 .wb-nav .me{position:relative}
-.wb-nav .me>button{width:30px;height:30px;border-radius:50%;border:0;background:var(--wb-lilac);color:var(--wb-midnight);font:600 11.5px var(--wb-font);cursor:pointer}
+.wb-nav .me>button{width:30px;height:30px;border-radius:50%;border:0;background:var(--wb-lilac);color:var(--wb-midnight);font:600 12px var(--wb-font);cursor:pointer}
 .wb-nav .menu{position:absolute;right:0;top:38px;min-width:220px;background:#fff;color:var(--wb-ink);border:1px solid var(--wb-rule);border-radius:8px;
   box-shadow:0 10px 30px rgba(22,20,43,.18);padding:6px;display:none}
 .wb-nav .menu.open{display:block}
-.wb-nav .menu .who{padding:8px 10px 10px;color:var(--wb-muted);font-size:12.5px;border-bottom:1px solid var(--wb-rule-2);margin-bottom:4px}
+.wb-nav .menu .who{padding:8px 10px 10px;color:var(--wb-muted);font-size:13px;border-bottom:1px solid var(--wb-rule-2);margin-bottom:4px}
 .wb-nav .menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:5px;font:13px var(--wb-font);color:var(--wb-ink);cursor:pointer}
 .wb-nav .menu button:hover{background:var(--wb-ground)}
 /* auto-hiding app bar (Market intel) */
@@ -65,10 +65,10 @@
 .wb-strip .m+.m{border-left:1px solid var(--wb-rule)}
 .wb-strip .m.dim{opacity:.45}
 .wb-strip .nm{font:600 14px var(--wb-font-display)}
-.wb-strip .nm small{display:block;font:400 11.5px var(--wb-font);color:var(--wb-faint);margin-top:1px}
+.wb-strip .nm small{display:block;font:400 12px var(--wb-font);color:var(--wb-faint);margin-top:1px}
 .wb-strip .v{font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
 .wb-strip .v span{font-weight:400;color:var(--wb-muted);font-size:12px;margin-left:4px}
-.wb-strip .l{font-size:11.5px;color:var(--wb-muted);white-space:nowrap}
+.wb-strip .l{font-size:12px;color:var(--wb-muted);white-space:nowrap}
 @media (max-width:1100px){.wb-strip{grid-template-columns:1fr}.wb-strip .m+.m{border-left:0;border-top:1px solid var(--wb-rule)}}
 @media (max-width:700px){.wb-strip .m{grid-template-columns:repeat(3,minmax(0,1fr))}.wb-strip .nm{grid-column:1/-1}}
 
@@ -78,7 +78,7 @@
 .wb-login .card{width:min(380px,100%);background:#fff;border-radius:10px;padding:30px}
 .wb-login img{width:34px;height:34px}
 .wb-login h1{font:600 22px/1.2 var(--wb-font-display);margin:14px 0 4px;color:var(--wb-ink)}
-.wb-login p{color:var(--wb-muted);margin:0 0 18px;font-size:13.5px}
+.wb-login p{color:var(--wb-muted);margin:0 0 18px;font-size:14px}
 .wb-login form{display:flex;flex-direction:column;gap:10px}
 .wb-login form[hidden]{display:none}
 .wb-login .input{border:1px solid var(--wb-rule);background:#fff;border-radius:6px;padding:9px 11px;font:inherit;width:100%}
@@ -141,7 +141,7 @@
    Less on screen, each thing intentional. Market intel keeps its own design;
    only the app bar here touches it.
    ===================================================================== */
-:root{--wb-ground:#FFFFFF;--wb-sunk:#FAFAFB;--wb-rule:#E6E4EC;--wb-rule-2:#EFEEF3;--wb-muted:#77728C;--wb-ink-2:#4A4560}
+:root{--wb-ground:#FFFFFF;--wb-sunk:#FAFAFB;--wb-rule:#E6E4EC;--wb-rule-2:#EFEEF3;--wb-muted:#6B6683;--wb-ink-2:#4A4560}
 .wb-nav{background:#fff;color:var(--wb-ink);border-bottom:1px solid var(--wb-rule);gap:30px;padding:0 32px}
 .wb-nav .brand{font:600 15px/1 var(--wb-font-display);letter-spacing:-.01em}
 .wb-nav .brand img{filter:none}

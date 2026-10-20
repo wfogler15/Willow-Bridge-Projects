@@ -6,7 +6,7 @@
 <title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610201939">
+<link rel="stylesheet" href="../shared/wb.css?v=202610201947">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -38,7 +38,7 @@
   #peek .pk-x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px}
   #peek .pk-f{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
   #peek .pk-f .v{font:600 14px/1.2 var(--font-display);color:var(--ink);white-space:nowrap}
-  #peek .pk-f .l{font-size:11px;color:var(--muted);margin-top:2px}
+  #peek .pk-f .l{font-size:12px;color:var(--muted);margin-top:2px}
   #peek .pk-p{font-size:12px;color:var(--muted);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #peek .pk-b{width:100%;border:0;border-radius:6px;background:var(--midnight);color:#fff;font:600 13px var(--font);padding:8px 10px;cursor:pointer}
   #peek .pk-b:hover{background:var(--purple)}
@@ -62,7 +62,7 @@
   .drawer footer{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--rule);background:var(--sunk)}
   .drawer .hint{font-size:12px;color:var(--muted)}
   @media (prefers-reduced-motion:reduce){.drawer{transition:none}}
-  #f-count:not(:empty){display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--purple);color:#fff;font-size:11px;line-height:18px;text-align:center}
+  #f-count:not(:empty){display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--purple);color:#fff;font-size:12px;line-height:18px;text-align:center}
   #fdrawer form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
   #fdrawer .fx-h{grid-column:1/-1;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:6px;border-bottom:1px solid var(--rule);padding-bottom:4px}
   #fdrawer .fx-h:first-child{margin-top:0}
@@ -86,7 +86,7 @@
   .mfigs>div{padding:12px 16px;border-right:1px solid var(--rule);min-width:0}
   .mfigs>div:last-child{border-right:0}
   .mfigs .v{font:600 17px/1.2 var(--font-display);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .mfigs .l{margin-top:3px;font-size:11px;color:var(--muted)}
+  .mfigs .l{margin-top:3px;font-size:12px;color:var(--muted)}
   .mbody{overflow:auto;padding:6px 20px 18px}
   .msec{padding-top:14px}
   .msec h3{margin:0 0 8px;padding-bottom:4px;border-bottom:1px solid var(--rule);font:600 11px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -133,7 +133,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610201939"></script>
+<script src="../shared/wb.js?v=202610201947"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
