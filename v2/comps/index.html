@@ -6,7 +6,7 @@
 <title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610201822">
+<link rel="stylesheet" href="../shared/wb.css?v=202610201831">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -133,7 +133,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610201822"></script>
+<script src="../shared/wb.js?v=202610201831"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -322,13 +322,19 @@
   }
   function renderPeek(list) {
     const el = $('#peek'), c = state.sel && list.find((r) => r.id === state.sel);
-    if (!c || $('#drawer').classList.contains('open')) { el.hidden = true; return; }
+    if (!c || $('#drawer').classList.contains('open')) { el.hidden = true; parcelFor = null; clearParcel(); return; }
+    if (c.id !== parcelFor) { parcelFor = c.id; clearParcel(); startParcel(c); }
     const land = c.comp_type === 'land';
     const f = land ? [[fmt.usd(c.sale_price), 'Price'], [fmt.usd(c.price_per_unit), 'Per door'], [fmt.ac(c.acres), 'Acres']]
                    : [[fmt.usd(c.sale_price), 'Price'], [fmt.usd(c.price_per_unit), 'Per unit'], [fmt.int(c.units) + ' units', 'Size']];
+    const pi = PARCEL[c.id], pl = !c.lat ? 'No map pin yet, so no parcel to outline'
+      : !pi || pi.s === 'loading' ? 'Looking up the parcel…'
+      : pi.s === 'ok' ? `Parcel ${pi.apn || '(no APN)'} · ${fmt.ac(pi.acres)}${c.acres && Math.abs(pi.acres - c.acres) / c.acres > .15 ? ' (comp: ' + fmt.ac(c.acres) + ')' : ''}`
+      : pi.s === 'none' ? 'No parcel at this pin. Move the pin onto the site.' : 'Parcel service did not respond';
     el.innerHTML = `<div class="pk-h"><div class="pk-t"><div class="pk-n">${esc(c.name || c.address || 'Untitled comp')}</div>`
       + `<div class="pk-s">${esc([c.address, fmt.date(c.sale_date)].filter((x) => x && x !== '—').join(' · '))}</div></div><button class="pk-x" type="button" id="pk-x" aria-label="Close preview">×</button></div>`
       + `<div class="pk-f">${f.map(([v, l]) => `<div><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}</div>`
+      + `<div class="pk-p" title="${esc(pl)}">${esc(pl)}</div>`
       + `<div class="pk-p">${esc([c.buyer && 'Buyer: ' + c.buyer, c.seller && 'Seller: ' + c.seller].filter(Boolean).join('  ·  ') || 'No buyer or seller on record')}</div>`
       + `<button class="pk-b" type="button" id="pk-open">Full detail</button>`;
     el.hidden = false;
@@ -337,6 +343,72 @@
     if (e.target.closest('#pk-x')) { state.sel = null; render(); return; }
     if (e.target.closest('#pk-open')) openDetail(rows.find((r) => r.id === state.sel));
   });
+
+  // ---------- parcel outline for the selected comp (county assessor GIS, looked up at the comp's pin) ----------
+  const PARCEL = {};   // comp id -> { s: 'loading'|'ok'|'none'|'err', apn, acres, rings }
+  let parcelFor = null;
+  const MARICOPA_SVC = 'https://gis.mcassessor.maricopa.gov/arcgis/rest/services/MaricopaDynamicQueryService/MapServer/3';
+  const CO_SVC = 'https://gis.colorado.gov/public/rest/services/Address_and_Parcel/Colorado_Public_Parcels/FeatureServer/0';
+  const COUNTY_SVC = [
+    { svc: 'https://services3.arcgis.com/4PNQOtAivErR7nbT/arcgis/rest/services/Parcels/FeatureServer/0', b: [39.79, -105.05, 40.00, -103.70] },
+    { svc: 'https://arcgis.jeffco.us/arcgis/rest/services/Assessor/Parcels/MapServer/0', b: [39.13, -105.40, 39.93, -105.05] },
+    { svc: 'https://gisapps.douglas.co.us/arcgis/rest/services/Public/Parcel_Information/MapServer/0', b: [39.13, -105.22, 39.57, -104.60] },
+    { svc: 'https://maps.bouldercounty.org/arcgis/rest/services/POS/Parcels/MapServer/0', b: [39.91, -105.69, 40.26, -105.05] },
+  ];
+  const jsonp = (url, params) => new Promise((ok, no) => {
+    const cb = '_pcb' + Math.random().toString(36).slice(2), sc = document.createElement('script');
+    const done = () => { delete window[cb]; sc.remove(); };
+    window[cb] = (j) => { done(); ok(j); };
+    sc.onerror = () => { done(); no(new Error('jsonp')); };
+    params.set('callback', cb); sc.src = url + '?' + params; document.head.appendChild(sc);
+  });
+  const pickAttr = (a, names) => { for (const n of names) for (const k in a) if (k.toLowerCase() === n.toLowerCase() && a[k] != null && a[k] !== '') return String(a[k]); return ''; };
+  async function queryPoint(svc, lng, lat, fields) {
+    const mk = () => new URLSearchParams({ geometry: JSON.stringify({ x: lng, y: lat, spatialReference: { wkid: 4326 } }), geometryType: 'esriGeometryPoint',
+      inSR: 4326, outSR: 4326, spatialRel: 'esriSpatialRelIntersects', outFields: fields, returnGeometry: true, geometryPrecision: 6, resultRecordCount: 1, f: 'json' });
+    const viaFetch = fetch(svc + '/query?' + mk()).then((r) => r.json());
+    const viaJsonp = viaFetch.catch(() => jsonp(svc + '/query', mk()));
+    const j = await Promise.race([viaJsonp, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), 30000))]);
+    if (j && j.error) throw new Error(j.error.message || 'service error');
+    const f = j && j.features && j.features[0];
+    if (!f || !f.geometry || !f.geometry.rings) return null;
+    return { apn: pickAttr(f.attributes || {}, ['parcel_id', 'APN_DASH', 'PARCELNB', 'PIN', 'SCHEDNUM', 'SCHEDULE', 'PARCEL_NO', 'PARCELNO', 'APN', 'ACCOUNT_NO', 'ACCOUNTNO', 'STATE_PARCEL_NO']), rings: f.geometry.rings };
+  }
+  async function parcelAt(lng, lat) {
+    if (lat < 36) return queryPoint(MARICOPA_SVC, lng, lat, 'APN_DASH,PHYSICAL_ADDRESS,OWNER_NAME');
+    const tries = [queryPoint(CO_SVC, lng, lat, 'parcel_id,situsAdd,owner,countyName')];
+    COUNTY_SVC.forEach((c) => { if (lat >= c.b[0] && lat <= c.b[2] && lng >= c.b[1] && lng <= c.b[3]) tries.push(queryPoint(c.svc, lng, lat, '*')); });
+    try { return await Promise.any(tries.map((t) => t.then((v) => v || Promise.reject(new Error('none'))))); }
+    catch (e) { const res = await Promise.allSettled(tries); if (res.some((r) => r.status === 'fulfilled')) return null; throw new Error('unreachable'); }
+  }
+  const ringSigned = (r) => { let a = 0; for (let i = 0; i < r.length - 1; i++) a += r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1]; return a / 2; };
+  const ringAcres = (r) => { const k = Math.cos(r[0][1] * Math.PI / 180) * 111320; let s = 0; for (let i = 0; i < r.length - 1; i++) s += (r[i][0] * k) * (r[i + 1][1] * 110950) - (r[i + 1][0] * k) * (r[i][1] * 110950); return s / 2 / 4046.86; };
+  // Esri: clockwise rings are outer shells, counter-clockwise are holes
+  function toMulti(rings) {
+    const polys = [];
+    rings.forEach((r) => { if (ringSigned(r) < 0 || !polys.length) polys.push([r]); else polys[polys.length - 1].push(r); });
+    return polys;
+  }
+  const emptyFC = { type: 'FeatureCollection', features: [] };
+  function clearParcel() { const s = map && map.getSource && map.getSource('parcel'); if (s) s.setData(emptyFC); }
+  function drawParcel(rings) {
+    const s = map.getSource('parcel'); if (!s) return;
+    s.setData({ type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: toMulti(rings) } });
+    const b = new maplibregl.LngLatBounds(); rings.forEach((r) => r.forEach((p) => b.extend(p)));
+    map._fitOnce = true;
+    map.fitBounds(b, { padding: { top: 60, bottom: 190, left: 60, right: 60 }, maxZoom: 17.5, duration: 700 });
+  }
+  async function startParcel(c) {
+    if (c.lat == null || c.lng == null) return;
+    let pi = PARCEL[c.id];
+    if (pi && pi.s !== 'err' && pi.s !== 'loading') { if (pi.s === 'ok') drawParcel(pi.rings); return; }
+    PARCEL[c.id] = { s: 'loading' }; renderPeek(filtered());
+    try {
+      const v = await parcelAt(c.lng, c.lat);
+      PARCEL[c.id] = v ? { s: 'ok', apn: v.apn, rings: v.rings, acres: Math.abs(v.rings.reduce((t, r) => t + ringAcres(r), 0)) } : { s: 'none' };
+    } catch (e) { PARCEL[c.id] = { s: 'err' }; }
+    if (parcelFor === c.id) { if (PARCEL[c.id].s === 'ok') drawParcel(PARCEL[c.id].rings); renderPeek(filtered()); }
+  }
 
   // ---------- map ----------
   const map = new maplibregl.Map({
@@ -348,7 +420,13 @@
     center: [-108.4, 36.6], zoom: 4.6,
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-  map.on('load', () => { if (!map._fitOnce) drawMarkers(filtered()); });
+  map.on('load', () => {
+    map.addSource('parcel', { type: 'geojson', data: emptyFC });
+    map.addLayer({ id: 'parcel-fill', type: 'fill', source: 'parcel', paint: { 'fill-color': '#F2B01E', 'fill-opacity': 0.22 } });
+    map.addLayer({ id: 'parcel-line', type: 'line', source: 'parcel', paint: { 'line-color': '#F2B01E', 'line-width': 2.5 } });
+    if (!map._fitOnce) drawMarkers(filtered());
+    if (parcelFor) { const c = rows.find((r) => r.id === parcelFor); if (c) { parcelFor = null; renderPeek(filtered()); } }
+  });
   let markers = [];
   function drawMarkers(list) {
     markers.forEach((m) => m.remove()); markers = [];
