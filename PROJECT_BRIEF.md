@@ -27,6 +27,7 @@ Live site: GitHub Pages for repo `wfogler15/Willow-Bridge-Projects` (public), un
   - Also: broker, broker_contact, seller, guidance_note, bid_date, acres, zoning, entitlement, summary, take.
   - `uw` is jsonb; `uw.offer` holds the LOI terms.
   - Investment valuation inputs live in `uw` (T-12 NOI `noi`, `mktRentPsf`/`mktRentMo`, `effRentPsf`/`effRentMo`, `occ`, `concessionWeeks`) plus `going_in_yield`. The deal slide shows price on T-12 NOI at that yield and four steps either side (0.25% apart). Set in the deal editor under "Valuation and rents".
+- **Pipeline and Site Scout stay in sync.** Pipeline is the controller; Site Scout is the deeper map view for finding off-market sites. Scout shows every pipeline deal (archived ones as Past Pursuit; deals with no parcel outline get a placeholder square). A site added in Scout creates a pipeline deal (`shared/scout-db.js`, `saveSite`). Removing a site in Scout archives the deal (stage passed); it never deletes. `in_scout` is no longer used as a filter.
 - **deal_log:** offers are logged as `kind='offer'` with a date.
 - **Market is set by location.** Triggers on sale_comps, deals and properties set `market_id` using `comps.nearest_market(lat, lng)`. Clients must never write `market_id` on update; `shared/legacy-db.js` strips it.
 - **Writes:** schema and data changes go through the Supabase MCP `apply_migration`, with fill-only `coalesce` updates. Never overwrite numbers Will entered.

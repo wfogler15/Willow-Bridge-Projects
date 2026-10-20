@@ -620,7 +620,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610201950"></script>
+<script src="../shared/wb.js?v=202610201953"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -793,7 +793,7 @@ function manageBlock(d){
     + '<label class="full">Deal folder (OneDrive link or folder path)<input name="folder_path" value="' + v(r.folder_path) + '" placeholder="Paste the OneDrive link to the OM, T-12 and rent roll"></label>'
     + '<label class="full">Summary<textarea name="summary" rows="3" placeholder="What it is: size, vintage, location, how it is being marketed">' + v(r.summary) + '</textarea></label>'
     + '<label class="full">Our take<textarea name="take" rows="2" placeholder="Why it matters to us, or why we would pass">' + v(r.take) + '</textarea></label>'
-    + '<label class="full check"><input type="checkbox" name="in_scout"' + (r.in_scout ? " checked" : "") + '> Show in Site Scout</label>'
+    
     + '<div class="full mg-h">Status</div>'
     + '<label>Stage<select name="stage">' + STAGE_OPTS.map(o => '<option value="' + o[0] + '"' + (o[0] === d.stage ? " selected" : "") + ">" + o[1] + "</option>").join("") + "</select></label>"
     + '<label>Bids due<input type="date" name="bid_date" value="' + v(r.bid_date) + '"></label>'
@@ -846,7 +846,7 @@ document.addEventListener("click", async (ev) => {
   const det = {name: f("name") || d._row.name, address: f("address") || null, kind: f("kind"), market_id: f("market_id"),
     units: num("units") == null ? null : Math.round(num("units")), acres: num("acres"), lat: num("lat"), lng: num("lng"),
     broker: f("broker") || null, seller: f("seller") || null, first_seen: f("first_seen") || d._row.first_seen, guidance_note: f("guidance_note") || null,
-    folder_path: f("folder_path") || null, summary: f("summary") || null, take: f("take") || null, in_scout: box.querySelector("[name=in_scout]").checked};
+    folder_path: f("folder_path") || null, summary: f("summary") || null, take: f("take") || null};
   if((det.lat == null) !== (det.lng == null)){ box.querySelector(".saved").textContent = "Enter both latitude and longitude, or neither."; return; }
   const moved = det.lat !== (d._row.lat == null ? null : +d._row.lat) || det.lng !== (d._row.lng == null ? null : +d._row.lng);
   const patch = {...det, stage: dbStage, bid_date: f("bid_date") || null, guidance: f("guidance") === "" ? null : +f("guidance"),
@@ -860,7 +860,6 @@ document.addEventListener("click", async (ev) => {
   const notes = [];
   if(prevStage !== dbStage) notes.push({deal_id: d.id, kind: "stage", body: "Stage: " + prevLabel + " → " + (STAGES[newStage] || newStage) + (patch.check_back_on ? ", check back " + fmtDate(patch.check_back_on) : "") + "."});
   if(moved && det.lat != null) notes.push({deal_id: d.id, kind: "note", body: "Location updated."});
-  if(det.in_scout !== !!d._row.in_scout) notes.push({deal_id: d.id, kind: "note", body: det.in_scout ? "Added to Site Scout." : "Removed from Site Scout."});
   if(f("note")) notes.push({deal_id: d.id, kind: "note", body: f("note")});
   if(notes.length){ const { error: e2 } = await sb.schema("pipeline").from("deal_log").insert(notes); if(e2){ msg.textContent = e2.message; return; } }
   const log = d.log.concat(notes.map(n => [isoToday(), n.body]));
@@ -887,7 +886,7 @@ function openAddDeal(){
       + '<label>Guidance ($)<input type="number" name="guidance" step="any"></label><label>Broker<input name="broker"></label>'
       + '<label class="full">Deal folder (OneDrive link or folder path)<input name="folder_path"></label>'
       + '<label class="full">Summary<textarea name="summary" rows="3"></textarea></label>'
-      + '<label class="full check"><input type="checkbox" name="in_scout"> Show in Site Scout</label>'
+      
       + '<div class="full quick"><button type="submit" class="save">Add deal</button><button type="button" data-close>Cancel</button><span class="saved"></span></div></div></form>';
     document.body.appendChild(m);
     m.addEventListener("click", e => { if(e.target === m || e.target.closest("[data-close]")) m.hidden = true; });
@@ -896,7 +895,7 @@ function openAddDeal(){
       const F = e.target, val = n => (F[n].value || "").trim(), nn = n => val(n) === "" ? null : +val(n);
       const row = {name: val("name"), market_id: val("market_id"), kind: val("kind"), stage: val("stage"), bid_date: val("bid_date") || null,
         address: val("address") || null, units: nn("units") == null ? null : Math.round(nn("units")), acres: nn("acres"), guidance: nn("guidance"),
-        broker: val("broker") || null, folder_path: val("folder_path") || null, summary: val("summary") || null, in_scout: F.in_scout.checked, first_seen: isoToday()};
+        broker: val("broker") || null, folder_path: val("folder_path") || null, summary: val("summary") || null, in_scout: true, first_seen: isoToday()};
       const msg = F.querySelector(".saved"); msg.textContent = "Saving…";
       const { data, error } = await sb.schema("pipeline").from("deals").insert(row).select("id").single();
       if(error){ msg.textContent = error.message; return; }
@@ -1558,7 +1557,7 @@ const FIELDS = [
   ["Deal", [
     ["name", "Name", "text", "full"], ["market_id", "Market", "market"], ["kind", "Type", "select:land=Development,asset=Investment"],
     ["stage", "Status", "stage"], ["first_seen", "First seen", "date"], ["check_back_on", "Check back on", "date"],
-    ["address", "Address", "text", "full"], ["lat", "Latitude", "num"], ["lng", "Longitude", "num"], ["in_scout", "Show in Site Scout", "check", "full"],
+    ["address", "Address", "text", "full"], ["lat", "Latitude", "num"], ["lng", "Longitude", "num"],
   ]],
   ["Pricing and process", [
     ["guidance", "Pricing guidance ($)", "num"], ["guidance_note", "Guidance note", "text"], ["bid_date", "Call for offers (CFO) date", "date"],
@@ -1693,7 +1692,7 @@ async function exportDeals(){
   const tail = [["Pricing guidance ($)", M.guidance], ["Guidance note", d => RW(d).guidance_note], ["CFO date", d => RW(d).bid_date], ["Broker", d => RW(d).broker], ["Broker contact", d => RW(d).broker_contact],
     ["Seller", d => RW(d).seller], ["Owner of record", d => RW(d).owner_of_record], ["Zoning", d => RW(d).zoning], ["Entitlement", d => RW(d).entitlement],
     ["Buyer / winner", d => RW(d).outcome_winner], ["Sale price ($)", d => N(RW(d).outcome_price)], ["Sale date", d => RW(d).outcome_date],
-    ["First seen", d => RW(d).first_seen], ["Check back on", d => RW(d).check_back_on], ["In Site Scout", d => RW(d).in_scout ? "Yes" : ""],
+    ["First seen", d => RW(d).first_seen], ["Check back on", d => RW(d).check_back_on],
     ["Summary", d => RW(d).summary], ["Our take", d => RW(d).take], ["Deal folder", d => RW(d).folder_path]];
   const SHEETS = {
     land: base.concat([["Proposed units", M.units], ["Acres", M.acres], ["Density (units/ac)", d => M.density(d) && +M.density(d).toFixed(2)], ["$/unit", d => M.perUnit(d) && Math.round(M.perUnit(d))],

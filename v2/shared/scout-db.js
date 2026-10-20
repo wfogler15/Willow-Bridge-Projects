@@ -25,6 +25,18 @@
       default: return current || 'prospect';
     }
   }
+  // Pipeline's archive rule (outcome, lost/dead/closed, or bid date passed outside LOI/contract) shows as Past Pursuit here
+  const isArchived = (d) => {
+    if (d.outcome) return true;
+    if (['lost', 'dead', 'closed', 'passed'].includes(d.stage)) return true;
+    const bd = d.bid_date ? new Date(d.bid_date + 'T23:59:59') : null;
+    return !!(bd && bd < new Date() && !['loi', 'under_contract'].includes(d.stage));
+  };
+  const scoutStatus = (d) => {
+    const u = d.uw || {};
+    if (isArchived(d)) return 'past';
+    return u.scoutStatus === 'contacted' && d.stage === 'prospect' ? 'contacted' : (TO_SITE[d.stage] || 'prospect');
+  };
   const centroid = (g) => {
     const pts = []; const walk = (c) => { if (typeof c[0] === 'number') pts.push(c); else c.forEach(walk); };
     try { walk(g.coordinates); } catch (e) { return [null, null]; }
@@ -45,7 +57,7 @@
     return { deals, pById, linksByDeal, logsByDeal };
   }
   function dealToSite(d, all) {
-    if (!d.in_scout) return null;   // only deals flagged "Show in Site Scout" in Pipeline (or saved from Scout)
+    // Pipeline is the controller: every deal with a location or parcel shows here, archived ones included.
     const u = d.uw || {};
     const parcels = (all.linksByDeal.get(d.id) || []).map((pid) => all.pById.get(pid)).filter((p) => p && p.geom).map((p) => {
       const a = { ...(p.attrs || {}) }; const overrides = a.overrides; delete a.overrides; delete a.source; delete a.note;
@@ -65,7 +77,7 @@
     }
     const id = (d.legacy && d.legacy.site_scout_ids && d.legacy.site_scout_ids[0]) || d.id;
     const notes = (all.logsByDeal.get(d.id) || []).map((l) => ({ t: new Date(l.created_at || l.logged_on).getTime(), text: l.body }));
-    const status = u.scoutStatus === 'contacted' && d.stage === 'prospect' ? 'contacted' : (TO_SITE[d.stage] || 'prospect');
+    const status = scoutStatus(d);
     const site = { id, _dealId: d.id, name: d.name, status, market: d.market_id, notes, parcels,
       entitlement: d.entitlement || '', flu: u.flu || '', created: new Date(d.created_at).getTime(), updated: new Date(d.updated_at).getTime() };
     const sum = parcels.reduce((t, p) => t + (p.acres || 0), 0);
@@ -88,7 +100,7 @@
     let d = await findDeal(site.id, site._dealId);
     const uwPatch = { flu: site.flu || null, scoutStatus: site.status === 'contacted' ? 'contacted' : null };
     if (d) {
-      const prevStage = d.stage, stage = siteToStage(site.status, d.stage);
+      const prevStage = d.stage, stage = site.status === scoutStatus(d) ? d.stage : siteToStage(site.status, d.stage);
       const keepAcres = site.acresOverride == null && d.acres != null && Math.abs(+d.acres - sumAc) < 0.05 ? +d.acres : acres;
       const { error } = await S('pipeline').from('deals').update({ name: site.name, stage, entitlement: site.entitlement || null, acres: keepAcres,
         lat: lat ?? d.lat, lng: lng ?? d.lng, uw: { ...(d.uw || {}), ...uwPatch } }).eq('id', d.id);
@@ -98,7 +110,7 @@
       const { data: prop, error: pe } = await S('core').from('properties').insert({ market_id: market, kind: 'land', name: site.name, lat, lng, acres, source: 'manual' }).select('id').single();
       if (pe) throw pe;
       const { data, error } = await S('pipeline').from('deals').insert({ market_id: market, property_id: prop.id, name: site.name || 'Untitled site', kind: 'land',
-        stage: siteToStage(site.status, null), lat, lng, acres, in_scout: true, entitlement: site.entitlement || null, uw: uwPatch,
+        stage: siteToStage(site.status, null), lat, lng, acres, in_scout: true, first_seen: new Date().toISOString().slice(0, 10), entitlement: site.entitlement || null, uw: uwPatch,
         legacy: { site_scout_ids: [String(site.id)] } }).select('*').single();
       if (error) throw error;
       d = data;
@@ -147,12 +159,12 @@
   const H = {
     async sites_select() { const all = await loadAll(); return all.deals.map((d) => dealToSite(d, all)).filter(Boolean).map((s) => ({ id: s.id, data: s, updated: s.updated })); },
     async sites_upsert(row) { await saveSite(row.data || row); },
-    // removing a site only takes it off the Site Scout map: the deal (and its underwriting, log, comps) stays in the pipeline
+    // Pipeline owns the deal, so "remove" in Site Scout archives it (stage Passed) instead of hiding it. It stays on both maps.
     async sites_remove(f) {
       const d = await findDeal(f.id); if (!d) return;
-      // the deal and its parcel outline stay in Pipeline; it just stops showing in Site Scout
-      const { error } = await S('pipeline').from('deals').update({ in_scout: false }).eq('id', d.id); if (error) throw error;
-      await S('pipeline').from('deal_log').insert({ deal_id: d.id, kind: 'note', body: 'Removed from Site Scout.' });
+      if (['passed', 'lost', 'dead', 'closed'].includes(d.stage)) return;
+      const { error } = await S('pipeline').from('deals').update({ stage: 'passed' }).eq('id', d.id); if (error) throw error;
+      await S('pipeline').from('deal_log').insert({ deal_id: d.id, kind: 'stage', body: 'Archived from Site Scout (stage set to passed).' });
     },
     async pois_select() { const rows = await WB.fetchAll('core', 'pois', '*'); return rows.map((r) => ({ id: r.id, data: poiData(r) })); },
     async pois_upsert(row) { const { error } = await S('core').from('pois').upsert(poiRow(row.data || row)); if (error) throw error; },
