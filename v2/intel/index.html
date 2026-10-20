@@ -8941,7 +8941,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201026">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201028">
 <!-- Minimal direction (Oct 2026): white ground, hairline rules, text tabs, no shadows or boxed fills.
      Applied last so it wins over the dashboard's own styles. Charts and numbers are unchanged. -->
 <style id="wb-minimal">
@@ -8977,21 +8977,24 @@ body { font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif; back
 /* Legacy brand block and page title duplicate the shared nav; the market name stays in the header row. */
 .sidebar .brand, .sidebar .brand-sub, .topbar-identity { display:none !important; }
 .sidebar { background:#ffffff !important; border-right:1px solid var(--line-hair) !important; box-shadow:none !important; }
-.sidebar-inner { padding:24px 20px !important; }
+.sidebar-inner { padding:28px 24px !important; }
 .sidebar-toggle { border-radius:0; box-shadow:none; }
-.filter-group { margin-bottom:22px; padding-bottom:0; border:0 !important; }
-.filter-label { font-family:Aptos,Inter,sans-serif; font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); margin-bottom:8px; }
-.acc-toggle { cursor:pointer; padding:6px 0; margin-bottom:0; }
-.accordion { margin-bottom:14px; }
-.chip-row { gap:4px !important; }
-.chip { padding:4px 9px !important; font-size:12px !important; }
-.chip.active { font-weight:600 !important; color:var(--ink-1) !important; }
+.filter-group { margin-bottom:26px; padding-bottom:0; border:0 !important; }
+/* section labels read like the Overview headings: sentence case, semibold, hairline beneath */
+.filter-label { font-family:Aptos,Inter,sans-serif; font-size:13px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--ink-1); padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid var(--ink-1); }
+.acc-toggle { cursor:pointer; margin-bottom:0; }
+.accordion { margin-bottom:22px; }
+/* options are text, not boxes: active is midnight and semibold, inactive is muted */
+.chip-row { gap:14px !important; }
+.chip { padding:0 !important; border:0 !important; background:transparent !important; font-size:13px !important; color:var(--ink-3) !important; box-shadow:none !important; }
+.chip:hover { color:var(--ink-1) !important; }
+.chip.active { font-weight:600 !important; color:var(--ink-1) !important; box-shadow:inset 0 -2px 0 var(--accent) !important; }
 .taxonomy-toggle { border-radius:0 !important; border:0 !important; background:transparent !important; gap:12px !important; }
 .taxonomy-btn { border-radius:0 !important; background:transparent !important; border:0 !important; padding:4px 0 !important; color:var(--ink-3) !important; box-shadow:none !important; font-weight:500 !important; }
 .taxonomy-btn.active, .taxonomy-btn[aria-pressed="true"] { color:var(--ink-1) !important; font-weight:600 !important; box-shadow:inset 0 -2px 0 var(--accent) !important; }
 .cs-side-picker, .search-input, select { border-radius:0 !important; box-shadow:none !important; border-color:var(--line) !important; }
 .cs-side-btn, .btn-clear, .topbar-action-btn { border-radius:0 !important; box-shadow:none !important; background:transparent !important; border:0 !important; color:var(--ink-2) !important; font-weight:500 !important; padding:6px 0 !important; text-transform:none !important; letter-spacing:0 !important; }
-.cs-side-btn-primary { color:#ffffff !important; background:var(--ink-1) !important; border:1px solid var(--ink-1) !important; padding:7px 12px !important; }
+.cs-side-btn-primary { color:var(--accent) !important; font-weight:600 !important; }
 .topbar-action-btn:hover, .cs-side-btn:hover, .btn-clear:hover { color:var(--ink-1) !important; }
 
 /* header row: market name + actions, one line */
@@ -9018,10 +9021,10 @@ body { font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif; back
 .toggle-btn { background:transparent !important; border:0 !important; padding:4px 10px !important; color:var(--ink-3) !important; font-weight:500 !important; }
 .toggle-btn.active { color:var(--ink-1) !important; box-shadow:inset 0 -2px 0 var(--accent) !important; }
 </style>
-<script src="../shared/wb.js?v=202610201026"></script>
-<script src="../shared/legacy-db.js?v=202610201026"></script>
-<script>window.WB_BUILD = '202610201026';</script>
-<script src="loader.js?v=202610201026"></script>
+<script src="../shared/wb.js?v=202610201028"></script>
+<script src="../shared/legacy-db.js?v=202610201028"></script>
+<script>window.WB_BUILD = '202610201028';</script>
+<script src="loader.js?v=202610201028"></script>
 
 
 
