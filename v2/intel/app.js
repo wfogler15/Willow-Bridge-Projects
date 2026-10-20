@@ -1,3 +1,12 @@
+// Street basemap: CARTO's Voyager tiles now answer "API key required", so the street view uses Esri's
+// light gray canvas (no key; same host as the satellite layer) with its reference labels on top.
+function wbStreetLayer() {
+  const opts = { attribution: 'Esri, HERE, Garmin, &copy; OpenStreetMap contributors', maxZoom: 19, maxNativeZoom: 16 };
+  return L.layerGroup([
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', opts),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 16 }),
+  ]);
+}
 
 /* =================================================================
    DATA + STATE
@@ -2778,7 +2787,7 @@ window.refreshAllChartThemes = refreshAllChartThemes;
 
 const AXIS_COMMON = {
   grid: { color: () => chartGridColor(), drawBorder: false, drawTicks: false, tickLength: 0, borderDash: [3, 3] },
-  ticks: { color: () => chartThemeColor('--ink-1', '#000000'), font: { size: 13, family: "'Inter Tight', sans-serif", weight: '700' }, padding: 8 },
+  ticks: { color: () => chartThemeColor('--ink-3', '#5f5a75'), font: { size: 11, family: "'Inter Tight', sans-serif", weight: '400' }, padding: 6 },
   border: { display: false }
 };
 
@@ -3328,7 +3337,7 @@ function renderOverview() {
       layout: { padding: { top: 8, right: 12 } },
       scales: {
         x: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, callback: v => '$' + v.toFixed(2) } },
-        y: { ...AXIS_COMMON, grid: { display: false }, ticks: { ...AXIS_COMMON.ticks, font: { size: 12, family: "'Inter Tight', sans-serif", weight: '600' } } }
+        y: { ...AXIS_COMMON, grid: { display: false }, ticks: { ...AXIS_COMMON.ticks, font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' } } }
       }
     }
   });
@@ -3372,7 +3381,7 @@ function renderOverview() {
           position: 'right',
           labels: {
             color: () => chartThemeColor('--ink-2', '#3d3d3d'),
-            font: { size: 12, family: "'Inter Tight', sans-serif", weight: '600' },
+            font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' },
             padding: 14,
             boxWidth: 12,
             boxHeight: 12,
@@ -3538,10 +3547,10 @@ function renderOverview() {
       },
       layout: { padding: { top: 8, right: 12 } },
       scales: {
-        x: { ...AXIS_COMMON, title: { display: true, text: 'Avg Unit SF', color: () => chartThemeColor('--ink-1', '#000000'), font: { size: 13, family: "'Inter Tight', sans-serif", weight: '700' } } },
+        x: { ...AXIS_COMMON, title: { display: true, text: 'Avg Unit SF', color: () => chartThemeColor('--ink-1', '#000000'), font: { size: 11, family: "'Inter Tight', sans-serif", weight: '400' } } },
         y: { ...AXIS_COMMON,
               ticks: { ...AXIS_COMMON.ticks, callback: v => useSf ? '$' + v.toFixed(2) : '$' + (v/1000).toFixed(1) + 'k' },
-              title: { display: true, text: useSf ? 'Asking Rent / SF' : 'Asking Rent / Unit', color: () => chartThemeColor('--ink-1', '#000000'), font: { size: 13, family: "'Inter Tight', sans-serif", weight: '700' } }
+              title: { display: true, text: useSf ? 'Asking Rent / SF' : 'Asking Rent / Unit', color: () => chartThemeColor('--ink-1', '#000000'), font: { size: 11, family: "'Inter Tight', sans-serif", weight: '400' } }
             }
       }
     }
@@ -3852,7 +3861,7 @@ function renderAbsorption() {
         },
         scales: {
           x: AXIS_COMMON,
-          y: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, font: { size: 12, family: "'Inter Tight', sans-serif", weight: '600' } } }
+          y: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' } } }
         }
       }
     });
@@ -4032,7 +4041,7 @@ function renderAbsorption() {
         },
         scales: {
           x: { ...AXIS_COMMON, stacked: velocityMode === 'progress', ticks: { ...AXIS_COMMON.ticks, callback: v => velocityMode === 'progress' ? v.toLocaleString() : v } },
-          y: { ...AXIS_COMMON, stacked: velocityMode === 'progress', grid: { display: false }, ticks: { ...AXIS_COMMON.ticks, font: { size: 12, family: "'Inter Tight', sans-serif", weight: '600' } } }
+          y: { ...AXIS_COMMON, stacked: velocityMode === 'progress', grid: { display: false }, ticks: { ...AXIS_COMMON.ticks, font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' } } }
         }
       }
     });
@@ -4458,7 +4467,7 @@ function renderPipeline() {
         },
         scales: {
           x: { ...AXIS_COMMON, stacked: true },
-          y: { ...AXIS_COMMON, stacked: true, grid: { display: false }, ticks: { ...AXIS_COMMON.ticks, font: { size: 12, family: "'Inter Tight', sans-serif", weight: '600' } } }
+          y: { ...AXIS_COMMON, stacked: true, grid: { display: false }, ticks: { ...AXIS_COMMON.ticks, font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' } } }
         }
       }
     });
@@ -4562,7 +4571,7 @@ function populateTrendsSubmarketPicker() {
   // Use the WB_SUBMARKETS list so picker order matches the rest of the dashboard
   const opts = ['<option value="">— Pick a submarket —</option>'];
   // Include 'Market' (the MSA-wide roll-up) as the top option
-  opts.push('<option value="__MARKET__">${window.__WBD.title} (Market-Wide)</option>');
+  opts.push(`<option value="__MARKET__">${escapeHTML(window.__WBD.title)} (Market-Wide)</option>`);
   for (const sm of WB_SUBMARKETS) {
     opts.push(`<option value="${escapeHTML(sm)}">${escapeHTML(sm)}</option>`);
   }
@@ -4869,7 +4878,7 @@ function renderTrendsSubmarketKPIs(forecast, allYears, windowYears) {
     concEl.textContent = '—';
     if (concLblEl) concLblEl.textContent = 'Concessions';
   } else {
-    concEl.textContent = (concNow * 100).toFixed(1) + '%';
+    concEl.textContent = (concNow * 52).toFixed(1) + ' wks';   // weeks free, not % of rent
     // If we fell back to an earlier year, note it so the number isn't misread
     if (concLblEl) concLblEl.textContent = concYear === CURRENT_YEAR ? 'Concessions' : `Concessions '${String(concYear).slice(2)}`;
   }
@@ -5362,7 +5371,7 @@ function renderTrendsSmallMultiples(forecast, windowYears) {
       } },
     { metric: 'cR', get: r => r.cR, foot: () => {
         const v = cur.cR;
-        if (v == null) return '% of rent';
+        if (v == null) return 'Weeks free';
         return v > 0.03 ? '<span class="neg">Elevated</span> · soft market' : 'Modest';
       } },
     { metric: 'yR', get: r => r.yR, foot: () => {
@@ -8229,7 +8238,7 @@ function renderCsPositioning(props) {
         <td class="num">${dSF == null ? '&mdash;' : (dSF > 0 ? '+' : '') + '$' + Math.abs(dSF).toFixed(2)}</td>
         <td class="num cs-secondary">${fmt.money(p.avgEffectiveUnit)}</td>
         <td class="num">${occ == null ? '&mdash;' : occ.toFixed(1) + '%'}</td>
-        <td class="num">${p.concessions == null ? '&mdash;' : p.concessions.toFixed(1) + '%'}</td>
+        <td class="num">${p.concessions == null ? '&mdash;' : (p.concessions / 100 * 52).toFixed(1) + ' wks'}</td>
       </tr>`;
   }).join('');
 
@@ -9692,7 +9701,7 @@ function renderProperties() {
         <td class="num">${fmt.money2(p.avgAskingSF)}</td>
         <td class="num">${fmt.money(p.avgEffectiveUnit)}</td>
         <td class="num">${fmt.money2(p.avgEffectiveSF)}</td>
-        <td class="num">${p.concessions == null ? '—' : p.concessions.toFixed(1) + '%'}</td>
+        <td class="num">${p.concessions == null ? '—' : (p.concessions / 100 * 52).toFixed(1) + ' wks'}</td>
       </tr>
     `;}).join('');
 
@@ -9775,11 +9784,7 @@ function renderPropertyMap(data) {
     });
 
     // Two base layers — Street (default) and Satellite
-    const streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19
-    });
+    const streetLayer = wbStreetLayer();
 
     const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
@@ -11602,11 +11607,7 @@ function initOrUpdateOppMap() {
       zoomControl: true,
       preferCanvas: true
     });
-    const street = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-      subdomains: 'abcd',
-      maxZoom: 19
-    });
+    const street = wbStreetLayer();
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
       attribution: 'Tiles &copy; Esri',
       maxZoom: 19
@@ -12728,11 +12729,7 @@ function initOpportunityModalMap(o) {
     zoomControl: true,
     preferCanvas: true
   });
-  const street = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19
-  });
+  const street = wbStreetLayer();
   const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri',
     maxZoom: 19
@@ -13358,11 +13355,7 @@ async function initSaleCompMap(rec, type) {
   });
   scModalState.map = map;
 
-  const streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19
-  });
+  const streetLayer = wbStreetLayer();
   const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri',
     maxZoom: 19
@@ -13455,11 +13448,7 @@ function initPinDropMap(rec, type) {
   });
   scModalState.map = map;
 
-  const streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19
-  });
+  const streetLayer = wbStreetLayer();
   const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri',
     maxZoom: 19
@@ -13683,7 +13672,7 @@ function renderSubmarkets() {
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `$${ctx.parsed.x.toFixed(2)} / SF` } } },
         scales: {
           x: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, callback: v => '$' + v.toFixed(2) } },
-          y: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, font: { size: 12, family: "'Inter Tight', sans-serif", weight: '600' } } }
+          y: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' } } }
         }
       }
     });
@@ -13712,7 +13701,7 @@ function renderSubmarkets() {
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.x.toFixed(1)}% Vacancy` } } },
         scales: {
           x: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, callback: v => v.toFixed(1) + '%' } },
-          y: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, font: { size: 12, family: "'Inter Tight', sans-serif", weight: '600' } } }
+          y: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' } } }
         }
       }
     });
@@ -14729,11 +14718,7 @@ async function initPropertyModalMap(p) {
     preferCanvas: true
   });
 
-  const streetLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OpenStreetMap &copy; CARTO',
-    subdomains: 'abcd',
-    maxZoom: 19
-  });
+  const streetLayer = wbStreetLayer();
   const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Tiles &copy; Esri',
     maxZoom: 19
@@ -15631,49 +15616,47 @@ function yocColorBands() {
       label: `≥ ${pct(t)}`,
       min: t,
       max: Infinity,
-      color: '#1f8a3a'   // deep green
+      color: '#a9d7b4'   // clears target (soft green; minimal palette, dark text)
     },
     {
       label: `${pct(t - 0.0001)} – ${pct(t - 0.0015)}`,
       min: t - 0.0015,
       max: t - 0.0001,
-      color: '#7bc473'   // light green
+      color: '#d9eedd'   // just under target
     },
     {
       label: `${pct(t - 0.0016)} – ${pct(t - 0.0030)}`,
       min: t - 0.0030,
       max: t - 0.0016,
-      color: '#fff066'   // yellow
+      color: '#f7edc6'   // watch
     },
     {
       label: `${pct(t - 0.0031)} – ${pct(t - 0.0060)}`,
       min: t - 0.0060,
       max: t - 0.0031,
-      color: '#ff9c9c'   // light pink
+      color: '#f6d6d1'   // short
     },
     {
       label: `< ${pct(t - 0.0060)}`,
       min: -Infinity,
       max: t - 0.0061,
-      color: '#e84545'   // red
+      color: '#eeb0a8'   // well short
     }
   ];
 }
 
 function colorForRoc(roc) {
-  if (roc == null) return '#f4f1ea';
+  if (roc == null) return '#f6f6f8';
   const bands = yocColorBands();
   for (const band of bands) {
     if (roc >= band.min) return band.color;
   }
-  return '#e84545';
+  return '#eeb0a8';
 }
 
 function textColorForRoc(roc) {
-  if (roc == null) return '#999';
-  const color = colorForRoc(roc);
-  if (color === '#fff066' || color === '#ff9c9c' || color === '#f4f1ea') return '#1a1a1a';
-  return '#ffffff';
+  // soft cell tints carry dark text throughout; no-data stays muted
+  return roc == null ? '#8f8aa3' : '#1D1247';
 }
 
 function renderYoc() {
@@ -15734,7 +15717,7 @@ function renderYoc() {
 
   // 2. Legend
   const legend = yocColorBands().map(b => {
-    const textColor = (b.color === '#fff066' || b.color === '#ff9c9c') ? '#1a1a1a' : '#ffffff';
+    const textColor = '#1D1247';
     return `<span class="yoc-legend-cell" style="background:${b.color};color:${textColor};">${b.label}</span>`;
   }).join('');
   document.getElementById('yoc-legend-row').innerHTML = legend;
@@ -17657,7 +17640,7 @@ function openSubmarketOccupancyDetail(submarket) {
         <td class="num" style="font-weight:700;color:${occColor(occ)};">${occ == null ? '—' : occ.toFixed(1) + '%'}</td>
         <td class="num">${fmt.money(p.avgAskingUnit)}</td>
         <td class="num">${p.avgAskingSF == null ? '—' : '$' + p.avgAskingSF.toFixed(2)}</td>
-        <td class="num">${p.concessions == null ? '—' : p.concessions.toFixed(1) + '%'}</td>
+        <td class="num">${p.concessions == null ? '—' : (p.concessions / 100 * 52).toFixed(1) + ' wks'}</td>
       </tr>
     `;
   }).join('');
@@ -17679,7 +17662,7 @@ function openSubmarketOccupancyDetail(submarket) {
           <div class="cell"><div class="cell-lbl">Occupancy</div><div class="cell-val">${luOcc == null ? '—' : luOcc.toFixed(1) + '%'}</div></div>
           <div class="cell"><div class="cell-lbl">Avg Rent</div><div class="cell-val">${luRent == null ? '—' : fmt.money(luRent)}</div></div>
           <div class="cell"><div class="cell-lbl">$ / SF</div><div class="cell-val">${luPsf == null ? '—' : '$' + luPsf.toFixed(2)}</div></div>
-          <div class="cell"><div class="cell-lbl">Concessions</div><div class="cell-val">${luConc == null ? '—' : luConc.toFixed(1) + '%'}</div></div>
+          <div class="cell"><div class="cell-lbl">Concessions</div><div class="cell-val">${luConc == null ? '—' : (luConc / 100 * 52).toFixed(1) + ' wks'}</div></div>
         </div>
       </div>
       <div class="occ-modal-stat stab">
@@ -17689,7 +17672,7 @@ function openSubmarketOccupancyDetail(submarket) {
           <div class="cell"><div class="cell-lbl">Occupancy</div><div class="cell-val">${stabOcc == null ? '—' : stabOcc.toFixed(1) + '%'}</div></div>
           <div class="cell"><div class="cell-lbl">Avg Rent</div><div class="cell-val">${stabRent == null ? '—' : fmt.money(stabRent)}</div></div>
           <div class="cell"><div class="cell-lbl">$ / SF</div><div class="cell-val">${stabPsf == null ? '—' : '$' + stabPsf.toFixed(2)}</div></div>
-          <div class="cell"><div class="cell-lbl">Concessions</div><div class="cell-val">${stabConc == null ? '—' : stabConc.toFixed(1) + '%'}</div></div>
+          <div class="cell"><div class="cell-lbl">Concessions</div><div class="cell-val">${stabConc == null ? '—' : (stabConc / 100 * 52).toFixed(1) + ' wks'}</div></div>
         </div>
       </div>
       <div class="occ-modal-stat allin">
@@ -17699,7 +17682,7 @@ function openSubmarketOccupancyDetail(submarket) {
           <div class="cell"><div class="cell-lbl">Occupancy</div><div class="cell-val">${allOcc == null ? '—' : allOcc.toFixed(1) + '%'}</div></div>
           <div class="cell"><div class="cell-lbl">Avg Rent</div><div class="cell-val">${allRent == null ? '—' : fmt.money(allRent)}</div></div>
           <div class="cell"><div class="cell-lbl">$ / SF</div><div class="cell-val">${allPsf == null ? '—' : '$' + allPsf.toFixed(2)}</div></div>
-          <div class="cell"><div class="cell-lbl">Concessions</div><div class="cell-val">${allConc == null ? '—' : allConc.toFixed(1) + '%'}</div></div>
+          <div class="cell"><div class="cell-lbl">Concessions</div><div class="cell-val">${allConc == null ? '—' : (allConc / 100 * 52).toFixed(1) + ' wks'}</div></div>
         </div>
       </div>
     </div>

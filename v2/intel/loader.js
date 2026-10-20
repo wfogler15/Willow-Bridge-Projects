@@ -102,19 +102,28 @@
     document.body.appendChild(s);
   }
 
-  // More room for a dense tab: the Midnight header goes, its two buttons sit at the right end of the tab row, and the tab row stays pinned.
+  // One page band under the nav, full width so it lines up with the nav: market name, the view tabs, then the
+  // market toggle and the two header actions. The legacy header goes. Tabs keep their own click handlers (moved, not rebuilt).
+  // Styling lives in the wb-minimal block at the end of index.html.
   function compactHeader() {
-    const top = document.querySelector('.main > .topbar'), tabs = document.querySelector('.main > .tabs');
-    if (!top || !tabs) return;
+    const top = document.querySelector('.main > .topbar'), tabs = document.querySelector('.main > .tabs'), app = document.querySelector('.app');
+    if (!top || !tabs || !app) return;
     const acts = document.createElement('div'); acts.className = 'tabs-acts';
-    ['overview-report-btn', 'settings-btn'].forEach((id) => { const b = document.getElementById(id); if (b) acts.appendChild(b); });
+    ['overview-report-btn', 'settings-btn'].forEach((id) => {
+      const b = document.getElementById(id); if (!b) return;
+      // "MARKET REPORT" → "Market report": sentence case like the rest of the dashboard
+      b.childNodes.forEach((n) => { if (n.nodeType === 3 && n.textContent.trim()) { const t = n.textContent.trim(); n.textContent = ' ' + t.charAt(0) + t.slice(1).toLowerCase(); } });
+      acts.appendChild(b);
+    });
     acts.prepend(WB.marketToggle());
     tabs.appendChild(acts); top.style.display = 'none';
+    const band = document.createElement('div'); band.className = 'wbi-band';
+    const title = document.createElement('div'); title.className = 'wbi-title';
+    title.textContent = (window.__WBD && window.__WBD.title) || 'Market intel';
+    band.append(title, tabs);
+    app.before(band);
     const st = document.createElement('style');
-    st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}.main>.tabs{top:0 !important;align-items:center;z-index:30;flex-wrap:wrap;row-gap:6px}'
-      + '.tabs-acts{margin-left:auto;display:flex;gap:8px;padding-left:12px;align-items:center}'
-      + '.tabs-acts .topbar-action-btn{background:var(--bg-1);border:1px solid var(--line);color:var(--accent-deep);padding:6px 12px;font-size:11px}'
-      + '.tabs-acts .topbar-action-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}';
+    st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}';
     document.head.appendChild(st);
   }
 

@@ -7071,7 +7071,7 @@ tbody tr,
               <div class="kpi">
                 <div class="kpi-label">Concessions</div>
                 <div class="kpi-value" id="trends-kpi-conc">—</div>
-                <div class="kpi-sub">% of Rent</div>
+                <div class="kpi-sub">Weeks free</div>
               </div>
               <div class="kpi">
                 <div class="kpi-label">
@@ -8941,118 +8941,181 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201034">
-<!-- Minimal direction (Oct 2026): white ground, hairline rules, text tabs, no shadows or boxed fills.
-     Applied last so it wins over the dashboard's own styles. Charts and numbers are unchanged. -->
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201049">
+<!-- Market intel in the v2 design language (Oct 2026). One block, applied last; it wins over the legacy styles above.
+     The page band itself is built in loader.js (compactHeader). Charts and features are unchanged. -->
 <style id="wb-minimal">
+/* Market intel in the v2 language. One block, applied last. Charts and features unchanged.
+   Principles: one page band under the nav (no second tab bar floating beside the sidebar);
+   filters pinned beside the content; a single spacing rhythm; titles lead, subtitles whisper. */
 :root, :root[data-theme], html[data-theme="dark"] {
   --bg-0:#ffffff; --bg-1:#ffffff; --bg-2:#fafafa; --bg-3:#f6f6f8; --bg-elev:#ffffff; --bg-inset:#ffffff; --bg-inset-warm:#ffffff;
-  --line:#e6e4ec; --line-strong:#c9c5d2; --line-hair:#f0eef4;
-  --ink-1:#1D1247; --ink-2:#2b2450; --ink-3:#5f5a75; --ink-4:#8a86a0;
+  --line:#e6e4ec; --line-strong:#c9c5d2; --line-hair:#efedf3;
+  --ink-1:#1D1247; --ink-2:#3a3456; --ink-3:#6b6584; --ink-4:#8f8aa3;
   --accent:#432890; --accent-text:#432890; --accent-deep:#1D1247; --accent-deep-text:#1D1247;
-  --header-band:#ffffff; --header-band-strong:#ffffff; --header-ink:#1D1247; --header-ink-muted:#77728C;
+  --header-band:#ffffff; --header-band-strong:#ffffff; --header-ink:#1D1247; --header-ink-muted:#6b6584;
   --shadow-sm:none; --shadow-md:none;
   --font-head:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif;
+  --wbi-band-h:52px;
 }
-body { font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif; background:#ffffff; }
-.topbar { border-bottom:1px solid var(--line-hair); box-shadow:none; padding:16px 32px 16px; }
-.panel { background:#ffffff; border:0; border-top:1px solid var(--ink-1); border-radius:0; box-shadow:none; margin-bottom:32px; }
-.panel-header { background:#ffffff; border-bottom:1px solid var(--line-hair); padding:14px 20px; }
-.panel-title { font-family:Aptos,Inter,sans-serif; font-size:14px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--ink-1); }
-.panel-sub { text-transform:none; letter-spacing:0; font-size:12px; color:var(--ink-3); }
-.kpi { background:#ffffff; border-right:0; padding:16px 20px 14px 0; }
-.kpi::before { display:none; }
-.kpi-label { text-transform:none; letter-spacing:0; font-size:12px; font-weight:400; color:var(--ink-3); }
-.kpi-value { font-weight:500; letter-spacing:-0.01em; color:var(--ink-1); }
-.kpi-sub { color:var(--ink-3); }
-.tab { border-radius:0; text-transform:none; letter-spacing:0; font-size:13px; font-weight:500; padding:8px 14px; color:var(--ink-3); background:transparent; }
-.tab:hover { background:transparent; color:var(--ink-1); }
-.tab.active { background:transparent; color:var(--ink-1); box-shadow:inset 0 -2px 0 var(--accent); }
-.toggle-btn { border-radius:0; text-transform:none; letter-spacing:0; box-shadow:none; }
-.toggle-btn.active { background:transparent; color:var(--ink-1); box-shadow:inset 0 -2px 0 var(--accent); }
-.chip { border-radius:0; border-color:var(--line); background:transparent; font-weight:400; }
-.chip.active { background:transparent; color:var(--ink-1); border-color:var(--ink-1); box-shadow:none; }
+body { font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif; background:#fff; color:var(--ink-1); }
 
-/* ===== Shell restyle (Oct 2026): match the v2 pages. Features and charts unchanged. ===== */
-/* Legacy brand block and page title duplicate the shared nav; the market name stays in the header row. */
-.sidebar .brand, .sidebar .brand-sub, .topbar-identity { display:none !important; }
-.sidebar { background:#ffffff !important; border-right:1px solid var(--line-hair) !important; box-shadow:none !important; }
-.sidebar-inner { padding:28px 24px !important; }
-.sidebar-toggle { border-radius:0; box-shadow:none; }
-.filter-group { margin-bottom:26px; padding-bottom:0; border:0 !important; }
-/* section labels read like the Overview headings: sentence case, semibold, hairline beneath */
-.filter-label { font-family:Aptos,Inter,sans-serif; font-size:13px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--ink-1); padding-bottom:8px; margin-bottom:10px; border-bottom:1px solid var(--ink-1); }
-.acc-toggle { cursor:pointer; margin-bottom:0; }
-.accordion { margin-bottom:22px; }
-/* options are text, not boxes: active is midnight and semibold, inactive is muted */
-.chip-row { gap:14px !important; }
-.chip { padding:0 !important; border:0 !important; background:transparent !important; font-size:13px !important; color:var(--ink-3) !important; box-shadow:none !important; }
+/* ---------- page band: market name, view tabs, actions. Full width, aligned to the nav gutter ---------- */
+.wbi-band { position:sticky; top:0; z-index:40; display:flex; align-items:stretch; gap:28px; height:var(--wbi-band-h);
+  padding:0 24px; background:#fff; border-bottom:1px solid var(--line); }
+.wbi-band .wbi-title { display:flex; align-items:center; gap:10px; white-space:nowrap; font:600 15px/1 Aptos,Inter,sans-serif; color:var(--ink-1); }
+.wbi-band .wbi-title small { font:400 13px/1 Aptos,Inter,sans-serif; color:var(--ink-3); }
+.wbi-band .wbi-title::after { content:""; width:1px; height:20px; background:var(--line); margin-left:18px; }
+.wbi-band .tabs { position:static !important; display:flex !important; align-items:stretch !important; gap:24px !important; flex:1 1 auto; min-width:0;
+  padding:0 !important; margin:0 !important; border:0 !important; background:none !important; box-shadow:none !important; flex-wrap:nowrap !important; overflow-x:auto; scrollbar-width:none; }
+.wbi-band .tab { display:flex; align-items:center; height:100%; padding:0 !important; margin:0 !important; border:0 !important; border-radius:0 !important;
+  background:none !important; box-shadow:inset 0 -2px 0 transparent !important; font:400 13.5px/1 Aptos,Inter,sans-serif !important;
+  letter-spacing:0 !important; text-transform:none !important; color:var(--ink-3) !important; white-space:nowrap; }
+.wbi-band .tab:hover { color:var(--ink-1) !important; }
+.wbi-band .tab.active { color:var(--ink-1) !important; font-weight:600 !important; box-shadow:inset 0 -2px 0 var(--ink-1) !important; }
+.wbi-band .tabs-acts { margin-left:auto; display:flex; align-items:center; gap:18px; padding-left:16px; flex:none; }
+.wbi-band .topbar-action-btn { all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font:500 13px/1 Aptos,Inter,sans-serif !important;
+  color:var(--ink-2) !important; text-transform:none !important; letter-spacing:0 !important; white-space:nowrap; }
+.wbi-band .topbar-action-btn:hover { color:var(--ink-1) !important; }
+.wbi-band .topbar-action-btn:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+
+/* ---------- layout: narrower filter column, pinned while the charts scroll ---------- */
+.app { grid-template-columns:236px minmax(0,1fr); }
+.app.sidebar-collapsed { grid-template-columns:0 minmax(0,1fr); }
+.sidebar { background:#fff !important; border-right:1px solid var(--line-hair) !important; box-shadow:none !important; padding:0 !important; }
+.sidebar-inner { position:sticky; top:var(--wbi-band-h); max-height:calc(100vh - var(--wbi-band-h)); overflow-y:auto; padding:22px 20px 32px !important; scrollbar-width:thin; }
+.sidebar .brand, .sidebar .brand-sub, .topbar, .topbar-identity { display:none !important; }
+.sidebar-toggle { border-radius:0 !important; box-shadow:none !important; }
+
+/* filters: label over plain-text options; no boxes, no rules */
+.filter-group { margin:0 0 18px !important; padding:0 !important; border:0 !important; }
+.filter-label { font:600 12px/1.2 Aptos,Inter,sans-serif !important; letter-spacing:0 !important; text-transform:none !important; color:var(--ink-1) !important;
+  margin:0 0 8px !important; padding:0 !important; border:0 !important; }
+.filter-label .count { color:var(--ink-4) !important; font-weight:400 !important; }
+.acc-toggle { display:flex !important; align-items:center; gap:8px; cursor:pointer; padding:0 !important; }
+.acc-summary { margin-left:auto; font-weight:400 !important; color:var(--ink-3) !important; }
+.accordion { margin-bottom:16px !important; }
+.chip-row { gap:2px 14px !important; }
+.chip { padding:2px 0 !important; border:0 !important; border-radius:0 !important; background:none !important; box-shadow:none !important;
+  font:400 13px/1.4 Aptos,Inter,sans-serif !important; color:var(--ink-3) !important; }
 .chip:hover { color:var(--ink-1) !important; }
-.chip.active { font-weight:600 !important; color:var(--ink-1) !important; box-shadow:inset 0 -2px 0 var(--accent) !important; }
-.taxonomy-toggle { border-radius:0 !important; border:0 !important; background:transparent !important; gap:12px !important; }
-.taxonomy-btn { border-radius:0 !important; background:transparent !important; border:0 !important; padding:4px 0 !important; color:var(--ink-3) !important; box-shadow:none !important; font-weight:500 !important; }
-.taxonomy-btn.active, .taxonomy-btn[aria-pressed="true"] { color:var(--ink-1) !important; font-weight:600 !important; box-shadow:inset 0 -2px 0 var(--accent) !important; }
-.cs-side-picker, .search-input, select { border-radius:0 !important; box-shadow:none !important; border-color:var(--line) !important; }
-.cs-side-btn, .btn-clear, .topbar-action-btn { border-radius:0 !important; box-shadow:none !important; background:transparent !important; border:0 !important; color:var(--ink-2) !important; font-weight:500 !important; padding:6px 0 !important; text-transform:none !important; letter-spacing:0 !important; }
+.chip.active { color:var(--ink-1) !important; font-weight:600 !important; box-shadow:inset 0 -2px 0 var(--ink-1) !important; }
+.taxonomy-toggle { display:flex !important; gap:14px !important; border:0 !important; background:none !important; border-radius:0 !important; padding:0 !important; }
+.taxonomy-btn { all:unset; cursor:pointer; padding:2px 0 !important; font:400 13px/1.4 Aptos,Inter,sans-serif !important; color:var(--ink-3) !important; }
+.taxonomy-btn.active, .taxonomy-btn[aria-pressed="true"] { color:var(--ink-1) !important; font-weight:600 !important; box-shadow:inset 0 -2px 0 var(--ink-1) !important; }
+.sidebar .search-input, .sidebar select, .cs-side-picker { width:100%; height:30px; border:0 !important; border-bottom:1px solid var(--line) !important; border-radius:0 !important;
+  background:none !important; box-shadow:none !important; padding:0 !important; font:400 13px Aptos,Inter,sans-serif !important; color:var(--ink-1) !important; }
+.cs-side-btn, .btn-clear { all:unset; cursor:pointer; font:500 13px/1.4 Aptos,Inter,sans-serif !important; color:var(--ink-2) !important; margin-top:8px; }
 .cs-side-btn-primary { color:var(--accent) !important; font-weight:600 !important; }
-.topbar-action-btn:hover, .cs-side-btn:hover, .btn-clear:hover { color:var(--ink-1) !important; }
+.cs-side-btn:hover, .btn-clear:hover { color:var(--ink-1) !important; }
+.cs-side-actions { display:flex; gap:16px; }
+.sidebar .filter-group > div[style*="font-size:11px"] { font-family:Aptos,Inter,sans-serif !important; font-size:12px !important; color:var(--ink-4) !important; letter-spacing:0 !important; }
 
-/* header row: market name + actions, one line */
-.topbar { background:#ffffff !important; border-bottom:1px solid var(--line-hair) !important; padding:14px 28px !important; min-height:0 !important; }
-.topbar-actions { gap:4px; }
-.tabs { background:#ffffff !important; border-bottom:1px solid var(--line-hair) !important; padding:0 24px !important; gap:22px !important; }
-.tab { padding:12px 0 !important; margin:0 !important; border-radius:0 !important; }
-.tab.active { box-shadow:inset 0 -2px 0 var(--accent) !important; }
-
-/* KPI strip: one row, hairline dividers, no boxes */
-.kpi-row { gap:0 !important; background:#ffffff !important; border:0 !important; border-bottom:1px solid var(--line-hair) !important; border-radius:0 !important; }
-.kpi { border-right:1px solid var(--line-hair) !important; padding:18px 24px !important; }
-.kpi:last-child { border-right:0 !important; }
-.kpi-value { font-size:26px !important; }
-
-/* panels: hairline header, no card chrome */
-.panel { margin-bottom:36px !important; border-top:0 !important; }
-.panel-header { border-bottom:1px solid var(--line-hair) !important; padding:12px 0 !important; background:#ffffff !important; }
-.panel-body { padding:14px 0 0 !important; }
-
-/* Density: this is a data-dense view, so the grid is tight and paired panels share a line.
-   Spacing is set by one rhythm (20px), headers sit on the same baseline across each row,
-   and paired charts stretch to equal height so their rules and bottoms line up. */
-.panel { margin-bottom:20px !important; }
-.grid-2, .grid-3, .grid-asymmetric { gap:20px 24px !important; margin-bottom:20px !important; align-items:stretch; }
-.grid-2 > .panel, .grid-3 > .panel, .grid-asymmetric > .panel { margin-bottom:0 !important; display:flex; flex-direction:column; min-width:0; }
+/* ---------- content rhythm: 24px between blocks, 32px between paired columns ---------- */
+.content { padding:24px 32px 48px !important; }
+.grid-2, .grid-3, .grid-asymmetric { gap:28px 32px !important; margin:0 0 28px !important; align-items:stretch; }
+.grid-2 > .panel, .grid-3 > .panel, .grid-asymmetric > .panel { margin:0 !important; display:flex; flex-direction:column; min-width:0; }
 .grid-2 > .panel > .panel-body, .grid-3 > .panel > .panel-body, .grid-asymmetric > .panel > .panel-body { flex:1 1 auto; }
-.panel-header { padding:8px 0 !important; }
-.panel-body { padding-top:8px !important; }
-/* hierarchy: the title leads; the subtitle is a quiet line of units and method. Inline highlights stay small. */
-.panel-title { font-size:16px !important; font-weight:600 !important; color:var(--ink-1) !important; line-height:1.25 !important; }
-.panel-sub { margin-top:3px !important; line-height:1.4 !important; font-size:12px !important; font-weight:400 !important; color:var(--ink-3) !important; }
-.panel-sub *, .panel-sub span, .panel-sub b, .panel-sub strong { font-size:inherit !important; font-weight:500 !important; color:var(--ink-2) !important; }
-.filter-group { margin-bottom:16px !important; }
-.filter-label { padding-bottom:6px !important; margin-bottom:8px !important; }
-.accordion { margin-bottom:14px !important; }
-.kpi { padding:10px 16px 9px !important; }
-.kpi-value { font-size:22px !important; }
-.kpi-label { margin-bottom:2px; }
-/* charts were 290px tall with empty bands above and below the plot; shorter frames pull the figures together */
-.chart-wrap { height:230px !important; }
-.chart-wrap.tall { height:280px !important; }
-.chart-wrap.short { height:190px !important; }
-.grid-2, .grid-3, .grid-asymmetric { gap:14px 20px !important; margin-bottom:14px !important; }
-.panel { margin-bottom:14px !important; }
-.kpi-label, .kpi-sub { line-height:1.3; }
-.content { padding-top:16px !important; }
-.panel-title { font-size:15px !important; color:var(--ink-1) !important; }
-.panel-title em, .panel-title-sm em { color:var(--ink-1) !important; font-style:normal !important; font-weight:600 !important; }
-.panel-sub { font-size:12px !important; color:var(--ink-3) !important; margin-top:2px; }
-.toggle-group { background:transparent !important; border:0 !important; gap:2px; border-radius:0 !important; }
-.toggle-btn { background:transparent !important; border:0 !important; padding:4px 10px !important; color:var(--ink-3) !important; font-weight:500 !important; }
-.toggle-btn.active { color:var(--ink-1) !important; box-shadow:inset 0 -2px 0 var(--accent) !important; }
+/* the rent ranking needs width; the donut does not */
+#view-overview > .kpi-row + .grid-2 { grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); }
+
+/* KPI strip: the headline numbers, one quiet row */
+.kpi-row { gap:0 !important; margin:0 0 28px !important; background:none !important; border:0 !important; border-radius:0 !important; box-shadow:none !important;
+  border-bottom:1px solid var(--line) !important; padding-bottom:18px !important; }
+.kpi { background:none !important; border:0 !important; border-left:1px solid var(--line-hair) !important; padding:0 20px !important; }
+.kpi:first-child { border-left:0 !important; padding-left:0 !important; }
+.kpi::before { display:none !important; }
+.kpi-label { font:400 12px/1.3 Aptos,Inter,sans-serif !important; letter-spacing:0 !important; text-transform:none !important; color:var(--ink-3) !important; margin:0 0 6px !important; }
+.kpi-value { font:500 26px/1.1 Aptos,Inter,sans-serif !important; letter-spacing:-.01em !important; color:var(--ink-1) !important; font-variant-numeric:tabular-nums; }
+.kpi-value .unit { font-size:13px !important; color:var(--ink-3) !important; font-weight:400 !important; }
+.kpi-sub { font:400 12px/1.35 Aptos,Inter,sans-serif !important; color:var(--ink-3) !important; margin-top:4px !important; letter-spacing:0 !important; }
+
+/* panels: no card. The title leads, the subtitle is one quiet line, a hairline sets the chart below */
+.panel { background:none !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; margin:0 0 28px !important; overflow:visible !important; }
+.panel-header { display:flex !important; align-items:flex-start !important; justify-content:space-between; gap:16px; min-height:0 !important;
+  padding:0 0 10px !important; background:none !important; border-bottom:1px solid var(--line) !important; }
+.panel-header::before { display:none !important; }
+.panel-title, .panel-title-sm { font:600 15px/1.3 Aptos,Inter,sans-serif !important; letter-spacing:0 !important; text-transform:none !important; color:var(--ink-1) !important; }
+.panel-title em, .panel-title-sm em { font-style:normal !important; color:inherit !important; font-weight:inherit !important; }
+.panel-sub { margin-top:3px !important; font:400 12px/1.4 Aptos,Inter,sans-serif !important; letter-spacing:0 !important; text-transform:none !important; color:var(--ink-3) !important; }
+.panel-sub * { font-size:inherit !important; font-weight:500 !important; color:var(--ink-2) !important; }
+.panel-body { padding:14px 0 0 !important; background:none !important; }
+.panel-body.tight { padding-top:8px !important; }
+.chart-wrap { height:250px !important; }
+.chart-wrap.tall { height:320px !important; }
+.chart-wrap.short { height:200px !important; }
+
+/* in-panel switches (Asking / Effective, $/Unit / $/SF): text with an underline, like the tabs */
+.toggle-group { display:inline-flex !important; gap:14px !important; padding:0 !important; border:0 !important; background:none !important; border-radius:0 !important; box-shadow:none !important; }
+.toggle-btn { padding:2px 0 !important; border:0 !important; border-radius:0 !important; background:none !important; box-shadow:none !important;
+  font:400 12.5px/1.4 Aptos,Inter,sans-serif !important; letter-spacing:0 !important; text-transform:none !important; color:var(--ink-3) !important; }
+.toggle-btn:hover { color:var(--ink-1) !important; }
+.toggle-btn.active { color:var(--ink-1) !important; font-weight:600 !important; box-shadow:inset 0 -2px 0 var(--ink-1) !important; }
+
+/* tables keep their data; the chrome around them goes quiet */
+table th { font-family:Aptos,Inter,sans-serif !important; letter-spacing:0 !important; text-transform:none !important; }
+
+/* ---------- one type system and one accent ---------- */
+:root, :root[data-theme], html[data-theme="dark"] {
+  --accent:#1D1247; --accent-text:#3a3456; --bg-2:#ffffff; --bg-3:#ffffff;
+}
+.app, .app button, .app input, .app select, .app textarea, .modal-backdrop, .modal-backdrop button, .modal-backdrop input, .modal-backdrop select {
+  font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif !important; }
+.app :is(div,span,label,button,th,td,a,p,h1,h2,h3,h4,small,strong,em,option), .modal-backdrop :is(div,span,label,button,th,td,a,p,h1,h2,h3,h4,small,strong,em) {
+  text-transform:none !important; letter-spacing:0 !important; }
+/* small labels inside views: quiet, one size */
+.stat-label, .trends2-tile-label, .yoc-control-label, .yoc-control-label-sm, .yoc-req-label, .yoc-cost-header, .trends-control-label,
+.trends2-ctl-label, .trends2-cycle-label, .trends2-sm-head-title, .yoc-legend-title, .yoc-threshold-title, .map-class-legend-title,
+.opp-map-legend-title, .trends-absorb-stat-label, .cs-eyebrow, .trends2-cycle-end-lbl, .trends-hero-ctx-lbl {
+  font-size:12px !important; font-weight:500 !important; color:var(--ink-3) !important; }
+.trends2-sm-head-title, .yoc-threshold-title { color:var(--ink-1) !important; font-weight:600 !important; font-size:13px !important; }
+
+/* ---------- buttons: one filled action per view, the rest outlined like the other pages ---------- */
+.sc-add-btn, .sc-export-btn, .cs-build-btn, .map-expand-btn { height:30px; padding:0 12px !important; border-radius:6px !important; box-shadow:none !important; filter:none !important;
+  font:500 13px/1 Aptos,Inter,sans-serif !important; gap:6px !important; }
+.sc-add-btn { background:var(--ink-1) !important; border:1px solid var(--ink-1) !important; color:#fff !important; }
+.sc-add-btn:hover { background:#2B1D63 !important; }
+.sc-export-btn, .cs-build-btn, .map-expand-btn { background:#fff !important; border:1px solid var(--line-strong) !important; color:var(--ink-1) !important; }
+.sc-export-btn:hover, .cs-build-btn:hover, .map-expand-btn:hover { border-color:var(--ink-3) !important; background:#fff !important; }
+/* switches inside views read like the tabs */
+.trends-mini-btn, .yoc-threshold-toggle-btn, .trends-overlay-chip { background:none !important; border:0 !important; border-radius:0 !important; box-shadow:none !important;
+  padding:2px 0 !important; margin:0 6px !important; min-width:0 !important; color:var(--ink-3) !important; font:400 12.5px/1.4 Aptos,Inter,sans-serif !important; }
+.trends-mini-btn.active, .yoc-threshold-toggle-btn.active, .trends-overlay-chip.active, .trends-overlay-chip[aria-pressed="true"] {
+  color:var(--ink-1) !important; font-weight:600 !important; box-shadow:inset 0 -2px 0 var(--ink-1) !important; }
+.yoc-threshold-toggle { border:0 !important; background:none !important; border-radius:0 !important; box-shadow:none !important; padding:0 !important; }
+
+/* ---------- no boxes inside views: hairlines carry the structure ---------- */
+.stat-pair, .yoc-cost-grid, .yoc-strip-row { border-radius:0 !important; box-shadow:none !important; }
+.trends2-tile { background:none !important; border:0 !important; border-top:1px solid var(--line) !important; border-radius:0 !important; box-shadow:none !important; padding:12px 0 6px !important; }
+.trends2-tile:hover { box-shadow:none !important; border-top-color:var(--ink-3) !important; }
+.trends2-tile.featured { background:none !important; box-shadow:none !important; border-top:2px solid var(--ink-1) !important; }
+.trends2-cycle { background:none !important; padding:20px 0 !important; }
+.trends2-panel { border:0 !important; border-radius:0 !important; box-shadow:none !important; background:none !important; }
+.map-class-legend, .opp-map-legend, .leaflet-control-layers { border:0 !important; border-radius:6px !important; box-shadow:0 1px 0 rgba(29,18,71,.04),0 4px 14px rgba(29,18,71,.10) !important; }
+
+/* ---------- tables: white header with a rule, quiet column labels ---------- */
+.content table thead th { background:#fff !important; color:var(--ink-3) !important; font-weight:500 !important; font-size:12px !important; border-bottom:1px solid var(--line) !important; }
+.content table tbody td { border-color:var(--line-hair) !important; }
+.content table tbody tr:hover > td { background:#faf9fc; }
+.yoc-table thead th, .yoc-table thead th.product-header, .yoc-table thead th.metric-header { background:#fff !important; color:var(--ink-1) !important; border-color:var(--line) !important; }
+.yoc-table thead th.metric-header { color:var(--ink-3) !important; font-weight:500 !important; }
+.yoc-table thead select { background:#fff !important; color:var(--ink-1) !important; border:1px solid var(--line) !important; border-radius:6px !important; box-shadow:none !important; }
+.yoc-table tbody td.yoc-cell { font-weight:500 !important; }
+
+/* ---------- band and filters stay put under the nav as it shows and hides ---------- */
+.wbi-band { transition:top .2s ease; }
+.wb-nav:not(.hid) ~ .wbi-band { top:var(--wb-nav-h, 48px); }
+.wb-nav:not(.hid) ~ .app .sidebar-inner { top:calc(var(--wb-nav-h, 48px) + var(--wbi-band-h)); max-height:calc(100vh - var(--wb-nav-h, 48px) - var(--wbi-band-h)); }
+.sidebar .taxonomy-toggle .taxonomy-btn, .sidebar .taxonomy-toggle .taxonomy-btn.active { background:none !important; }
+.app:not(.sidebar-collapsed) .sidebar-toggle { left:223px !important; }
+.sidebar-toggle { top:112px !important; width:24px !important; height:24px !important; border:1px solid var(--line) !important; background:#fff !important; color:var(--ink-3) !important; font-size:13px !important; }
+.wb-nav.hid ~ .app .sidebar-toggle { top:64px !important; }
+.sidebar-toggle:hover { color:var(--ink-1) !important; border-color:var(--ink-3) !important; }
 </style>
-<script src="../shared/wb.js?v=202610201034"></script>
-<script src="../shared/legacy-db.js?v=202610201034"></script>
-<script>window.WB_BUILD = '202610201034';</script>
-<script src="loader.js?v=202610201034"></script>
+<script src="../shared/wb.js?v=202610201049"></script>
+<script src="../shared/legacy-db.js?v=202610201049"></script>
+<script>window.WB_BUILD = '202610201049';</script>
+<script src="loader.js?v=202610201049"></script>
 
 
 
