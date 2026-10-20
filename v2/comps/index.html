@@ -6,7 +6,7 @@
 <title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610201140">
+<link rel="stylesheet" href="../shared/wb.css?v=202610201758">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -56,6 +56,35 @@
   #fdrawer label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:var(--fs)}
   #fdrawer .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;grid-column:1/-1}
   #fdrawer .pair .cap{grid-column:1/-1;font-size:12px;color:var(--muted)}
+  /* comp detail modal */
+  .modal{position:fixed;inset:0;z-index:70;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(22,20,43,.45)}
+  .modal.open{display:flex}
+  .mcard{width:min(780px,100%);max-height:calc(100vh - 48px);display:flex;flex-direction:column;background:var(--surface);border-radius:12px;overflow:hidden;box-shadow:0 24px 64px rgba(22,20,43,.28)}
+  .mcard header{display:flex;align-items:flex-start;gap:12px;padding:16px 20px;background:var(--midnight);color:#fff}
+  .mcard header .mt{flex:1;min-width:0}
+  .mcard header h2{margin:0;font:600 var(--fs-lg)/1.25 var(--font-display)}
+  .mcard header .ms{margin-top:3px;font-size:12px;color:rgba(255,255,255,.72)}
+  .mcard header .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.24);color:#fff}
+  .mcard header .btn:hover{background:rgba(255,255,255,.16)}
+  .mcard header .btn.edit{background:#fff;color:var(--midnight);border-color:#fff}
+  .mcard header .btn.edit:hover{background:#f0eefa}
+  .mfigs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-bottom:1px solid var(--rule);background:var(--sunk)}
+  .mfigs>div{padding:12px 16px;border-right:1px solid var(--rule);min-width:0}
+  .mfigs>div:last-child{border-right:0}
+  .mfigs .v{font:600 17px/1.2 var(--font-display);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mfigs .l{margin-top:3px;font-size:11px;color:var(--muted)}
+  .mbody{overflow:auto;padding:6px 20px 18px}
+  .msec{padding-top:14px}
+  .msec h3{margin:0 0 8px;padding-bottom:4px;border-bottom:1px solid var(--rule);font:600 11px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .msec dl{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 24px}
+  .msec dl>div{min-width:0}
+  .msec dl>div.full{grid-column:1/-1}
+  .msec dt{font-size:12px;color:var(--muted)}
+  .msec dd{margin:2px 0 0;font-size:var(--fs);color:var(--ink);overflow-wrap:anywhere}
+  .msec dd.na{color:var(--muted)}
+  .msec dd.notes{white-space:pre-wrap;line-height:1.5}
+  .msec a{color:var(--purple)}
+  @media (max-width:640px){.mfigs{grid-template-columns:repeat(2,minmax(0,1fr))}.msec dl{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -73,6 +102,14 @@
   <form id="d-form" autocomplete="off"></form>
   <footer><button class="btn primary" id="d-save">Save comp</button><span class="hint" id="d-hint">Click the map to set the location.</span></footer>
 </aside>
+<div class="modal" id="detail" role="dialog" aria-modal="true" aria-labelledby="m-title">
+  <div class="mcard">
+    <header><div class="mt"><h2 id="m-title"></h2><div class="ms" id="m-sub"></div></div>
+      <button class="btn edit" type="button" id="m-edit">Edit</button><button class="btn" type="button" id="m-close" aria-label="Close">Close</button></header>
+    <div class="mfigs" id="m-figs"></div>
+    <div class="mbody" id="m-body"></div>
+  </div>
+</div>
 <aside class="drawer" id="fdrawer" aria-label="Filters">
   <header><h2>Filters</h2><button class="btn" type="button" id="f-close">Close</button></header>
   <form id="f-form" autocomplete="off"></form>
@@ -82,7 +119,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610201140"></script>
+<script src="../shared/wb.js?v=202610201758"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -288,7 +325,7 @@
       const el = document.createElement('div'); el.style.cssText = 'width:18px;height:18px;display:grid;place-items:center';
       const dot = document.createElement('div'); dot.className = 'dot' + (c.comp_type === 'land' ? ' land' : '') + (state.sel === c.id ? ' sel' : '');
       el.appendChild(dot);
-      el.onclick = (e) => { e.stopPropagation(); select(c.id, true); };
+      el.onclick = (e) => { e.stopPropagation(); if ($('#drawer').classList.contains('open')) return; select(c.id, true); openDetail(c); };
       markers.push(new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([c.lng, c.lat]).addTo(map));
     }
     if (!state.sel && pts.length && !map._fitOnce) {
@@ -319,8 +356,54 @@
     const th = e.target.closest('th'); if (!th || !th.dataset.k) return;
     state.dir = state.sort === th.dataset.k ? -state.dir : (th.dataset.k === 'name' ? 1 : -1); state.sort = th.dataset.k; render();
   });
-  $('#tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) select(tr.dataset.id, false); });
+  $('#tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-id]'); if (!tr) return; select(tr.dataset.id, false); openDetail(rows.find((r) => r.id === tr.dataset.id)); });
   $('#tbody').addEventListener('dblclick', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) openDrawer(rows.find((r) => r.id === tr.dataset.id)); });
+
+  // ---------- comp detail: every field on record, with the Edit button ----------
+  let viewing = null;
+  const dash = '<span class="na">—</span>';
+  function openDetail(c) {
+    if (!c) return;
+    viewing = c;
+    const land = c.comp_type === 'land';
+    const T = (v) => (v == null || v === '' ? null : esc(v));
+    const item = (l, html, cls) => `<div class="${cls || ''}"><dt>${l}</dt><dd class="${html == null ? 'na' : ''}">${html == null ? '—' : html}</dd></div>`;
+    const link = c.source_url && /^https?:\/\//i.test(c.source_url) ? `<a href="${esc(c.source_url)}" target="_blank" rel="noopener">${esc(c.source_url)}</a>` : T(c.source_url);
+    const stamp = (at, by) => (at ? new Date(at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '') + (by ? ` by ${by}` : '') || null;
+    const figs = land
+      ? [[fmt.usdFull(c.sale_price), 'Price'], [fmt.usdFull(c.price_per_unit), 'Per door'], [fmt.psf(c.price_per_land_sf), 'Per land SF'], [fmt.ac(c.acres), 'Acres'], [fmt.int(c.proposed_units), 'Proposed units']]
+      : [[fmt.usdFull(c.sale_price), 'Price'], [fmt.usdFull(c.price_per_unit), 'Per unit'], [c.price_per_sf ? '$' + fmt.int(c.price_per_sf) : '—', 'Per SF'], [fmt.pct(c.cap_rate, 2), 'Cap rate'], [fmt.int(c.units), 'Units']];
+    $('#m-title').innerHTML = esc(c.name || c.address || 'Untitled comp');
+    $('#m-sub').textContent = [land ? 'Land sale' : 'Investment sale', c.address, [c.city, c.submarket].filter(Boolean).join(' · '), c.verified ? 'Verified' : 'Not verified'].filter(Boolean).join('  ·  ');
+    $('#m-figs').innerHTML = figs.map(([v, l]) => `<div><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+    $('#m-body').innerHTML =
+      `<section class="msec"><h3>Property</h3><dl>`
+      + item('Name', T(c.name)) + item('Type', land ? 'Land sale' : 'Investment sale')
+      + item('Address', T(c.address), 'full') + item('City', T(c.city)) + item('Submarket', T(c.submarket))
+      + item('Market', T(WB.marketLabel(c.market_id))) + item('Product', T(c.product_type))
+      + (land ? item('Construction', T(c.construction_type)) + item('Acres', c.acres == null ? null : fmt.ac(c.acres)) + item('Proposed units', c.proposed_units == null ? null : fmt.int(c.proposed_units))
+              : item('Units', c.units == null ? null : fmt.int(c.units)) + item('Year built', c.year_built == null ? null : String(c.year_built)) + item('Acres', c.acres == null ? null : fmt.ac(c.acres)))
+      + `</dl></section><section class="msec"><h3>Transaction</h3><dl>`
+      + item('Sale date', c.sale_date ? fmt.date(c.sale_date) : null) + item('Sale price', c.sale_price == null ? null : fmt.usdFull(c.sale_price))
+      + item(land ? 'Price per door' : 'Price per unit', c.price_per_unit == null ? null : fmt.usdFull(c.price_per_unit))
+      + (land ? item('Price per land SF', c.price_per_land_sf == null ? null : fmt.psf(c.price_per_land_sf)) : item('Price per SF', c.price_per_sf == null ? null : fmt.psf(c.price_per_sf)) + item('Cap rate', c.cap_rate == null ? null : fmt.pct(c.cap_rate, 2)))
+      + item('Buyer', T(c.buyer)) + item('Seller', T(c.seller)) + item('Broker', T(c.broker), 'full')
+      + `</dl></section><section class="msec"><h3>Source and location</h3><dl>`
+      + item('Source', T(c.source)) + item('Verified', c.verified ? 'Yes' : 'No') + item('Source link', link, 'full')
+      + item('Latitude', c.lat == null ? null : (+c.lat).toFixed(6)) + item('Longitude', c.lng == null ? null : (+c.lng).toFixed(6))
+      + `</dl></section><section class="msec"><h3>Notes</h3><dl>`
+      + `<div class="full"><dd class="notes ${c.notes ? '' : 'na'}">${c.notes ? esc(c.notes) : 'No notes'}</dd></div>`
+      + `</dl></section><section class="msec"><h3>Record</h3><dl>`
+      + item('Added', stamp(c.created_at, c.created_by)) + item('Last updated', stamp(c.updated_at, c.updated_by))
+      + `</dl></section>`;
+    $('#drawer').classList.remove('open'); $('#fdrawer').classList.remove('open');
+    $('#detail').classList.add('open'); $('#m-body').scrollTop = 0;
+  }
+  const closeDetail = () => { $('#detail').classList.remove('open'); viewing = null; };
+  $('#m-close').onclick = closeDetail;
+  $('#m-edit').onclick = () => { const c = viewing; closeDetail(); if (c) openDrawer(c); };
+  $('#detail').addEventListener('mousedown', (e) => { if (e.target.id === 'detail') closeDetail(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#detail').classList.contains('open')) closeDetail(); });
   map.on('dragstart', () => { map._fitOnce = true; });
 
   // ---------- export ----------
@@ -407,7 +490,9 @@
     const { data, error } = editing ? await q.update(o).eq('id', editing.id).select().single() : await q.insert(o).select().single();
     if (error) return WB.toast(error.message);
     if (editing) rows[rows.findIndex((r) => r.id === editing.id)] = data; else rows.unshift(data);
-    $('#d-close').click(); state.sel = data.id; render(); WB.toast(editing ? 'Comp updated' : 'Comp added');
+    const was = editing;
+    $('#d-close').click(); state.sel = data.id; render(); WB.toast(was ? 'Comp updated' : 'Comp added');
+    openDetail(data);   // land back on the detail view so the change is visible
   };
 
   // year picker: every sale year on record, newest first
@@ -416,7 +501,7 @@
   $('#f-year').onchange = (e) => { state.year = e.target.value; state.sel = null; render(); };
   // detailed filters: a drawer that re-renders as you type
   buildFxForm();
-  $('#b-filter').onclick = () => { $('#drawer').classList.remove('open'); $('#fdrawer').classList.add('open'); };
+  $('#b-filter').onclick = () => { $('#drawer').classList.remove('open'); closeDetail(); $('#fdrawer').classList.add('open'); };
   $('#f-close').onclick = () => $('#fdrawer').classList.remove('open');
   $('#f-form').addEventListener('input', () => { readFx(); render(); });
   $('#f-form').addEventListener('change', () => { readFx(); render(); });
