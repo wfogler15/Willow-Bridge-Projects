@@ -8941,7 +8941,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201115">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201127">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -8980,25 +8980,51 @@ body { background:#fff; color:var(--ink-1); }
 .wbi-rail .tab.active { color:var(--ink-1) !important; font-weight:600 !important; box-shadow:inset 2px 0 0 var(--ink-1) !important; }
 .wbi-rail .tab:focus-visible { outline:2px solid #432890; outline-offset:2px; }
 
-/* ---------- page header: title with a one-line filter summary; Filters, Market report, Settings on the right ---------- */
-.wbi-head { position:relative; padding:24px 28px 0; background:transparent; }
-.wbi-head-row { display:flex; align-items:center; justify-content:space-between; gap:24px; }
-.wbi-h1 { margin:0; font:600 22px/1.2 "Aptos Display",Aptos,Inter,sans-serif; letter-spacing:-.01em; color:var(--ink-1); }
-.wbi-sum { margin-top:4px; font:400 13px/1.35 Aptos,Inter,sans-serif; color:var(--ink-3); }
-.wbi-acts { display:flex; align-items:center; gap:20px; }
-.wbi-acts .topbar-action-btn { all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font:500 13px/1 Aptos,Inter,sans-serif !important; color:var(--ink-2) !important; white-space:nowrap; }
-.wbi-acts .topbar-action-btn:hover { color:var(--ink-1) !important; }
-.wbi-acts .topbar-action-btn:focus-visible { outline:2px solid #432890; outline-offset:3px; }
-.wbi-fbtn { display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 12px; border:1px solid #d3cec7; border-radius:6px; background:#fff; cursor:pointer;
-  font:500 13px/1 Aptos,Inter,sans-serif; color:var(--ink-1); }
-.wbi-fbtn:hover { border-color:#bdb6ad; }
-.wbi-fbtn[aria-expanded="true"] { border-color:var(--ink-1); }
-.wbi-fbtn:focus-visible { outline:none; box-shadow:0 0 0 2px #fff,0 0 0 4px #432890; }
+/* ---------- hero: one Midnight band per view. Eyebrow, title, filter summary and actions on top; the view's
+   headline KPIs below a hairline. A faint Willow Bridge mark sits in the corner. ---------- */
+.wbi-hero { position:relative; margin:20px 28px 0; padding:22px 28px 22px; border-radius:14px; color:#fff;
+  background:radial-gradient(900px 260px at 88% -30%, rgba(122,96,214,.38), transparent 62%), linear-gradient(135deg, #1D1247 0%, #241662 100%);
+  box-shadow:0 1px 2px rgba(29,18,71,.12), 0 10px 30px rgba(29,18,71,.10); }
+.wbi-hero-deco { position:absolute; inset:0; border-radius:inherit; overflow:hidden; pointer-events:none; }
+.wbi-hero-deco::after { content:""; position:absolute; right:-36px; top:-48px; width:240px; height:240px; background:url("../shared/wb-mark.png") center/contain no-repeat;
+  filter:brightness(0) invert(1); opacity:.06; }
+.wbi-head { position:relative; padding:0; background:none; }
+.wbi-head-row { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
+.wbi-eyebrow { font:500 12px/1.2 Aptos,Inter,sans-serif; color:#c7c9fe; opacity:.85; margin:0 0 6px; }
+.wbi-h1 { margin:0; font:600 26px/1.15 "Aptos Display",Aptos,Inter,sans-serif; letter-spacing:-.015em; color:#fff; }
+.wbi-sum { margin-top:6px; font:400 13px/1.35 Aptos,Inter,sans-serif; color:rgba(199,201,254,.78); }
+.wbi-acts { display:flex; align-items:center; gap:20px; padding-top:2px; }
+.wbi-hero .wbi-acts .topbar-action-btn { all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:6px; font:500 13px/1 Aptos,Inter,sans-serif !important; color:rgba(255,255,255,.82) !important; white-space:nowrap; }
+.wbi-hero .wbi-acts .topbar-action-btn:hover { color:#fff !important; }
+.wbi-hero .wbi-acts .topbar-action-btn:focus-visible { outline:2px solid #c7c9fe; outline-offset:3px; }
+.wbi-fbtn { display:inline-flex; align-items:center; gap:7px; height:32px; padding:0 12px; border:1px solid rgba(255,255,255,.28); border-radius:8px; background:rgba(255,255,255,.06); cursor:pointer;
+  font:500 13px/1 Aptos,Inter,sans-serif; color:#fff; transition:background .12s, border-color .12s; }
+.wbi-fbtn:hover { background:rgba(255,255,255,.12); border-color:rgba(255,255,255,.45); }
+.wbi-fbtn[aria-expanded="true"] { background:#fff; color:#1D1247; border-color:#fff; }
+.wbi-fbtn:focus-visible { outline:none; box-shadow:0 0 0 2px #1D1247,0 0 0 4px #c7c9fe; }
 .wbi-fbtn svg { width:14px; height:14px; }
 .wbi-fbtn .n:empty { display:none; }
-.wbi-fbtn .n { min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--ink-1); color:#fff; font:600 11px/18px Aptos,Inter,sans-serif; text-align:center; }
+.wbi-fbtn .n { min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:#c7c9fe; color:#1D1247; font:600 11px/18px Aptos,Inter,sans-serif; text-align:center; }
+.wbi-fbtn[aria-expanded="true"] .n { background:#1D1247; color:#fff; }
+
+/* the view's KPIs inside the hero: white figures on Midnight, lilac labels, translucent dividers */
+.wbi-hero-kpis:empty { display:none; }
+.wbi-hero-kpis { margin-top:22px; padding-top:20px; border-top:1px solid rgba(255,255,255,.12); }
+.wbi-hero .kpi-row { margin:0 !important; padding:0 !important; background:none !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; column-gap:0 !important; }
+.wbi-hero .kpi { padding:0 24px !important; }
+.wbi-hero .kpi:first-child { padding-left:0 !important; }
+.wbi-hero .kpi + .kpi::after { background:rgba(255,255,255,.12) !important; }
+.wbi-hero .kpi-label { color:rgba(199,201,254,.85) !important; }
+.wbi-hero .kpi-value { color:#fff !important; font-size:32px !important; }
+.wbi-hero .kpi-value .unit { color:rgba(199,201,254,.85) !important; }
+.wbi-hero .kpi-sub, .wbi-hero .kpi-sub * { color:rgba(199,201,254,.7) !important; }
+.wbi-hero .pos, .wbi-hero .kpi-sub .pos { color:#8fe3a9 !important; }
+.wbi-hero .neg, .wbi-hero .kpi-sub .neg { color:#ffab9f !important; }
+.wbi-hero button:not(.wbi-fbtn):not(.topbar-action-btn) { color:rgba(199,201,254,.8) !important; background:none !important; border-color:rgba(255,255,255,.2) !important; }
+.wbi-hero button.active, .wbi-hero .trends-mini-btn.active { color:#fff !important; box-shadow:inset 0 -2px 0 #fff !important; }
+
 /* the filter panel: every control group in two columns, Reset and Done at the foot */
-.wbi-fpanel { position:absolute; right:28px; top:68px; z-index:70; width:min(720px, calc(100% - 56px)); padding:20px 22px 16px; background:#fff;
+.wbi-fpanel { position:absolute; right:20px; top:64px; z-index:70; width:min(720px, calc(100% - 56px)); padding:20px 22px 16px; background:#fff;
   border:1px solid var(--line); border-radius:12px; box-shadow:0 16px 40px rgba(29,18,71,.14); }
 .wbi-fpanel[hidden] { display:none; }
 .wbi-fgrid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:18px 36px; }
@@ -9030,7 +9056,7 @@ body { background:#fff; color:var(--ink-1); }
 
 /* ---------- content: cards on a quiet canvas, 12-column grid, 16px gaps ---------- */
 .main { background:#f6f6f9 !important; }
-.content { padding:20px 28px 48px !important; }
+.content { padding:16px 28px 48px !important; }
 .grid-2, .grid-3, .grid-asymmetric { column-gap:16px !important; row-gap:16px !important; margin:0 0 16px !important; align-items:stretch; }
 .grid-2 { grid-template-columns:repeat(2, minmax(0,1fr)) !important; }
 .grid-3 { grid-template-columns:repeat(3, minmax(0,1fr)) !important; }
@@ -9136,10 +9162,10 @@ body { background:#fff; color:var(--ink-1); }
 .trends-absorb-stat:first-child { padding-left:0 !important; border-left:0 !important; }
 .content .panel > div:not([class]) { padding-left:0 !important; padding-right:0 !important; }
 </style>
-<script src="../shared/wb.js?v=202610201115"></script>
-<script src="../shared/legacy-db.js?v=202610201115"></script>
-<script>window.WB_BUILD = '202610201115';</script>
-<script src="loader.js?v=202610201115"></script>
+<script src="../shared/wb.js?v=202610201127"></script>
+<script src="../shared/legacy-db.js?v=202610201127"></script>
+<script>window.WB_BUILD = '202610201127';</script>
+<script src="loader.js?v=202610201127"></script>
 
 
 

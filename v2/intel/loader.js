@@ -128,10 +128,11 @@
     Object.values(tabBy).forEach((t) => rail.appendChild(t));
     inner.appendChild(rail);
 
-    // 2) page header: view title + actions, then the filter row
-    const head = document.createElement('header'); head.className = 'wbi-head';
-    head.innerHTML = '<div class="wbi-head-row"><div class="wbi-ttl"><h1 class="wbi-h1"></h1><div class="wbi-sum"></div></div><div class="wbi-acts"></div></div>';
-    const acts = $('.wbi-acts', head);
+    // 2) hero: one Midnight band per view — eyebrow (market · section), view title, filter summary, actions,
+    //    then that view's headline KPIs, moved in from the view and handed back when you switch views.
+    const hero = document.createElement('section'); hero.className = 'wbi-hero';
+    hero.innerHTML = '<div class="wbi-hero-deco" aria-hidden="true"></div><header class="wbi-head"><div class="wbi-head-row"><div class="wbi-ttl"><div class="wbi-eyebrow"></div><h1 class="wbi-h1"></h1><div class="wbi-sum"></div></div><div class="wbi-acts"></div></div></header><div class="wbi-hero-kpis"></div>';
+    const head = $('.wbi-head', hero), acts = $('.wbi-acts', hero), slot = $('.wbi-hero-kpis', hero);
     ['overview-report-btn', 'settings-btn'].forEach((id) => {
       const b = document.getElementById(id); if (!b) return;
       b.childNodes.forEach((n) => { if (n.nodeType === 3 && n.textContent.trim()) { const t = n.textContent.trim(); n.textContent = ' ' + t.charAt(0) + t.slice(1).toLowerCase(); } });
@@ -139,9 +140,32 @@
     });
     if (top) top.style.display = 'none';
     tabs.style.display = 'none';
-    main.insertBefore(head, content);
-    const h1 = $('.wbi-h1', head);
-    const syncTitle = () => { const a = $('.tab.active', rail); h1.textContent = a ? a.textContent.trim() : ''; };
+    main.insertBefore(hero, content);
+    const h1 = $('.wbi-h1', hero), eyebrow = $('.wbi-eyebrow', hero);
+    const mktName = (window.__WBD && window.__WBD.title) || 'Market intel';
+    const sectionOf = (t) => { let e = t.previousElementSibling; while (e && !e.classList.contains('wbi-rail-h')) e = e.previousElementSibling; return e ? e.textContent : ''; };
+    // the view's lead KPI row: its first child, or right after a small sub-tab row (Sale comps), or the Trends KPI row
+    const leadKpis = (v) => {
+      if (!v) return null;
+      const first = v.firstElementChild, r = v.querySelector(':scope > .kpi-row');
+      if (r && (r === first || (first && first.nextElementSibling === r && !first.classList.contains('panel')))) return r;
+      return v.querySelector('.trends2-kpirow');
+    };
+    let held = null;
+    const syncHero = () => {
+      const v = $('.content > .view.active') || $('.view.active');
+      if (held && held.view === v) return;
+      if (held) { held.marker.replaceWith(held.row); held = null; }
+      const r = leadKpis(v);
+      if (r) { const m = document.createComment('hero kpis'); r.replaceWith(m); slot.appendChild(r); held = { row: r, marker: m, view: v }; }
+      hero.classList.toggle('has-kpis', !!held);
+    };
+    const syncTitle = () => {
+      const a = $('.tab.active', rail);
+      h1.textContent = a ? a.textContent.trim() : '';
+      eyebrow.textContent = mktName + (a && sectionOf(a) ? ' · ' + sectionOf(a) : '');
+      setTimeout(syncHero, 0);
+    };
     new MutationObserver(syncTitle).observe(rail, { subtree: true, attributes: true, attributeFilter: ['class'] }); syncTitle();
 
     // 3) filters → one Filters button (with a count) that opens a panel holding every original control group;
@@ -169,7 +193,7 @@
     const panel = document.createElement('div'); panel.className = 'wbi-fpanel'; panel.hidden = true;
     panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'Filters');
     panel.innerHTML = '<div class="wbi-fgrid"></div><div class="wbi-ffoot"><span></span><button type="button" class="wbi-fdone">Done</button></div>';
-    head.appendChild(panel);
+    hero.appendChild(panel);
     const fgrid = $('.wbi-fgrid', panel), items = [];
     groups.forEach((g) => {
       const name = labelOf(g); if (!name) return;
