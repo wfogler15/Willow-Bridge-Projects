@@ -8941,7 +8941,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201127">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201131">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9064,9 +9064,9 @@ body { background:#fff; color:var(--ink-1); }
 .grid-asymmetric > :first-child { grid-column:span 8; }
 .grid-asymmetric > :last-child { grid-column:span 4; }
 /* overview: the two rent charts share a row; supply and unit mix share the next (8 / 4) */
-#view-overview > .kpi-row + .grid-2 + .grid-2 { grid-template-columns:repeat(12, minmax(0,1fr)) !important; }
-#view-overview > .kpi-row + .grid-2 + .grid-2 > :first-child { grid-column:span 8; }
-#view-overview > .kpi-row + .grid-2 + .grid-2 > :last-child { grid-column:span 4; }
+#view-overview .grid-2:has(#chart-unit-mix) { grid-template-columns:repeat(12, minmax(0,1fr)) !important; }
+#view-overview .grid-2:has(#chart-unit-mix) > :first-child { grid-column:span 8; }
+#view-overview .grid-2:has(#chart-unit-mix) > :last-child { grid-column:span 4; }
 .grid-2 > .panel, .grid-3 > .panel, .grid-asymmetric > .panel { margin:0 !important; display:flex; flex-direction:column; min-width:0; }
 .grid-2 > .panel > .panel-body, .grid-3 > .panel > .panel-body, .grid-asymmetric > .panel > .panel-body { flex:1 1 auto; }
 
@@ -9144,8 +9144,8 @@ body { background:#fff; color:var(--ink-1); }
   .wbi-rail { display:flex; flex-wrap:wrap; gap:4px 16px; }
   .wbi-rail-h { display:none; }
   .wbi-rail .tab { width:auto; margin:0 !important; padding:4px 0 !important; }
-  .grid-2, .grid-3, .grid-asymmetric, #view-overview > .kpi-row + .grid-2 { grid-template-columns:minmax(0,1fr) !important; }
-  .grid-asymmetric > *, #view-overview > .kpi-row + .grid-2 > * { grid-column:auto !important; }
+  .grid-2, .grid-3, .grid-asymmetric, #view-overview .grid-2:has(#chart-unit-mix) { grid-template-columns:minmax(0,1fr) !important; }
+  .grid-asymmetric > *, #view-overview .grid-2:has(#chart-unit-mix) > * { grid-column:auto !important; }
 }
 
 /* Trends: the view title is the page h1, so the inner masthead keeps only its source line; inner gutters go */
@@ -9162,10 +9162,10 @@ body { background:#fff; color:var(--ink-1); }
 .trends-absorb-stat:first-child { padding-left:0 !important; border-left:0 !important; }
 .content .panel > div:not([class]) { padding-left:0 !important; padding-right:0 !important; }
 </style>
-<script src="../shared/wb.js?v=202610201127"></script>
-<script src="../shared/legacy-db.js?v=202610201127"></script>
-<script>window.WB_BUILD = '202610201127';</script>
-<script src="loader.js?v=202610201127"></script>
+<script src="../shared/wb.js?v=202610201131"></script>
+<script src="../shared/legacy-db.js?v=202610201131"></script>
+<script>window.WB_BUILD = '202610201131';</script>
+<script src="loader.js?v=202610201131"></script>
 
 
 

@@ -159,6 +159,8 @@
       const r = leadKpis(v);
       if (r) { const m = document.createComment('hero kpis'); r.replaceWith(m); slot.appendChild(r); held = { row: r, marker: m, view: v }; }
       hero.classList.toggle('has-kpis', !!held);
+      // the grid below changed height and width: let the charts re-measure
+      requestAnimationFrame(() => { try { if (typeof charts !== 'undefined') Object.values(charts).forEach((c) => c && c.resize && c.resize()); } catch (e) {} });
     };
     const syncTitle = () => {
       const a = $('.tab.active', rail);
