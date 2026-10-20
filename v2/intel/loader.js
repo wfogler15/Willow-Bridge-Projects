@@ -97,35 +97,119 @@
 
     const s = document.createElement('script');
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
-    s.onload = () => { overlay.remove(); compactHeader(); };
+    s.onload = () => { overlay.remove(); buildShell(); sentenceCase(); document.addEventListener('click', scLater, true); };
     s.onerror = () => { overlay.textContent = 'The dashboard code failed to load. Reload the page.'; };
     document.body.appendChild(s);
   }
 
-  // One page band under the nav, full width so it lines up with the nav: market name, the view tabs, then the
-  // market toggle and the two header actions. The legacy header goes. Tabs keep their own click handlers (moved, not rebuilt).
-  // Styling lives in the wb-minimal block at the end of index.html.
-  function compactHeader() {
-    const top = document.querySelector('.main > .topbar'), tabs = document.querySelector('.main > .tabs'), app = document.querySelector('.app');
-    if (!top || !tabs || !app) return;
-    const acts = document.createElement('div'); acts.className = 'tabs-acts';
+  // ---------- Page shell (Oct 2026 redesign) ----------
+  // Hierarchy: the shared app nav on top; the views as a left rail; the page header carries the view title,
+  // two actions, and the filters as one row of compact menus. The legacy controls are moved, not rebuilt,
+  // so every handler in app.js keeps working. Styling lives in the wb-minimal block at the end of index.html.
+  function buildShell() {
+    const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+    const app = $('.app'), main = $('.app > .main'), inner = $('.app > .sidebar .sidebar-inner');
+    const top = $('.main > .topbar'), tabs = $('.main > .tabs'), content = $('.main > .content');
+    if (!app || !main || !inner || !tabs || !content || $('.wbi-rail')) return;
+    app.classList.remove('sidebar-collapsed');
+
+    // 1) views → left rail, grouped
+    const groups = $$(':scope > .filter-group', inner);
+    const rail = document.createElement('nav'); rail.className = 'wbi-rail'; rail.setAttribute('aria-label', 'Market intel views');
+    const mkt = document.createElement('div'); mkt.className = 'wbi-rail-mkt';
+    const ttl = document.createElement('div'); ttl.className = 'wbi-rail-title'; ttl.textContent = (window.__WBD && window.__WBD.title) || 'Market intel';
+    mkt.append(ttl, WB.marketToggle()); rail.appendChild(mkt);
+    const tabBy = Object.fromEntries($$('.tab', tabs).map((t) => [t.dataset.view, t]));
+    [['Market', ['overview', 'trends', 'submarkets', 'properties']], ['Supply', ['absorption', 'pipeline']], ['Underwriting', ['yoc', 'salecomps', 'opportunities']]]
+      .forEach(([label, ids]) => {
+        const h = document.createElement('div'); h.className = 'wbi-rail-h'; h.textContent = label; rail.appendChild(h);
+        ids.forEach((id) => { if (tabBy[id]) { rail.appendChild(tabBy[id]); delete tabBy[id]; } });
+      });
+    Object.values(tabBy).forEach((t) => rail.appendChild(t));
+    inner.appendChild(rail);
+
+    // 2) page header: view title + actions, then the filter row
+    const head = document.createElement('header'); head.className = 'wbi-head';
+    head.innerHTML = '<div class="wbi-head-row"><h1 class="wbi-h1"></h1><div class="wbi-acts"></div></div><div class="wbi-filters" role="toolbar" aria-label="Filters"></div>';
+    const acts = $('.wbi-acts', head);
     ['overview-report-btn', 'settings-btn'].forEach((id) => {
       const b = document.getElementById(id); if (!b) return;
-      // "MARKET REPORT" → "Market report": sentence case like the rest of the dashboard
       b.childNodes.forEach((n) => { if (n.nodeType === 3 && n.textContent.trim()) { const t = n.textContent.trim(); n.textContent = ' ' + t.charAt(0) + t.slice(1).toLowerCase(); } });
       acts.appendChild(b);
     });
-    acts.prepend(WB.marketToggle());
-    tabs.appendChild(acts); top.style.display = 'none';
-    const band = document.createElement('div'); band.className = 'wbi-band';
-    const title = document.createElement('div'); title.className = 'wbi-title';
-    title.textContent = (window.__WBD && window.__WBD.title) || 'Market intel';
-    band.append(title, tabs);
-    app.before(band);
-    const st = document.createElement('style');
-    st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}';
-    document.head.appendChild(st);
+    if (top) top.style.display = 'none';
+    tabs.style.display = 'none';
+    main.insertBefore(head, content);
+    const h1 = $('.wbi-h1', head);
+    const syncTitle = () => { const a = $('.tab.active', rail); h1.textContent = a ? a.textContent.trim() : ''; };
+    new MutationObserver(syncTitle).observe(rail, { subtree: true, attributes: true, attributeFilter: ['class'] }); syncTitle();
+
+    // 3) filters → one row of menus. Each menu holds the original control group.
+    const bar = $('.wbi-filters', head);
+    const NAMES = { 'data taxonomy': 'Taxonomy', 'building class': 'Class', 'building status': 'Status', 'avg unit size': 'Unit size', 'comp set': 'Comp set', 'product type': 'Product', 'city': 'City', 'submarket': 'Submarket' };
+    const labelOf = (g) => {
+      const L = $('.filter-label', g); if (!L) return '';
+      const s = $('span', L); const raw = (s ? s.childNodes[0].textContent : L.textContent).trim();
+      return NAMES[raw.toLowerCase()] || raw;
+    };
+    const valueOf = (g) => {
+      if (g.id === 'cs-side-group') {
+        const b = $('#cs-side-build-state'); if (b && b.style.display !== 'none') return 'Building, ' + ($('#cs-selection-count') ? $('#cs-selection-count').textContent.trim().toLowerCase() : '');
+        const p = $('#cs-picker'); return p && p.value ? p.options[p.selectedIndex].textContent.trim() : 'None';
+      }
+      const tx = $('.taxonomy-btn.active', g); if (tx) return tx.textContent.trim();
+      const sum = $('.acc-summary', g); if (sum) return sum.textContent.trim() || 'All';
+      const on = $$('.chip.active', g).map((c) => c.textContent.trim());
+      return !on.length || on.includes('All') ? 'All' : on.join(', ');
+    };
+    const closeAll = (except) => $$('.wbi-f', bar).forEach((f) => { if (f !== except) { $('.wbi-pop', f).hidden = true; $('.wbi-f-btn', f).setAttribute('aria-expanded', 'false'); } });
+    groups.forEach((g) => {
+      const name = labelOf(g); if (!name) return;
+      const item = document.createElement('div'); item.className = 'wbi-f';
+      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'wbi-f-btn'; btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-haspopup', 'true');
+      btn.innerHTML = '<span class="k"></span><span class="v"></span><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
+      $('.k', btn).textContent = name;
+      const pop = document.createElement('div'); pop.className = 'wbi-pop'; pop.hidden = true; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', name);
+      g.classList.remove('collapsed'); pop.appendChild(g);
+      item.append(btn, pop); bar.appendChild(item);
+      const update = () => { const v = valueOf(g); $('.v', btn).textContent = v; item.classList.toggle('on', name !== 'Taxonomy' && !['All', 'None'].includes(v)); };
+      new MutationObserver(update).observe(g, { subtree: true, attributes: true, childList: true, characterData: true });
+      g.addEventListener('change', update); update();
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation(); const open = pop.hidden; closeAll(item); pop.hidden = !open; btn.setAttribute('aria-expanded', String(open));
+        if (open) { const s = $('input[type=text], input[type=search]', pop); if (s) s.focus(); }
+      });
+    });
+    const reset = document.getElementById('clear-filters');
+    if (reset) { reset.textContent = 'Reset'; bar.appendChild(reset); }
+    document.addEventListener('click', (e) => { if (!e.target.closest('.wbi-f')) closeAll(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(); });
+
+    // 4) charts and maps re-measure for the new column widths
+    const st = document.createElement('style'); st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}'; document.head.appendChild(st);
+
+    setTimeout(() => {
+      try { if (typeof charts !== 'undefined') Object.values(charts).forEach((c) => c && c.resize && c.resize()); } catch (e) {}
+      try { [window._propertyMap, window._oppMap].forEach((m) => m && m.invalidateSize && m.invalidateSize()); } catch (e) {}
+      window.dispatchEvent(new Event('resize'));
+    }, 60);
   }
+
+  // Legacy buttons carry ALL-CAPS labels in their markup ("+ ADD COMP", "EXPORT PDF"). Sentence-case them, keeping acronyms.
+  const KEEP_CAPS = new Set(['PDF', 'YOC', 'ROC', 'UC', 'CSV', 'MSA', 'SF', 'TPC', 'HC', 'NRSF', 'RP', 'KPI', 'LOI', 'DD', 'YTD']);
+  function sentenceCase(root) {
+    (root || document).querySelectorAll('.app button, .modal-backdrop button').forEach((b) => b.childNodes.forEach((n) => {
+      if (n.nodeType !== 3) return; const t = n.textContent;
+      if (!/[A-Z]{3,}/.test(t) || /[a-z]/.test(t)) return;
+      let first = true;
+      n.textContent = t.replace(/[A-Z][A-Z0-9&'.-]*/g, (w) => {
+        if (KEEP_CAPS.has(w)) { first = false; return w; }
+        const out = first ? w.charAt(0) + w.slice(1).toLowerCase() : w.toLowerCase(); first = false; return out;
+      });
+    }));
+  }
+  let scT = 0;
+  const scLater = () => { clearTimeout(scT); scT = setTimeout(() => sentenceCase(), 60); };
 
   boot().catch((e) => {
     console.error('[intel] load failed', e);

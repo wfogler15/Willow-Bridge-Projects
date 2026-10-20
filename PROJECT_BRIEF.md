@@ -8,7 +8,7 @@ One dashboard for Willow Bridge acquisitions and development in **Denver** and *
 | Page | Path | What it does |
 |---|---|---|
 | Overview | `v2/index.html` | Active pursuits: underwriting and later, then screening (new on market) |
-| Market intel | `v2/intel/` | Will's original Market Intel dashboard (CoStar comps, RealPage trends). Original tabs are kept; the minimal design is applied on top (see Brand). The top nav auto-hides. |
+| Market intel | `v2/intel/` | Will's original Market Intel dashboard (CoStar comps, RealPage trends). Views sit in a left rail (Market / Supply / Underwriting); the page header carries the view title, Market report, Settings and the filters as one row of menus. The shell is built by `buildShell()` in `v2/intel/loader.js`, which moves the legacy controls rather than rebuilding them. The top nav auto-hides. |
 | Site scout | `v2/scout/` | Parcel scouting map |
 | Pipeline | `v2/pipeline/` | Map mode for the Thursday pipeline meeting, plus a Deal log (searchable, editable modal, Excel export), with comp layers (sale comps and property comps, dots plus parcel outlines) |
 | Sale comps | `v2/comps/` | Master sale comp log, split into Investment and Land. Summary shows YTD volume vs last year. Exports to Excel. |
@@ -37,7 +37,7 @@ Live site: GitHub Pages for repo `wfogler15/Willow-Bridge-Projects` (public), un
   - `v2/shared/wb.js`: `WB.ready`, `WB.band`, `WB.marketToggle`, `WB.fetchAll`, `WB.toast`.
 - **Market toggle:** each page has its own. There is no master toggle.
 - **Labels:** always say "Development" (land) and "Investment" (existing). Always break the two out.
-- **Brand and layout (minimal direction, Oct 2026):** white ground, hairline rules, text tabs and toggles, no cards, chips or tinted panels. Midnight `#1D1247` for text and the one filled button; purple `#432890` only for links and "New". Aptos/Inter. Each page leads with a one-line summary, then a few intentional figures. Market intel uses the same minimal direction (Will's call, Oct 20 2026); its overrides live in one `wb-minimal` style block at the end of `v2/intel/index.html`. Its charts and numbers are unchanged.
+- **Brand and layout (minimal direction, Oct 2026):** white ground, hairline rules, text tabs and toggles, no cards, chips or tinted panels. Midnight `#1D1247` for text and the one filled button; purple `#432890` only for links and "New". Aptos/Inter. Each page leads with a one-line summary, then a few intentional figures. Market intel uses the same minimal direction (Will's call, Oct 20 2026); its styles live in one `wb-minimal` block at the end of `v2/intel/index.html`, on a 12-column grid with 32px gutters shared by the KPI strip and every chart row. Charts and features are unchanged.
 - **Deal log table:** fixed column grid, everything left-aligned, tabular numbers.
 - **Will's preferences:**
   - Rent/SF is the primary metric, with monthly rent secondary.
