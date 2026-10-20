@@ -6,7 +6,7 @@
 <title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610201831">
+<link rel="stylesheet" href="../shared/wb.css?v=202610201837">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -133,7 +133,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610201831"></script>
+<script src="../shared/wb.js?v=202610201837"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -327,10 +327,7 @@
     const land = c.comp_type === 'land';
     const f = land ? [[fmt.usd(c.sale_price), 'Price'], [fmt.usd(c.price_per_unit), 'Per door'], [fmt.ac(c.acres), 'Acres']]
                    : [[fmt.usd(c.sale_price), 'Price'], [fmt.usd(c.price_per_unit), 'Per unit'], [fmt.int(c.units) + ' units', 'Size']];
-    const pi = PARCEL[c.id], pl = !c.lat ? 'No map pin yet, so no parcel to outline'
-      : !pi || pi.s === 'loading' ? 'Looking up the parcel…'
-      : pi.s === 'ok' ? `Parcel ${pi.apn || '(no APN)'} · ${fmt.ac(pi.acres)}${c.acres && Math.abs(pi.acres - c.acres) / c.acres > .15 ? ' (comp: ' + fmt.ac(c.acres) + ')' : ''}`
-      : pi.s === 'none' ? 'No parcel at this pin. Move the pin onto the site.' : 'Parcel service did not respond';
+    const pl = parcelLine(c);
     el.innerHTML = `<div class="pk-h"><div class="pk-t"><div class="pk-n">${esc(c.name || c.address || 'Untitled comp')}</div>`
       + `<div class="pk-s">${esc([c.address, fmt.date(c.sale_date)].filter((x) => x && x !== '—').join(' · '))}</div></div><button class="pk-x" type="button" id="pk-x" aria-label="Close preview">×</button></div>`
       + `<div class="pk-f">${f.map(([v, l]) => `<div><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}</div>`
@@ -390,7 +387,46 @@
     return polys;
   }
   const emptyFC = { type: 'FeatureCollection', features: [] };
-  function clearParcel() { const s = map && map.getSource && map.getSource('parcel'); if (s) s.setData(emptyFC); }
+  function clearParcel() {
+    const s = map && map.getSource && map.getSource('parcel'); if (s) s.setData(emptyFC);
+    if (approxPin) { approxPin.remove(); approxPin = null; }
+  }
+  let approxPin = null;
+  // ---- comps with no pin: place them from their address (Esri geocoder; used for display only, never saved) ----
+  const GEO = {};   // comp id -> { s: 'loading'|'ok'|'none', lat, lng, type }
+  const EXTENT = { phoenix: '-113.4,32.7,-111.1,34.2', denver: '-105.6,39.2,-104.4,40.4' }, STATE = { phoenix: 'AZ', denver: 'CO' };
+  const cleanAddr = (a) => String(a || '')
+    .replace(/^\s*(?:[NSEW]{1,2}\/)*(?:NEC|SEC|NWC|SWC|NE\/C|SE\/C|NW\/C|SW\/C|NEW)\s+(?:of\s+)?(?:the\s+)?/i, '')
+    .replace(/\s+and\s+/gi, ' & ').replace(/(\d)\s+(th|st|nd|rd)\b/gi, '$1$2').replace(/\s+/g, ' ').trim();
+  async function geocodeComp(c) {
+    if (GEO[c.id] && GEO[c.id].s !== 'loading') return GEO[c.id].s === 'ok' ? GEO[c.id] : null;
+    GEO[c.id] = { s: 'loading' }; if (parcelFor === c.id) renderPeek(filtered());
+    const place = (c.city || String(c.submarket || '').split('-').pop() || '').trim(), st = STATE[c.market_id] || '';
+    const single = [cleanAddr(c.address), place, st].filter(Boolean).join(', ');
+    try {
+      const u = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?' + new URLSearchParams({ f: 'json', maxLocations: 1, outFields: 'Addr_type', sourceCountry: 'USA', searchExtent: EXTENT[c.market_id] || '', singleLine: single });
+      const j = await (await fetch(u)).json(), k = j.candidates && j.candidates[0];
+      GEO[c.id] = k && k.score >= 80 ? { s: 'ok', lat: k.location.y, lng: k.location.x, type: k.attributes.Addr_type } : { s: 'none' };
+    } catch (e) { GEO[c.id] = { s: 'none' }; }
+    return GEO[c.id].s === 'ok' ? GEO[c.id] : null;
+  }
+  const PARCEL_TYPES = ['PointAddress', 'Subaddress', 'StreetAddress'];   // exact-address matches land on the parcel; intersections do not
+  const locOf = (c) => (c.lat != null && c.lng != null ? { lat: c.lat, lng: c.lng, approx: false }
+    : GEO[c.id] && GEO[c.id].s === 'ok' ? { lat: GEO[c.id].lat, lng: GEO[c.id].lng, approx: true, exact: PARCEL_TYPES.includes(GEO[c.id].type) } : null);
+  function parcelLine(c) {
+    const pi = PARCEL[c.id], g = GEO[c.id], loc = locOf(c);
+    if (!loc) return !c.address ? 'No map pin and no address. Use Edit to set a pin.' : g && g.s === 'loading' ? 'Finding the address…' : 'No map pin and the address could not be placed. Use Edit to set a pin.';
+    if (loc.approx && !loc.exact) return 'Approximate spot from the address. Use Edit and click the map to set the exact pin.';
+    if (!pi || pi.s === 'loading') return 'Looking up the parcel…';
+    if (pi.s === 'ok') return `Parcel ${pi.apn || '(no APN)'} · ${fmt.ac(pi.acres)}${c.acres && Math.abs(pi.acres - c.acres) / c.acres > .15 ? ' (comp: ' + fmt.ac(c.acres) + ')' : ''}${loc.approx ? ' · matched by address' : ''}`;
+    return pi.s === 'none' ? 'No parcel at this pin. Move the pin onto the site.' : 'Parcel service did not respond';
+  }
+  function showApprox(loc) {
+    if (approxPin) approxPin.remove();
+    const el = document.createElement('div'); el.title = 'Approximate location from the address';
+    el.style.cssText = 'width:26px;height:26px;border-radius:50%;border:3px dashed #F2B01E;background:rgba(242,176,30,.18);box-shadow:0 0 0 2px rgba(22,20,43,.45)';
+    approxPin = new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([loc.lng, loc.lat]).addTo(map);
+  }
   function drawParcel(rings) {
     const s = map.getSource('parcel'); if (!s) return;
     s.setData({ type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: toMulti(rings) } });
@@ -399,15 +435,25 @@
     map.fitBounds(b, { padding: { top: 60, bottom: 190, left: 60, right: 60 }, maxZoom: 17.5, duration: 700 });
   }
   async function startParcel(c) {
-    if (c.lat == null || c.lng == null) return;
-    let pi = PARCEL[c.id];
+    let loc = locOf(c);
+    if (!loc && c.address) {
+      loc = await geocodeComp(c); if (parcelFor !== c.id) return;
+      if (loc) loc = locOf(c);
+      renderPeek(filtered());
+      if (!loc) return;
+      map._fitOnce = true; showApprox(loc);
+      map.flyTo({ center: [loc.lng, loc.lat], zoom: loc.exact ? 17 : 15.5, duration: 800 });
+    }
+    if (!loc || (loc.approx && !loc.exact)) return;
+    const key = c.id;
+    let pi = PARCEL[key];
     if (pi && pi.s !== 'err' && pi.s !== 'loading') { if (pi.s === 'ok') drawParcel(pi.rings); return; }
-    PARCEL[c.id] = { s: 'loading' }; renderPeek(filtered());
+    PARCEL[key] = { s: 'loading' }; renderPeek(filtered());
     try {
-      const v = await parcelAt(c.lng, c.lat);
-      PARCEL[c.id] = v ? { s: 'ok', apn: v.apn, rings: v.rings, acres: Math.abs(v.rings.reduce((t, r) => t + ringAcres(r), 0)) } : { s: 'none' };
-    } catch (e) { PARCEL[c.id] = { s: 'err' }; }
-    if (parcelFor === c.id) { if (PARCEL[c.id].s === 'ok') drawParcel(PARCEL[c.id].rings); renderPeek(filtered()); }
+      const v = await parcelAt(loc.lng, loc.lat);
+      PARCEL[key] = v ? { s: 'ok', apn: v.apn, rings: v.rings, acres: Math.abs(v.rings.reduce((t, r) => t + ringAcres(r), 0)) } : { s: 'none' };
+    } catch (e) { PARCEL[key] = { s: 'err' }; }
+    if (parcelFor === key) { if (PARCEL[key].s === 'ok') { if (approxPin) { approxPin.remove(); approxPin = null; } drawParcel(PARCEL[key].rings); } renderPeek(filtered()); }
   }
 
   // ---------- map ----------
