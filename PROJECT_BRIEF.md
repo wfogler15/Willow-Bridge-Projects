@@ -12,7 +12,7 @@ One dashboard for Willow Bridge acquisitions and development in **Denver** and *
 | Site scout | `v2/scout/` | Parcel scouting map |
 | Pipeline | `v2/pipeline/` | Map mode for the Thursday pipeline meeting, plus a Deal log (searchable, editable modal, Excel export), with comp layers (sale comps and property comps, dots plus parcel outlines) |
 | Development | `v2/development/` | Other developers' activity: Entitlements (planning/council cases plus value drivers like hospitals and stadiums) and Under construction. Map flyover (Prev/Next, like Pipeline) and a Data log with an editor, review queue and CSV export. |
-| Sale comps | `v2/comps/` | Master sale comp log, split into Investment and Land. Summary shows YTD volume vs last year. Exports to Excel. |
+| Sale comps | `v2/comps/` | Master sale comp log, split into Investment and Land. Investment sales are scoped to 100+ units built 1970 or later in both markets (Will's call, Oct 20 2026; unknown units/vintage stay in); the page says so at the top, and Overview volume and Pipeline's recent trades use the same rule. Out-of-scope rows stay in the database. Summary shows YTD volume vs last year. Exports to Excel. |
 
 Live site: GitHub Pages for repo `wfogler15/Willow-Bridge-Projects` (public), under `/v2/`.
 

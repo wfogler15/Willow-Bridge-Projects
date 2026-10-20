@@ -6,7 +6,7 @@
 <title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610202050">
+<link rel="stylesheet" href="../shared/wb.css?v=202610202329">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -98,11 +98,13 @@
   .msec dd.na{color:var(--muted)}
   .msec dd.notes{white-space:pre-wrap;line-height:1.5}
   .msec a{color:var(--purple)}
+  .scope{margin:0 0 14px;font-size:13px;line-height:1.45;color:var(--wb-muted,#6E6886)}
   @media (max-width:640px){.mfigs{grid-template-columns:repeat(2,minmax(0,1fr))}.msec dl{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <main class="page">
+  <p class="scope" id="scope" hidden></p>
   <div class="figs" id="stats"></div>
   <div class="split">
     <section class="sec"><div class="sec-h"><h2 id="t-title">Sales</h2><span class="note">Click a heading to sort. Click a row to preview it on the map; double-click for full detail.</span></div>
@@ -133,7 +135,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610202050"></script>
+<script src="../shared/wb.js?v=202610202329"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -141,6 +143,10 @@
   const $ = (s) => document.querySelector(s);
 
   let rows = await WB.fetchAll('comps', 'sale_comps', '*', (q) => q.order('sale_date', { ascending: false, nullsFirst: false }));
+  // Investment sales: 100+ units, built 1970 or later, in both markets (unknown units or vintage stay in). Land sales are not filtered.
+  const inScope = (c) => c.comp_type !== 'investment' || ((c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970));
+  const outOfScope = rows.filter((c) => !inScope(c));
+  rows = rows.filter(inScope);
   // fill per-door and per-land-SF figures when the inputs are there but the figure wasn't recorded
   for (const c of rows) {
     const doors = c.comp_type === 'land' ? c.proposed_units : c.units;
@@ -308,6 +314,10 @@
     const chg = vol(lytd) ? (vol(ytd) / vol(lytd) - 1) * 100 : null;
     const F = (v, l) => `<div class="fig"><div class="v">${v}</div><div class="l">${l}</div></div>`;
     const inv = state.type === 'investment';
+    { const n = outOfScope.filter((c) => state.market === 'all' || c.market_id === state.market).length, el = $('#scope');
+      el.hidden = !inv;
+      el.textContent = 'Investment sales of 100+ units built 1970 or later, in both markets, so Denver and Phoenix compare like for like. Sources: CoStar, broker sales lists (JLL, Cushman & Wakefield and others) and our own tracking.'
+        + (n ? ` ${n} smaller or older ${n === 1 ? 'sale is' : 'sales are'} left out.` : ''); }
     $('#stats').innerHTML = F(fmt.usd(vol(ytd)), `${Y} to date, ${ytd.length} ${ytd.length === 1 ? 'sale' : 'sales'}`)
       + F(chg == null ? '—' : (chg >= 0 ? '+' : '−') + Math.abs(chg).toFixed(0) + '%', `vs. ${fmt.usd(vol(lytd))} this time last year`)
       + F(fmt.usd(vol(lyFull)), `All of ${Y - 1}, ${lyFull.length} sales`)
