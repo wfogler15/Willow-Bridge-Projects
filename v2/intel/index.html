@@ -8941,7 +8941,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201032">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201034">
 <!-- Minimal direction (Oct 2026): white ground, hairline rules, text tabs, no shadows or boxed fills.
      Applied last so it wins over the dashboard's own styles. Charts and numbers are unchanged. -->
 <style id="wb-minimal">
@@ -9024,7 +9024,13 @@ body { font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif; back
 .grid-2 > .panel > .panel-body, .grid-3 > .panel > .panel-body, .grid-asymmetric > .panel > .panel-body { flex:1 1 auto; }
 .panel-header { padding:8px 0 !important; }
 .panel-body { padding-top:8px !important; }
-.panel-sub { margin-top:1px !important; line-height:1.3; }
+/* hierarchy: the title leads; the subtitle is a quiet line of units and method. Inline highlights stay small. */
+.panel-title { font-size:16px !important; font-weight:600 !important; color:var(--ink-1) !important; line-height:1.25 !important; }
+.panel-sub { margin-top:3px !important; line-height:1.4 !important; font-size:12px !important; font-weight:400 !important; color:var(--ink-3) !important; }
+.panel-sub *, .panel-sub span, .panel-sub b, .panel-sub strong { font-size:inherit !important; font-weight:500 !important; color:var(--ink-2) !important; }
+.filter-group { margin-bottom:16px !important; }
+.filter-label { padding-bottom:6px !important; margin-bottom:8px !important; }
+.accordion { margin-bottom:14px !important; }
 .kpi { padding:10px 16px 9px !important; }
 .kpi-value { font-size:22px !important; }
 .kpi-label { margin-bottom:2px; }
@@ -9043,10 +9049,10 @@ body { font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif; back
 .toggle-btn { background:transparent !important; border:0 !important; padding:4px 10px !important; color:var(--ink-3) !important; font-weight:500 !important; }
 .toggle-btn.active { color:var(--ink-1) !important; box-shadow:inset 0 -2px 0 var(--accent) !important; }
 </style>
-<script src="../shared/wb.js?v=202610201032"></script>
-<script src="../shared/legacy-db.js?v=202610201032"></script>
-<script>window.WB_BUILD = '202610201032';</script>
-<script src="loader.js?v=202610201032"></script>
+<script src="../shared/wb.js?v=202610201034"></script>
+<script src="../shared/legacy-db.js?v=202610201034"></script>
+<script>window.WB_BUILD = '202610201034';</script>
+<script src="loader.js?v=202610201034"></script>
 
 
 
