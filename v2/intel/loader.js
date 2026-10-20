@@ -130,7 +130,7 @@
 
     // 2) page header: view title + actions, then the filter row
     const head = document.createElement('header'); head.className = 'wbi-head';
-    head.innerHTML = '<div class="wbi-head-row"><h1 class="wbi-h1"></h1><div class="wbi-acts"></div></div><div class="wbi-filters" role="toolbar" aria-label="Filters"></div>';
+    head.innerHTML = '<div class="wbi-head-row"><div class="wbi-ttl"><h1 class="wbi-h1"></h1><div class="wbi-sum"></div></div><div class="wbi-acts"></div></div>';
     const acts = $('.wbi-acts', head);
     ['overview-report-btn', 'settings-btn'].forEach((id) => {
       const b = document.getElementById(id); if (!b) return;
@@ -144,8 +144,8 @@
     const syncTitle = () => { const a = $('.tab.active', rail); h1.textContent = a ? a.textContent.trim() : ''; };
     new MutationObserver(syncTitle).observe(rail, { subtree: true, attributes: true, attributeFilter: ['class'] }); syncTitle();
 
-    // 3) filters → one row of menus. Each menu holds the original control group.
-    const bar = $('.wbi-filters', head);
+    // 3) filters → one Filters button (with a count) that opens a panel holding every original control group;
+    //    a quiet summary line under the title says what's applied.
     const NAMES = { 'data taxonomy': 'Taxonomy', 'building class': 'Class', 'building status': 'Status', 'avg unit size': 'Unit size', 'comp set': 'Comp set', 'product type': 'Product', 'city': 'City', 'submarket': 'Submarket' };
     const labelOf = (g) => {
       const L = $('.filter-label', g); if (!L) return '';
@@ -162,39 +162,50 @@
       const on = $$('.chip.active', g).map((c) => c.textContent.trim());
       return !on.length || on.includes('All') ? 'All' : on.join(', ');
     };
-    const closeAll = (except) => $$('.wbi-f', bar).forEach((f) => { if (f !== except) { $('.wbi-pop', f).hidden = true; $('.wbi-f-btn', f).setAttribute('aria-expanded', 'false'); } });
+    const fbtn = document.createElement('button'); fbtn.type = 'button'; fbtn.className = 'wbi-fbtn';
+    fbtn.setAttribute('aria-haspopup', 'dialog'); fbtn.setAttribute('aria-expanded', 'false');
+    fbtn.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M4.5 8h7M7 12h2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Filters</span><b class="n"></b>';
+    acts.prepend(fbtn);
+    const panel = document.createElement('div'); panel.className = 'wbi-fpanel'; panel.hidden = true;
+    panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'Filters');
+    panel.innerHTML = '<div class="wbi-fgrid"></div><div class="wbi-ffoot"><span></span><button type="button" class="wbi-fdone">Done</button></div>';
+    head.appendChild(panel);
+    const fgrid = $('.wbi-fgrid', panel), items = [];
     groups.forEach((g) => {
       const name = labelOf(g); if (!name) return;
-      const item = document.createElement('div'); item.className = 'wbi-f';
-      const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'wbi-f-btn'; btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-haspopup', 'true');
-      btn.innerHTML = '<span class="k"></span><span class="v"></span><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>';
-      $('.k', btn).textContent = name;
-      const pop = document.createElement('div'); pop.className = 'wbi-pop'; pop.hidden = true; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', name);
-      g.classList.remove('collapsed'); pop.appendChild(g);
-      item.append(btn, pop); bar.appendChild(item);
-      const update = () => { const v = valueOf(g); $('.v', btn).textContent = v; item.classList.toggle('on', name !== 'Taxonomy' && !['All', 'None'].includes(v)); };
-      new MutationObserver(update).observe(g, { subtree: true, attributes: true, childList: true, characterData: true });
-      g.addEventListener('change', update); update();
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation(); const open = pop.hidden; closeAll(item); pop.hidden = !open; btn.setAttribute('aria-expanded', String(open));
-        if (open) { const s = $('input[type=text], input[type=search]', pop); if (s) s.focus(); }
-      });
+      const sec = document.createElement('section'); sec.className = 'wbi-fsec' + (/^(City|Submarket)$/.test(name) ? ' list' : '');
+      const h = document.createElement('div'); h.className = 'wbi-fsec-h'; h.textContent = name;
+      g.classList.remove('collapsed'); sec.append(h, g); fgrid.appendChild(sec); items.push([name, g]);
     });
     const reset = document.getElementById('clear-filters');
-    if (reset) { reset.textContent = 'Reset'; bar.appendChild(reset); }
-    document.addEventListener('click', (e) => { if (!e.target.closest('.wbi-f')) closeAll(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAll(); });
+    if (reset) { reset.textContent = 'Reset filters'; $('.wbi-ffoot > span', panel).appendChild(reset); }
+    const sumEl = $('.wbi-sum', head);
+    let rq = 0;
+    const refresh = () => {
+      cancelAnimationFrame(rq);
+      rq = requestAnimationFrame(() => {
+        const on = items.map(([n, g]) => [n, valueOf(g)]).filter(([n, v]) => n === 'Taxonomy' ? v !== 'Willow Bridge' : !['All', 'None'].includes(v));
+        $('.n', fbtn).textContent = on.length ? String(on.length) : '';
+        sumEl.textContent = on.length ? on.map(([n, v]) => n === 'Taxonomy' ? v + ' taxonomy' : n === 'Unit size' ? 'Units ' + v : n + ' ' + v).join(' · ') : 'All properties';
+      });
+    };
+    new MutationObserver(refresh).observe(fgrid, { subtree: true, attributes: true, childList: true, characterData: true });
+    fgrid.addEventListener('change', refresh); refresh();
+    const setOpen = (open) => { panel.hidden = !open; fbtn.setAttribute('aria-expanded', String(open)); };
+    fbtn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(panel.hidden); });
+    $('.wbi-fdone', panel).addEventListener('click', () => setOpen(false));
+    document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('.wbi-fpanel, .wbi-fbtn')) setOpen(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) { setOpen(false); fbtn.focus(); } });
 
-    // 4) charts and maps re-measure for the new column widths
     const st = document.createElement('style'); st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}'; document.head.appendChild(st);
 
+    // 4) charts and maps re-measure for the new column widths
     setTimeout(() => {
       try { if (typeof charts !== 'undefined') Object.values(charts).forEach((c) => c && c.resize && c.resize()); } catch (e) {}
       try { [window._propertyMap, window._oppMap].forEach((m) => m && m.invalidateSize && m.invalidateSize()); } catch (e) {}
       window.dispatchEvent(new Event('resize'));
     }, 60);
   }
-
   // Legacy buttons carry ALL-CAPS labels in their markup ("+ ADD COMP", "EXPORT PDF"). Sentence-case them, keeping acronyms.
   const KEEP_CAPS = new Set(['PDF', 'YOC', 'ROC', 'UC', 'CSV', 'MSA', 'SF', 'TPC', 'HC', 'NRSF', 'RP', 'KPI', 'LOI', 'DD', 'YTD']);
   function sentenceCase(root) {
