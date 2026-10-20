@@ -203,6 +203,16 @@ ul.bul li::before{content:"";position:absolute;left:0;top:.5em;width:5px;height:
 .hs{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px;padding-top:14px;border-top:1px solid var(--hair)}
 .stat{display:flex;flex-direction:column;gap:3px;min-width:0}
+/* valuation sensitivity: price on T-12 NOI at five going-in yields */
+.sens{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:12.5px}
+.sens th,.sens td{padding:6px 4px;text-align:right;border-bottom:1px solid var(--hair);white-space:nowrap}
+.sens thead th{font-size:11px;font-weight:600;color:var(--muted);letter-spacing:.02em;padding-top:2px}
+.sens th:first-child,.sens td:first-child{text-align:left;padding-left:0;color:var(--muted);font-weight:400}
+.sens .c{color:var(--text);font-weight:700}
+.sens thead th.c{border-bottom:2px solid var(--text)}
+.sens .pr td{font-size:14px;font-weight:600;color:var(--text)}
+.sens .pr td.c{font-size:15px}
+.sens-note{margin:8px 0 0;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .stat .tv{font-size:18px}
 
 /* cover agenda */
@@ -605,7 +615,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610201837"></script>
+<script src="../shared/wb.js?v=202610201932"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -671,6 +681,7 @@ function toDeal(r, logs, parcels){
     yearBuilt: num(r.year_built ?? u.yearBuilt), avgSf: num(r.avg_unit_sf ?? u.avgSf), occ: num(u.occ), concessionWeeks: num(u.concessionWeeks),
     effRentPsf: num(u.effRentPsf), effRentMo: num(u.effRentMo), mktRentPsf: num(u.mktRentPsf), mktRentMo: num(u.mktRentMo),
     newLeasePsf: num(u.newLeasePsf), tradeNew: num(u.tradeNew), tradeRenew: num(u.tradeRenew),
+    goingIn: num(r.going_in_yield), bldgSf: num(r.building_sf),
     noi: num(u.noi), adjNoi: num(u.adjNoi), proformaNoi: num(u.proformaNoi), valueCap: num(u.valueCap),
     lastSale: u.lastSale || null, manager: u.manager || null, developer: u.developer || null, noiNote: u.noiNote || null,
     parcelNote: u.parcel_note || null, src: Array.isArray(u.sources) ? u.sources : null,
@@ -1111,6 +1122,22 @@ function section(title, body){ return body ? '<section class="sec"><h3>' + title
 const psf = n => "$" + n.toFixed(2);
 const usdM2 = n => "$" + (n/1e6).toFixed(2) + "M", usdK = n => "$" + Math.round(n/1000) + "K";
 const effPsf = d => d.effRentPsf || d.rentPsf, effMo = d => d.effRentMo || d.rentMo;
+/* price on T-12 NOI at the going-in yield and four steps around it (0.5% either side, 0.25% apart) */
+function sensTable(d){
+  const noi = d.noi, y = d.goingIn != null ? d.goingIn : d.valueCap;
+  if(d.kind === "land" || !noi || !y) return "";
+  const ys = [-0.5, -0.25, 0, 0.25, 0.5].map(k => +(y + k).toFixed(2)).filter(v => v > 0);
+  const sf = d.bldgSf || (d.units && d.avgSf ? d.units * d.avgSf : null);
+  const px = v => noi / (v / 100), c = v => v === +y.toFixed(2) ? ' class="c"' : "";
+  const row = (cls, label, f) => '<tr' + (cls ? ' class="' + cls + '"' : "") + "><td>" + label + "</td>" + ys.map(v => "<td" + c(v) + ">" + f(px(v)) + "</td>").join("") + "</tr>";
+  const pc = n => { const p = (n / d.guidance - 1) * 100; return (p >= 0 ? "+" : "−") + Math.abs(p).toFixed(1) + "%"; };
+  return '<table class="sens"><thead><tr><th>Going-in yield</th>' + ys.map(v => "<th" + c(v) + ">" + v.toFixed(2) + "%</th>").join("") + "</tr></thead><tbody>"
+    + row("pr", "Price", n => usdM(n))
+    + (d.units ? row("", "Per unit", n => usdK(n / d.units)) : "")
+    + (sf ? row("", "Per SF", n => "$" + Math.round(n / sf)) : "")
+    + (d.guidance ? row("", "vs. guidance", pc) : "")
+    + '</tbody></table><p class="sens-note">T-12 NOI ' + usdM2(noi) + (d.guidance ? " · guidance of " + usdM(d.guidance) + " is a " + (noi / d.guidance * 100).toFixed(2) + "% yield" : "") + "</p>";
+}
 const capOn = (d, noi) => (d.guidance && noi) ? (noi / d.guidance * 100).toFixed(2) + "%" : "";
 const pctChg = (now, then) => { const p = (now / then - 1) * 100; return (p >= 0 ? "+" : "−") + Math.abs(p).toFixed(0) + "% to guidance"; };
 const u = t => '<small>' + t + "</small>";   /* unit suffix inside a tile value */
@@ -1137,7 +1164,7 @@ function renderDeal(d){
       tile("T-12 NOI", d.noi ? usdM2(d.noi) : "", capOn(d, d.noi) ? capOn(d, d.noi) + " cap at ask" : ""),
       d.adjNoi ? tile("Adjusted NOI", usdM2(d.adjNoi), capOn(d, d.adjNoi) ? capOn(d, d.adjNoi) + " cap at ask" : "")
                : (d.proformaNoi ? tile("Broker Y1 NOI", usdM2(d.proformaNoi), d.valueCap ? usdM(d.proformaNoi / (d.valueCap/100)) + " at " + d.valueCap.toFixed(1) + "%" : "") : ""),
-      d.valueCap && d.noi ? tile("Our value", usdM(d.noi / (d.valueCap/100)), d.valueCap.toFixed(1) + "% on T-12 · " + usdK(d.noi / (d.valueCap/100) / d.units) + " / unit") : "",
+      d.valueCap && d.noi && !sensTable(d) ? tile("Our value", usdM(d.noi / (d.valueCap/100)), d.valueCap.toFixed(1) + "% on T-12 · " + usdK(d.noi / (d.valueCap/100) / d.units) + " / unit") : "",
       d.lastSale ? tile("Last sale", usdM(d.lastSale.price) + u(" " + d.lastSale.year),
           [d.units && usdK(d.lastSale.price / d.units) + " / unit", d.guidance && pctChg(d.guidance, d.lastSale.price), d.lastSale.cap && d.lastSale.cap.toFixed(2) + "% cap"].filter(Boolean).join(" · ")) : ""
     ];
@@ -1181,6 +1208,7 @@ function renderDeal(d){
     + (d.stage ? '<span class="chip stage' + (HOT.has(d.stage) ? " hot" : "") + '">' + esc(STAGES[d.stage] || d.stage) + "</span>" : "")
     + (d.isNew ? '<span class="chip new">New this week</span>' : "") + (d.sample ? '<span class="chip sample">Sample</span>' : "") + "</div></header>"
     + '<div class="figures">' + strip + "</div>"
+    + section("Valuation on T-12 NOI", sensTable(d))
     + (d.take ? '<div class="callout"><strong>Our take</strong><p>' + esc(d.take) + "</p></div>" : "")
     + outcome
     + section("Site", site)
@@ -1537,15 +1565,30 @@ const FIELDS = [
   ], "land"],
   ["Property", [
     ["year_built", "Year built", "int"], ["units", "Units", "int"], ["product_type", "Product type", "text"], ["avg_unit_sf", "Average unit SF", "num"],
-    ["building_sf", "Building SF (net rentable)", "num"], ["going_in_yield", "Est. going-in yield (%)", "num"], ["acres", "Acres", "num"], ["zoning", "Zoning", "text"],
+    ["building_sf", "Building SF (net rentable)", "num"], ["acres", "Acres", "num"], ["zoning", "Zoning", "text"],
+  ], "asset"],
+  ["Valuation and rents", [
+    ["uw.noi", "T-12 NOI ($)", "int"], ["going_in_yield", "Going-in yield (%), center of the sensitivity", "num"],
+    ["uw.mktRentPsf", "Market rent ($/SF)", "num"], ["uw.mktRentMo", "Market rent ($/mo)", "num"],
+    ["uw.effRentPsf", "Effective rent ($/SF)", "num"], ["uw.effRentMo", "Effective rent ($/mo)", "num"],
+    ["uw.occ", "Occupancy (%)", "num"], ["uw.concessionWeeks", "Concessions (weeks free)", "num"],
+    ["uw.sens", "", "sens", "full"],
   ], "asset"],
   ["Outcome", [["outcome_winner", "Buyer / winner", "text"], ["outcome_price", "Sale price ($)", "num"], ["outcome_date", "Sale date", "date"]]],
   ["Notes", [["summary", "Summary", "area", "full"], ["take", "Our take", "area", "full"], ["folder_path", "Deal folder (OneDrive link or path)", "text", "full"]]],
 ];
 let editing = null;
+/* fold editor values into a deal row; "uw.x" keys go inside the uw object */
+function mergeRow(r, o){
+  const out = {...r}, uw = {...(r.uw || {})};
+  Object.keys(o).forEach(k => { if(k.startsWith("uw.")){ if(o[k] == null) delete uw[k.slice(3)]; else uw[k.slice(3)] = o[k]; } else out[k] = o[k]; });
+  out.uw = uw; return out;
+}
+const fv = (r, k) => k.startsWith("uw.") ? (r.uw || {})[k.slice(3)] : r[k];
 function fieldHtml([k, l, t, cls], r){
-  const v = r[k] == null ? "" : r[k], e = WB.esc;
+  const v = fv(r, k) == null ? "" : fv(r, k), e = WB.esc;
   let inp;
+  if(t === "sens") return '<div class="sensprev ' + (cls || "") + '" id="sensPrev"></div>';
   if(t === "market") inp = '<select name="' + k + '">' + WB.markets.map(m => '<option value="' + m.id + '"' + (m.id === v ? " selected" : "") + ">" + e(m.short) + "</option>").join("") + "</select>";
   else if(t === "stage") inp = '<select name="' + k + '">' + STAGE_OPTS.map(o => { const db = DB_STAGE[o[0]] || o[0]; return '<option value="' + db + '"' + (db === v ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + "</select>";
   else if(t.startsWith("select:")) inp = '<select name="' + k + '">' + t.slice(7).split(",").map(o => { const [a, b] = o.split("="); return '<option value="' + a + '"' + (a === v ? " selected" : "") + ">" + b + "</option>"; }).join("") + "</select>";
@@ -1566,7 +1609,7 @@ function openEditor(d){
   let m = document.getElementById("dealEd");
   if(!m){ m = document.createElement("div"); m.id = "dealEd"; m.className = "dlg"; document.body.appendChild(m);
     m.addEventListener("click", e => { if(e.target === m || e.target.closest("[data-close]")) closeEditor(); });
-    m.addEventListener("change", e => { if(e.target.name === "kind"){ editing = {...editing, kind: e.target.value, _row: {...RW(editing), ...readEditor(), kind: e.target.value}}; paintEditor(); } });
+    m.addEventListener("change", e => { if(e.target.name === "kind"){ editing = {...editing, kind: e.target.value, _row: mergeRow(RW(editing), {...readEditor(), kind: e.target.value})}; paintEditor(); } });
   }
   paintEditor(); m.hidden = false; document.body.style.overflow = "hidden";
   setTimeout(() => m.querySelector("[name=name]").focus(), 0);
@@ -1581,11 +1624,18 @@ function paintEditor(){
     + '<button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save changes</button></footer></form>';
   m.querySelector("[data-play]").onclick = () => { const x = editing; closeEditor(); playDeal(deals.find(y => y.id === x.id)); };
   m.querySelector("form").onsubmit = saveEditor;
+  const prev = () => {
+    const box = m.querySelector("#sensPrev"); if(!box) return;
+    const o = readEditor(), h = sensTable({kind: "asset", noi: o["uw.noi"], goingIn: o.going_in_yield, units: o.units, avgSf: o.avg_unit_sf, bldgSf: o.building_sf, guidance: o.guidance});
+    box.innerHTML = h || '<p class="sens-note">Enter a T-12 NOI and a going-in yield to see price at 0.5% either side.</p>';
+  };
+  m.querySelector("form").addEventListener("input", prev); prev();
 }
 function closeEditor(){ const m = document.getElementById("dealEd"); if(m) m.hidden = true; document.body.style.overflow = ""; editing = null; }
 function readEditor(){
   const f = document.querySelector("#dealEd form"), o = {};
   FIELDS.forEach(([, fs]) => fs.forEach(([k, , t]) => {
+    if(t === "sens") return;
     const el = f.elements[k]; if(!el || o.hasOwnProperty(k)) return;
     if(t === "check") o[k] = el.checked;
     else if(t === "num" || t === "int") o[k] = el.value === "" ? null : (t === "int" ? Math.round(+el.value) : +el.value);
@@ -1597,9 +1647,17 @@ async function saveEditor(e){
   e.preventDefault();
   const d = deals.find(x => x.id === editing.id), r = RW(d), o = readEditor(), msg = document.querySelector("#dealEd .msg");
   if(!o.name) return (msg.textContent = "A deal needs a name.");
-  const changed = Object.keys(o).filter(k => String(o[k] ?? "") !== String(r[k] ?? ""));
+  /* when only $/SF or only $/mo is entered, fill the other from the average unit size */
+  const avg = o.avg_unit_sf ?? N(r.avg_unit_sf);
+  if(avg) [["uw.mktRentPsf", "uw.mktRentMo"], ["uw.effRentPsf", "uw.effRentMo"]].forEach(([a, b]) => {
+    if(o[a] != null && o[b] == null && fv(r, b) == null) o[b] = Math.round(o[a] * avg);
+    else if(o[b] != null && o[a] == null && fv(r, a) == null) o[a] = +(o[b] / avg).toFixed(2);
+  });
+  const changed = Object.keys(o).filter(k => String(o[k] ?? "") !== String(fv(r, k) ?? ""));
   if(!changed.length){ closeEditor(); return; }
-  const patch = Object.fromEntries(changed.map(k => [k, o[k]]));
+  const patch = Object.fromEntries(changed.filter(k => !k.startsWith("uw.")).map(k => [k, o[k]]));
+  const uwKeys = changed.filter(k => k.startsWith("uw."));
+  if(uwKeys.length) patch.uw = mergeRow(r, Object.fromEntries(uwKeys.map(k => [k, o[k]]))).uw;
   msg.textContent = "Saving…";
   const { data: row, error } = await sb.schema("pipeline").from("deals").update(patch).eq("id", d.id).select().single();
   if(error){ msg.textContent = error.message; return; }
