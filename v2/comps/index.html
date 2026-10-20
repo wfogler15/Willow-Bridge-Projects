@@ -6,7 +6,7 @@
 <title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610192101">
+<link rel="stylesheet" href="../shared/wb.css?v=202610201020">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -48,6 +48,14 @@
   .drawer footer{display:flex;gap:8px;align-items:center;padding:12px 18px;border-top:1px solid var(--rule);background:var(--sunk)}
   .drawer .hint{font-size:12px;color:var(--muted)}
   @media (prefers-reduced-motion:reduce){.drawer{transition:none}}
+  #f-count:not(:empty){display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:9px;background:var(--purple);color:#fff;font-size:11px;line-height:18px;text-align:center}
+  #fdrawer form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  #fdrawer .fx-h{grid-column:1/-1;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:6px;border-bottom:1px solid var(--rule);padding-bottom:4px}
+  #fdrawer .fx-h:first-child{margin-top:0}
+  #fdrawer label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+  #fdrawer label.chk{flex-direction:row;align-items:center;gap:8px;color:var(--ink);font-size:var(--fs)}
+  #fdrawer .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;grid-column:1/-1}
+  #fdrawer .pair .cap{grid-column:1/-1;font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -65,11 +73,16 @@
   <form id="d-form" autocomplete="off"></form>
   <footer><button class="btn primary" id="d-save">Save comp</button><span class="hint" id="d-hint">Click the map to set the location.</span></footer>
 </aside>
+<aside class="drawer" id="fdrawer" aria-label="Filters">
+  <header><h2>Filters</h2><button class="btn" type="button" id="f-close">Close</button></header>
+  <form id="f-form" autocomplete="off"></form>
+  <footer><button class="btn" type="button" id="f-clear">Clear all</button><span class="hint" id="f-hint"></span></footer>
+</aside>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610192101"></script>
+<script src="../shared/wb.js?v=202610201020"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -88,12 +101,81 @@
   const near = P.get('near') ? { at: P.get('near').split(',').map(Number), mi: +(P.get('mi') || 3) } : null;
   const miles = (c) => { if (c.lat == null || !near) return Infinity; const [la, lo] = near.at, r = Math.PI / 180, a = Math.sin((c.lat - la) * r / 2) ** 2 + Math.cos(la * r) * Math.cos(c.lat * r) * Math.sin((c.lng - lo) * r / 2) ** 2; return 7917.5 * Math.asin(Math.sqrt(a)); };
   WB.band({ title: 'Sale comps', lede: 'Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.',
-    actions: '<span id="near"></span><select class="fld" id="f-since"><option value="">All dates</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option><option value="5">Last 5 years</option></select>'
+    actions: '<span id="near"></span><select class="fld" id="f-year" title="Calendar year of sale"><option value="">All years</option></select>'
+      + '<select class="fld" id="f-since"><option value="">Any trailing period</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option><option value="5">Last 5 years</option></select>'
       + '<input class="fld" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker" style="width:260px">'
+      + '<button class="b" id="b-filter">Filters <span id="f-count"></span></button>'
       + '<button class="b" id="b-export">Export to Excel</button><button class="b primary" id="b-add">Add a comp</button>',
     tabs: '<button data-v="investment" class="on" role="tab">Investment sales</button><button data-v="land" role="tab">Land sales</button>' });
   document.querySelector('.wb-band .tabs').id = 'f-type';
   const state = { market: WB.getMarket(), type: 'investment', since: '', q: '', sort: 'sale_date', dir: -1, sel: null };
+
+  // ---------- detailed filters (the Filters panel). Blank = no limit. Units/acres, price, $/unit, $/SF, cap, year built are ranges. ----------
+  const FX = { product: '', submarket: '', minUnits: '', maxUnits: '', minAcres: '', maxAcres: '', minPrice: '', maxPrice: '',
+    minPu: '', maxPu: '', minPsf: '', maxPsf: '', minCap: '', maxCap: '', minYb: '', maxYb: '',
+    buyer: '', seller: '', broker: '', verifiedOnly: false, located: false };
+  const fxNum = (v) => (v === '' || v == null ? null : +v);
+  const inRange = (v, lo, hi) => {
+    if (lo == null && hi == null) return true;
+    if (v == null || v === '') return false;
+    return (lo == null || +v >= lo) && (hi == null || +v <= hi);
+  };
+  const hasText = (val, needle) => !needle || (val && String(val).toLowerCase().includes(needle.toLowerCase()));
+  const doorsOf = (c) => (c.comp_type === 'land' ? c.proposed_units : c.units);
+  const psfOf = (c) => (c.comp_type === 'land' ? c.price_per_land_sf : c.price_per_sf);
+  function passesFx(c) {
+    const f = (k) => fxNum(FX[k]);
+    return inRange(doorsOf(c), f('minUnits'), f('maxUnits')) && inRange(c.acres, f('minAcres'), f('maxAcres'))
+      && inRange(c.sale_price, f('minPrice'), f('maxPrice')) && inRange(c.price_per_unit, f('minPu'), f('maxPu'))
+      && inRange(psfOf(c), f('minPsf'), f('maxPsf')) && inRange(c.cap_rate, f('minCap'), f('maxCap'))
+      && inRange(c.year_built, f('minYb'), f('maxYb'))
+      && (!FX.product || c.product_type === FX.product) && (!FX.submarket || c.submarket === FX.submarket)
+      && hasText(c.buyer, FX.buyer) && hasText(c.seller, FX.seller) && hasText(c.broker, FX.broker)
+      && (!FX.verifiedOnly || c.verified) && (!FX.located || c.lat != null);
+  }
+  const activeFx = () => Object.entries(FX).filter(([k, v]) => v !== '' && v !== false && v != null).length;
+  const FX_FIELDS = [
+    ['pair', 'Units (existing) / doors (land)', 'minUnits', 'maxUnits'],
+    ['pair', 'Acres', 'minAcres', 'maxAcres'],
+    ['pair', 'Year built', 'minYb', 'maxYb'],
+    ['h', 'Price'],
+    ['pair', 'Sale price ($)', 'minPrice', 'maxPrice'],
+    ['pair', '$/unit or $/door', 'minPu', 'maxPu'],
+    ['pair', '$/SF or $/land SF', 'minPsf', 'maxPsf'],
+    ['pair', 'Cap rate (%)', 'minCap', 'maxCap'],
+    ['h', 'Parties'],
+    ['text', 'Buyer contains', 'buyer'], ['text', 'Seller contains', 'seller'], ['text', 'Broker contains', 'broker'],
+    ['h', 'Record'],
+    ['chk', 'Verified only', 'verifiedOnly'], ['chk', 'Has a map location', 'located'],
+  ];
+  const LABELS = { minUnits: 'Min', maxUnits: 'Max', minAcres: 'Min', maxAcres: 'Max', minYb: 'From', maxYb: 'To', minPrice: 'Min', maxPrice: 'Max',
+    minPu: 'Min', maxPu: 'Max', minPsf: 'Min', maxPsf: 'Max', minCap: 'Min', maxCap: 'Max' };
+  function buildFxForm() {
+    const vals = (k) => [...new Set(rows.filter((r) => r[k]).map((r) => r[k]))].sort();
+    const sel = (k, list) => `<option value="">Any</option>` + list.map((v) => `<option value="${esc(v)}" ${FX[k] === v ? 'selected' : ''}>${esc(v)}</option>`).join('');
+    $('#f-form').innerHTML = FX_FIELDS.map((r) => {
+      if (r[0] === 'h') return `<div class="fx-h">${r[1]}</div>`;
+      if (r[0] === 'pair') return `<div class="pair"><div class="cap">${r[1]}</div>`
+        + [r[2], r[3]].map((k) => `<label>${LABELS[k]}<input class="input" name="${k}" type="number" step="any" value="${esc(FX[k])}"></label>`).join('') + '</div>';
+      if (r[0] === 'chk') return `<label class="chk"><input type="checkbox" name="${r[2]}" ${FX[r[2]] ? 'checked' : ''}> ${r[1]}</label>`;
+      if (r[0] === 'text') return `<label>${r[1]}<input class="input" name="${r[2]}" type="search" value="${esc(FX[r[2]])}"></label>`;
+      return '';
+    }).join('');
+    // dropdowns for product and submarket (distinct values from the data), placed first
+    const top = `<label>Product<select class="input" name="product">${sel('product', vals('product_type'))}</select></label>`
+      + `<label>Submarket<select class="input" name="submarket">${sel('submarket', vals('submarket'))}</select></label>`;
+    $('#f-form').insertAdjacentHTML('afterbegin', `<div class="fx-h">Property</div>` + top);
+  }
+  function readFx() {
+    const f = $('#f-form');
+    for (const k of Object.keys(FX)) {
+      const el = f.elements[k]; if (!el) continue;
+      FX[k] = el.type === 'checkbox' ? el.checked : (el.value || '');
+    }
+    const n = activeFx();
+    $('#f-count').textContent = n ? String(n) : '';
+    $('#f-hint').textContent = n ? `${n} filter${n === 1 ? '' : 's'} on` : 'No filters on';
+  }
 
   // ---------- columns ----------
   const COLS = {
@@ -130,6 +212,7 @@
   document.addEventListener('click', (e) => { if (e.target.id === 'clrattn') { noLoc = false; history.replaceState(null, '', location.pathname); render(); } });
   function filtered(ignoreDate) {
     const cut = state.since && !ignoreDate ? new Date(Date.now() - state.since * 365.25 * 864e5).toISOString().slice(0, 10) : null;
+    const yr = state.year && !ignoreDate ? state.year : null;   // calendar year; the YTD comparison ignores it
     const q = state.q.toLowerCase();
     const out = rows.filter((c) =>
       c.comp_type === state.type &&
@@ -137,6 +220,8 @@
       (!near || miles(c) <= near.mi) &&
       (!noLoc || c.lat == null) &&
       (!cut || (c.sale_date && c.sale_date >= cut)) &&
+      (!yr || (c.sale_date || '').startsWith(yr)) &&
+      passesFx(c) &&
       (!q || [c.name, c.address, c.city, c.submarket, c.buyer, c.seller, c.broker, c.notes].some((v) => v && v.toLowerCase().includes(q))));
     const k = state.sort, d = state.dir;
     const TEXT = ['name', 'buyer', 'seller', 'broker', 'product_type', 'sale_date', 'verified'];
@@ -151,16 +236,17 @@
   // ---------- render ----------
   function render() {
     const list = filtered(), cols = COLS[state.type];
+    const scoped = !!(state.since || state.year || activeFx());   // any narrowing beyond the type and market
     $('#thead').innerHTML = '<tr>' + cols.map(([k, l, , cls]) =>
       `<th data-k="${k}" class="sortable ${cls === 'r' ? 'r' : ''} ${state.sort === k ? 'sorted' : ''}">${l}${state.sort === k ? (state.dir > 0 ? ' ↑' : ' ↓') : ''}</th>`).join('') + '</tr>';
     $('#tbody').innerHTML = list.map((c) => `<tr data-id="${c.id}" class="${state.sel === c.id ? 'sel' : ''}">` +
       cols.map(([k, , f, cls]) => `<td class="${cls || ''}">${f(c)}</td>`).join('') + '</tr>').join('')
       || `<tr><td colspan="${cols.length}" class="empty">No comps match these filters. Widen the date range or clear the search.</td></tr>`;
     const s = state.type === 'investment'
-      ? [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), state.since ? 'volume in date range' : 'total volume, all years'], [(() => { const r = list.filter((c) => c.sale_price && c.units); const u = r.reduce((t, c) => t + +c.units, 0); return u ? fmt.usd(r.reduce((t, c) => t + +c.sale_price, 0) / u) : '—'; })(), 'avg $/unit'], [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/unit'],
+      ? [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), scoped ? 'volume in view' : 'total volume, all years'], [(() => { const r = list.filter((c) => c.sale_price && c.units); const u = r.reduce((t, c) => t + +c.units, 0); return u ? fmt.usd(r.reduce((t, c) => t + +c.sale_price, 0) / u) : '—'; })(), 'avg $/unit'], [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/unit'],
          [list.some((c) => c.price_per_sf) ? '$' + fmt.int(median(list.map((c) => c.price_per_sf))) : '—', 'median $/SF'],
          [fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'median cap']]
-      : [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), state.since ? 'volume in date range' : 'total volume, all years'], [fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'median $/land SF'],
+      : [[list.length, 'sales'], [fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), scoped ? 'volume in view' : 'total volume, all years'], [fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'median $/land SF'],
          [fmt.usd(median(list.map((c) => c.price_per_unit))), 'median $/door'], [fmt.ac(median(list.map((c) => c.acres))), 'median acres']];
     // this year to date against the same stretch of last year (same filters, ignoring the date filter), then the full set
     const base = filtered(true), now = new Date(), Y = now.getFullYear(), md = now.toISOString().slice(5, 10);
@@ -176,7 +262,7 @@
       + F(fmt.usd(vol(lyFull)), `All of ${Y - 1}, ${lyFull.length} sales`)
       + (inv ? F(fmt.usd(median(list.map((c) => c.price_per_unit))), 'Median per unit') + F(fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'Median cap rate')
              : F(fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'Median per land SF') + F(fmt.usd(median(list.map((c) => c.price_per_unit))), 'Median per door'))
-      + F(fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), `${list.length} ${list.length === 1 ? 'sale' : 'sales'} ${state.since ? 'in date range' : 'on record'}`);
+      + F(fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), `${list.length} ${list.length === 1 ? 'sale' : 'sales'} ${scoped ? 'in view' : 'on record'}`);
     void s;
     $('#t-title').innerHTML = esc(`${list.length.toLocaleString('en-US')} ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}${noLoc ? ' missing a location' : ''}`) + (noLoc ? ' <button class="link" id="clrattn" type="button">Show all</button>' : '');
     $('#near').innerHTML = near ? `<span class="chip-near">Within ${near.mi} miles of the selected deal<button type="button" id="near-x" title="Show all comps">×</button></span>` : '';
@@ -324,6 +410,20 @@
     $('#d-close').click(); state.sel = data.id; render(); WB.toast(editing ? 'Comp updated' : 'Comp added');
   };
 
+  // year picker: every sale year on record, newest first
+  const years = [...new Set(rows.map((c) => (c.sale_date || '').slice(0, 4)).filter(Boolean))].sort().reverse();
+  $('#f-year').insertAdjacentHTML('beforeend', years.map((y) => `<option value="${y}">${y}</option>`).join(''));
+  $('#f-year').onchange = (e) => { state.year = e.target.value; state.sel = null; render(); };
+  // detailed filters: a drawer that re-renders as you type
+  buildFxForm();
+  $('#b-filter').onclick = () => { $('#drawer').classList.remove('open'); $('#fdrawer').classList.add('open'); };
+  $('#f-close').onclick = () => $('#fdrawer').classList.remove('open');
+  $('#f-form').addEventListener('input', () => { readFx(); render(); });
+  $('#f-form').addEventListener('change', () => { readFx(); render(); });
+  $('#f-clear').onclick = () => {
+    Object.keys(FX).forEach((k) => { FX[k] = typeof FX[k] === 'boolean' ? false : ''; });
+    buildFxForm(); readFx(); render();
+  };
   if (near) { state.since = ''; }
   render();
   if (near) map.once('load', () => map.flyTo({ center: [near.at[1], near.at[0]], zoom: 12, duration: 0 }));

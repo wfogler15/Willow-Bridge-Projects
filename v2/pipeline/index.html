@@ -516,7 +516,7 @@ body.listing .lyr{display:none}
 .lyr-pop a{display:inline-block;margin-top:6px;color:#432890;font-weight:600;font-size:12px}
 .lyr-pop .maplibregl-popup-close-button{font-size:16px;color:#6E6886;padding:2px 6px}
 /* ---------- minimal direction: map mode is full bleed, the panel is a plain white column ---------- */
-:root{--side:0px !important;--g:0px !important;--pw:440px !important}
+:root{--side:0px !important;--g:0px !important;--pw:520px !important}
 html,body{background:#fff !important}
 #map,#veil{border-radius:0 !important;border:0 !important}
 #panel{border:0 !important;border-right:1px solid #E6E4EC !important;border-radius:0 !important}
@@ -526,6 +526,12 @@ html,body{background:#fff !important}
 .pctl button:hover{background:#F7F7FA !important;color:#1D1247 !important}
 .pctl #play{background:#1D1247 !important;color:#fff !important}
 .lyr{border-radius:6px !important;box-shadow:0 1px 0 rgba(29,18,71,.06),0 6px 20px rgba(29,18,71,.12) !important;border:0 !important}
+/* agenda with five columns: deal, acres, units, guidance, $/unit (wider panel) */
+.ag-row.ag5{grid-template-columns:minmax(0,1fr) 58px 58px 84px 78px;gap:10px;align-items:baseline}
+.ag-row.ag5 .ag-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-row.ag5 .ag-num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ag-row.ag5.ag-head span{font-size:11.5px;color:#77728C;font-weight:400}
+.ag-row.ag5.ag-head span:first-child{color:#1D1247;font-weight:600;font-size:12px}
 /* ---------- minimal direction: deal log ---------- */
 #list{background:#fff !important;padding:0 !important;color:#1D1247}
 #list .lin{max-width:1360px;margin:0 auto;padding:44px 48px 80px;display:flex;flex-direction:column;gap:0}
@@ -592,13 +598,12 @@ html,body{background:#fff !important}
   <button id="pick" type="button" aria-pressed="false">Fix parcel</button>
   <button id="listb" type="button" aria-pressed="false">List</button>
   <button id="prev" type="button" aria-label="Previous slide">Prev</button>
-  <button id="play" type="button">Play</button>
   <button id="next" type="button" aria-label="Next slide">Next</button>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610192101"></script>
+<script src="../shared/wb.js?v=202610201020"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -701,7 +706,7 @@ const REPORT = await loadReport();
   /* sub-bar: Map and Deal log; Add a deal lives in the deal log, Fix parcel in each deal's settings */
   const band = WB.band({title: "Pipeline", tabs: '<button type="button" class="on" data-t="call" role="tab">Map</button><button type="button" data-t="list" role="tab">Deal log</button>'});
   const row = document.createElement("div"); row.className = "pctl";
-  ["prev", "play", "next"].forEach(id => { const b = document.getElementById(id); if(b) row.appendChild(b); });
+  ["prev", "next"].forEach(id => { const b = document.getElementById(id); if(b) row.appendChild(b); });
   document.getElementById("pfoot").appendChild(row);
   band.querySelector(".tabs").addEventListener("click", e => {
     const b = e.target.closest("button[data-t]"); if(!b) return;
@@ -1053,19 +1058,22 @@ const WB_MARK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9z
 function head(d){ return '<div class="brandrow"><img src="' + WB_MARK + '" alt="Willow Bridge"><div class="eyebrow">' + esc(d ? d.market : REPORT.market) + " · " + esc(REPORT.title) + "<small>" + fmtDate(REPORT.date) + "</small></div></div>"; }
 function plural(n, w){ return n + " " + w + (n === 1 ? "" : "s"); }
 
+/* agenda table, shared by the cover and the market cards: Deal, Acres, Units, Guidance, $/unit.
+   Land shows planned doors in the Units column, so $/unit is per door for development sites. */
+const agUnits = d => d.kind === "land" ? (d.doors || d.units) : d.units;
+const agPu = d => (d.guidance && agUnits(d)) ? d.guidance / agUnits(d) : null;
+const agHead = title => '<div class="agenda"><div class="ag-row ag5 ag-head"><span>' + title + '</span><span>Acres</span><span>Units</span><span>Guidance</span><span>$ / unit</span></div>';
+const agRow = d => '<button type="button" class="ag-row ag5" data-go="' + SLIDES.findIndex(x => x.d === d) + '"><span class="ag-name">' + esc(d.name) + (d.isNew ? ' <em class="agnew">New</em>' : "") + "</span>"
+  + '<span class="ag-num">' + (d.acres ? fmtNum(d.acres) : "–") + "</span>"
+  + '<span class="ag-num">' + (agUnits(d) ? fmtNum(agUnits(d)) : "–") + "</span>"
+  + '<span class="ag-num ag-px">' + esc(priceLine(d)) + "</span>"
+  + '<span class="ag-num">' + (agPu(d) ? usd(agPu(d)) : "–") + "</span></button>";
 function renderCover(){
-  /* the opening card is the agenda: every deal on the board by market. Each row jumps to its slide.
-     Size is acres for development land and units for existing assets. */
-  const size = d => d.kind === "land" ? (d.acres ? fmtNum(d.acres) + " ac" : "–") : (d.units ? fmtNum(d.units) + " units" : "–");
+  /* the opening card is the agenda: every deal on the board by market. Each row jumps to its slide. */
   const groups = REPORT.markets.map(m => {
     const list = active.filter(d => d.market === m).sort(byMeeting);
     if(!list.length) return "";
-    return '<div class="agenda"><div class="ag-row ag-head"><span>' + esc(m) + '</span><span>Size</span><span>Guidance</span></div>'
-      + list.map(d => {
-          const i = SLIDES.findIndex(x => x.d === d);
-          return '<button type="button" class="ag-row" data-go="' + i + '"><span class="ag-name">' + esc(d.name) + (d.isNew ? ' <em class="agnew">New</em>' : "") + "</span>"
-            + '<span class="ag-num">' + size(d) + '</span><span class="ag-num ag-px">' + esc(priceLine(d)) + "</span></button>";
-        }).join("") + "</div>";
+    return agHead(esc(m)) + list.map(agRow).join("") + "</div>";
   }).join("");
   return '<div class="brandrow"><img src="' + WB_MARK + '" alt="Willow Bridge"><div class="eyebrow">Willow Bridge<small>' + fmtDate(REPORT.date) + '</small></div></div>'
     + '<h1 class="cover">' + esc(REPORT.title) + '</h1>'
@@ -1073,11 +1081,8 @@ function renderCover(){
     + groups;
 }
 function renderMarket(m){
-  const size = d => d.kind === "land" ? (d.acres ? fmtNum(d.acres) + " ac" : "–") : (d.units ? fmtNum(d.units) + " units" : "–");
   const mine = active.filter(d => d.market === m).sort(byMeeting);
-  const block = (title, list) => !list.length ? "" : '<div class="agenda"><div class="ag-row ag-head"><span>' + title + " (" + list.length + ')</span><span>Size</span><span>Guidance</span></div>'
-    + list.map(d => '<button type="button" class="ag-row" data-go="' + SLIDES.findIndex(x => x.d === d) + '"><span class="ag-name">' + esc(d.name) + (d.isNew ? ' <em class="agnew">New</em>' : "")
-      + '</span><span class="ag-num">' + size(d) + '</span><span class="ag-num ag-px">' + esc(priceLine(d)) + "</span></button>").join("") + "</div>";
+  const block = (title, list) => !list.length ? "" : agHead(title + " (" + list.length + ")") + list.map(agRow).join("") + "</div>";
   return head({market:m}) + "<h1>" + esc(m) + "</h1><div class=\"rule\"></div>"
     + block("Underwriting and pursuing", mine.filter(d => UWS.has(d.stage)))
     + block("Screening, new on market", mine.filter(d => !UWS.has(d.stage)))
@@ -1321,15 +1326,14 @@ function loop(now){
   fills[idx].style.width = Math.min(100, elapsed / s.ms * 100) + "%";
   if(elapsed >= s.ms) step(1);
 }
-function setPlaying(p){ playing = p; $("#play").textContent = p ? "Pause" : "Play"; }
-$("#play").addEventListener("click", () => setPlaying(!playing));
+/* autoplay is retired: Prev and Next only. Kept as a no-op so existing calls stay harmless. */
+function setPlaying(){ playing = false; }
 $("#next").addEventListener("click", () => step(1));
 $("#prev").addEventListener("click", () => step(-1));
 addEventListener("keydown", e => {
   if(!$("#list").hidden) return;
   if(e.key === "ArrowRight") step(1);
   else if(e.key === "ArrowLeft") step(-1);
-  else if(e.key === " "){ e.preventDefault(); setPlaying(!playing); }
 });
 addEventListener("resize", () => { if(ready) camera(SLIDES[idx]); });
 
@@ -1671,32 +1675,44 @@ if(la) setTimeout(() => setList(true), 0);
   async function load(id){
     if(data[id]) return data[id];
     if(id === "prop"){
-      const rows = await WB.fetchAll("core", "properties", "id,name,address,units,year_built,status,lat,lng,rent_sf:attrs->avgAskingSF,rent_mo:attrs->avgAskingUnit,vac:attrs->vacancy,conc:attrs->concessions",
+      const rows = await WB.fetchAll("core", "properties", "id,name,address,units,year_built,status,class,star_rating,stories,style,developer,manager,wb_submarket,avg_unit_sf,lat,lng,rent_sf:attrs->avgAskingSF,rent_mo:attrs->avgAskingUnit,vac:attrs->vacancy,conc:attrs->concessions",
         q => q.neq("kind", "land").not("lat", "is", null));
       data[id] = fc(rows.filter(r => r.lat != null && r.lng != null).map(r => pt(+r.lng, +r.lat, {
-        id: r.id, name: r.name || r.address || "Property", units: r.units, yb: r.year_built, status: r.status,
+        id: r.id, name: r.name || r.address || "Property", address: r.address, units: r.units, yb: r.year_built, status: r.status,
+        cls: r.class, stars: r.star_rating, stories: r.stories, style: r.style, dev: r.developer, mgr: r.manager, sub: r.wb_submarket, asf: n(r.avg_unit_sf),
         rsf: n(r.rent_sf), rmo: n(r.rent_mo), occ: n(r.vac) == null ? null : 100 - n(r.vac), conc: n(r.conc) == null ? null : n(r.conc) / 100 * 52})));
     } else {
-      const rows = await WB.fetchAll("comps", "sale_comps", "id,name,city,comp_type,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_land_sf,cap_rate,buyer,lat,lng",
+      const rows = await WB.fetchAll("comps", "sale_comps", "id,name,address,city,comp_type,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_land_sf,price_per_sf,cap_rate,buyer,seller,broker,product_type,construction_type,submarket,lat,lng",
         q => q.eq("comp_type", id === "inv" ? "investment" : "land").not("lat", "is", null));
       data[id] = fc(rows.filter(r => r.lat != null && r.lng != null).map(r => pt(+r.lng, +r.lat, {
-        id: r.id, name: r.name || "Sale", city: r.city, date: r.sale_date, price: n(r.sale_price), units: r.units, pu: r.proposed_units, acres: n(r.acres), yb: r.year_built,
+        id: r.id, name: r.name || "Sale", address: r.address, city: r.city, date: r.sale_date, price: n(r.sale_price), units: r.units, pu: r.proposed_units, acres: n(r.acres), yb: r.year_built,
         ppu: n(r.price_per_unit) ?? (n(r.sale_price) && (r.units || r.proposed_units) ? r.sale_price / (r.units || r.proposed_units) : null),
-        psf: n(r.price_per_land_sf) ?? (n(r.sale_price) && n(r.acres) ? r.sale_price / (r.acres * 43560) : null), cap: n(r.cap_rate), buyer: r.buyer})));
+        psf: n(r.price_per_land_sf) ?? (n(r.sale_price) && n(r.acres) ? r.sale_price / (r.acres * 43560) : null),
+        bsf: n(r.price_per_sf), cap: n(r.cap_rate), buyer: r.buyer, seller: r.seller, broker: r.broker, product: r.product_type, cons: r.construction_type, sub: r.submarket})));
     }
     return data[id];
   }
   function popupHtml(id, p){
     const row = (k, v) => v == null || v === "" ? "" : '<div class="r"><span>' + k + "</span><b>" + v + "</b></div>";
-    if(id === "prop") return "<h4>" + E(p.name) + "</h4><p>" + E([p.units ? p.units + " units" : "", p.yb, p.status].filter(Boolean).join(", ")) + "</p>"
+    const num = v => v == null ? null : (+v).toLocaleString("en-US");
+    if(id === "prop") return "<h4>" + E(p.name) + "</h4><p>" + E([p.address, p.style].filter(Boolean).join(" · ")) + "</p>"
       + row("Asking rent / SF", p.rsf != null ? "$" + (+p.rsf).toFixed(2) : null) + row("Asking rent / month", p.rmo != null ? "$" + Math.round(p.rmo).toLocaleString("en-US") : null)
-      + row("Occupancy", p.occ != null ? (+p.occ).toFixed(1) + "%" : null) + row("Concessions", p.conc != null && p.conc > 0 ? (+p.conc).toFixed(1) + " wks free" : (p.conc === 0 ? "None" : null));
-    if(id === "land") return "<h4>" + E(p.name) + "</h4><p>" + E([p.city, dt(p.date)].filter(Boolean).join(", ")) + "</p>"
-      + row("Price", M(p.price)) + row("Acres", p.acres != null ? (+p.acres).toFixed(2) : null) + row("Per door", p.ppu ? M(p.ppu) : null)
-      + row("Per land SF", p.psf ? "$" + (+p.psf).toFixed(2) : null) + row("Buyer", p.buyer ? E(p.buyer) : null) + '<a href="../comps/?comp=' + p.id + '">Open in Sale comps</a>';
-    return "<h4>" + E(p.name) + "</h4><p>" + E([p.city, p.yb, p.units ? p.units + " units" : "", dt(p.date)].filter(Boolean).join(", ")) + "</p>"
-      + row("Price", M(p.price)) + row("Per unit", p.ppu ? M(p.ppu) : null) + row("Cap rate", p.cap ? (+p.cap).toFixed(2) + "%" : null)
-      + row("Buyer", p.buyer ? E(p.buyer) : null) + '<a href="../comps/?comp=' + p.id + '">Open in Sale comps</a>';
+      + row("Occupancy", p.occ != null ? (+p.occ).toFixed(1) + "%" : null) + row("Concessions", p.conc != null && p.conc > 0 ? (+p.conc).toFixed(1) + " wks free" : (p.conc === 0 ? "None" : null))
+      + row("Units", num(p.units)) + row("Built", p.yb) + row("Class", p.cls ? E(p.cls) + (p.stars ? " · " + p.stars + "-star" : "") : (p.stars ? p.stars + "-star" : null))
+      + row("Stories", num(p.stories)) + row("Avg unit SF", p.asf ? num(Math.round(p.asf)) : null) + row("Submarket", p.sub ? E(p.sub) : null)
+      + row("Developer", p.dev ? E(p.dev) : null) + row("Manager", p.mgr ? E(p.mgr) : null) + row("Status", p.status ? E(p.status) : null);
+    if(id === "land") return "<h4>" + E(p.name) + "</h4><p>" + E([p.city, p.address, dt(p.date)].filter(Boolean).join(" · ")) + "</p>"
+      + row("Price", M(p.price)) + row("Acres", p.acres != null ? (+p.acres).toFixed(2) : null) + row("Planned units", num(p.pu))
+      + row("Per door", p.ppu ? M(p.ppu) : null) + row("Per acre", p.price && p.acres ? M(p.price / p.acres) : null)
+      + row("Per land SF", p.psf ? "$" + (+p.psf).toFixed(2) : null) + row("Product", p.product ? E(p.product) : null)
+      + row("Seller", p.seller ? E(p.seller) : null) + row("Buyer", p.buyer ? E(p.buyer) : null) + row("Broker", p.broker ? E(p.broker) : null)
+      + '<a href="../comps/?comp=' + p.id + '">Open in Sale comps</a>';
+    return "<h4>" + E(p.name) + "</h4><p>" + E([p.address || p.city, dt(p.date)].filter(Boolean).join(" · ")) + "</p>"
+      + row("Price", M(p.price)) + row("Per unit", p.ppu ? M(p.ppu) : null) + row("Per SF", p.bsf ? "$" + (+p.bsf).toFixed(0) : null)
+      + row("Cap rate", p.cap ? (+p.cap).toFixed(2) + "%" : null) + row("Units", num(p.units)) + row("Built", p.yb)
+      + row("Product", p.product ? E(p.product) : null) + row("Construction", p.cons ? E(p.cons) : null) + row("Submarket", p.sub ? E(p.sub) : null)
+      + row("Seller", p.seller ? E(p.seller) : null) + row("Buyer", p.buyer ? E(p.buyer) : null) + row("Broker", p.broker ? E(p.broker) : null)
+      + '<a href="../comps/?comp=' + p.id + '">Open in Sale comps</a>';
   }
   /* ---------- parcel outlines for comps in view (looked up by point, cached in this browser) ---------- */
   const PZ = 13, PKEY = "wb_comp_parcels_v1", on = new Set();
@@ -1792,6 +1808,8 @@ if(la) setTimeout(() => setList(true), 0);
   box.addEventListener("change", e => { const c = e.target.closest("[data-l]"); if(c) toggle(c.dataset.l, c.checked); });
 })();
 
+/* render the first slide as soon as the data is in; the satellite basemap catches up and camera() fires on its load */
+ready = true; go(START); if(!START) loop();
 initMap();
 })();
 </script>
