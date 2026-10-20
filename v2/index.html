@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overview · Willow Bridge Intel</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202610201953">
+<link rel="stylesheet" href="shared/wb.css?v=202610202045">
 <style>
   .ov{max-width:1180px}
   .kick{margin:0 0 12px;font-size:14px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
@@ -74,7 +74,7 @@
   </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202610201953"></script>
+<script src="shared/wb.js?v=202610202045"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('home');
@@ -83,12 +83,13 @@
   const today = new Date(), iso = (d) => d.toISOString().slice(0, 10), todayIso = iso(today), in30 = iso(new Date(Date.now() + 30 * 864e5));
   const Y = today.getFullYear(), jan1 = `${Y}-01-01`, lyJan1 = `${Y - 1}-01-01`, lySame = `${Y - 1}-${todayIso.slice(5)}`;
 
-  const [deals, comps, links, review, noLoc] = await Promise.all([
+  const [deals, comps, links, review, noLoc, devNew] = await Promise.all([
     WB.fetchAll('pipeline', 'deals', 'id,name,market_id,kind,stage,address,units,acres,guidance,bid_date,check_back_on,lat,lng,uw,first_seen,broker', (q) => q.is('merged_into', null)),
     WB.fetchAll('comps', 'sale_comps', 'id,market_id,comp_type,sale_date,sale_price', (q) => q.gte('sale_date', lyJan1)),
     WB.fetchAll('pipeline', 'deal_parcels', 'deal_id'),
     WB.fetchAll('core', 'review_queue', '*', (q) => q.eq('status', 'open').order('id')),
     sb.schema('comps').from('sale_comps').select('id', { count: 'exact', head: true }).is('lat', null).then((r) => r.count || 0, () => 0),
+    WB.fetchAll('market', 'dev_projects', 'id,market_id,track', (q) => q.eq('review', 'new')).catch(() => []),
   ]);
 
   const MK = Object.fromEntries(WB.markets.map((m) => [m.id, m.short]));
@@ -158,6 +159,8 @@
       ['Development deals in underwriting with no CFO date', actM.filter((d) => d.kind === 'land' && UWS.includes(d.stage) && !d.bid_date).length, 'pipeline/?attn=cfo'],
       ['Active deals with no broker', actM.filter((d) => !d.broker).length, 'pipeline/?attn=broker'],
       ['Sale comps missing a location', noLoc, 'comps/?attn=location'],
+      ...['entitlement', 'construction'].map((t) => [t === 'entitlement' ? 'New entitlement cases to review' : 'New construction projects to review',
+        devNew.filter((x) => x.track === t && inMkt(x.market_id)).length, `development/?view=list&status=review&track=${t}`]),
     ].filter((x) => x[1]);
     $('#attn').innerHTML = (items.map(([l, n, href]) => `<a class="li" href="${href}"><span>${l}</span><span class="c">${n}</span></a>`).join('')
       + review.map((r) => `<div class="rq" data-id="${r.id}">${esc(r.reason)}<div class="acts">
