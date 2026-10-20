@@ -37,7 +37,7 @@ Live site: GitHub Pages for repo `wfogler15/Willow-Bridge-Projects` (public), un
   - `v2/shared/wb.js`: `WB.ready`, `WB.band`, `WB.marketToggle`, `WB.fetchAll`, `WB.toast`.
 - **Market toggle:** each page has its own. There is no master toggle.
 - **Labels:** always say "Development" (land) and "Investment" (existing). Always break the two out.
-- **Brand:** Willow Bridge midnight `#1D1247` and purple `#432890`. Aptos/Inter type. Dense layout, no hero bars.
+- **Brand and layout (minimal direction, Oct 2026):** white ground, hairline rules, text tabs and toggles, no cards, chips or tinted panels. Midnight `#1D1247` for text and the one filled button; purple `#432890` only for links and "New". Aptos/Inter. Each page leads with a one-line summary, then a few intentional figures. Market intel keeps its original design.
 - **Deal log table:** fixed column grid, everything left-aligned, tabular numbers.
 - **Will's preferences:**
   - Rent/SF is the primary metric, with monthly rent secondary.
@@ -67,7 +67,7 @@ Live site: GitHub Pages for repo `wfogler15/Willow-Bridge-Projects` (public), un
 7. **Report back:** say briefly what was filled, what was missing, and anything uncertain.
 
 ## To do
-- **Needs-attention list:** a data health page or panel listing:
+- **Needs-attention list:** first version is live on the Overview (deals without parcel, location, CFO date or broker; comps missing location), linking to filtered views. Still to add:
   - Comps missing location or price.
   - Deals with no parcel, CFO date or broker.
   - Stale Intel data.
