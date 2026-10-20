@@ -10,8 +10,8 @@
     { id: 'intel', label: 'Market intel', href: 'intel/' },
     { id: 'scout', label: 'Site scout', href: 'scout/' },
     { id: 'pipeline', label: 'Pipeline', href: 'pipeline/' },
-    { id: 'dev', label: 'Development', href: 'development/' },
     { id: 'comps', label: 'Sale comps', href: 'comps/' },
+    { id: 'dev', label: 'Development', href: 'development/' },
   ];
 
   // Root of the v2 site, worked out from where this script was loaded.
@@ -43,7 +43,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202610202045');
+    add(ROOT + 'shared/wb-chrome.css?v=202610202050');
   })();
 
   // ---------- market context shared across tabs ----------
