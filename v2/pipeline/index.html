@@ -325,13 +325,18 @@ h1,h2.accent{font-family:var(--display)}
 @media (max-width:760px){#list{padding:16px 16px 80px}.lsearch{min-width:0;width:100%}}
 /* deal context inside the card: the deal against its submarket and nearby sales */
 .dctx{margin:18px 0 0;border-top:1px solid rgba(29,18,71,.12);padding-top:14px;font-size:13px}
-.dctx h3{margin:0 0 8px;font:600 13px var(--font);color:var(--text);display:flex;justify-content:space-between;gap:8px}
-.dctx h3 a{color:#432890;font-weight:600;text-decoration:none}
-.dctx .cmp{display:grid;grid-template-columns:1fr auto auto;gap:5px 12px;align-items:baseline;margin-bottom:12px}
-.dctx .cmp .v{font-weight:600;text-align:right;color:var(--text)}
-.dctx .cmp .d{font-size:12px;text-align:right;min-width:48px;color:var(--muted)}
+.dctx h3{margin:0 0 6px;font:600 13px var(--font);color:var(--text);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.dctx h3 a{color:#432890;font-weight:500;font-size:12.5px;text-decoration:none;white-space:nowrap}
+.dctx h3 a:hover{text-decoration:underline}
+/* label | value | change vs. ours: three fixed columns, hairline between rows, numbers right-aligned on the same edges */
+.dctx .cmp{display:grid;grid-template-columns:minmax(0,1fr) 92px 66px;column-gap:0;margin-bottom:14px;font-variant-numeric:tabular-nums}
+.dctx .cmp>span{padding:7px 0;border-bottom:1px solid rgba(29,18,71,.08);line-height:1.25;white-space:nowrap}
+.dctx .cmp>span:nth-last-child(-n+3){border-bottom:0}
+.dctx .cmp .v{font-weight:600;text-align:right;color:var(--text);padding-right:12px}
+.dctx .cmp .d{font-size:12.5px;text-align:right;color:var(--muted)}
+.dctx .cmp .h,.dctx .cmp .h.d{padding:2px 0 5px;font-size:11px;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid rgba(29,18,71,.22)}
 .dctx .pos{color:#2F6B3A !important}.dctx .neg{color:#722525 !important}
-.dctx .note{padding:9px 12px;background:#F9EEC4;border-radius:6px;color:#3D3412;font-size:13px;margin:-2px 0 12px}
+.dctx .note{padding:1px 0 1px 12px;border-left:2px solid #1D1247;color:var(--text);font-size:12.5px;line-height:1.5;margin:0 0 16px}
 .dctx .sale{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(29,18,71,.08)}
 .dctx .sale b{font-weight:600;color:var(--text)}
 .dctx .sale span{color:var(--muted);font-size:12px}
@@ -615,7 +620,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610201932"></script>
+<script src="../shared/wb.js?v=202610201939"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -747,6 +752,7 @@ async function fillCtx(d){
   const pct = (a, b) => a && b ? '<span class="d ' + (a >= b ? "pos" : "neg") + '">' + (a >= b ? "+" : "") + ((a / b - 1) * 100).toFixed(1) + "%</span>" : '<span class="d"></span>';
   const row = (l, v, d2) => '<span>' + l + '</span><span class="v">' + v + "</span>" + (d2 || '<span class="d"></span>');
   let html = '<h3>Against the ' + e(c.submarket || "submarket") + ' submarket <a href="../intel/?market=' + e(d._row.market_id) + '">Market intel</a></h3><div class="cmp">'
+    + (ours && (st.new_rent_psf || st.rent_psf) ? '<span class="h"></span><span class="h"></span><span class="h d">Ours vs.</span>' : "")
     + (ours ? row(d.kind === "land" ? "Our UW rent / SF" : "In-place rent / SF", "$" + (+ours).toFixed(2)) : "")
     + (st.new_rent_psf ? row("Built in the last 8 years", "$" + (+st.new_rent_psf).toFixed(2), pct(ours, +st.new_rent_psf)) : "")
     + (st.rent_psf ? row("Submarket average", "$" + (+st.rent_psf).toFixed(2), pct(ours, +st.rent_psf)) : "")
