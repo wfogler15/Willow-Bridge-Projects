@@ -6,7 +6,7 @@
 <title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610192100">
+<link rel="stylesheet" href="../shared/wb.css?v=202610192101">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -69,7 +69,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610192100"></script>
+<script src="../shared/wb.js?v=202610192101"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -84,6 +84,7 @@
     if (c.comp_type === 'land' && c.price_per_land_sf == null && c.sale_price && c.acres) c.price_per_land_sf = c.sale_price / (c.acres * 43560);
   }
   const P = new URLSearchParams(location.search);
+  let noLoc = P.get('attn') === 'location';
   const near = P.get('near') ? { at: P.get('near').split(',').map(Number), mi: +(P.get('mi') || 3) } : null;
   const miles = (c) => { if (c.lat == null || !near) return Infinity; const [la, lo] = near.at, r = Math.PI / 180, a = Math.sin((c.lat - la) * r / 2) ** 2 + Math.cos(la * r) * Math.cos(c.lat * r) * Math.sin((c.lng - lo) * r / 2) ** 2; return 7917.5 * Math.asin(Math.sqrt(a)); };
   WB.band({ title: 'Sale comps', lede: 'Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.',
@@ -126,6 +127,7 @@
   };
 
   // ---------- filtering ----------
+  document.addEventListener('click', (e) => { if (e.target.id === 'clrattn') { noLoc = false; history.replaceState(null, '', location.pathname); render(); } });
   function filtered(ignoreDate) {
     const cut = state.since && !ignoreDate ? new Date(Date.now() - state.since * 365.25 * 864e5).toISOString().slice(0, 10) : null;
     const q = state.q.toLowerCase();
@@ -133,6 +135,7 @@
       c.comp_type === state.type &&
       (state.market === 'all' || c.market_id === state.market) &&
       (!near || miles(c) <= near.mi) &&
+      (!noLoc || c.lat == null) &&
       (!cut || (c.sale_date && c.sale_date >= cut)) &&
       (!q || [c.name, c.address, c.city, c.submarket, c.buyer, c.seller, c.broker, c.notes].some((v) => v && v.toLowerCase().includes(q))));
     const k = state.sort, d = state.dir;
@@ -175,7 +178,7 @@
              : F(fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'Median per land SF') + F(fmt.usd(median(list.map((c) => c.price_per_unit))), 'Median per door'))
       + F(fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), `${list.length} ${list.length === 1 ? 'sale' : 'sales'} ${state.since ? 'in date range' : 'on record'}`);
     void s;
-    $('#t-title').textContent = `${list.length.toLocaleString('en-US')} ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}`;
+    $('#t-title').innerHTML = esc(`${list.length.toLocaleString('en-US')} ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}${noLoc ? ' missing a location' : ''}`) + (noLoc ? ' <button class="link" id="clrattn" type="button">Show all</button>' : '');
     $('#near').innerHTML = near ? `<span class="chip-near">Within ${near.mi} miles of the selected deal<button type="button" id="near-x" title="Show all comps">×</button></span>` : '';
     drawMarkers(list);
   }
