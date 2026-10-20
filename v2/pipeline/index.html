@@ -515,6 +515,56 @@ body.listing .lyr{display:none}
 .lyr-pop .r b{font-weight:600;white-space:nowrap}
 .lyr-pop a{display:inline-block;margin-top:6px;color:#432890;font-weight:600;font-size:12px}
 .lyr-pop .maplibregl-popup-close-button{font-size:16px;color:#6E6886;padding:2px 6px}
+/* ---------- minimal direction: map mode is full bleed, the panel is a plain white column ---------- */
+:root{--side:0px !important;--g:0px !important;--pw:440px !important}
+html,body{background:#fff !important}
+#map,#veil{border-radius:0 !important;border:0 !important}
+#panel{border:0 !important;border-right:1px solid #E6E4EC !important;border-radius:0 !important}
+#pscroll{padding:32px 32px 20px !important}
+#pfoot{background:#fff !important;border-top:1px solid #EFEEF3 !important;padding:12px 16px 12px 32px !important}
+.pctl button{border-color:transparent !important;background:none !important;font-weight:500 !important;color:#4A4560 !important}
+.pctl button:hover{background:#F7F7FA !important;color:#1D1247 !important}
+.pctl #play{background:#1D1247 !important;color:#fff !important}
+.lyr{border-radius:6px !important;box-shadow:0 1px 0 rgba(29,18,71,.06),0 6px 20px rgba(29,18,71,.12) !important;border:0 !important}
+/* ---------- minimal direction: deal log ---------- */
+#list{background:#fff !important;padding:0 !important;color:#1D1247}
+#list .lin{max-width:1360px;margin:0 auto;padding:44px 48px 80px;display:flex;flex-direction:column;gap:0}
+.lhead3{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px 40px}
+.lhead3 h1{margin:0;font:500 30px/1.15 var(--display);letter-spacing:-.025em;color:#1D1247}
+.lhead3 p{margin:8px 0 0;font-size:15px;color:#4A4560}
+.lacts{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.lbtn{border-color:transparent !important;background:none !important;font-weight:500 !important;color:#4A4560 !important;height:34px !important}
+.lbtn:hover{background:#F7F7FA !important;color:#1D1247 !important}
+.lbtn.primary{background:#1D1247 !important;color:#fff !important;padding:0 14px !important}
+.lbtn.primary:hover{background:#2B1D63 !important}
+.lclear{border:0;background:none;padding:0;margin-left:8px;font:500 14px var(--font);color:#432890;cursor:pointer}
+.lclear:hover{text-decoration:underline}
+.ltools{margin-top:36px;padding-bottom:12px;border-bottom:1px solid #E6E4EC;gap:12px 22px !important}
+.lsep{width:1px;height:16px;background:#DAD7E2}
+.pills{background:none !important;padding:0 !important;gap:22px !important;border-radius:0 !important}
+.pills button{padding:0 !important;height:26px !important;font-size:14px !important;color:#77728C !important;border-radius:0 !important;background:none !important;box-shadow:none !important}
+.pills button:hover{color:#1D1247 !important}
+.pills button[aria-pressed="true"]{color:#1D1247 !important;font-weight:600 !important}
+.pills button i{color:#A9A5B8 !important;margin-left:5px !important}
+.pills button:focus-visible{outline:2px solid #432890 !important;outline-offset:2px}
+.lsw{display:flex;align-items:center;gap:8px;color:#77728C}
+.lsearch{border:0 !important;padding:0 !important;height:26px !important;min-width:200px !important;background:none !important;font:14px var(--font) !important;color:#1D1247 !important;outline:0 !important;box-shadow:none !important}
+.lpanel{background:none !important;border:0 !important;border-radius:0 !important;box-shadow:none !important;overflow:visible !important}
+#list table{min-width:1080px !important}
+#list th{background:#fff !important;color:#77728C !important;font-size:12px !important;font-weight:400 !important;padding-top:16px !important;padding-bottom:10px !important;border-bottom:0 !important}
+#list th[aria-sort]{color:#1D1247 !important;font-weight:600 !important}
+#list td{padding-top:13px !important;padding-bottom:13px !important;font-size:14.5px !important;color:#1D1247 !important;border-bottom:0 !important;border-top:1px solid #EFEEF3 !important}
+#list tbody tr:last-child td{border-bottom:1px solid #EFEEF3 !important}
+#list th:first-child,#list td:first-child{padding-left:0 !important}
+#list th:last-child,#list td:last-child{padding-right:0 !important}
+#list td.name b{font-weight:500 !important;font-size:15px !important}
+#list td.name small,#list td small{font-size:13px !important;color:#77728C !important;margin-top:3px}
+#list .tnew{background:none !important;color:#432890 !important;padding:0 !important;font-weight:500 !important;font-size:12px !important;margin-left:6px !important}
+#list .stx{color:#4A4560}
+#list tr.r:hover td{background:#F9F9FB !important}
+#list td .dim{color:#9C97AE !important}
+@media (max-width:760px){#list .lin{padding:24px 16px 60px}.lsearch{min-width:0 !important}}
+
 
 .mg .mg-h{font-size:12px;color:var(--text);font-weight:600;margin-top:4px;padding-top:8px;border-top:1px solid rgba(29,18,71,.08)}
 .mg .mg-h:first-child{border-top:0;padding-top:0;margin-top:0}
@@ -529,11 +579,13 @@ body.listing .lyr{display:none}
 <div id="err" hidden></div>
 <div id="hint" role="status" hidden></div>
 <section id="list" aria-label="All deals" hidden>
-  <div class="ltools"><div class="pills" id="lkind" role="group" aria-label="Deal type"></div><div class="pills" id="lstat" role="group" aria-label="Status"></div>
-    <span style="flex:1"></span><input class="lsearch" id="lq" type="search" placeholder="Search deals, brokers, sellers, notes">
-    <button type="button" class="lbtn" id="lmap">Show on map</button><button type="button" class="lbtn" id="lexport">Export to Excel</button><button type="button" class="lbtn primary" id="ladd">Add a deal</button></div>
-  <div class="lpanel"><div class="lpanel-h"><div class="t" id="lcount"></div><div class="s">Click a heading to sort. Click a deal to open and edit it.</div></div>
-    <div class="tw"><table><thead id="lth"></thead><tbody id="ltb"></tbody></table></div></div>
+  <div class="lin">
+  <div class="lhead3"><div><h1 id="ltitle">Pipeline</h1><p id="lcount"></p></div>
+    <div class="lacts"><button type="button" class="lbtn" id="lmap">Show on map</button><button type="button" class="lbtn" id="lexport">Export to Excel</button><button type="button" class="lbtn primary" id="ladd">Add a deal</button></div></div>
+  <div class="ltools"><div class="pills" id="lkind" role="group" aria-label="Deal type"></div><span class="lsep"></span><div class="pills" id="lstat" role="group" aria-label="Status"></div>
+    <span style="flex:1"></span><label class="lsw"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg><input class="lsearch" id="lq" type="search" placeholder="Search deals, brokers, notes" aria-label="Search deals"></label></div>
+  <div class="lpanel"><div class="tw"><table><thead id="lth"></thead><tbody id="ltb"></tbody></table></div></div>
+  </div>
 </section>
 <div id="ctl">
     <button id="addb" type="button">Add a deal</button>
@@ -546,7 +598,7 @@ body.listing .lyr{display:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610191722"></script>
+<script src="../shared/wb.js?v=202610192100"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1366,21 +1418,17 @@ const M = {
   yoc: d => N(RW(d).uw_yoc), goingIn: d => N(RW(d).going_in_yield), yearBuilt: d => N(RW(d).year_built),
 };
 const nameCell = d => '<td class="name"><b>' + esc(d.name) + "</b>" + (d.isNew ? '<span class="tnew">New</span>' : "")
-  + "<small>" + esc([d.where || (RW(d).address || "").split(",")[0], lk === "asset" ? STATUS(d) : ""].filter(Boolean).join(", ")) + "</small></td>";
+  + "<small>" + esc([d.where || (RW(d).address || "").split(",")[0], lm === "all" ? d.market : "", lk === "asset" && RW(d).seller ? "Seller: " + RW(d).seller : ""].filter(Boolean).join(", ")) + "</small></td>";
 const kindTag = d => d.kind === "land" ? '<span class="chip land">Development</span>' : '<span class="chip">Investment</span>';
-const stCell = d => { const PC = {loi:"s-hot", contract:"s-won", closed:"s-won", screening:"s-work", underwriting:"s-work", prospect:"s-watch", monitor:"s-watch", lost:"s-lost", passed:"s-out", dead:"s-out"};
-  return '<span class="pill ' + (PC[d.stage] || "") + '">' + esc(STATUS(d)) + "</span>"; };
+const stCell = d => '<span class="stx">' + esc(STATUS(d)) + "</span>";
 
 /* [key, label, sort/export value, cell html, numeric] */
 const COLS = {
   land: [
     ["name", "Deal", d => d.name, nameCell],
-    ["market", "Market", d => d.market],
-    ["type", "Type", d => "Development", kindTag],
     ["units", "Prop. units", M.units, d => fI(M.units(d)), 1],
     ["acres", "Acres", M.acres, d => M.acres(d) == null ? "" : M.acres(d).toFixed(2), 1],
-    ["density", "Units / ac", M.density, d => M.density(d) == null ? "" : M.density(d).toFixed(1), 1],
-    ["guidance", "Pricing guidance", M.guidance, d => M.guidance(d) ? fM(M.guidance(d)) : '<span class="dim">' + esc(RW(d).guidance_note || "Unpriced") + "</span>", 1],
+    ["guidance", "Guidance", M.guidance, d => M.guidance(d) ? fM(M.guidance(d)) : '<span class="dim">' + esc(RW(d).guidance_note || "Unpriced") + "</span>", 1],
     ["perUnit", "$/unit", M.perUnit, d => fK(M.perUnit(d)), 1],
     ["perLandSf", "$/SF land", M.perLandSf, d => f2(M.perLandSf(d)), 1],
     ["uwRent", "UW rent", M.uwRent, d => M.uwRent(d) == null ? "" : f2(M.uwRent(d)) + (M.uwRentMo(d) ? "<small>" + f$(M.uwRentMo(d)) + "/mo</small>" : ""), 1],
@@ -1391,34 +1439,41 @@ const COLS = {
   ],
   asset: [
     ["name", "Deal", d => d.name, nameCell],
-    ["market", "Market", d => d.market],
-    ["type", "Type", d => "Investment", kindTag],
     ["yearBuilt", "Year built", M.yearBuilt, d => M.yearBuilt(d) || "", 1],
     ["units", "Units", M.units, d => fI(M.units(d)), 1],
     ["product", "Product type", d => RW(d).product_type || null, d => '<span class="clip" title="' + esc(RW(d).product_type || "") + '">' + esc(RW(d).product_type || "") + "</span>"],
-    ["guidance", "Pricing guidance", M.guidance, d => M.guidance(d) ? fM(M.guidance(d)) : '<span class="dim">' + esc(RW(d).guidance_note || "Unpriced") + "</span>", 1],
+    ["guidance", "Guidance", M.guidance, d => M.guidance(d) ? fM(M.guidance(d)) : '<span class="dim">' + esc(RW(d).guidance_note || "Unpriced") + "</span>", 1],
     ["perUnit", "Per door", M.perUnit, d => fK(M.perUnit(d)), 1],
     ["perBldgSf", "Per SF (bldg)", M.perBldgSf, d => M.perBldgSf(d) == null ? "" : "$" + Math.round(M.perBldgSf(d)), 1],
     ["goingIn", "Est. going-in yield", M.goingIn, d => fP(M.goingIn(d)), 1],
-    ["seller", "Seller", d => RW(d).seller || null, d => esc(RW(d).seller || "")],
-    ["broker", "Broker", d => RW(d).broker || null, d => esc(RW(d).broker || "")],
+    ["broker", "Broker", d => RW(d).broker || null, d => '<span class="clip" title="' + esc(RW(d).broker || "") + '">' + esc(RW(d).broker || "") + "</span>"],
+    ["stage", "Status", d => STATUS(d), stCell],
   ],
 };
+const ATTN = {
+  parcel: ["without a parcel outline", d => !(d._parcels && d._parcels.length)],
+  location: ["with no location", d => RW(d).lat == null],
+  cfo: ["in underwriting with no CFO date", d => d.kind === "land" && ["underwriting", "loi", "contract", "under_contract"].includes(RW(d).stage || d.stage) && !RW(d).bid_date],
+  broker: ["with no broker", d => !RW(d).broker],
+};
+let la = (k => ATTN[k] ? k : null)(new URLSearchParams(location.search).get("attn"));
+if(la === "cfo") lk = "land";
 const SFILT = [["active", "Active"], ["watch", "Watching"], ["archive", "Archive"], ["all", "All"]];
 function inStatus(d, s){ return s === "all" ? true : s === "archive" ? archived(d) : s === "watch" ? (watching(d) && !archived(d)) : (!archived(d) && !watching(d)); }
 function inFilter(d, kind = lk, st = ls){
   if(d.kind !== kind) return false;
+  if(la && !ATTN[la][1](d)) return false;
   if(lm !== "all" && d.market !== lm) return false;
   if(lq){ const q = lq.toLowerCase(), r = RW(d); if(![d.name, r.address, d.where, r.broker, r.seller, r.owner_of_record, r.summary, r.product_type].some(v => v && String(v).toLowerCase().includes(q))) return false; }
   return inStatus(d, st);
 }
 function renderList(){
-  const cols = COLS[lk];
+  const cols = COLS[lk].filter(c => c[0] !== "stage" || ls !== "active");
   $("#lkind").innerHTML = [["land", "Development"], ["asset", "Investment"]].map(([k, l]) => '<button type="button" data-k="' + k + '" aria-pressed="' + (lk === k) + '">' + l + "<i>" + deals.filter(d => inFilter(d, k)).length + "</i></button>").join("");
   $("#lstat").innerHTML = SFILT.map(([k, l]) => '<button type="button" data-s="' + k + '" aria-pressed="' + (ls === k) + '">' + l + "<i>" + deals.filter(d => inFilter(d, lk, k)).length + "</i></button>").join("");
   const col = cols.find(c => c[0] === lsort.k) || cols[0];
   const TXT = ["broker", "seller", "product"];
-  const WT = {name: 2.3, broker: 1.7, seller: 1.5, product: 1.8, guidance: 1.2, stage: 1.35, type: 1.35, market: 0.95, rentTarget: 1.1, goingIn: 1.3, perBldgSf: 1.05},
+  const WT = {name: 2.6, broker: 1.6, product: 1.8, guidance: 1.15, stage: 1.1, rentTarget: 1.1, goingIn: 1.2, perBldgSf: 1.05},
     wsum = cols.reduce((t, c) => t + (WT[c[0]] || 1), 0), tbl = $("#lth").parentElement;
   let cg = tbl.querySelector("colgroup"); if(!cg){ cg = document.createElement("colgroup"); tbl.prepend(cg); }
   cg.innerHTML = cols.map(c => '<col style="width:' + ((WT[c[0]] || 1) / wsum * 100).toFixed(2) + '%">').join("");
@@ -1430,7 +1485,12 @@ function renderList(){
   });
   $("#ltb").innerHTML = rows.map(d => '<tr class="r" tabindex="0" data-id="' + d.id + '">' + cols.map(c => c[0] === "name" ? c[3](d) : "<td" + (c[4] ? ' class="num"' : TXT.includes(c[0]) ? ' class="txt"' : "") + ">" + (c[3] ? c[3](d) : esc(c[2](d) ?? "")) + "</td>").join("") + "</tr>").join("")
     || '<tr><td colspan="' + cols.length + '" class="empty">No ' + (lk === "land" ? "development" : "investment") + " deals match. Try another status or clear the search.</td></tr>";
-  $("#lcount").textContent = rows.length + " " + (lk === "land" ? "development" : "investment") + " " + (rows.length === 1 ? "deal" : "deals") + ", " + (lm === "all" ? "all markets" : lm) + ", " + SFILT.find(s => s[0] === ls)[1].toLowerCase();
+  const units = rows.reduce((t, d) => t + (M.units(d) || 0), 0), gd = rows.reduce((t, d) => t + (M.guidance(d) || 0), 0);
+  const stW = {active: "active", watch: "watched", archive: "archived", all: ""}[ls];
+  $("#ltitle").textContent = (lk === "land" ? "Development" : "Investment") + " pipeline" + (lm === "all" ? "" : ", " + lm);
+  $("#lcount").innerHTML = esc(rows.length + " " + (stW ? stW + " " : "") + (rows.length === 1 ? "deal" : "deals") + (la ? " " + ATTN[la][0] : "")
+    + (units ? ", " + fI(units) + (lk === "land" ? " proposed units" : " units") : "") + (gd ? ", " + fM(gd) + " in guidance" : "") + ".")
+    + (la ? ' <button type="button" class="lclear" id="lclear">Show all deals</button>' : "");
 }
 function setList(open){
   $("#list").hidden = !open; $("#listb").setAttribute("aria-pressed", open);
@@ -1441,6 +1501,7 @@ function playDeal(d){ const i = SLIDES.findIndex(s => s.d === d); setList(false)
 $("#listb").addEventListener("click", () => setList($("#list").hidden));
 $("#lkind").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; lk = b.dataset.k; lsort = {k: "name", d: 1}; renderList(); });
 $("#lstat").addEventListener("click", e => { const b = e.target.closest("button"); if(!b) return; ls = b.dataset.s; renderList(); });
+$("#lcount").addEventListener("click", e => { if(e.target.closest("#lclear")){ la = null; history.replaceState(null, "", location.pathname); renderList(); } });
 $("#lq").addEventListener("input", e => { lq = e.target.value; renderList(); });
 $("#lmap").addEventListener("click", () => { const list = deals.filter(d => inFilter(d)); setList(false); showMany(list); });
 function sortBy(th){ if(!th) return; const k = th.dataset.k; lsort = {k, d: lsort.k === k ? -lsort.d : (COLS[lk].find(c => c[0] === k) || [])[4] ? -1 : 1}; renderList(); }
@@ -1587,6 +1648,8 @@ if(new URLSearchParams(location.search).get("pin") === "1") setTimeout(() => {
   const det = document.querySelector("details.manage"); if(det) det.open = true;
   const b = document.querySelector(".mg [data-pin]"); if(b) b.click();
 }, 2500);
+
+if(la) setTimeout(() => setList(true), 0);
 
 /* ---------- comps layers on the map: investment sales, land sales, and property comps (rent, occupancy) ---------- */
 (function layers(){

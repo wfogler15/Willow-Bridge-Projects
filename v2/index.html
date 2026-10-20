@@ -5,244 +5,168 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overview · Willow Bridge Intel</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202610191722">
+<link rel="stylesheet" href="shared/wb.css?v=202610192100">
 <style>
-  .grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start}
-  .wb-band .figs .mk{display:flex;align-items:center;font:600 var(--fs-lg) var(--font-display);color:#fff}
-  @media (max-width:1180px){.grid{grid-template-columns:1fr}}
-  .tblwrap{overflow-x:auto}
-
-  /* deal context */
-  .ctx .top{padding:14px 16px 12px;border-bottom:1px solid var(--rule-2)}
-  .ctx .kick{display:flex;gap:8px;align-items:center;margin-bottom:8px}
-  .ctx h3{font:600 var(--fs-lg)/1.25 var(--font-display);margin:0;letter-spacing:-.01em}
-  .ctx .addr{color:var(--muted);margin-top:3px}
-  .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid var(--rule-2)}
-  .facts>div{padding:10px 16px;min-width:0}
-  .facts>div+div{border-left:1px solid var(--rule-2)}
-  .facts .v{font-size:var(--fs-lg);font-weight:600;letter-spacing:-.01em;white-space:nowrap}
-  .facts .l{font-size:12px;color:var(--muted)}
-  .blk{padding:12px 16px;border-bottom:1px solid var(--rule-2)}
-  .blk h4{margin:0 0 10px;font-size:13px;font-weight:600;display:flex;justify-content:space-between;gap:10px}
-  .near{width:100%;border-collapse:collapse}
-  .near td{padding:7px 0;border-bottom:1px solid var(--rule-2);vertical-align:top}
-  .near tr:last-child td{border-bottom:0}
-  .near b{font-weight:600}
-  .ctx .foot{display:flex;gap:8px;padding:12px 16px;background:var(--sunk);flex-wrap:wrap}
-  .ctx .none{color:var(--muted);font-size:12.5px}
-
-  .stages{padding:4px 16px 14px}
-  .srow{display:grid;grid-template-columns:72px 1fr 28px;align-items:center;gap:10px;margin-top:10px}
-  .srow .lbl{font-weight:600}
-  .bar{display:flex;height:10px;border-radius:3px;overflow:hidden;background:var(--rule-2)}
-  .bar i{display:block;height:100%}
-  .leg{display:flex;gap:14px;margin-top:12px;color:var(--muted);font-size:12px;flex-wrap:wrap}
-  .leg span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:var(--c)}
-
-  .feed .row{display:flex;gap:12px;align-items:flex-start;padding:9px 16px;border-top:1px solid var(--rule-2)}
-  .feed .row:first-child{border-top:0}
-  .feed .when{flex:0 0 48px;color:var(--muted);font-size:12.5px;padding-top:1px}
-  .feed .when.due{color:var(--brick);font-weight:600}
-  .feed .what{flex:1;min-width:0}
-  .feed .what b{font-weight:600}
-  .feed .what div{color:var(--muted);font-size:12.5px}
-  .feed .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-  .feed .acts .btn{height:28px;font-size:12.5px}
+  .ov{max-width:1180px}
+  .kick{margin:0 0 12px;font-size:14px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  .ov h1{margin:0;font:500 38px/1.18 var(--font-display);letter-spacing:-.025em;max-width:860px;color:var(--ink)}
+  .cols{display:flex;flex-wrap:wrap;gap:72px 96px;margin-top:64px}
+  .main{flex:999 1 560px;min-width:0}
+  .side{flex:1 1 300px;min-width:0}
+  .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--ink)}
+  .hd h2{margin:0;font-size:15px;font-weight:600}
+  .grp{margin:28px 0 2px;font-size:13px;color:var(--muted)}
+  .rw{display:grid;grid-template-columns:minmax(0,1fr) 96px 96px 72px;gap:16px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--rule-2);font-size:15px;color:var(--ink);transition:background .1s}
+  .rw:hover{background:var(--hover)}
+  .rw:focus-visible{outline:2px solid var(--purple);outline-offset:2px}
+  .rw b{font-weight:500}
+  .rw small{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+  .rw .n{color:var(--ink-2)} .rw .t{color:var(--muted);text-align:right;font-size:13px}
+  .rw .dim{color:var(--faint)}
+  .new{font-size:12px;color:var(--purple);font-weight:500;margin-left:6px}
+  .none{padding:16px 0;color:var(--muted)}
+  .fig2{padding:24px 0;border-bottom:1px solid var(--rule-2)}
+  .fig2 .l{margin:0;font-size:13px;color:var(--muted)}
+  .fig2 .v{margin:6px 0 0;font:500 32px/1.1 var(--font-display);letter-spacing:-.02em}
+  .fig2 .s{margin:6px 0 0;font-size:13px;color:var(--ink-2)}
+  .side .hd+.fig2{padding-top:20px}
+  .gap{margin-top:48px}
+  .li{display:flex;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid var(--rule-2);font-size:14px;color:var(--ink)}
+  a.li:hover{color:var(--purple)}
+  .li .c{color:var(--muted);white-space:nowrap}
+  .li .c.due{color:var(--brick);font-weight:600}
+  .rq{padding:13px 0;border-bottom:1px solid var(--rule-2);font-size:14px}
+  .rq .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .rq .btn{height:28px;font-size:13px;padding:0 8px;margin-left:-8px}
+  @media (max-width:700px){.ov h1{font-size:28px}.rw{grid-template-columns:minmax(0,1fr) 80px 72px}.rw .t{display:none}}
 </style>
 </head>
 <body>
-<main class="page">
-  <div class="grid">
-    <div>
-      <section class="sec">
-        <div class="sec-h"><h2>Active pursuits</h2><a class="link" href="pipeline/">Open pipeline</a></div>
-        <div class="tblwrap"><table class="tbl" id="active"><tbody><tr><td><div class="skel"></div></td></tr></tbody></table></div>
-      </section>
-      <section class="sec">
-        <div class="sec-h"><h2>Recent trades</h2><a class="link" id="allcomps" href="comps/">All comps</a></div>
-        <div class="tblwrap"><table class="tbl" id="trades"><tbody><tr><td><div class="skel"></div></td></tr></tbody></table></div>
-      </section>
-    </div>
-    <aside>
-      <section class="sec ctx" id="ctx"><div class="blk"><div class="skel"></div></div></section>
-      <section class="sec feed"><div class="sec-h"><h2>Coming up</h2><span class="note">Next 30 days</span></div><div id="upcoming"></div></section>
-      <section class="sec"><div class="sec-h"><h2>Pipeline by stage</h2><span class="note" id="dealcount"></span></div><div class="stages" id="stages"></div></section>
-      <section class="sec feed" id="rq-sec" hidden><div class="sec-h"><h2>Needs your call</h2><span class="note" id="rq-count"></span></div><div id="review"></div></section>
+<main class="page ov">
+  <div class="kick"><span id="date"></span><span id="mkt"></span></div>
+  <h1 id="headline"><span class="skel" style="display:block;height:38px;width:70%"></span></h1>
+  <div class="cols">
+    <section class="main">
+      <div class="hd"><h2>In underwriting</h2><a class="link" href="pipeline/">Open pipeline</a></div>
+      <div id="uw"></div>
+      <div class="hd gap"><h2>Screening, new on market</h2><span class="link" style="color:var(--muted);font-weight:400" id="scn"></span></div>
+      <div id="sc"></div>
+    </section>
+    <aside class="side">
+      <div class="hd"><h2>Sale comps this year</h2><a class="link" href="comps/">All comps</a></div>
+      <div id="vol"></div>
+      <div class="hd gap"><h2>Coming up</h2><span class="link" style="color:var(--muted);font-weight:400">Next 30 days</span></div>
+      <div id="upcoming"></div>
+      <div class="hd gap"><h2>Needs attention</h2></div>
+      <div id="attn"></div>
     </aside>
   </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202610191722"></script>
+<script src="shared/wb.js?v=202610192100"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('home');
   const { esc } = WB;
   const $ = (s) => document.querySelector(s);
-  const rows = async (q) => ((await q).data || []);
+  const today = new Date(), iso = (d) => d.toISOString().slice(0, 10), todayIso = iso(today), in30 = iso(new Date(Date.now() + 30 * 864e5));
+  const Y = today.getFullYear(), jan1 = `${Y}-01-01`, lyJan1 = `${Y - 1}-01-01`, lySame = `${Y - 1}-${todayIso.slice(5)}`;
 
-  const [deals, comps, review] = await Promise.all([
-    WB.fetchAll('pipeline', 'deals', 'id,name,market_id,kind,stage,address,units,acres,guidance,bid_date,check_back_on,lat,lng,uw,first_seen', (q) => q.is('merged_into', null)),
-    rows(sb.schema('comps').from('sale_comps').select('id,name,city,market_id,sale_date,sale_price,units,price_per_unit,cap_rate,buyer').eq('comp_type', 'investment').order('sale_date', { ascending: false, nullsFirst: false }).limit(40)),
+  const [deals, comps, links, review, noLoc] = await Promise.all([
+    WB.fetchAll('pipeline', 'deals', 'id,name,market_id,kind,stage,address,units,acres,guidance,bid_date,check_back_on,lat,lng,uw,first_seen,broker', (q) => q.is('merged_into', null)),
+    WB.fetchAll('comps', 'sale_comps', 'id,market_id,comp_type,sale_date,sale_price', (q) => q.gte('sale_date', lyJan1)),
+    WB.fetchAll('pipeline', 'deal_parcels', 'deal_id'),
     WB.fetchAll('core', 'review_queue', '*', (q) => q.eq('status', 'open').order('id')),
+    sb.schema('comps').from('sale_comps').select('id', { count: 'exact', head: true }).is('lat', null).then((r) => r.count || 0, () => 0),
   ]);
-  const { count: compCount } = await sb.schema('comps').from('sale_comps').select('id', { count: 'exact', head: true });
 
   const MK = Object.fromEntries(WB.markets.map((m) => [m.id, m.short]));
-  const ACTIVE = ['screening', 'underwriting', 'loi', 'under_contract'];
-  const STAGE = { prospect: ['Prospect', 's-pr'], screening: ['Screening', 's-sc'], underwriting: ['Underwriting', 's-uw'], loi: ['LOI', 's-loi'], under_contract: ['Under contract', 's-won'],
-    monitor: ['Monitor', 's-mo'], passed: ['Passed', ''], lost: ['Lost', 's-lost'], dead: ['Dead', ''], closed: ['Closed', 's-won'] };
-  const today = new Date(), iso = (d) => d.toISOString().slice(0, 10), todayIso = iso(today), in30 = iso(new Date(Date.now() + 30 * 864e5));
+  const UWS = ['underwriting', 'loi', 'under_contract'], ACTIVE = ['screening', ...UWS];
   const M = (v) => v == null || v === '' ? null : +v;
-  const usdM = (v) => v == null ? null : v >= 1e6 ? `$${(v / 1e6).toFixed(v >= 1e8 ? 0 : 1)}M` : `$${Math.round(v / 1e3)}K`;
-  const usdK = (v) => v == null ? null : v >= 1e6 ? usdM(v) : `$${(v / 1e3).toFixed(v >= 1e5 ? 0 : 1)}K`;
-  const dash = '<span class="dim">–</span>';
+  const usdM = (v) => v == null ? null : v >= 1e9 ? `$${(v / 1e9).toFixed(2)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(v >= 1e8 ? 0 : 1)}M` : `$${Math.round(v / 1e3)}K`;
   const mon = (d) => new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const monYr = (d) => new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-  const stageTag = (s) => `<span class="st ${(STAGE[s] || [])[1] || ''}">${esc((STAGE[s] || [s])[0])}</span>`;
-  const kindTag = (k) => k === 'land' ? '<span class="k land">Development</span>' : '<span class="k asset">Investment</span>';
   const LAST_MEETING = (() => { const t = new Date(); const back = ((t.getDay() - 4 + 7) % 7) || 7; t.setDate(t.getDate() - back); return iso(new Date(t.getTime() - t.getTimezoneOffset() * 6e4)); })();
   const isNew = (d) => !!d.first_seen && d.first_seen >= LAST_MEETING;
-  const UWS = ['underwriting', 'loi', 'under_contract'];
   const inMkt = (m) => { const cur = WB.getMarket(); return cur === 'all' || m === cur; };
-  const place = (d) => (d.uw && (d.uw.where || d.uw.submarket)) || (d.address || '').split(',').slice(-1)[0].trim() || '';
+  const place = (d) => (d.uw && (d.uw.where || d.uw.submarket)) || (d.address || '').split(',').slice(-2, -1)[0]?.trim() || '';
+  const words = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
+  const W = (n, cap) => { const w = n <= 12 ? words[n] : String(n); return cap ? w : w.toLowerCase(); };
+  const list = (xs) => xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1];
+  const parceled = new Set(links.map((l) => l.deal_id));
 
-  const dateTxt = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  const strip = await WB.strip();
-  function paintBand(lede) {
-    const rowsFor = WB.markets.filter((m) => inMkt(m.id)).map((m) => [m, strip.find((r) => r.market_id === m.id)]).filter(([, r]) => r);
-    const figs = rowsFor.map(([m, r]) => `<div class="fig mk">${esc(m.short)}</div>`
-      + WB.fig('$' + (+r.asking_rent_psf).toFixed(2), 'Asking rent / SF', '$' + Math.round(r.asking_rent_mo).toLocaleString('en-US') + '/mo')
-      + WB.fig((+r.occupancy_pct).toFixed(1) + '%', 'Occupancy')
-      + WB.fig((+r.concessions_weeks).toFixed(1) + ' wks', 'Concessions')
-      + WB.fig(Math.round(r.uc_units).toLocaleString('en-US'), 'Units under construction')
-      + WB.fig(r.price_per_unit_24m ? '$' + Math.round(r.price_per_unit_24m / 1000) + 'K' : '–', 'Sales per unit, 24 mo', r.median_cap_24m ? (+r.median_cap_24m).toFixed(2) + '% cap' : ''));
-    WB.band({ title: dateTxt, lede,
-      actions: '<a class="b" href="comps/?add=1">Add a comp</a><a class="b primary" href="pipeline/">Open pipeline</a>' });
-  }
-  $('#allcomps').textContent = `All ${(compCount || 0).toLocaleString('en-US')} comps`;
-  let selected = null;
+  $('#date').textContent = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  $('#mkt').appendChild(WB.marketToggle());
+
+  const row = (d) => {
+    const g = M(d.guidance), u = M(d.units), sub = place(d);
+    return `<a class="rw" href="pipeline/?deal=${d.id}"><span><b>${esc(d.name)}</b>${isNew(d) ? '<span class="new">New</span>' : ''}${sub ? `<small>${esc(sub)}</small>` : ''}</span>`
+      + `<span class="n">${u ? u.toLocaleString('en-US') + ' units' : d.acres ? (+d.acres).toFixed(1) + ' ac' : '<span class="dim">–</span>'}</span>`
+      + `<span class="n">${g ? usdM(g) : '<span class="dim">Unpriced</span>'}</span><span class="t">${d.kind === 'land' ? 'Dev' : 'Inv'}</span></a>`;
+  };
+  const byMarket = (ds) => WB.markets.filter((m) => inMkt(m.id)).map((m) => {
+    const xs = ds.filter((d) => d.market_id === m.id).sort((a, b) => (isNew(b) - isNew(a)) || (a.kind === b.kind ? 0 : a.kind === 'land' ? -1 : 1) || a.name.localeCompare(b.name));
+    return xs.length ? (WB.getMarket() === 'all' ? `<p class="grp">${esc(m.short)}</p>` : '') + xs.map(row).join('') : '';
+  }).join('');
 
   function render() {
-    const act = deals.filter((d) => ACTIVE.includes(d.stage) && inMkt(d.market_id))
-      .sort((a, b) => (UWS.includes(b.stage) - UWS.includes(a.stage)) || (isNew(b) - isNew(a)) || a.market_id.localeCompare(b.market_id) || a.name.localeCompare(b.name));
-    if (!selected || !act.some((d) => d.id === selected)) selected = (act.find((d) => d.lat != null && d.uw && d.uw.rentPsf) || act.find((d) => d.lat != null) || act[0] || {}).id;
-    const due = deals.filter((d) => inMkt(d.market_id) && d.bid_date && d.bid_date >= todayIso && d.bid_date <= in30 && !['passed', 'lost', 'dead', 'closed'].includes(d.stage));
-    const since = iso(new Date(today.getFullYear(), today.getMonth() - 1, 1));
-    const tr = comps.filter((c) => inMkt(c.market_id));
-    const recent = tr.filter((c) => (c.sale_date || '') >= since).length;
-    const where = WB.getMarket() === 'all' ? 'across both markets' : 'in ' + MK[WB.getMarket()];
-    const nUw = act.filter((d) => UWS.includes(d.stage)).length, nNew = deals.filter((d) => inMkt(d.market_id) && isNew(d)).length;
-    paintBand(`${act.length} active ${act.length === 1 ? 'pursuit' : 'pursuits'} ${where}, ${nUw} in underwriting or later. `
-      + (nNew ? `${nNew} new ${nNew === 1 ? 'deal' : 'deals'} since ${mon(LAST_MEETING)}. ` : '')
-      + (due.length ? `${due.length} bid ${due.length === 1 ? 'date' : 'dates'} in the next 30 days. ` : 'No bid dates in the next 30 days. ')
-      + `${recent} ${recent === 1 ? 'trade' : 'trades'} recorded since ${new Date(since + 'T12:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}.`);
+    const act = deals.filter((d) => ACTIVE.includes(d.stage) && inMkt(d.market_id));
+    const uw = act.filter((d) => UWS.includes(d.stage)), sc = act.filter((d) => d.stage === 'screening');
+    const dev = uw.filter((d) => d.kind === 'land').length, inv = uw.length - dev;
+    const nw = act.filter(isNew);
+    let h = `${W(dev, true)} development ${dev === 1 ? 'deal' : 'deals'} and ${W(inv)} ${inv === 1 ? 'acquisition' : 'acquisitions'} in underwriting.`;
+    if (nw.length) h += nw.length <= 3 ? ` ${list(nw.map((d) => d.name))} ${nw.length === 1 ? 'is' : 'are'} new.` : ` ${W(nw.length, true)} new since ${mon(LAST_MEETING)}.`;
+    else h += ` Nothing new since ${mon(LAST_MEETING)}.`;
+    $('#headline').textContent = h;
+    $('#uw').innerHTML = byMarket(uw) || '<div class="none">Nothing in underwriting.</div>';
+    $('#sc').innerHTML = byMarket(sc) || '<div class="none">Nothing in screening.</div>';
+    $('#scn').textContent = sc.length ? `${sc.length} ${sc.length === 1 ? 'deal' : 'deals'}` : '';
 
-    // active pursuits
-    $('#active').innerHTML = `<thead><tr><th>Deal</th><th>Type</th><th class="r">Units</th><th class="r">Acres</th><th class="r">Guidance</th><th class="r">Per door</th><th class="r">UW rent / SF</th><th class="r">UW yield</th><th>Stage</th></tr></thead><tbody>`
-      + (act.map((d, i) => {
-        const grpRow = (i === 0 || UWS.includes(act[i - 1].stage) !== UWS.includes(d.stage)) ? `<tr class="grp"><td colspan="9">${UWS.includes(d.stage) ? 'Underwriting and later' : 'Screening, new on market'} <span class="muted" style="font-weight:400">${act.filter((x) => UWS.includes(x.stage) === UWS.includes(d.stage)).length}</span></td></tr>` : '';
-        const u = d.uw || {}, g = M(d.guidance), units = M(d.units);
-        return grpRow + `<tr data-id="${d.id}" class="${d.id === selected ? 'sel' : ''}">
-          <td class="name">${esc(d.name)}${isNew(d) ? ' <span class="k new">New</span>' : ''}<small>${esc([place(d), MK[d.market_id]].filter(Boolean).join(', '))}</small></td>
-          <td>${kindTag(d.kind)}</td><td class="r">${units ?? dash}</td><td class="r">${M(d.acres) != null ? (+d.acres).toFixed(1) : dash}</td>
-          <td class="r">${g ? usdM(g) : '<span class="dim">Unpriced</span>'}</td><td class="r">${g && units ? usdK(g / units) : dash}</td>
-          <td class="r">${u.rentPsf ? '$' + (+u.rentPsf).toFixed(2) : dash}</td><td class="r">${u.roc ? (+u.roc).toFixed(2) + '%' : dash}</td><td>${stageTag(d.stage)}</td></tr>`;
-      }).join('') || `<tr><td colspan="9" class="empty">No active pursuits ${where}.</td></tr>`) + '</tbody>';
-
-    // recent trades
-    $('#trades').innerHTML = `<thead><tr><th>Closed</th><th>Property</th><th>Market</th><th class="r">Units</th><th class="r">Price</th><th class="r">Per unit</th><th class="r">Cap</th><th>Buyer</th></tr></thead><tbody>`
-      + (tr.slice(0, 8).map((c) => `<tr data-comp="${c.id}"><td>${c.sale_date ? mon(c.sale_date) : dash}</td><td class="name">${esc(c.name)}<small>${esc(c.city || '')}</small></td>
-          <td class="muted">${esc(MK[c.market_id] || '')}</td><td class="r">${c.units ?? dash}</td><td class="r">${usdM(M(c.sale_price)) || dash}</td>
-          <td class="r">${usdK(M(c.price_per_unit)) || dash}</td><td class="r">${c.cap_rate ? (+c.cap_rate).toFixed(2) + '%' : dash}</td><td>${esc(c.buyer || '') || dash}</td></tr>`).join('')
-        || `<tr><td colspan="8" class="empty">No trades recorded ${where}.</td></tr>`) + '</tbody>';
+    // sale comp volume: this year to date vs the same stretch last year
+    $('#vol').innerHTML = WB.markets.filter((m) => inMkt(m.id)).map((m) => {
+      const cs = comps.filter((c) => c.market_id === m.id && c.sale_date && M(c.sale_price));
+      const sum = (f) => cs.filter(f).reduce((t, c) => t + +c.sale_price, 0);
+      const ytd = sum((c) => c.sale_date >= jan1), ly = sum((c) => c.sale_date >= lyJan1 && c.sale_date <= lySame), lyAll = sum((c) => c.sale_date >= lyJan1 && c.sale_date < jan1);
+      const n = cs.filter((c) => c.sale_date >= jan1).length;
+      const ch = ly ? (ytd / ly - 1) * 100 : null;
+      return `<div class="fig2"><p class="l">${esc(m.short)}, ${n} ${n === 1 ? 'sale' : 'sales'} year to date</p><p class="v">${ytd ? usdM(ytd) : '$0'}</p>`
+        + `<p class="s">${ch == null ? 'No sales by this date last year' : `${ch >= 0 ? 'Up' : 'Down'} ${Math.abs(ch).toFixed(0)}% from ${usdM(ly)} this time last year`}${lyAll ? `, ${usdM(lyAll)} for all of ${Y - 1}` : ''}</p></div>`;
+    }).join('');
 
     // coming up
-    const up = [...due.map((d) => ({ d, when: d.bid_date, what: 'Bids due' })),
+    const up = [...deals.filter((d) => inMkt(d.market_id) && d.bid_date && d.bid_date >= todayIso && d.bid_date <= in30 && ACTIVE.concat('monitor', 'prospect').includes(d.stage)).map((d) => ({ d, when: d.bid_date, what: 'Call for offers' })),
       ...deals.filter((d) => inMkt(d.market_id) && d.check_back_on && d.check_back_on <= in30).map((d) => ({ d, when: d.check_back_on, what: 'Check back' }))]
       .sort((a, b) => a.when.localeCompare(b.when));
-    $('#upcoming').innerHTML = up.length ? up.map(({ d, when, what }) => `<div class="row"><div class="when ${when <= todayIso ? 'due' : ''}">${mon(when)}</div>
-        <div class="what"><b>${esc(d.name)}</b><div>${what}, ${esc(MK[d.market_id] || '')}${d.guidance ? ', ' + usdM(+d.guidance) : ''}</div></div></div>`).join('')
-      : '<div class="row"><div class="what"><div>Nothing due. Set a check-back date on any deal from its card in Pipeline.</div></div></div>';
+    $('#upcoming').innerHTML = up.length ? up.slice(0, 6).map(({ d, when, what }) => `<a class="li" href="pipeline/?deal=${d.id}"><span>${esc(d.name)} <span style="color:var(--muted)">${what.toLowerCase()}</span></span><span class="c ${when <= todayIso ? 'due' : ''}">${mon(when)}</span></a>`).join('')
+      : '<div class="none">No offer dates or check-backs in the next 30 days.</div>';
 
-    // pipeline by stage
-    const GROUPS = [['Active', ACTIVE, 'var(--midnight)'], ['Prospect', ['prospect'], 'var(--purple)'], ['Monitor', ['monitor'], 'var(--lilac)'], ['Archive', ['passed', 'lost', 'dead', 'closed'], '#D9D4CD']];
-    const mkts = WB.markets.filter((m) => inMkt(m.id));
-    $('#dealcount').textContent = `${deals.filter((d) => inMkt(d.market_id)).length} deals`;
-    $('#stages').innerHTML = mkts.map((m) => {
-      const ds = deals.filter((d) => d.market_id === m.id), n = ds.length || 1;
-      return `<div class="srow"><span class="lbl">${esc(m.short)}</span><div class="bar">${GROUPS.map(([, st, c]) => `<i style="width:${ds.filter((d) => st.includes(d.stage)).length / n * 100}%;background:${c}"></i>`).join('')}</div><span class="muted">${ds.length}</span></div>`;
-    }).join('') + `<div class="leg">${GROUPS.map(([l, st, c]) => `<span style="--c:${c}">${l} ${deals.filter((d) => inMkt(d.market_id) && st.includes(d.stage)).length}</span>`).join('')}</div>`;
-
-    renderCtx();
+    // needs attention: counts that link to where you fix them, then any open review items
+    const actM = deals.filter((d) => inMkt(d.market_id) && ACTIVE.includes(d.stage));
+    const items = [
+      ['Active deals without a parcel outline', actM.filter((d) => !parceled.has(d.id)).length, 'pipeline/?attn=parcel'],
+      ['Active deals with no location', actM.filter((d) => d.lat == null).length, 'pipeline/?attn=location'],
+      ['Development deals in underwriting with no CFO date', actM.filter((d) => d.kind === 'land' && UWS.includes(d.stage) && !d.bid_date).length, 'pipeline/?attn=cfo'],
+      ['Active deals with no broker', actM.filter((d) => !d.broker).length, 'pipeline/?attn=broker'],
+      ['Sale comps missing a location', noLoc, 'comps/?attn=location'],
+    ].filter((x) => x[1]);
+    $('#attn').innerHTML = (items.map(([l, n, href]) => `<a class="li" href="${href}"><span>${l}</span><span class="c">${n}</span></a>`).join('')
+      + review.map((r) => `<div class="rq" data-id="${r.id}">${esc(r.reason)}<div class="acts">
+        ${/duplicate/i.test(r.reason) ? '<button class="btn" data-act="merged">Same deal, merge</button><button class="btn" data-act="kept_separate">Keep separate</button>' : '<button class="btn" data-act="fixed">Done</button>'}
+        <button class="btn" data-act="dismissed">Dismiss</button></div></div>`).join(''))
+      || '<div class="none">Nothing to clean up.</div>';
   }
-
-  // ---------- deal context: the selected deal against its submarket (Market Intel) and nearby sales (Sale Comps) ----------
-  const ctxCache = {};
-  async function renderCtx() {
-    const el = $('#ctx'), d = deals.find((x) => x.id === selected);
-    if (!d) { el.innerHTML = '<div class="blk none">Select a deal to see it against its submarket and nearby sales.</div>'; return; }
-    const u = d.uw || {}, g = M(d.guidance), units = M(d.units);
-    const head = `<div class="top"><div class="kick">${kindTag(d.kind)}${stageTag(d.stage)}</div><h3>${esc(d.name)}</h3><div class="addr">${esc(d.address || MK[d.market_id] || '')}</div></div>
-      <div class="facts"><div><div class="v">${units ?? '–'}</div><div class="l">${d.kind === 'land' ? 'Units planned' : 'Units'}</div></div>
-        <div><div class="v">${g ? usdM(g) : '–'}</div><div class="l">${g ? 'Guidance' : 'Unpriced'}</div></div>
-        <div><div class="v">${u.roc ? (+u.roc).toFixed(2) + '%' : g && units ? usdK(g / units) : '–'}</div><div class="l">${u.roc ? 'UW yield on cost' : 'Per door'}</div></div></div>`;
-    const links = `<div class="foot"><a class="btn primary" href="pipeline/?deal=${d.id}">Open deal</a><a class="btn" href="intel/?market=${d.market_id}">Market intel</a>${d.lat != null ? `<a class="btn" href="comps/?near=${d.lat},${d.lng}&mi=3">Comps nearby</a>` : ''}</div>`;
-    if (d.lat == null) { el.innerHTML = head + '<div class="blk none">Set this deal\'s location in Pipeline to compare it with its submarket and nearby sales.</div>' + links; return; }
-    el.innerHTML = head + '<div class="blk"><div class="skel"></div></div>' + links;
-    const c = ctxCache[d.id] || (ctxCache[d.id] = (await sb.schema('pipeline').rpc('deal_context', { p_deal: d.id })).data);
-    if (selected !== d.id) return;
-    if (!c) { el.innerHTML = head + '<div class="blk none">No market data near this deal yet.</div>' + links; return; }
-    const s = c.stats || {}, ours = M(u.rentPsf);
-    const diff = (a, b) => a && b ? `<span class="d ${a >= b ? 'pos' : 'neg'}">${a >= b ? '+' : ''}${((a / b - 1) * 100).toFixed(1)}%</span>` : '<span class="d"></span>';
-    const newest = (c.newest || [])[0];
-    let note = '';
-    if (ours && s.new_rent_psf) {
-      const p = (ours / s.new_rent_psf - 1) * 100;
-      note = `Underwritten rent is ${Math.abs(p).toFixed(0)}% ${p >= 0 ? 'above' : 'below'} product built in the last eight years in ${esc(c.submarket)}.`
-        + (newest ? ` ${esc(newest.name)} (${newest.year_built}, ${newest.miles} mi) asks $${(+newest.rent_psf).toFixed(2)}.` : '');
-    }
-    const market = `<div class="blk"><h4>Against the ${esc(c.submarket || 'submarket')} submarket <a class="link" href="intel/?market=${d.market_id}">Open in market intel</a></h4>
-      <div class="ctx-cmp">
-        ${ours ? `<span>Our rent per SF</span><span class="v">$${ours.toFixed(2)}</span><span class="d"></span>` : ''}
-        ${s.new_rent_psf ? `<span>Built in the last 8 years</span><span class="v">$${(+s.new_rent_psf).toFixed(2)}</span>${diff(ours, +s.new_rent_psf)}` : ''}
-        ${s.rent_psf ? `<span>Submarket average</span><span class="v">$${(+s.rent_psf).toFixed(2)}</span>${diff(ours, +s.rent_psf)}` : ''}
-        ${s.occupancy_pct ? `<span>Occupancy</span><span class="v">${(+s.occupancy_pct).toFixed(1)}%</span><span class="d"></span>` : ''}
-        ${s.uc_units ? `<span>Under construction</span><span class="v">${(+s.uc_units).toLocaleString('en-US')} units</span><span class="d"></span>` : ''}
-      </div>${note ? `<div class="callout">${note}</div>` : ''}</div>`;
-    const sales = (c.sales || []);
-    const near = `<div class="blk"><h4>Sales within ${c.miles} miles, last 3 years <a class="link" href="comps/?near=${d.lat},${d.lng}&mi=${c.miles}">View in sale comps</a></h4>
-      ${sales.length ? `<table class="near"><tbody>${sales.slice(0, 4).map((x) => `<tr><td><b>${esc(x.name)}</b><br><span class="muted">${[x.year_built, x.units ? x.units + ' units' : '', x.miles + ' mi'].filter(Boolean).join(', ')}</span></td>
-        <td style="text-align:right"><b>${usdK(+x.price_per_unit) || usdM(+x.sale_price) || '–'}</b><br><span class="muted">${[x.sale_date ? monYr(x.sale_date) : '', x.cap_rate ? (+x.cap_rate).toFixed(2) + '%' : ''].filter(Boolean).join(', ')}</span></td></tr>`).join('')}</tbody></table>`
-        : `<div class="none">No recorded sales within ${c.miles} miles in the last three years.</div>`}</div>`;
-    el.innerHTML = head + market + near + links;
-  }
-
-  document.addEventListener('click', (e) => {
-    const r = e.target.closest('#active tr[data-id]'); if (r) { selected = r.dataset.id; document.querySelectorAll('#active tr.sel').forEach((x) => x.classList.remove('sel')); r.classList.add('sel'); renderCtx(); return; }
-    const c = e.target.closest('#trades tr[data-comp]'); if (c) location.href = 'comps/?comp=' + c.dataset.comp;
-  });
   window.addEventListener('wb:market', render);
   render();
 
-  // ---------- review queue (only shown when something needs a decision) ----------
-  const renderReview = () => {
-    $('#rq-sec').hidden = !review.length;
-    $('#rq-count').textContent = review.length ? `${review.length} open` : '';
-    $('#review').innerHTML = review.map((r) => `<div class="row" data-id="${r.id}"><div class="what">${esc(r.reason)}<div class="acts">
-      ${/duplicate/i.test(r.reason) ? '<button class="btn" data-act="merged">Same deal, merge</button><button class="btn" data-act="kept_separate">Keep separate</button>' : '<button class="btn" data-act="fixed">Done</button>'}
-      <button class="btn" data-act="dismissed">Dismiss</button></div></div></div>`).join('');
-  };
-  renderReview();
-  $('#review').addEventListener('click', async (e) => {
+  $('#attn').addEventListener('click', async (e) => {
     const b = e.target.closest('[data-act]'); if (!b) return;
-    const id = +b.closest('.row').dataset.id, r = review.find((x) => x.id === id);
+    const id = +b.closest('.rq').dataset.id, r = review.find((x) => x.id === id);
     if (b.dataset.act === 'merged' && r.kind === 'deal' && Array.isArray(r.record_ids) && r.record_ids.length === 2) {
       const { error: mErr } = await sb.schema('pipeline').rpc('merge_deals', { p_keep: r.record_ids[0], p_drop: r.record_ids[1] });
       if (mErr && !/already-merged/.test(mErr.message)) return WB.toast(mErr.message);
     }
     const { error } = await sb.schema('core').from('review_queue').update({ status: b.dataset.act, resolution: `Marked ${b.dataset.act.replace('_', ' ')} by ${user.email}` }).eq('id', id);
     if (error) return WB.toast(error.message);
-    review.splice(review.findIndex((x) => x.id === id), 1); renderReview(); WB.toast('Saved');
+    review.splice(review.findIndex((x) => x.id === id), 1); render(); WB.toast('Saved');
   });
 })();
 </script>

@@ -168,3 +168,56 @@ select.input{appearance:none;-webkit-appearance:none;padding-right:26px;
 @keyframes sk{to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){*{transition:none !important}.skel{animation:none}}
 @media (max-width:700px){.page{padding:16px 16px 40px}}
+
+/* =====================================================================
+   Minimal direction: no boxed panels, no chips, no tinted fills.
+   Sections are separated by a dark rule under the heading and hairlines between rows.
+   ===================================================================== */
+:root{--ground:#FFFFFF;--sunk:#FAFAFB;--hover:#F7F7FA;--selected:#F3F2F8;--rule:#E6E4EC;--rule-2:#EFEEF3;--rule-3:#DAD7E2;--muted:#77728C;--ink-2:#4A4560}
+body{font-size:14px}
+.page{padding:48px 48px 80px;max-width:1320px}
+.sec{background:none;border:0;border-radius:0;overflow:visible}
+.sec+.sec{margin-top:48px}
+.sec-h{min-height:0;padding:0 0 12px;border-bottom:1px solid var(--ink)}
+.sec-h h2{font-size:15px}
+.sec-b{padding:16px 0}
+.link{font-weight:500;font-size:13px}
+.figs{background:none;border:0;border-radius:0;gap:40px;grid-template-columns:repeat(auto-fit,minmax(150px,max-content))}
+.fig{padding:0}
+.fig+.fig{border-left:0}
+.fig .v{font-size:30px;font-weight:500;letter-spacing:-.02em}
+.fig .l{font-size:13px;margin-top:4px}
+.btn{border-color:transparent;background:none;font-weight:500;color:var(--ink-2)}
+.btn:hover{background:var(--hover);border-color:transparent;color:var(--ink)}
+.btn:active{box-shadow:none;background:#EFEEF4}
+.btn.primary{background:var(--midnight);color:#fff}
+.btn.outline{border-color:var(--rule-3)}
+.seg{border:0;border-radius:0;gap:20px;background:none;overflow:visible}
+.seg button{padding:0;height:26px;color:var(--muted);font-size:14px}
+.seg button+button{border-left:0}
+.seg button:hover,.seg button:active{background:none;color:var(--ink)}
+.seg button.on,.seg button[aria-pressed="true"]{background:none;color:var(--ink);font-weight:600}
+.seg button .n{opacity:1;color:var(--faint);font-weight:400}
+.chip{border:0;border-radius:0;padding:0;height:26px;background:none;color:var(--muted);font-size:13px}
+.chip:hover{background:none;color:var(--ink)}
+.chip.on,.chip[aria-pressed="true"]{background:none;color:var(--ink);font-weight:600}
+.input,select.input{border-color:var(--rule)}
+.tbl{font-size:14px}
+.tbl th{background:#fff;padding:10px 12px;font-size:12px;border-bottom:1px solid var(--rule)}
+.tbl td{padding:13px 12px;border-bottom:1px solid var(--rule-2)}
+.tbl th:first-child,.tbl td:first-child{padding-left:0}
+.tbl th:last-child,.tbl td:last-child{padding-right:0}
+.tbl td.name{font-weight:500}
+.tbl td.name small{font-size:13px;margin-top:2px}
+.tbl tbody tr:hover td{background:var(--hover)}
+.tbl tr.sel td:first-child{box-shadow:none}
+.tbl tr.grp td{background:none;color:var(--muted);font-weight:400;font-size:13px;padding-top:24px;border-bottom:1px solid var(--rule)}
+.k,.k.land,.k.asset{background:none;padding:0;font-weight:400;font-size:13px;color:var(--muted)}
+.k.new{background:none;color:var(--purple);font-weight:500;font-size:12px;margin-left:6px}
+.st::before{width:6px;height:6px}
+.callout{background:var(--sunk);border-radius:0;border-left:0}
+.dlg .card{border-radius:8px}
+.dlg .card>header{background:#fff;color:var(--ink);border-bottom:1px solid var(--rule)}
+.dlg .card>header p{color:var(--muted)}
+.dlg .card>footer{background:#fff}
+@media (max-width:700px){.page{padding:24px 16px 48px}}

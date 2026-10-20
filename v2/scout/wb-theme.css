@@ -49,3 +49,14 @@ button:focus-visible{outline:none !important;box-shadow:0 0 0 2px #fff,0 0 0 4px
 #brand .scout-mkt{position:absolute;top:9px;right:80px}
 #brand .scout-mkt button{color:#433C63 !important}
 #brand .scout-mkt button[aria-pressed="true"]{color:#1D1247 !important}
+
+/* ---------- minimal direction ---------- */
+:root{--bg:#FFFFFF;--bg-inset:#FFFFFF;--border:#E6E4EC;--line-hair:#EFEEF3;--text-muted:#4A4560;--text-faint:#77728C}
+#brand,#siteDetailHead,#sitesHomeHead,#settingsHead,#panelHead,.ac-head{border-bottom-color:#E6E4EC !important}
+#settingsBtn,#railCollapse{border-color:transparent !important}
+#settingsBtn:hover,#railCollapse:hover{background:#F7F7FA !important;border-color:transparent !important}
+.seg button.active,.chip.active,.tab.active{background:none !important;color:#1D1247 !important;border-color:transparent !important;font-weight:600 !important}
+#openSitesHome{background:none !important;border:0 !important;box-shadow:none !important;border-right:0 !important;color:#1D1247 !important;justify-content:space-between !important;padding:0 !important;font-weight:600 !important;border-bottom:1px solid #1D1247 !important;border-radius:0 !important}
+#openSitesHome:hover{background:none !important;color:#432890 !important}
+#openSitesHome .pip-count{background:none !important;color:#77728C !important}
+#sidebar input,#sidebar select{border-color:#E6E4EC !important;box-shadow:none !important}
