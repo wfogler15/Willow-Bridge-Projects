@@ -66,15 +66,18 @@ Live site: GitHub Pages for repo `wfogler15/Willow-Bridge-Projects` (public), un
 6. **Parcel:** set it in the deal's settings ("Fix the parcel outline").
 7. **Report back:** say briefly what was filled, what was missing, and anything uncertain.
 
+## Done (for reference)
+- **Archive folder write-back, applied 10/20/26.** It logged 14 offers across 9 deals, filled brokers, summaries and offer terms on the archived deals, and loaded underwriting from six older proformas. `deal_log.kind` now allows `'offer'`.
+
+## Known issue
+- Larger database writes from Claude sometimes come back "cancelled" with no approval prompt shown. Reads and short writes work. When that happens, hand Will the SQL as a file to run in the Supabase SQL editor.
+
 ## To do
-- **Needs-attention list:** first version is live on the Overview (deals without parcel, location, CFO date or broker; comps missing location), linking to filtered views. Still to add:
-  - Comps missing location or price.
-  - Deals with no parcel, CFO date or broker.
+- **Needs-attention list:** first version is live on the Overview: active deals missing a parcel outline, location, CFO date or broker, plus sale comps missing a location. Each count links to a filtered view in Pipeline or Sale comps. Still to add:
+  - Comps missing a price.
   - Stale Intel data.
   - Duplicate deals or comps.
-
-  Each row has a one-click fix or opens the editor.
-- **Archive folder write-back:** offers, brokers and underwriting from the archived deal folders. It was prepared on 10/19/26 and is not yet applied.
+  - A one-click fix on each row.
 - **Historical investment deals:** Will is sending these for a backfill.
 - **Switchover:** move v2 to the root URL, retire the old tables, delete the expired `one-time-loader` edge function.
 - **Ideas parked:**
