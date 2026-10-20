@@ -6,7 +6,7 @@
 <title>Sale comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610201821">
+<link rel="stylesheet" href="../shared/wb.css?v=202610201822">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -27,7 +27,21 @@
   .split{gap:40px}
   #stats .fig .v{font-size:26px}
   .split>.sec>.sec-h{border-bottom:1px solid var(--ink)}
-  #mapPanel{overflow:hidden}
+  #mapPanel{overflow:hidden;position:relative}
+  /* preview card over the map: one click on a comp */
+  #peek{position:absolute;left:12px;bottom:28px;z-index:5;width:min(330px,calc(100% - 24px));background:var(--surface);border:1px solid var(--rule);border-radius:10px;box-shadow:0 10px 28px rgba(22,20,43,.22);padding:12px 14px}
+  #peek[hidden]{display:none}
+  #peek .pk-h{display:flex;align-items:flex-start;gap:8px}
+  #peek .pk-t{flex:1;min-width:0}
+  #peek .pk-n{font:600 var(--fs)/1.25 var(--font-display);color:var(--ink)}
+  #peek .pk-s{margin-top:2px;font-size:12px;color:var(--muted)}
+  #peek .pk-x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;cursor:pointer;padding:0 2px}
+  #peek .pk-f{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+  #peek .pk-f .v{font:600 14px/1.2 var(--font-display);color:var(--ink);white-space:nowrap}
+  #peek .pk-f .l{font-size:11px;color:var(--muted);margin-top:2px}
+  #peek .pk-p{font-size:12px;color:var(--muted);margin-bottom:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #peek .pk-b{width:100%;border:0;border-radius:6px;background:var(--midnight);color:#fff;font:600 13px var(--font);padding:8px 10px;cursor:pointer}
+  #peek .pk-b:hover{background:var(--purple)}
   #map{flex:1;min-height:0}
   .dot{width:11px;height:11px;border-radius:50%;border:2px solid #fff;background:var(--asset);box-shadow:0 0 0 1px rgba(22,20,43,.35);cursor:pointer}
   .dot.land{background:var(--land)}
@@ -91,9 +105,9 @@
 <main class="page">
   <div class="figs" id="stats"></div>
   <div class="split">
-    <section class="sec"><div class="sec-h"><h2 id="t-title">Sales</h2><span class="note">Click a heading to sort. Double-click a row to edit.</span></div>
+    <section class="sec"><div class="sec-h"><h2 id="t-title">Sales</h2><span class="note">Click a heading to sort. Click a row to preview it on the map; double-click for full detail.</span></div>
       <div class="tablewrap"><table class="tbl"><thead id="thead"></thead><tbody id="tbody"></tbody></table></div></section>
-    <section class="sec" id="mapPanel"><div id="map"></div></section>
+    <section class="sec" id="mapPanel"><div id="map"></div><div id="peek" hidden></div></section>
   </div>
 </main>
 
@@ -119,7 +133,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610201821"></script>
+<script src="../shared/wb.js?v=202610201822"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -304,7 +318,25 @@
     $('#t-title').innerHTML = esc(`${list.length.toLocaleString('en-US')} ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}${noLoc ? ' missing a location' : ''}`) + (noLoc ? ' <button class="link" id="clrattn" type="button">Show all</button>' : '');
     $('#near').innerHTML = near ? `<span class="chip-near">Within ${near.mi} miles of the selected deal<button type="button" id="near-x" title="Show all comps">×</button></span>` : '';
     drawMarkers(list);
+    renderPeek(list);
   }
+  function renderPeek(list) {
+    const el = $('#peek'), c = state.sel && list.find((r) => r.id === state.sel);
+    if (!c || $('#drawer').classList.contains('open')) { el.hidden = true; return; }
+    const land = c.comp_type === 'land';
+    const f = land ? [[fmt.usd(c.sale_price), 'Price'], [fmt.usd(c.price_per_unit), 'Per door'], [fmt.ac(c.acres), 'Acres']]
+                   : [[fmt.usd(c.sale_price), 'Price'], [fmt.usd(c.price_per_unit), 'Per unit'], [fmt.int(c.units) + ' units', 'Size']];
+    el.innerHTML = `<div class="pk-h"><div class="pk-t"><div class="pk-n">${esc(c.name || c.address || 'Untitled comp')}</div>`
+      + `<div class="pk-s">${esc([c.address, fmt.date(c.sale_date)].filter((x) => x && x !== '—').join(' · '))}</div></div><button class="pk-x" type="button" id="pk-x" aria-label="Close preview">×</button></div>`
+      + `<div class="pk-f">${f.map(([v, l]) => `<div><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}</div>`
+      + `<div class="pk-p">${esc([c.buyer && 'Buyer: ' + c.buyer, c.seller && 'Seller: ' + c.seller].filter(Boolean).join('  ·  ') || 'No buyer or seller on record')}</div>`
+      + `<button class="pk-b" type="button" id="pk-open">Full detail</button>`;
+    el.hidden = false;
+  }
+  $('#peek').addEventListener('click', (e) => {
+    if (e.target.closest('#pk-x')) { state.sel = null; render(); return; }
+    if (e.target.closest('#pk-open')) openDetail(rows.find((r) => r.id === state.sel));
+  });
 
   // ---------- map ----------
   const map = new maplibregl.Map({
@@ -325,7 +357,7 @@
       const el = document.createElement('div'); el.style.cssText = 'width:18px;height:18px;display:grid;place-items:center';
       const dot = document.createElement('div'); dot.className = 'dot' + (c.comp_type === 'land' ? ' land' : '') + (state.sel === c.id ? ' sel' : '');
       el.appendChild(dot);
-      el.onclick = (e) => { e.stopPropagation(); if ($('#drawer').classList.contains('open')) return; select(c.id, true); openDetail(c); };
+      el.onclick = (e) => { e.stopPropagation(); if ($('#drawer').classList.contains('open')) return; select(c.id, true); };
       markers.push(new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([c.lng, c.lat]).addTo(map));
     }
     if (!state.sel && pts.length && !map._fitOnce) {
@@ -356,8 +388,12 @@
     const th = e.target.closest('th'); if (!th || !th.dataset.k) return;
     state.dir = state.sort === th.dataset.k ? -state.dir : (th.dataset.k === 'name' ? 1 : -1); state.sort = th.dataset.k; render();
   });
-  $('#tbody').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-id]'); if (!tr) return; select(tr.dataset.id, false); openDetail(rows.find((r) => r.id === tr.dataset.id)); });
-  $('#tbody').addEventListener('dblclick', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) openDrawer(rows.find((r) => r.id === tr.dataset.id)); });
+  // one click: fly to the site and show the preview card. Double-click (second click of the pair): the full detail modal.
+  $('#tbody').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr[data-id]'); if (!tr) return;
+    if (e.detail >= 2) { openDetail(rows.find((r) => r.id === tr.dataset.id)); return; }
+    select(tr.dataset.id, false);
+  });
 
   // ---------- comp detail: every field on record, with the Edit button ----------
   let viewing = null;
@@ -442,7 +478,7 @@
   ];
   let editing = null, pin = null;
   function openDrawer(c) {
-    editing = c || null;
+    editing = c || null; $('#peek').hidden = true;
     const v = c || { comp_type: state.type, market_id: state.market === 'all' ? 'denver' : state.market, source: 'manual', verified: true };
     $('#d-title').textContent = c ? 'Edit comp' : 'Add a comp';
     $('#d-form').innerHTML = F.map(([k, l, t, cls, only]) => {
