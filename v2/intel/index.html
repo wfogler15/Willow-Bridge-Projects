@@ -8941,11 +8941,42 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201020">
-<script src="../shared/wb.js?v=202610201020"></script>
-<script src="../shared/legacy-db.js?v=202610201020"></script>
-<script>window.WB_BUILD = '202610201020';</script>
-<script src="loader.js?v=202610201020"></script>
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610201023">
+<!-- Minimal direction (Oct 2026): white ground, hairline rules, text tabs, no shadows or boxed fills.
+     Applied last so it wins over the dashboard's own styles. Charts and numbers are unchanged. -->
+<style id="wb-minimal">
+:root, :root[data-theme], html[data-theme="dark"] {
+  --bg-0:#ffffff; --bg-1:#ffffff; --bg-2:#fafafa; --bg-3:#f6f6f8; --bg-elev:#ffffff; --bg-inset:#ffffff; --bg-inset-warm:#ffffff;
+  --line:#e6e4ec; --line-strong:#c9c5d2; --line-hair:#f0eef4;
+  --ink-1:#1D1247; --ink-2:#2b2450; --ink-3:#5f5a75; --ink-4:#8a86a0;
+  --accent:#432890; --accent-text:#432890; --accent-deep:#1D1247; --accent-deep-text:#1D1247;
+  --header-band:#ffffff; --header-band-strong:#ffffff; --header-ink:#1D1247; --header-ink-muted:#77728C;
+  --shadow-sm:none; --shadow-md:none;
+  --font-head:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif;
+}
+body { font-family:Aptos,"Aptos Display",Inter,"Segoe UI",Arial,sans-serif; background:#ffffff; }
+.topbar { border-bottom:1px solid var(--line-hair); box-shadow:none; padding:16px 32px 16px; }
+.panel { background:#ffffff; border:0; border-top:1px solid var(--ink-1); border-radius:0; box-shadow:none; margin-bottom:32px; }
+.panel-header { background:#ffffff; border-bottom:1px solid var(--line-hair); padding:14px 20px; }
+.panel-title { font-family:Aptos,Inter,sans-serif; font-size:14px; font-weight:600; letter-spacing:0; text-transform:none; color:var(--ink-1); }
+.panel-sub { text-transform:none; letter-spacing:0; font-size:12px; color:var(--ink-3); }
+.kpi { background:#ffffff; border-right:0; padding:16px 20px 14px 0; }
+.kpi::before { display:none; }
+.kpi-label { text-transform:none; letter-spacing:0; font-size:12px; font-weight:400; color:var(--ink-3); }
+.kpi-value { font-weight:500; letter-spacing:-0.01em; color:var(--ink-1); }
+.kpi-sub { color:var(--ink-3); }
+.tab { border-radius:0; text-transform:none; letter-spacing:0; font-size:13px; font-weight:500; padding:8px 14px; color:var(--ink-3); background:transparent; }
+.tab:hover { background:transparent; color:var(--ink-1); }
+.tab.active { background:transparent; color:var(--ink-1); box-shadow:inset 0 -2px 0 var(--accent); }
+.toggle-btn { border-radius:0; text-transform:none; letter-spacing:0; box-shadow:none; }
+.toggle-btn.active { background:transparent; color:var(--ink-1); box-shadow:inset 0 -2px 0 var(--accent); }
+.chip { border-radius:0; border-color:var(--line); background:transparent; font-weight:400; }
+.chip.active { background:transparent; color:var(--ink-1); border-color:var(--ink-1); box-shadow:none; }
+</style>
+<script src="../shared/wb.js?v=202610201023"></script>
+<script src="../shared/legacy-db.js?v=202610201023"></script>
+<script>window.WB_BUILD = '202610201023';</script>
+<script src="loader.js?v=202610201023"></script>
 
 
 

@@ -528,7 +528,9 @@ html,body{background:#fff !important}
 .lyr{border-radius:6px !important;box-shadow:0 1px 0 rgba(29,18,71,.06),0 6px 20px rgba(29,18,71,.12) !important;border:0 !important}
 /* agenda with five columns: deal, acres, units, guidance, $/unit (wider panel) */
 .ag-row.ag5{grid-template-columns:minmax(0,1fr) 58px 58px 84px 78px;gap:10px;align-items:baseline}
-.ag-row.ag5 .ag-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-row.ag5 .ag-name{min-width:0;display:flex;align-items:baseline;gap:6px}
+.ag-row.ag5 .ag-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ag-row.ag5 .ag-name em.agnew{flex:none}
 .ag-row.ag5 .ag-num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ag-row.ag5.ag-head span{font-size:11.5px;color:#77728C;font-weight:400}
 .ag-row.ag5.ag-head span:first-child{color:#1D1247;font-weight:600;font-size:12px}
@@ -603,7 +605,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610201020"></script>
+<script src="../shared/wb.js?v=202610201023"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1063,7 +1065,7 @@ function plural(n, w){ return n + " " + w + (n === 1 ? "" : "s"); }
 const agUnits = d => d.kind === "land" ? (d.doors || d.units) : d.units;
 const agPu = d => (d.guidance && agUnits(d)) ? d.guidance / agUnits(d) : null;
 const agHead = title => '<div class="agenda"><div class="ag-row ag5 ag-head"><span>' + title + '</span><span>Acres</span><span>Units</span><span>Guidance</span><span>$ / unit</span></div>';
-const agRow = d => '<button type="button" class="ag-row ag5" data-go="' + SLIDES.findIndex(x => x.d === d) + '"><span class="ag-name">' + esc(d.name) + (d.isNew ? ' <em class="agnew">New</em>' : "") + "</span>"
+const agRow = d => '<button type="button" class="ag-row ag5" data-go="' + SLIDES.findIndex(x => x.d === d) + '"><span class="ag-name"><span class="ag-t">' + esc(d.name) + "</span>" + (d.isNew ? ' <em class="agnew">New</em>' : "") + "</span>"
   + '<span class="ag-num">' + (d.acres ? fmtNum(d.acres) : "–") + "</span>"
   + '<span class="ag-num">' + (agUnits(d) ? fmtNum(agUnits(d)) : "–") + "</span>"
   + '<span class="ag-num ag-px">' + esc(priceLine(d)) + "</span>"

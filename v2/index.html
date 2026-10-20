@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overview · Willow Bridge Intel</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202610201020">
+<link rel="stylesheet" href="shared/wb.css?v=202610201023">
 <style>
   .ov{max-width:1180px}
   .kick{margin:0 0 12px;font-size:14px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
   .ov h1{margin:0;font:500 38px/1.18 var(--font-display);letter-spacing:-.025em;max-width:860px;color:var(--ink)}
-  .cols{display:flex;flex-wrap:wrap;gap:72px 96px;margin-top:64px}
-  .main{flex:999 1 560px;min-width:0}
-  .side{flex:1 1 300px;min-width:0}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,400px);column-gap:96px;row-gap:56px;margin-top:64px;align-items:start}
+  .cell{min-width:0}
+  .stack{display:flex;flex-direction:column;gap:56px;min-width:0}
   .hd{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:12px;border-bottom:1px solid var(--ink)}
   .hd h2{margin:0;font-size:15px;font-weight:600}
   .grp{margin:28px 0 2px;font-size:13px;color:var(--muted)}
@@ -38,6 +38,7 @@
   .rq{padding:13px 0;border-bottom:1px solid var(--rule-2);font-size:14px}
   .rq .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
   .rq .btn{height:28px;font-size:13px;padding:0 8px;margin-left:-8px}
+  @media (max-width:900px){.cols{grid-template-columns:minmax(0,1fr);column-gap:0}}
   @media (max-width:700px){.ov h1{font-size:28px}.rw{grid-template-columns:minmax(0,1fr) 80px 72px}.rw .t{display:none}}
 </style>
 </head>
@@ -45,25 +46,35 @@
 <main class="page ov">
   <div class="kick"><span id="date"></span><span id="mkt"></span></div>
   <h1 id="headline"><span class="skel" style="display:block;height:38px;width:70%"></span></h1>
+  <!-- two columns on one grid, so each row's headers sit on the same line:
+       row 1 In underwriting | Sale comps + Coming up; row 2 Screening | Needs attention -->
   <div class="cols">
-    <section class="main">
+    <section class="cell" id="c-uw">
       <div class="hd"><h2>In underwriting</h2><a class="link" href="pipeline/">Open pipeline</a></div>
       <div id="uw"></div>
-      <div class="hd gap"><h2>Screening, new on market</h2><span class="link" style="color:var(--muted);font-weight:400" id="scn"></span></div>
+    </section>
+    <div class="cell stack">
+      <section>
+        <div class="hd"><h2>Sale comps this year</h2><a class="link" href="comps/">All comps</a></div>
+        <div id="vol"></div>
+      </section>
+      <section>
+        <div class="hd"><h2>Coming up</h2><span class="link" style="color:var(--muted);font-weight:400">Next 30 days</span></div>
+        <div id="upcoming"></div>
+      </section>
+    </div>
+    <section class="cell" id="c-sc">
+      <div class="hd"><h2>Screening, new on market</h2><span class="link" style="color:var(--muted);font-weight:400" id="scn"></span></div>
       <div id="sc"></div>
     </section>
-    <aside class="side">
-      <div class="hd"><h2>Sale comps this year</h2><a class="link" href="comps/">All comps</a></div>
-      <div id="vol"></div>
-      <div class="hd gap"><h2>Coming up</h2><span class="link" style="color:var(--muted);font-weight:400">Next 30 days</span></div>
-      <div id="upcoming"></div>
-      <div class="hd gap"><h2>Needs attention</h2></div>
+    <section class="cell">
+      <div class="hd"><h2>Needs attention</h2></div>
       <div id="attn"></div>
-    </aside>
+    </section>
   </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202610201020"></script>
+<script src="shared/wb.js?v=202610201023"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('home');
