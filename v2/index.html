@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overview · Willow Bridge Intel</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202610211737">
+<link rel="stylesheet" href="shared/wb.css?v=202610211910">
 <style>
   .ov{max-width:1180px}
   .kick{margin:0 0 12px;font-size:14px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
@@ -55,7 +55,7 @@
     </section>
     <div class="cell stack">
       <section>
-        <div class="hd"><h2>Sale comps this year</h2><a class="link" href="comps/">All comps</a></div>
+        <div class="hd"><h2>Investment sales this year</h2><a class="link" href="comps/">All comps</a></div>
         <div id="vol"></div>
       </section>
       <section>
@@ -74,7 +74,7 @@
   </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202610211737"></script>
+<script src="shared/wb.js?v=202610211910"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('home');
@@ -136,7 +136,7 @@
 
     // sale comp volume: this year to date vs the same stretch last year
     $('#vol').innerHTML = WB.markets.filter((m) => inMkt(m.id)).map((m) => {
-      const cs = comps.filter((c) => c.market_id === m.id && c.sale_date && M(c.sale_price));
+      const cs = comps.filter((c) => c.comp_type === 'investment' && c.market_id === m.id && c.sale_date && M(c.sale_price));
       const sum = (f) => cs.filter(f).reduce((t, c) => t + +c.sale_price, 0);
       const ytd = sum((c) => c.sale_date >= jan1), ly = sum((c) => c.sale_date >= lyJan1 && c.sale_date <= lySame), lyAll = sum((c) => c.sale_date >= lyJan1 && c.sale_date < jan1);
       const n = cs.filter((c) => c.sale_date >= jan1).length;
