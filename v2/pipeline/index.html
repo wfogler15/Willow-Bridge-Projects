@@ -624,7 +624,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610211922"></script>
+<script src="../shared/wb.js?v=202610211944"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -706,7 +706,7 @@ async function loadReport(){
     WB.fetchAll("pipeline", "deal_log", "id,deal_id,logged_on,kind,body", q => q.order("logged_on").order("id")),
     WB.fetchAll("pipeline", "deal_parcels", "deal_id,parcel_id"),
     WB.fetchAll("core", "parcels", "id,apn,geom"),
-    WB.fetchAll("comps", "sale_comps", "id,market_id,name,city,sale_date,sale_price,units,year_built,price_per_unit,cap_rate,buyer,lat,lng",
+    WB.fetchAll("comps", "sale_comps", "id,market_id,name,city,sale_date,sale_price,units,year_built,price_per_unit,cap_rate,buyer,lat,lng,portfolio",
       q => q.eq("comp_type", "investment").gte("sale_date", since).is("excluded", null).order("sale_date", {ascending: false})).then(xs => xs.filter(c => (c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970))),   /* same scope as Sale comps */
     WB.fetchAll("market", "strip_summary", "*").catch(() => []),
   ]);
@@ -1058,7 +1058,7 @@ function salesFor(m){
 function renderSales(m){
   const {list, label} = salesFor(m), K = n => n ? "$" + Math.round(n / 1000) + "K" : "–";
   return head({market: m}) + "<h1>Recent trades</h1><h2 class=\"accent\">" + esc(m) + ", " + plural(list.length, "sale") + " " + label + "</h2><div class=\"rule\"></div>"
-    + '<table class="sales"><tbody>' + list.map(c => "<tr><td><b>" + esc(c.name) + "</b><small>" + esc([c.city, c.year_built, c.units ? c.units + " units" : ""].filter(Boolean).join(", ")) + (c.buyer ? "<br>To " + esc(c.buyer) : "") + "</small></td>"
+    + '<table class="sales"><tbody>' + list.map(c => "<tr><td><b>" + esc(c.name) + "</b><small>" + esc([c.city, c.year_built, c.units ? c.units + " units" : ""].filter(Boolean).join(", ")) + (c.buyer ? "<br>To " + esc(c.buyer) : "") + (c.portfolio ? "<br>Portfolio sale, allocated price" : "") + "</small></td>"
       + '<td class="n"><b>' + K(c.price_per_unit) + "/unit</b><small>" + [c.sale_price ? usdM(+c.sale_price) : "", c.cap_rate ? (+c.cap_rate).toFixed(2) + "% cap" : "", shortDate(c.sale_date)].filter(Boolean).join(", ") + "</small></td></tr>").join("") + "</tbody></table>"
     + '<div class="meta">From Sale Comps. Dots on the map are these trades.</div>';
 }

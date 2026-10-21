@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overview · Willow Bridge Intel</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202610211922">
+<link rel="stylesheet" href="shared/wb.css?v=202610211944">
 <style>
   .ov{max-width:1180px}
   .kick{margin:0 0 12px;font-size:14px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
@@ -55,7 +55,7 @@
     </section>
     <div class="cell stack">
       <section>
-        <div class="hd"><h2>Investment sales this year</h2><a class="link" href="comps/">All comps</a></div>
+        <div class="hd"><h2>Investment sales this year</h2><span><a class="link" href="#" id="pf" title="Portfolio deals use the source's per-asset allocated price">Portfolio sales: included</a> &nbsp; <a class="link" href="comps/">All comps</a></span></div>
         <div id="vol"></div>
       </section>
       <section>
@@ -74,7 +74,7 @@
   </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202610211922"></script>
+<script src="shared/wb.js?v=202610211944"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('home');
@@ -85,7 +85,7 @@
 
   const [deals, comps, links, review, noLoc, devNew] = await Promise.all([
     WB.fetchAll('pipeline', 'deals', 'id,name,market_id,kind,stage,address,units,acres,guidance,bid_date,check_back_on,lat,lng,uw,first_seen,broker', (q) => q.is('merged_into', null)),
-    WB.fetchAll('comps', 'sale_comps', 'id,market_id,comp_type,sale_date,sale_price,units,year_built', (q) => q.gte('sale_date', lyJan1).is('excluded', null))
+    WB.fetchAll('comps', 'sale_comps', 'id,market_id,comp_type,sale_date,sale_price,units,year_built,portfolio', (q) => q.gte('sale_date', lyJan1).is('excluded', null))
       .then((xs) => xs.filter((c) => c.comp_type !== 'investment' ||((c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970)))),   // same scope as Sale comps
     WB.fetchAll('pipeline', 'deal_parcels', 'deal_id'),
     WB.fetchAll('core', 'review_queue', '*', (q) => q.eq('status', 'open').order('id')),
@@ -121,6 +121,13 @@
     return xs.length ? (WB.getMarket() === 'all' ? `<p class="grp">${esc(m.short)}</p>` : '') + xs.map(row).join('') : '';
   }).join('');
 
+  // portfolio deals carry a per-asset allocated price; this toggle drops them from the volume figures (remembered per browser)
+  let incPf = true;
+  try { incPf = localStorage.getItem('wb_inc_portfolio') !== '0'; } catch (e) {}
+  const pfBtn = $('#pf'); const pfLabel = () => { pfBtn.textContent = 'Portfolio sales: ' + (incPf ? 'included' : 'excluded'); };
+  pfBtn.onclick = (e) => { e.preventDefault(); incPf = !incPf; try { localStorage.setItem('wb_inc_portfolio', incPf ? '1' : '0'); } catch (x) {} pfLabel(); render(); };
+  pfLabel();
+
   function render() {
     const act = deals.filter((d) => ACTIVE.includes(d.stage) && inMkt(d.market_id));
     const uw = act.filter((d) => UWS.includes(d.stage)), sc = act.filter((d) => d.stage === 'screening');
@@ -136,7 +143,7 @@
 
     // sale comp volume: this year to date vs the same stretch last year
     $('#vol').innerHTML = WB.markets.filter((m) => inMkt(m.id)).map((m) => {
-      const cs = comps.filter((c) => c.comp_type === 'investment' && c.market_id === m.id && c.sale_date && M(c.sale_price));
+      const cs = comps.filter((c) => c.comp_type === 'investment' && c.market_id === m.id && c.sale_date && M(c.sale_price) && (incPf || !c.portfolio));
       const sum = (f) => cs.filter(f).reduce((t, c) => t + +c.sale_price, 0);
       const ytd = sum((c) => c.sale_date >= jan1), ly = sum((c) => c.sale_date >= lyJan1 && c.sale_date <= lySame), lyAll = sum((c) => c.sale_date >= lyJan1 && c.sale_date < jan1);
       const n = cs.filter((c) => c.sale_date >= jan1).length;

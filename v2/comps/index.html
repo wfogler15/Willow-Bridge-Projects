@@ -6,7 +6,7 @@
 <title>Sale Comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610211922">
+<link rel="stylesheet" href="../shared/wb.css?v=202610211944">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -136,7 +136,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610211922"></script>
+<script src="../shared/wb.js?v=202610211944"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -172,7 +172,7 @@
   // ---------- detailed filters (the Filters panel). Blank = no limit. Units/acres, price, $/unit, $/SF, cap, year built are ranges. ----------
   const FX = { product: '', submarket: '', minUnits: '', maxUnits: '', minAcres: '', maxAcres: '', minPrice: '', maxPrice: '',
     minPu: '', maxPu: '', minPsf: '', maxPsf: '', minCap: '', maxCap: '', minYb: '', maxYb: '',
-    buyer: '', seller: '', broker: '', verifiedOnly: false, located: false };
+    buyer: '', seller: '', broker: '', verifiedOnly: false, located: false, portfolioOnly: false };
   const fxNum = (v) => (v === '' || v == null ? null : +v);
   const inRange = (v, lo, hi) => {
     if (lo == null && hi == null) return true;
@@ -190,7 +190,7 @@
       && inRange(c.year_built, f('minYb'), f('maxYb'))
       && (!FX.product || c.product_type === FX.product) && (!FX.submarket || c.submarket === FX.submarket)
       && hasText(c.buyer, FX.buyer) && hasText(c.seller, FX.seller) && hasText(c.broker, FX.broker)
-      && (!FX.verifiedOnly || c.verified) && (!FX.located || c.lat != null);
+      && (!FX.verifiedOnly || c.verified) && (!FX.located || c.lat != null) && (!FX.portfolioOnly || c.portfolio);
   }
   const activeFx = () => Object.entries(FX).filter(([k, v]) => v !== '' && v !== false && v != null).length;
   const FX_FIELDS = [
@@ -205,7 +205,7 @@
     ['h', 'Parties'],
     ['text', 'Buyer contains', 'buyer'], ['text', 'Seller contains', 'seller'], ['text', 'Broker contains', 'broker'],
     ['h', 'Record'],
-    ['chk', 'Verified only', 'verifiedOnly'], ['chk', 'Has a map location', 'located'],
+    ['chk', 'Verified only', 'verifiedOnly'], ['chk', 'Has a map location', 'located'], ['chk', 'Portfolio sales only', 'portfolioOnly'],
   ];
   const LABELS = { minUnits: 'Min', maxUnits: 'Max', minAcres: 'Min', maxAcres: 'Max', minYb: 'From', maxYb: 'To', minPrice: 'Min', maxPrice: 'Max',
     minPu: 'Min', maxPu: 'Max', minPsf: 'Min', maxPsf: 'Max', minCap: 'Min', maxCap: 'Max' };
@@ -251,7 +251,7 @@
       ['buyer', 'Buyer', (c) => `<span title="${esc(c.buyer || '')}">${esc(c.buyer || '—')}</span>`, 't'],
       ['seller', 'Seller', (c) => `<span title="${esc(c.seller || '')}">${esc(c.seller || '—')}</span>`, 't'],
       ['broker', 'Broker', (c) => `<span title="${esc(c.broker || '')}">${esc(c.broker || '—')}</span>`, 't'],
-      ['verified', '', (c) => c.verified ? '<span class="ok" title="Verified">✓</span>' : ''],
+      ['verified', '', (c) => (c.verified ? '<span class="ok" title="Verified">✓</span>' : '') + (c.portfolio ? '<span title="Portfolio sale: price is a per-asset allocation"> P</span>' : '')],
     ],
     land: [
       ['sale_date', 'Date', (c) => fmt.date(c.sale_date)],
@@ -264,7 +264,7 @@
       ['product_type', 'Product', (c) => esc([c.product_type, c.construction_type].filter(Boolean).join(', ') || '—'), 't'],
       ['buyer', 'Buyer', (c) => `<span title="${esc(c.buyer || '')}">${esc(c.buyer || '—')}</span>`, 't'],
       ['seller', 'Seller', (c) => `<span title="${esc(c.seller || '')}">${esc(c.seller || '—')}</span>`, 't'],
-      ['verified', '', (c) => c.verified ? '<span class="ok" title="Verified">✓</span>' : ''],
+      ['verified', '', (c) => (c.verified ? '<span class="ok" title="Verified">✓</span>' : '') + (c.portfolio ? '<span title="Portfolio sale: price is a per-asset allocation"> P</span>' : '')],
     ],
   };
 
@@ -565,7 +565,7 @@
               + item('Cap on marketed T-12', c.cap_rate_t12 == null ? null : fmt.pct(c.cap_rate_t12, 2)) + item('T-12 NOI (marketing)', c.t12_noi == null ? null : fmt.usdFull(c.t12_noi)))
       + item('Buyer', T(c.buyer)) + item('Seller', T(c.seller)) + item('Broker', T(c.broker), 'full')
       + `</dl></section><section class="msec"><h3>Source and location</h3><dl>`
-      + item('Source', T(c.source)) + item('Verified', c.verified ? 'Yes' : 'No') + item('Source link', link, 'full')
+      + item('Source', T(c.source)) + item('Verified', c.verified ? 'Yes' : 'No') + (c.portfolio ? item('Portfolio sale', 'Yes, price is a per-asset allocation') : '') + item('Source link', link, 'full')
       + item('Latitude', c.lat == null ? null : (+c.lat).toFixed(6)) + item('Longitude', c.lng == null ? null : (+c.lng).toFixed(6))
       + `</dl></section><section class="msec"><h3>Notes</h3><dl>`
       + `<div class="full"><dd class="notes ${c.notes ? '' : 'na'}">${c.notes ? esc(c.notes) : 'No notes'}</dd></div>`
@@ -614,7 +614,7 @@
     ['product_type', 'Product', 'text'], ['construction_type', 'Construction', 'text', '', 'land'],
     ['buyer', 'Buyer', 'text'], ['seller', 'Seller', 'text'], ['broker', 'Broker', 'text', 'full'],
     ['source', 'Source', 'select:manual=Entered by hand,broker=Broker,article=Article,costar=CoStar,claude=Claude'], ['source_url', 'Source link', 'text'],
-    ['notes', 'Notes', 'textarea', 'full'], ['verified', 'Verified', 'checkbox', 'full'],
+    ['notes', 'Notes', 'textarea', 'full'], ['verified', 'Verified', 'checkbox', 'full'], ['portfolio', 'Portfolio sale (price is an allocation)', 'checkbox', 'full'],
     ['lat', 'Latitude', 'number'], ['lng', 'Longitude', 'number'],
   ];
   let editing = null, pin = null;
