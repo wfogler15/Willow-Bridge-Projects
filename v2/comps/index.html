@@ -6,7 +6,7 @@
 <title>Sale Comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610211944">
+<link rel="stylesheet" href="../shared/wb.css?v=202610212006">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -136,7 +136,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610211944"></script>
+<script src="../shared/wb.js?v=202610212006"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -321,12 +321,32 @@
       el.hidden = !inv;
       el.textContent = 'Investment sales of 100+ units built 1970 or later, in both markets, so Denver and Phoenix compare like for like. Sources: CoStar, broker sales lists (JLL, Cushman & Wakefield and others) and our own tracking.'
         + (n ? ` ${n} smaller or older ${n === 1 ? 'sale is' : 'sales are'} left out.` : ''); }
-    $('#stats').innerHTML = F(fmt.usd(vol(ytd)), `${Y} to date, ${ytd.length} ${ytd.length === 1 ? 'sale' : 'sales'}`)
-      + F(chg == null ? '—' : (chg >= 0 ? '+' : '−') + Math.abs(chg).toFixed(0) + '%', `vs. ${fmt.usd(vol(lytd))} this time last year`)
-      + F(fmt.usd(vol(lyFull)), `All of ${Y - 1}, ${lyFull.length} sales`)
-      + (inv ? F(fmt.usd(median(list.map((c) => c.price_per_unit))), 'Median per unit') + F(fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'Median cap rate')
-             : F(fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'Median per land SF') + F(fmt.usd(median(list.map((c) => c.price_per_unit))), 'Median per door'))
-      + F(fmt.usd(list.reduce((t, c) => t + (+c.sale_price || 0), 0)), `${list.length} ${list.length === 1 ? 'sale' : 'sales'} ${scoped ? 'in view' : 'on record'}`);
+    const dated = !!(state.since || state.year);   // a date filter is set: the figures describe that window and the one before it
+    const med = inv ? F(fmt.usd(median(list.map((c) => c.price_per_unit))), 'Median per unit') + F(fmt.pct(median(list.map((c) => c.cap_rate)), 2), 'Median cap rate')
+                    : F(fmt.psf(median(list.map((c) => c.price_per_land_sf))), 'Median per land SF') + F(fmt.usd(median(list.map((c) => c.price_per_unit))), 'Median per door');
+    if (dated) {
+      let prior, label;
+      if (state.year) {
+        const py = String(+state.year - 1), cur = state.year === String(Y);
+        prior = base.filter((c) => (c.sale_date || '').startsWith(py) && (!cur || c.sale_date <= `${py}-${md}`));
+        label = cur ? `same stretch of ${py}` : `all of ${py}`;
+      } else {
+        const t = Date.now(), yrs = +state.since, iso = (ms) => new Date(ms).toISOString().slice(0, 10);
+        const a = iso(t - 2 * yrs * 365.25 * 864e5), b = iso(t - yrs * 365.25 * 864e5);
+        prior = base.filter((c) => c.sale_date && c.sale_date >= a && c.sale_date < b);
+        label = `the ${yrs === 1 ? 'year' : yrs + ' years'} before`;
+      }
+      const ch = vol(prior) ? (vol(list) / vol(prior) - 1) * 100 : null;
+      $('#stats').innerHTML = F(fmt.usd(vol(list)), `${list.length} ${list.length === 1 ? 'sale' : 'sales'} in view`)
+        + F(ch == null ? '—' : (ch >= 0 ? '+' : '−') + Math.abs(ch).toFixed(0) + '%', `vs. ${fmt.usd(vol(prior))}, ${label}`)
+        + med;
+    } else {
+      $('#stats').innerHTML = F(fmt.usd(vol(ytd)), `${Y} to date, ${ytd.length} ${ytd.length === 1 ? 'sale' : 'sales'}`)
+        + F(chg == null ? '—' : (chg >= 0 ? '+' : '−') + Math.abs(chg).toFixed(0) + '%', `vs. ${fmt.usd(vol(lytd))} this time last year`)
+        + F(fmt.usd(vol(lyFull)), `All of ${Y - 1}, ${lyFull.length} sales`)
+        + med
+        + F(fmt.usd(vol(list)), `${list.length} ${list.length === 1 ? 'sale' : 'sales'} ${scoped ? 'in view' : 'on record'}`);
+    }
     void s;
     $('#t-title').innerHTML = esc(`${list.length.toLocaleString('en-US')} ${state.type === 'land' ? 'land' : 'investment'} ${list.length === 1 ? 'sale' : 'sales'}${noLoc ? ' missing a location' : ''}`) + (noLoc ? ' <button class="link" id="clrattn" type="button">Show all</button>' : '');
     $('#near').innerHTML = near ? `<span class="chip-near">Within ${near.mi} miles of the selected deal<button type="button" id="near-x" title="Show all comps">×</button></span>` : '';
