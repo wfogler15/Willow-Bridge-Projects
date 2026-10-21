@@ -53,7 +53,7 @@
       callForOfferDate: r.bid_date || '',
       uwRentsPerSF: num(u.uwRentsPerSF ?? u.rentPsf), yieldOnCost: roc != null && roc > 1 ? roc / 100 : roc,
       productType: u.productType || u.product || '', yearBuilt: num(u.yearBuilt),
-      compSetId: compSetLegacy || u.compSetId || null,
+      compSetId: compSetLegacy || null,   // comp_sets.deal_id is the one source of truth for which set belongs to a deal
       updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : undefined,
     };
     delete opp.intelStatus;
@@ -66,6 +66,7 @@
     const land = (o.oppType || 'development') !== 'investment';
     const uw = {};
     for (const [k, v] of Object.entries(o)) if (!OPP_COLS.has(k) && v !== undefined) uw[k] = v;
+    delete uw.compSetId;   // the link lives on market.comp_sets.deal_id, not in the deal's uw
     if (o.askingPrice != null) uw.askingPrice = o.askingPrice;
     uw.intelStatus = o.status;
     return {
@@ -153,7 +154,7 @@
         const { data, error } = await S('pipeline').from('deals').insert(patch).select('id').single(); if (error) throw error;
         await S('pipeline').from('deal_log').insert({ deal_id: data.id, kind: 'note', body: `Added in Market Intel as ${o.status}.` });
       }
-      if (o.compSetId) await linkCompSet(o.compSetId, row.id);
+      if (o.compSetId) await linkCompSet(o.compSetId, row.id);   // unlinking is explicit (LegacyDB.linkDealCompSet(deal, null))
     },
     async opportunities_remove(f) {
       const d = await findDeal(f.id); if (!d) return;
@@ -240,8 +241,8 @@
       return sets.map((s) => {
         const ids = members.filter((m) => m.comp_set_id === s.id).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)).map((m) => legacyPropId(m.property_id));
         const id = s.legacy_id || s.id;
-        return { id, market: c.market, name: s.name, description: s.description, property_ids: ids, editor_name: s.updated_by,
-          created_at: s.created_at, updated_at: s.updated_at, data: { id, name: s.name, description: s.description || '', propertyIds: ids } };
+        return { id, uuid: s.id, deal_id: s.deal_id || null, market: c.market, name: s.name, description: s.description, property_ids: ids, editor_name: s.updated_by,
+          created_at: s.created_at, updated_at: s.updated_at, data: { id, name: s.name, description: s.description || '', propertyIds: ids, dealId: s.deal_id || null } };
       });
     },
     async comp_sets_upsert(row) {
@@ -255,6 +256,12 @@
       } else {
         const { data, error } = await S('market').from('comp_sets').insert({ market_id: c.market, name: row.name, description: row.description || null, legacy_id: String(row.id) }).select('id').single();
         if (error) throw error; setId = data.id;
+      }
+      // deal link: written only when the caller says so (undefined = leave as is). One set per deal.
+      if (row.deal_id !== undefined) {
+        const dealId = row.deal_id || null;
+        if (dealId) { const { error: e3 } = await S('market').from('comp_sets').update({ deal_id: null }).eq('deal_id', dealId).neq('id', setId); if (e3) throw e3; }
+        const { error: e4 } = await S('market').from('comp_sets').update({ deal_id: dealId }).eq('id', setId); if (e4) throw e4;
       }
       const ids = [];
       for (const pid of row.property_ids || []) { const u = await propUuid(pid); if (u && !ids.includes(u)) ids.push(u); }
@@ -287,9 +294,14 @@
     const { data } = await S('market').from('comp_sets').select('id').eq('legacy_id', k).limit(1);
     return data && data[0];
   }
+  // one set per deal: linking clears the deal from any other set; null unlinks the deal from every set
   async function linkCompSet(setLegacyId, oppLegacyId) {
-    const [s, d] = await Promise.all([findCompSet(setLegacyId), findDeal(oppLegacyId)]);
-    if (s && d) await S('market').from('comp_sets').update({ deal_id: d.id }).eq('id', s.id);
+    const [s, d] = await Promise.all([setLegacyId ? findCompSet(setLegacyId) : null, findDeal(oppLegacyId)]);
+    if (!d) return;
+    let q = S('market').from('comp_sets').update({ deal_id: null }).eq('deal_id', d.id);
+    if (s) q = q.neq('id', s.id);
+    await q;
+    if (s) await S('market').from('comp_sets').update({ deal_id: d.id }).eq('id', s.id);
   }
 
   // ---------- the query builder the dashboard talks to ----------
@@ -326,6 +338,7 @@
     from, channel: noopChannel, removeChannel: () => {},
     auth: sb.auth,
     storage: { from: () => ({ download: async () => fail({ message: 'not available' }), upload: async () => fail({ message: 'not available' }) }) },
+    linkDealCompSet: (oppLegacyId, setLegacyId) => linkCompSet(setLegacyId || null, oppLegacyId),
     _internals: { dealToOpp, oppToDeal, compRowToLegacy, legacyToCompRow },
   };
 })();

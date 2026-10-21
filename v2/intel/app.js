@@ -2369,6 +2369,7 @@ async function pushCompSet(set) {
       name: set.name,
       description: set.description || null,
       property_ids: set.propertyIds || [],
+      deal_id: set.dealId,          // undefined = leave the link alone; null = unlink
       editor_name: syncState.editorName || 'Anonymous'
     });
     if (error) throw error;
@@ -2405,6 +2406,8 @@ async function pullCompSetsFromCloud() {
       name: row.name,
       description: row.description || '',
       propertyIds: Array.isArray(row.property_ids) ? row.property_ids : [],
+      dealId: row.deal_id || null,   // the pipeline deal this set is tied to (one set per deal)
+      uuid: row.uuid || null,
       createdBy: row.editor_name,
       createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
       updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now()
@@ -8296,16 +8299,29 @@ function renderCsPositioning(props) {
    ================================================================= */
 // `ids` is an ordered array, not a Set: the sequence is the team's manual
 // ranking of the comps, best first, and every downstream reader preserves it.
-const manageSetState = { id: null, name: '', ids: [], search: '', status: 'all' };
+const manageSetState = { id: null, isNew: false, name: '', ids: [], search: '', status: 'all', dealId: null, dealQuery: '' };
 
-function openManageCompSet() {
-  const id = state.activeCompSetId;
-  if (!id || !compSets[id]) return;
-  manageSetState.id = id;
-  manageSetState.name = compSets[id].name;
-  manageSetState.ids = compSets[id].propertyIds.map(String);
+// openManageCompSet()                    — edit the active set (banner / sidebar buttons)
+// openManageCompSet(id)                  — edit that set
+// openManageCompSet(null, {isNew, dealId, name}) — start a new set, optionally tied to a pipeline deal
+function openManageCompSet(idArg, opts) {
+  opts = opts || {};
+  const id = typeof idArg === 'string' ? idArg : state.activeCompSetId;
+  if (opts.isNew) {
+    manageSetState.id = null; manageSetState.isNew = true;
+    manageSetState.name = opts.name || ''; manageSetState.ids = (opts.ids || []).map(String);
+    manageSetState.dealId = opts.dealId || null;
+  } else {
+    if (!id || !compSets[id]) return;
+    manageSetState.id = id; manageSetState.isNew = false;
+    manageSetState.name = compSets[id].name;
+    manageSetState.ids = compSets[id].propertyIds.map(String);
+    manageSetState.dealId = compSets[id].dealId || null;
+  }
   manageSetState.search = '';
   manageSetState.status = 'all';
+  manageSetState.dealQuery = '';
+  cmMapView = null;
   renderManageCompSet();
   const modal = document.getElementById('cm-modal');
   if (!modal) return;
@@ -8323,6 +8339,8 @@ function closeManageCompSet() {
   }
   document.body.style.overflow = '';
   manageSetState.id = null;
+  manageSetState.isNew = false;
+  if (cmMap) { try { cmMap.remove(); } catch (e) {} cmMap = null; }
 }
 window.closeManageCompSet = closeManageCompSet;
 
@@ -8394,17 +8412,34 @@ function renderManageCompSet() {
     .map(([k, lbl]) => `<button class="cm-chip ${manageSetState.status === k ? 'active' : ''}" data-cm-status="${k}">${lbl}</button>`)
     .join('');
 
+  const dealOpp = cmDealOpp(manageSetState.dealId);
+  const otherSet = manageSetState.dealId
+    ? Object.values(compSets).find(cs => cs.dealId === manageSetState.dealId && cs.id !== manageSetState.id) : null;
+  const dealOpts = cmDealList().map(o => `<option value="${escapeHTML(cmDealLabel(o))}"></option>`).join('');
+  if (cmMap) { cmMapView = { c: cmMap.getCenter(), z: cmMap.getZoom() }; try { cmMap.remove(); } catch (e) {} cmMap = null; }
+
   el.innerHTML = `
     <div class="cm-header">
       <div style="flex:1;min-width:0;">
-        <div class="cs-eyebrow">Edit Comp Set</div>
+        <div class="cs-eyebrow">${manageSetState.isNew ? 'New Comp Set' : 'Edit Comp Set'}</div>
         <input class="cm-name-input" type="text" id="cm-name" value="${escapeHTML(manageSetState.name)}" placeholder="Comp set name">
         <div class="cm-header-meta"><strong>${members.length}</strong> ${members.length === 1 ? 'property' : 'properties'} · <strong>${memberUnits.toLocaleString()}</strong> units · ranked best first</div>
+        <div class="cm-deal">
+          <label for="cm-deal-input">Pipeline deal</label>
+          ${dealOpp
+            ? `<span class="cm-deal-name">${escapeHTML(dealOpp.name)}</span><span class="cm-deal-meta">${dealOpp.oppType === 'investment' ? 'Investment' : 'Development'}${dealOpp.status ? ' · ' + escapeHTML(dealOpp.status) : ''}</span><button type="button" class="cm-deal-clear" id="cm-deal-clear">Unlink</button>`
+            : `<input id="cm-deal-input" list="cm-deal-list" placeholder="Search pipeline deals to tie this set to one" value="${escapeHTML(manageSetState.dealQuery)}"><datalist id="cm-deal-list">${dealOpts}</datalist>`}
+          ${otherSet ? `<div class="cm-deal-warn">Saving replaces “${escapeHTML(otherSet.name)}” as this deal's comp set.</div>` : ''}
+        </div>
       </div>
       <div class="cm-header-actions">
         <button class="cs-action cs-action-primary" id="cm-save">Save Set</button>
         <button class="cs-action" id="cm-cancel">Cancel</button>
       </div>
+    </div>
+    <div class="cm-map-wrap">
+      <div id="cm-map"></div>
+      <div class="cm-map-key"><span><i class="k-sub"></i>Subject</span><span><i class="k-in"></i>In the set</span><span><i class="k-out"></i>Matches the search (click to add)</span></div>
     </div>
     <div class="cm-body">
       <div class="cm-col">
@@ -8435,6 +8470,60 @@ function renderManageCompSet() {
     </div>
   `;
   wireManageCompSet();
+  drawManageCompSetMap(members, candidates, dealOpp);
+}
+
+/* ---------- comp set editor: map + pipeline deal link ---------- */
+let cmMap = null, cmMapView = null;
+function cmDealList() {
+  if (typeof opportunities === 'undefined') return [];
+  const rank = o => (o.oppType === 'investment' ? 0 : 1);
+  return opportunities.filter(o => o && o._dealId).slice().sort((a, b) => rank(a) - rank(b) || String(a.name || '').localeCompare(String(b.name || '')));
+}
+function cmDealLabel(o) { return `${o.name || 'Untitled'} — ${o.oppType === 'investment' ? 'Investment' : 'Development'} · ${o.status || ''}`; }
+function cmDealOpp(dealId) { return dealId && typeof opportunities !== 'undefined' ? opportunities.find(o => o._dealId === dealId) || null : null; }
+function compSetDealName(cs) { const o = cs && cmDealOpp(cs.dealId); return o ? o.name : ''; }
+
+function drawManageCompSetMap(members, candidates, dealOpp) {
+  const host = document.getElementById('cm-map');
+  if (!host || typeof L === 'undefined') return;
+  const map = L.map(host, { zoomControl: true, preferCanvas: true, attributionControl: false });
+  cmMap = map;
+  wbStreetLayer().addTo(map);
+  const memberIds = new Set(members.map(p => String(p.id)));
+  const toggle = id => {
+    const at = manageSetState.ids.indexOf(id);
+    if (at >= 0) manageSetState.ids.splice(at, 1); else manageSetState.ids.push(id);
+    renderManageCompSet();
+  };
+  const tip = p => `<b>${escapeHTML(p.name || '(unnamed)')}</b><br>${fmt.int(p.units)} units${p.yearBuilt ? ' · ' + p.yearBuilt : ''}${p.avgAskingSF != null ? ' · $' + (+p.avgAskingSF).toFixed(2) + '/SF asking' : ''}`;
+  const pts = [];
+  candidates.forEach(p => {
+    if (p.lat == null || p.lng == null || memberIds.has(String(p.id))) return;
+    L.circleMarker([p.lat, p.lng], { radius: 3.5, color: '#8C88A6', weight: 1, fillColor: '#B9B6CC', fillOpacity: 0.85 })
+      .bindTooltip(tip(p), { direction: 'top', className: 'cm-tip' }).on('click', () => toggle(String(p.id))).addTo(map);
+  });
+  members.forEach((p, i) => {
+    if (p.lat == null || p.lng == null) return;
+    pts.push([p.lat, p.lng]);
+    L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'cm-pin', html: `<span>${i + 1}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 500 })
+      .bindTooltip(tip(p) + '<br><i>Click to remove</i>', { direction: 'top', className: 'cm-tip' }).on('click', () => toggle(String(p.id))).addTo(map);
+  });
+  if (dealOpp && dealOpp.lat != null && dealOpp.lng != null) {
+    pts.push([dealOpp.lat, dealOpp.lng]);
+    L.marker([dealOpp.lat, dealOpp.lng], { icon: L.divIcon({ className: 'cm-subject', html: '<span></span>', iconSize: [18, 18], iconAnchor: [9, 9] }), zIndexOffset: 1000 })
+      .bindTooltip(`<b>${escapeHTML(dealOpp.name)}</b><br>Subject (pipeline deal)`, { direction: 'top', className: 'cm-tip' }).addTo(map);
+  }
+  const view = cmMapView;
+  const frame = () => {
+    if (view) map.setView(view.c, view.z, { animate: false });
+    else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(0.25), { maxZoom: 14, animate: false });
+    else if (pts.length === 1) map.setView(pts[0], 13, { animate: false });
+    else { const c = (window.__WBD && window.__WBD.center) || [39.74, -104.99]; map.setView(c, 11, { animate: false }); }
+  };
+  frame();
+  // the modal may still be opening (zero size) on first render: size and frame again once it is laid out
+  setTimeout(() => { if (cmMap !== map) return; try { map.invalidateSize(); frame(); } catch (e) {} }, 80);
 }
 
 function wireManageCompSet() {
@@ -8494,6 +8583,25 @@ function wireManageCompSet() {
     });
   });
 
+  const dealIn = document.getElementById('cm-deal-input');
+  if (dealIn) {
+    const pick = () => {
+      const v = dealIn.value.trim();
+      const o = cmDealList().find(x => cmDealLabel(x) === v);
+      manageSetState.dealQuery = v;
+      if (o) {
+        manageSetState.dealId = o._dealId; manageSetState.dealQuery = '';
+        if (!manageSetState.name.trim()) manageSetState.name = o.name + ' comp set';
+        cmMapView = null;   // refit around the subject
+        renderManageCompSet();
+      }
+    };
+    dealIn.addEventListener('change', pick);
+    dealIn.addEventListener('input', () => { if (cmDealList().some(x => cmDealLabel(x) === dealIn.value.trim())) pick(); else manageSetState.dealQuery = dealIn.value; });
+  }
+  const dealClear = document.getElementById('cm-deal-clear');
+  if (dealClear) dealClear.addEventListener('click', () => { manageSetState.dealId = null; renderManageCompSet(); });
+
   const save = document.getElementById('cm-save');
   if (save) save.addEventListener('click', saveManageCompSet);
   const cancel = document.getElementById('cm-cancel');
@@ -8501,19 +8609,37 @@ function wireManageCompSet() {
 }
 
 function saveManageCompSet() {
-  const id = manageSetState.id;
-  if (!id || !compSets[id]) return;
+  let id = manageSetState.id;
+  const isNew = manageSetState.isNew;
+  if (!isNew && (!id || !compSets[id])) return;
   const name = (manageSetState.name || '').trim();
   if (!name) { alert('Give the comp set a name.'); return; }
   if (manageSetState.ids.length === 0) {
     if (!confirm('This set has no properties. Save it empty?')) return;
   }
+  if (isNew) {
+    id = 'cs-' + Date.now();
+    compSets[id] = { id, name, propertyIds: [], createdBy: syncState.editorName || 'Anonymous', createdAt: Date.now(), updatedAt: Date.now() };
+  }
+  const dealId = manageSetState.dealId || null;
+  const prevDeal = compSets[id].dealId || null;
   compSets[id].name = name;
   compSets[id].propertyIds = [...manageSetState.ids];
+  compSets[id].dealId = dealId;
   compSets[id].updatedAt = Date.now();
+  // one set per deal: the deal leaves any other set; keep Intel's opportunity links in step
+  if (dealId) Object.values(compSets).forEach(cs => { if (cs.id !== id && cs.dealId === dealId) cs.dealId = null; });
+  if (typeof opportunities !== 'undefined' && (dealId || prevDeal)) {
+    opportunities.forEach(o => {
+      if (dealId && o._dealId === dealId) o.compSetId = id;
+      else if (o.compSetId === id) o.compSetId = null;
+    });
+    saveOpportunities();
+  }
   saveCompSets();
   pushCompSet(compSets[id]);
   closeManageCompSet();
+  if (isNew) { activateCompSet(id); return; }
   updateCompSetBanner();
   renderCompSetList();
   renderAll();
@@ -8553,8 +8679,19 @@ function linkCompSetToOpp(oppId, csId) {
   o.compSetId = csId || null;
   o.updatedBy = syncState.editorName || 'Anonymous';
   o.updatedAt = Date.now();
+  // one set per deal, one deal per set: keep the local copies in step with market.comp_sets.deal_id
+  if (o._dealId) {
+    Object.values(compSets).forEach(cs => { if (cs.dealId === o._dealId && cs.id !== csId) cs.dealId = null; });
+    if (csId && compSets[csId]) {
+      compSets[csId].dealId = o._dealId;
+      opportunities.forEach(x => { if (x !== o && x.compSetId === csId) x.compSetId = null; });
+    }
+    saveCompSets();
+  }
   saveOpportunities();
   pushOpportunity(o);
+  if (!csId && supabaseClient && supabaseClient.linkDealCompSet) supabaseClient.linkDealCompSet(oppId, null).catch(() => {});
+  if (typeof renderCompSetList === 'function') { try { renderCompSetList(); updateCompSetBanner(); } catch (e) {} }
 }
 window.linkCompSetToOpp = linkCompSetToOpp;
 
@@ -21072,7 +21209,7 @@ function renderCompSetList() {
   const sets = Object.values(compSets).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   const placeholder = sets.length === 0 ? '— No Saved Sets —' : '— Activate Comp Set —';
   picker.innerHTML = `<option value="">${placeholder}</option>` +
-    sets.map(s => `<option value="${escapeHTML(s.id)}" ${state.activeCompSetId === s.id ? 'selected' : ''}>${escapeHTML(s.name)} · ${s.propertyIds.length}</option>`).join('');
+    sets.map(s => { const dn = compSetDealName(s); return `<option value="${escapeHTML(s.id)}" ${state.activeCompSetId === s.id ? 'selected' : ''}>${escapeHTML(s.name)} · ${s.propertyIds.length}${dn ? ' · ↔ ' + escapeHTML(dn) : ''}</option>`; }).join('');
   // If active, select that option
   if (state.activeCompSetId) picker.value = state.activeCompSetId;
 }
@@ -21127,7 +21264,8 @@ function updateCompSetBanner() {
     const cs = compSets[state.activeCompSetId];
     banner.style.display = '';
     nameEl.textContent = cs.name;
-    metaEl.textContent = `· ${cs.propertyIds.length} properties · All filters scoped to this set`;
+    const dn = compSetDealName(cs);
+    metaEl.textContent = `· ${cs.propertyIds.length} properties${dn ? ' · Tied to ' + dn : ''} · All filters scoped to this set`;
   } else {
     banner.style.display = 'none';
   }
@@ -21184,6 +21322,37 @@ if (csSaveBtn) {
     activateCompSet(id);
   });
 }
+
+// New set straight on the map (search + click), optionally tied to a pipeline deal
+const csNewMap = document.getElementById('cs-new-map');
+if (csNewMap) csNewMap.addEventListener('click', () => openManageCompSet(null, { isNew: true }));
+
+// Deep links from Pipeline: ?compset=<set id or uuid> opens that set; ?deal=<deal uuid> starts a set tied to that deal
+(function compSetDeepLinks() {
+  const q = new URLSearchParams(location.search);
+  const csParam = q.get('compset'), dealParam = q.get('deal');
+  if (!csParam && !dealParam) return;
+  let tries = 0;
+  const go = () => {
+    const sets = Object.values(compSets);
+    if (csParam) {
+      const cs = sets.find(s => s.id === csParam || s.uuid === csParam);
+      if (!cs && tries++ < 40) return setTimeout(go, 250);
+      if (!cs) return;
+      const tab = document.querySelector('.tab[data-view="properties"]'); if (tab) tab.click();
+      if (state.activeCompSetId !== cs.id) activateCompSet(cs.id);
+      return;
+    }
+    const opp = cmDealOpp(dealParam);
+    if (!opp && tries++ < 40) return setTimeout(go, 250);
+    if (!opp) return;
+    const tab = document.querySelector('.tab[data-view="properties"]'); if (tab) tab.click();
+    const existing = sets.find(s => s.dealId === dealParam);
+    if (existing) { if (state.activeCompSetId !== existing.id) activateCompSet(existing.id); openManageCompSet(existing.id); }
+    else openManageCompSet(null, { isNew: true, dealId: dealParam, name: (opp.name || 'Deal') + ' comp set' });
+  };
+  setTimeout(go, 300);
+})();
 
 // Edit the active comp set from the banner or the sidebar
 const csBannerEdit = document.getElementById('cs-banner-edit');

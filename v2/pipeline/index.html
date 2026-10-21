@@ -336,6 +336,17 @@ h1,h2.accent{font-family:var(--display)}
 .dctx .cmp .d{font-size:13px;text-align:right;color:var(--muted)}
 .dctx .cmp .h,.dctx .cmp .h.d{padding:2px 0 5px;font-size:11px;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid rgba(29,18,71,.22)}
 .dctx .pos{color:#2F6B3A !important}.dctx .neg{color:#722525 !important}
+.cspin{display:flex;align-items:center;gap:5px;pointer-events:auto;cursor:default}
+.cspin i{display:flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#8C8FE6;color:#fff;font:600 9.5px var(--font);font-style:normal;box-shadow:0 0 0 1.5px #fff}
+.cs-far .cspin span{display:none}
+.cspin span{font:500 11px var(--font);color:#1D1247;background:rgba(255,255,255,.88);padding:1px 5px;border-radius:3px;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis}
+.dctx .csm{margin:0 0 10px}
+.dctx .csm-r{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid rgba(29,18,71,.08);font-variant-numeric:tabular-nums}
+.dctx .csm-r>span>span{font-size:12px;color:var(--muted)}
+.dctx .csm-v{text-align:right;white-space:nowrap}
+.dctx .csm-more{padding:6px 0 0;font-size:12px;color:var(--muted)}
+.dctx .csm-sub{margin:4px 0 14px;font-size:12px;color:var(--muted)}
+.dctx .csm-sub a{color:#432890;text-decoration:none}.dctx .csm-sub a:hover{text-decoration:underline}
 .dctx .note{padding:1px 0 1px 12px;border-left:2px solid #1D1247;color:var(--text);font-size:13px;line-height:1.5;margin:0 0 16px}
 .dctx .sale{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-top:1px solid rgba(29,18,71,.08)}
 .dctx .sale b{font-weight:600;color:var(--text)}
@@ -624,7 +635,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610212006"></script>
+<script src="../shared/wb.js?v=202610212239"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -755,7 +766,31 @@ async function fillCtx(d){
   const e = WB.esc, st = c.stats || {}, ours = d.rentPsf || d.effRentPsf || null;
   const pct = (a, b) => a && b ? '<span class="d ' + (a >= b ? "pos" : "neg") + '">' + (a >= b ? "+" : "") + ((a / b - 1) * 100).toFixed(1) + "%</span>" : '<span class="d"></span>';
   const row = (l, v, d2) => '<span>' + l + '</span><span class="v">' + v + "</span>" + (d2 || '<span class="d"></span>');
-  let html = '<h3>Against the ' + e(c.submarket || "submarket") + ' submarket <a href="../intel/?market=' + e(d._row.market_id) + '">Market Intel</a></h3><div class="cmp">'
+  const mkt = e(d._row.market_id);
+  let html;
+  const cs = c.comp_set;
+  if(cs){
+    /* a saved comp set tied to this deal (built in Market Intel) replaces the automatic submarket read */
+    const s2 = cs.stats || {}, mem = cs.members || [], n = mem.length;
+    const oAsk = d.mktRentPsf || d.rentPsf || null, oEff = d.effRentPsf || null, oMo = d.mktRentMo || d.rentMo || null;
+    const pts = (a, b) => a != null && b != null ? '<span class="d ' + (a >= b ? "pos" : "neg") + '">' + (a >= b ? "+" : "") + (a - b).toFixed(1) + " pts</span>" : '<span class="d"></span>';
+    const wk = (a, b) => a != null && b != null ? '<span class="d">' + (+a).toFixed(1) + " wks</span>" : '<span class="d"></span>';
+    const anyOurs = oAsk || oEff || oMo || d.occ != null || d.concessionWeeks != null;
+    html = '<h3>Against the ' + e(cs.name) + ' comp set (' + n + (n === 1 ? " property" : " properties") + ') <a href="../intel/?market=' + mkt + "&compset=" + e(cs.id) + '">Edit in Market Intel</a></h3>'
+      + (n ? '<div class="cmp">' + (anyOurs ? '<span class="h"></span><span class="h">Set</span><span class="h d">Ours vs.</span>' : "")
+        + (s2.rent_psf != null ? row("Asking rent / SF", "$" + (+s2.rent_psf).toFixed(2), pct(oAsk, +s2.rent_psf)) : "")
+        + (s2.eff_psf != null ? row("Effective rent / SF", "$" + (+s2.eff_psf).toFixed(2), pct(oEff, +s2.eff_psf)) : "")
+        + (s2.rent_mo != null ? row("Asking rent / month", "$" + Math.round(+s2.rent_mo).toLocaleString("en-US"), pct(oMo, +s2.rent_mo)) : "")
+        + (s2.occupancy_pct != null ? row("Occupancy", (+s2.occupancy_pct).toFixed(1) + "%", pts(d.occ, +s2.occupancy_pct)) : "")
+        + (s2.concession_weeks != null ? row("Concessions", (+s2.concession_weeks).toFixed(1) + " wks free", wk(d.concessionWeeks, s2.concession_weeks)) : "")
+        + "</div>"
+        + '<div class="csm">' + mem.slice(0, 8).map(m => '<div class="csm-r"><span class="csm-n"><b>' + e(m.name || m.address || "Property") + "</b><br><span>" + [m.year_built, m.units ? (+m.units).toLocaleString("en-US") + " units" : "", m.miles != null ? m.miles + " mi" : ""].filter(Boolean).join(", ")
+            + '</span></span><span class="csm-v"><b>' + (m.rent_psf != null ? "$" + (+m.rent_psf).toFixed(2) + "/SF" : (m.rent_mo != null ? "$" + Math.round(m.rent_mo).toLocaleString("en-US") + "/mo" : "–")) + "</b><br><span>" + (m.occupancy_pct != null ? (+m.occupancy_pct).toFixed(1) + "% occ." : "") + "</span></span></div>").join("")
+          + (n > 8 ? '<div class="csm-more">and ' + (n - 8) + " more</div>" : "") + "</div>"
+        : '<div class="none">The set has no properties yet.</div>')
+      + (st.rent_psf ? '<div class="csm-sub">' + e(c.submarket || "Submarket") + " average for reference: $" + (+st.rent_psf).toFixed(2) + "/SF" + (st.occupancy_pct ? ", " + (+st.occupancy_pct).toFixed(1) + "% occupied" : "") + ".</div>" : "");
+  } else {
+  html = '<h3>Against the ' + e(c.submarket || "submarket") + ' submarket <a href="../intel/?market=' + e(d._row.market_id) + '">Market Intel</a></h3><div class="cmp">'
     + (ours && (st.new_rent_psf || st.rent_psf) ? '<span class="h"></span><span class="h"></span><span class="h d">Ours vs.</span>' : "")
     + (ours ? row(d.kind === "land" ? "Our UW rent / SF" : "In-place rent / SF", "$" + (+ours).toFixed(2)) : "")
     + (st.new_rent_psf ? row("Built in the last 8 years", "$" + (+st.new_rent_psf).toFixed(2), pct(ours, +st.new_rent_psf)) : "")
@@ -765,12 +800,15 @@ async function fillCtx(d){
   const nw = (c.newest || [])[0];
   if(ours && st.new_rent_psf){ const p = (ours / st.new_rent_psf - 1) * 100;
     html += '<div class="note">' + (d.kind === "land" ? "Underwritten" : "In-place") + " rent is " + Math.abs(p).toFixed(0) + "% " + (p >= 0 ? "above" : "below") + " newer product in " + e(c.submarket) + "." + (nw ? " " + e(nw.name) + " (" + nw.year_built + ", " + nw.miles + " mi) asks $" + (+nw.rent_psf).toFixed(2) + "." : "") + "</div>"; }
+  html += '<div class="csm-sub">No saved comp set for this deal. <a href="../intel/?market=' + mkt + "&deal=" + e(d.id) + '">Build a comp set in Market Intel</a></div>';
+  }
   const sales = c.sales || [];
   html += '<h3>Sales within ' + c.miles + ' miles <a href="../comps/?near=' + d.lat + "," + d.lon + "&mi=" + c.miles + '">Sale Comps</a></h3>'
     + (sales.length ? sales.slice(0, 4).map(x => '<div class="sale"><div><b>' + e(x.name) + "</b><br><span>" + [x.year_built, x.units ? x.units + " units" : "", x.miles + " mi"].filter(Boolean).join(", ") + '</span></div><div style="text-align:right"><b>'
         + (x.price_per_unit ? "$" + Math.round(x.price_per_unit / 1000) + "K/unit" : (x.sale_price ? usdM(+x.sale_price) : "–")) + "</b><br><span>" + [x.sale_date ? fmtDate(x.sale_date) : "", x.cap_rate ? (+x.cap_rate).toFixed(2) + "%" : ""].filter(Boolean).join(", ") + "</span></div></div>").join("")
       : '<div class="none">No recorded sales within ' + c.miles + " miles in the last three years.</div>");
   box.innerHTML = html;
+  if(c.comp_set) drawCompSet(d);
 }
 
 /* ---------- managing a deal from its card: stage, bids due, guidance, check-back, outcome, notes ---------- */
@@ -1325,6 +1363,23 @@ function drawSite(d){
   map.getSource("site").setData({type:"FeatureCollection", features:ps.map(p => ({type:"Feature", properties:{apn:p.apn, kind:d.kind}, geometry:{type:"Polygon", coordinates:p.coords}}))});
   if(!ps.length) addMarker(d, archived(d));
   deals.filter(x => x !== d && x.market === d.market).forEach(x => addMarker(x, archived(x) || watching(x)));
+  drawCompSet(d);
+}
+/* the deal's saved comp set (from Market Intel) as small labeled dots while its slide is open */
+let csMarkers = [];
+function drawCompSet(d){
+  csMarkers.forEach(m => m.remove()); csMarkers = [];
+  const cur = SLIDES[idx];
+  if(!map || !d || !cur || cur.d !== d) return;
+  const cs = CTX[d.id] && CTX[d.id].comp_set; if(!cs) return;
+  if(!map._csZoom){ map._csZoom = true; const t = () => map.getContainer().classList.toggle("cs-far", map.getZoom() < 12.5); map.on("zoom", t); t(); }
+  (cs.members || []).forEach((m, i) => {
+    if(m.lat == null || m.lng == null) return;
+    const el = document.createElement("div"); el.className = "cspin";
+    el.innerHTML = "<i>" + (i + 1) + "</i><span>" + WB.esc(m.name || "") + "</span>";
+    el.title = (m.name || "") + (m.rent_psf != null ? " · $" + (+m.rent_psf).toFixed(2) + "/SF" : "");
+    csMarkers.push(new maplibregl.Marker({element: el, anchor: "left", offset: [-8, 0]}).setLngLat([+m.lng, +m.lat]).addTo(map));
+  });
 }
 
 /* ---------- player ---------- */
