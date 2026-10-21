@@ -43,7 +43,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202610211608');
+    add(ROOT + 'shared/wb-chrome.css?v=202610211737');
   })();
 
   // ---------- market context shared across tabs ----------
@@ -254,6 +254,68 @@
   };
   const median = (xs) => { const a = xs.filter((x) => x != null && !isNaN(x)).map(Number).sort((p, q) => p - q); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
 
-  window.WB = { sb, ready, band, marketToggle, fig, strip: () => loadStrip(), marketLabel: (id) => (MARKETS.find((m) => m.id === id) || {}).short || (id ? id[0].toUpperCase() + id.slice(1) : id),
+  // ---------- property history: one asset over time (built, each time marketed, offers, each sale, development) ----------
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monYr = (d) => { if (!d) return ''; const [y, m] = String(d).slice(0, 10).split('-'); return `${MON[+m - 1] || ''} ${y}`; };
+  let histOpener = null;
+  function closeHistory() {
+    const el = $('.wb-hist'); if (!el || el.hidden) return;
+    el.hidden = true; window.removeEventListener('keydown', histKey, true);
+    if (histOpener && histOpener.focus) histOpener.focus();
+  }
+  function histKey(e) { if (e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); closeHistory(); } }
+  /** Open the right-hand history drawer for a core.properties id. */
+  async function propertyHistory(pid) {
+    if (!pid) { toast('This record is not linked to a property yet'); return; }
+    histOpener = document.activeElement;
+    let el = $('.wb-hist');
+    if (!el) {
+      el = document.createElement('div'); el.className = 'wb-hist'; el.hidden = true;
+      el.innerHTML = '<div class="wb-hist-veil" data-hclose></div><aside class="wb-hist-panel" role="dialog" aria-modal="true" aria-labelledby="wb-hist-t">'
+        + '<header><div><div class="wbh-eyebrow">Property history</div><h2 id="wb-hist-t"></h2><p class="wbh-sub"></p></div><button type="button" class="wbh-x" data-hclose aria-label="Close property history">×</button></header>'
+        + '<div class="wb-hist-body" tabindex="-1"></div></aside>';
+      document.body.appendChild(el);
+      el.addEventListener('click', (e) => { if (e.target.closest('[data-hclose]')) closeHistory(); });
+    }
+    const body = $('.wb-hist-body', el);
+    $('#wb-hist-t', el).textContent = 'Loading…'; $('.wbh-sub', el).textContent = ''; body.innerHTML = '';
+    el.hidden = false; window.addEventListener('keydown', histKey, true);
+    setTimeout(() => $('.wbh-x', el).focus(), 0);
+    const [pr, ev, sales] = await Promise.all([
+      sb.schema('core').from('properties').select('id,name,address,city,state,units,year_built,owner,market_id,kind,attrs').eq('id', pid).maybeSingle(),
+      sb.schema('core').from('property_events').select('*').eq('property_id', pid).order('on_date', { ascending: false }),
+      sb.schema('comps').from('sale_comps').select('id,sale_date,sale_price,price_per_unit,cap_rate,cap_rate_t12,buyer').eq('property_id', pid).order('sale_date', { ascending: false }),
+    ]);
+    if (pr.error || !pr.data) { $('#wb-hist-t', el).textContent = 'Property history'; body.innerHTML = `<p class="wbh-empty">${esc((pr.error && pr.error.message) || 'Property not found.')}</p>`; return; }
+    const p = pr.data, events = ev.data || [], S = (sales.data || []).filter((s) => s.sale_date);
+    $('#wb-hist-t', el).textContent = p.name || p.address || 'Untitled property';
+    $('.wbh-sub', el).textContent = [p.address && p.address !== p.name ? p.address : null, p.city, ((MARKETS.find((m) => m.id === p.market_id) || {}).short || null)].filter((v, i, a) => v && a.indexOf(v) === i).filter(Boolean).join(', ');
+    const facts = [[p.units ? fmt.int(p.units) : null, 'Units'], [p.year_built || null, 'Built'], [p.owner || null, 'Owner' + (p.attrs && p.attrs.owner_since ? ` since ${monYr(p.attrs.owner_since)}` : '')]]
+      .filter(([v]) => v != null && v !== '');
+    const marketed = events.filter((e) => e.kind === 'marketed').length, pursued = events.filter((e) => e.kind === 'pursued').length;
+    const last = S[0];
+    let lastTxt = null;
+    if (last) {
+      const bits = [last.price_per_unit ? `${fmt.usd(last.price_per_unit)}/unit` : null,
+        last.cap_rate_t12 != null ? `${(+last.cap_rate_t12).toFixed(2)}% cap on marketed T-12` : last.cap_rate != null ? `${(+last.cap_rate).toFixed(2)}% reported cap` : null].filter(Boolean);
+      lastTxt = `last sale ${fmt.usd(last.sale_price)}${bits.length ? ` (${bits.join(', ')})` : ''} in ${monYr(last.sale_date)}`;
+    }
+    const times = (n) => (n === 1 ? 'once' : `${n} times`);
+    const summary = [marketed ? `marketed ${times(marketed)}` : null, pursued ? `pursued as a site ${times(pursued)}` : null,
+      S.length ? `sold ${times(S.length)}` : 'no sales on record', lastTxt].filter(Boolean).join(' · ');
+    const href = (e) => e.ref_table === 'deal' ? `${ROOT}pipeline/?deal=${e.ref_id}&edit=1`
+      : e.ref_table === 'sale_comp' ? `${ROOT}comps/?comp=${e.ref_id}`
+      : e.ref_table === 'dev_project' ? `${ROOT}development/?id=${e.ref_id}&track=${e.kind === 'entitlement' ? 'entitlement' : 'construction'}` : null;
+    const open = { deal: 'Open deal', sale_comp: 'Open comp', dev_project: 'Open case' };
+    body.innerHTML = (facts.length ? `<dl class="wbh-facts">${facts.map(([v, l]) => `<div><dt>${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : '')
+      + `<p class="wbh-sum">${esc(summary.charAt(0).toUpperCase() + summary.slice(1))}.</p>`
+      + (events.length ? `<ol class="wbh-tl">${events.map((e) => {
+        const h = href(e);
+        return `<li class="k-${esc(e.kind)}"><span class="wbh-d">${esc(e.kind === 'built' ? String(e.on_date || '').slice(0, 4) : monYr(e.on_date))}</span>`
+          + `<div><b>${esc(e.title)}</b>${e.detail ? `<p>${esc(e.detail)}</p>` : ''}${h ? `<a href="${h}">${open[e.ref_table]}</a>` : ''}</div></li>`;
+      }).join('')}</ol>` : '<p class="wbh-empty">Nothing on record for this property yet.</p>');
+  }
+
+  window.WB = { sb, ready, band, marketToggle, fig, strip: () => loadStrip(), propertyHistory, closeHistory, marketLabel: (id) => (MARKETS.find((m) => m.id === id) || {}).short || (id ? id[0].toUpperCase() + id.slice(1) : id),
     marketCenter: (id) => (MARKETS.find((m) => m.id === id) || {}).center || null, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
 })();

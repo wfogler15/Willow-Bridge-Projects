@@ -9684,7 +9684,7 @@ function renderProperties() {
       <tr data-pid="${p.id}" class="${selected ? 'cs-selected' : ''}">
         ${checkboxCell}
         <td>
-          <div class="prop-name">${escapeHTML(p.name)}${p._wbOnly ? ' <span class="wb-deal-pill">WB Deal</span>' : ''}${
+          <div class="prop-name">${escapeHTML(p.name)}${p._wbOnly ? ' <span class="wb-deal-pill">WB Deal</span>' : ''}${wbLifecycleTag(p)}${
             state.propStatus === 'all'
               ? ` <span class="cs-mini-badge cs-chip-${csStatusOf(p).toLowerCase()}">${csStatusOf(p) === 'UC' ? 'UC' : (csStatusOf(p) === 'Proposed' ? 'Proposed' : 'Existing')}</span>`
               : ''}</div>
@@ -13922,6 +13922,41 @@ function toggleEditMode() {
   renderModal();
 }
 
+// ---------- the property over time (Oct 2026): every deal and sale on the same core.properties record ----------
+// window.__WBD.history is built in loader.js from Pipeline deals and Sale Comps, keyed by property uuid.
+function wbLife(p) {
+  const W = window.__WBD; if (!W || !W.history || !p) return null;
+  const id = (W.propByCostar && W.propByCostar[p.id]) || p.id;
+  return W.history[id] ? { id, ...W.history[id] } : (W.propByCostar && W.propByCostar[p.id] ? { id, deals: 0, sales: 0 } : null);
+}
+const WB_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function wbMonYr(d, short) { if (!d) return ''; const [y, m] = String(d).split('-'); return WB_MON[+m - 1] + ' ' + (short ? "'" + y.slice(2) : y); }
+function wbLifecycleTag(p) {
+  const h = wbLife(p); if (!h) return '';
+  if (h.onMarket) return ' <span class="wb-life" title="An active deal in Pipeline">On market</span>';
+  if (h.lastSale) {
+    const cut = new Date(Date.now() - 36 * 30.44 * 864e5).toISOString().slice(0, 10);
+    if (h.lastSale.sale_date >= cut) return ` <span class="wb-life" title="Last recorded sale">Sold ${wbMonYr(h.lastSale.sale_date, true)}</span>`;
+  }
+  return '';
+}
+function wbHistorySection(p) {
+  const h = wbLife(p); if (!h) return '';
+  const s = h.lastSale, d = h.onMarket, bits = [];
+  if (d) bits.push(`On market now: ${escapeHTML(d.name || 'active deal')} in Pipeline.`);
+  if (s) {
+    const cap = s.cap_rate_t12 != null ? `${(+s.cap_rate_t12).toFixed(2)}% cap on marketed T-12` : (s.cap_rate != null ? `${(+s.cap_rate).toFixed(2)}% reported cap` : '');
+    bits.push(`Last sale ${wbMonYr(s.sale_date)}: ${fmt.money(s.sale_price)}${s.price_per_unit ? ` (${fmt.money(s.price_per_unit)}/unit${cap ? ', ' + cap : ''})` : (cap ? ` (${cap})` : '')}${s.buyer ? ' to ' + escapeHTML(s.buyer) : ''}.`);
+  }
+  const counts = [h.deals ? `marketed or pursued ${h.deals === 1 ? 'once' : h.deals + ' times'}` : null, h.sales ? `sold ${h.sales === 1 ? 'once' : h.sales + ' times'} on record` : null].filter(Boolean).join(', ');
+  return `
+      <div class="detail-section-title">History</div>
+      <div class="wb-life-sec">
+        <p>${bits.join(' ') || 'No deals or sales recorded for this property yet.'}${counts ? ` <span class="wb-life-n">${counts.charAt(0).toUpperCase() + counts.slice(1)}.</span>` : ''}</p>
+        <a href="#" class="wb-life-link" onclick="WB.propertyHistory('${h.id}');return false;">Full history →</a>
+      </div>`;
+}
+
 function renderModal() {
   if (modalState.pid == null) return;
   // Match by string comparison so it works whether IDs are stored as strings
@@ -14403,6 +14438,8 @@ function renderModal() {
           <div class="detail-value" style="font-size:13px;">${escapeHTML(p.submarket || '—')}</div>
         </div>
       </div>
+
+      ${editing ? '' : wbHistorySection(p)}
 
       ${editing ? '' : buildSaleCompsSection(p)}
 

@@ -44,11 +44,14 @@
     document.body.appendChild(overlay);
 
     const t0 = performance.now();
-    const [mrow, props, rp, trends] = await Promise.all([
+    const [mrow, props, rp, trends, lifeDeals, lifeSales] = await Promise.all([
       sb.schema('core').from('markets').select('*').eq('id', market).single(),
       WB.fetchAll('core', 'properties', '*', (x) => x.eq('market_id', market).neq('kind', 'land').order('costar_id')),
       WB.fetchAll('market', 'rp_property_data', 'realpage_id,data', (x) => x.eq('market_id', market).order('realpage_id')),
       WB.fetchAll('market', 'rp_trends', 'geography,data', (x) => x.eq('market_id', market)),
+      // the same building over time: each time it was marketed (Pipeline) and each sale (Sale Comps)
+      WB.fetchAll('pipeline', 'deals', 'id,property_id,stage,kind,first_seen,name', (x) => x.eq('market_id', market).is('merged_into', null).not('property_id', 'is', null)).catch(() => []),
+      WB.fetchAll('comps', 'sale_comps', 'property_id,sale_date,sale_price,price_per_unit,cap_rate,cap_rate_t12,buyer', (x) => x.eq('market_id', market).eq('comp_type', 'investment').not('property_id', 'is', null)).catch(() => []),
     ]);
     if (mrow.error) throw mrow.error;
     const cfg = mrow.data.config || {};
@@ -73,12 +76,18 @@
         market: (p.attrs && p.attrs.market) || mrow.data.label,
       });
     }
+    // per-property lifecycle, keyed by core.properties id: active deal (on market) and last recorded sale
+    const ACTIVE = ['prospect', 'screening', 'underwriting', 'loi', 'under_contract'];
+    const history = {};
+    const H = (id) => (history[id] = history[id] || { deals: 0, sales: 0, onMarket: null, lastSale: null });
+    for (const d of lifeDeals) { const h = H(d.property_id); h.deals++; if (ACTIVE.includes(d.stage) && (!h.onMarket || (d.first_seen || '') > (h.onMarket.first_seen || ''))) h.onMarket = d; }
+    for (const c of lifeSales) { if (!c.sale_date) continue; const h = H(c.property_id); h.sales++; if (!h.lastSale || c.sale_date > h.lastSale.sale_date) h.lastSale = c; }
     window.__WBD = {
       market, label: mrow.data.label, title: cfg.title || mrow.data.title, msa_label: cfg.msa_label || cfg.title,
       center: cfg.center || [39.74, -104.99], WB_SUBMARKETS: cfg.wb_submarkets || [], WB_RP_MAPPING: cfg.rp_mapping || {},
       RAW_DATA, RP_PROPERTIES: Object.fromEntries(rp.map((r) => [r.realpage_id, r.data])),
       RP_FORECAST: Object.fromEntries(trends.map((r) => [r.geography, r.data])),
-      propByCostar, costarByProp, customProps, user, markets,
+      propByCostar, costarByProp, customProps, user, markets, history,
     };
     // the top-bar market dropdown drives this page too
     window.addEventListener('wb:market', (e) => { if (e.detail && e.detail !== 'all') window.wbSwitchMarket(e.detail); });

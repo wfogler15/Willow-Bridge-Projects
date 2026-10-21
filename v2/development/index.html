@@ -240,7 +240,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610211608"></script>
+<script src="../shared/wb.js?v=202610211737"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -432,6 +432,9 @@ function parcelLine(p){
   if(p._auto) return "Outline: the county parcel at the mapped point (APN " + esc(p._auto.apn || "none") + "); it may not cover the whole site. Use Fix parcel to set it. ";
   return {address: "Point is the geocoded address, not the parcel. ", estimated: "Point is an estimated location. ", source: "Point is CoStar's location. "}[p.location_quality] || "";
 }
+/* the same building over time (sales, each time it was marketed): only when the case is linked to a property */
+const histLink = p => p.property_id ? '<p class="meta"><button type="button" class="wb-hlink" data-hist="' + esc(p.property_id) + '">Property history</button></p>' : "";
+document.addEventListener("click", e => { const b = e.target.closest("[data-hist]"); if(b) WB.propertyHistory(b.dataset.hist); });
 function renderCase(p){
   const tags = [];
   if(p.track === "entitlement"){
@@ -460,7 +463,7 @@ function renderCase(p){
       + sec("Case and parties", dl([[isDriver(p) ? "Owner" : "Developer", esc(p.developer || "")], ["Applicant", esc(p.applicant || "")], ["Case", esc(p.case_no || "")]]))
       + sec("Previous steps", hist(p))
       + sec("Sources", srcs ? '<div class="srcs">' + srcs + "</div>" : "")
-      + '<p class="meta">' + parcelLine(p) + (p.found_by ? "Added from: " + esc(p.found_by) + ". " : "") + (p.last_checked ? "Last checked " + fDate(p.last_checked) + "." : "") + "</p>";
+      + '<p class="meta">' + parcelLine(p) + (p.found_by ? "Added from: " + esc(p.found_by) + ". " : "") + (p.last_checked ? "Last checked " + fDate(p.last_checked) + "." : "") + "</p>" + histLink(p);
   }
   const m = monthsTo(p.delivery_date), st = monthsTo(p.construction_start);
   const deliv = p.delivery_date ? (m < 0 ? "Was due " + fMonth(p.delivery_date) : "Delivers " + fMonth(p.delivery_date) + (m === 0 ? ", this month" : ", about " + plural(m, "month") + " out")) : "No delivery date";
@@ -471,7 +474,7 @@ function renderCase(p){
     + sec("Notes", p.note ? "<p>" + esc(p.note) + "</p>" : "")
     + sec("History", hist(p))
     + sec("Sources", srcs ? '<div class="srcs">' + srcs + "</div>" : "")
-    + '<p class="meta">' + parcelLine(p) + (p.found_by ? "Added from: " + esc(p.found_by) + "." : "") + "</p>";
+    + '<p class="meta">' + parcelLine(p) + (p.found_by ? "Added from: " + esc(p.found_by) + "." : "") + "</p>" + histLink(p);
 }
 
 /* ---------- map ---------- */

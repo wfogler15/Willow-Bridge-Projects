@@ -6,7 +6,7 @@
 <title>Sale Comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610211608">
+<link rel="stylesheet" href="../shared/wb.css?v=202610211737">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -89,6 +89,7 @@
   .mfigs .l{margin-top:3px;font-size:12px;color:var(--muted)}
   .mbody{overflow:auto;padding:6px 20px 18px}
   .msec{padding-top:14px}
+  .mlinks{margin:12px 0 0;font-size:13px}.mlinks .sep{color:var(--muted)}
   .msec h3{margin:0 0 8px;padding-bottom:4px;border-bottom:1px solid var(--rule);font:600 11px/1.2 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
   .msec dl{margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 24px}
   .msec dl>div{min-width:0}
@@ -135,7 +136,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610211608"></script>
+<script src="../shared/wb.js?v=202610211737"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -245,6 +246,7 @@
       ['price_per_unit', '$/unit', (c) => fmt.usd(c.price_per_unit), 'r'],
       ['price_per_sf', '$/SF', (c) => c.price_per_sf ? '$' + fmt.int(c.price_per_sf) : '—', 'r'],
       ['cap_rate', 'Cap', (c) => fmt.pct(c.cap_rate, 2), 'r'],
+      ['cap_rate_t12', 'Cap (T-12)', (c) => c.cap_rate_t12 == null ? '—' : `<span title="T-12 NOI from marketing ÷ sale price">${fmt.pct(c.cap_rate_t12, 2)}</span>`, 'r'],
       ['buyer', 'Buyer', (c) => `<span title="${esc(c.buyer || '')}">${esc(c.buyer || '—')}</span>`, 't'],
       ['seller', 'Seller', (c) => `<span title="${esc(c.seller || '')}">${esc(c.seller || '—')}</span>`, 't'],
       ['broker', 'Broker', (c) => `<span title="${esc(c.broker || '')}">${esc(c.broker || '—')}</span>`, 't'],
@@ -542,11 +544,13 @@
     const stamp = (at, by) => (at ? new Date(at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '') + (by ? ` by ${by}` : '') || null;
     const figs = land
       ? [[fmt.usdFull(c.sale_price), 'Price'], [fmt.usdFull(c.price_per_unit), 'Per door'], [fmt.psf(c.price_per_land_sf), 'Per land SF'], [fmt.ac(c.acres), 'Acres'], [fmt.int(c.proposed_units), 'Proposed units']]
-      : [[fmt.usdFull(c.sale_price), 'Price'], [fmt.usdFull(c.price_per_unit), 'Per unit'], [c.price_per_sf ? '$' + fmt.int(c.price_per_sf) : '—', 'Per SF'], [fmt.pct(c.cap_rate, 2), 'Cap rate'], [fmt.int(c.units), 'Units']];
+      : [[fmt.usdFull(c.sale_price), 'Price'], [fmt.usdFull(c.price_per_unit), 'Per unit'], [c.price_per_sf ? '$' + fmt.int(c.price_per_sf) : '—', 'Per SF'], c.cap_rate == null && c.cap_rate_t12 != null ? [fmt.pct(c.cap_rate_t12, 2), 'Cap on marketed T-12'] : [fmt.pct(c.cap_rate, 2), 'Cap rate'], [fmt.int(c.units), 'Units']];
     $('#m-title').innerHTML = esc(c.name || c.address || 'Untitled comp');
     $('#m-sub').textContent = [land ? 'Land sale' : 'Investment sale', c.address, [c.city, c.submarket].filter(Boolean).join(' · '), c.verified ? 'Verified' : 'Not verified'].filter(Boolean).join('  ·  ');
     $('#m-figs').innerHTML = figs.map(([v, l]) => `<div><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
-    $('#m-body').innerHTML =
+    const links = [c.property_id ? `<button type="button" class="wb-hlink" data-hist="${esc(c.property_id)}">Property history</button>` : '',
+      c.deal_id ? `<a class="wb-hlink" href="${WB.ROOT}pipeline/?deal=${esc(c.deal_id)}&edit=1">Open the deal</a>` : ''].filter(Boolean).join('<span class="sep"> · </span>');
+    $('#m-body').innerHTML = (links ? `<p class="mlinks">${links}</p>` : '') +
       `<section class="msec"><h3>Property</h3><dl>`
       + item('Name', T(c.name)) + item('Type', land ? 'Land sale' : 'Investment sale')
       + item('Address', T(c.address), 'full') + item('City', T(c.city)) + item('Submarket', T(c.submarket))
@@ -556,7 +560,8 @@
       + `</dl></section><section class="msec"><h3>Transaction</h3><dl>`
       + item('Sale date', c.sale_date ? fmt.date(c.sale_date) : null) + item('Sale price', c.sale_price == null ? null : fmt.usdFull(c.sale_price))
       + item(land ? 'Price per door' : 'Price per unit', c.price_per_unit == null ? null : fmt.usdFull(c.price_per_unit))
-      + (land ? item('Price per land SF', c.price_per_land_sf == null ? null : fmt.psf(c.price_per_land_sf)) : item('Price per SF', c.price_per_sf == null ? null : fmt.psf(c.price_per_sf)) + item('Cap rate', c.cap_rate == null ? null : fmt.pct(c.cap_rate, 2)))
+      + (land ? item('Price per land SF', c.price_per_land_sf == null ? null : fmt.psf(c.price_per_land_sf)) : item('Price per SF', c.price_per_sf == null ? null : fmt.psf(c.price_per_sf)) + item('Cap rate (reported)', c.cap_rate == null ? null : fmt.pct(c.cap_rate, 2))
+              + item('Cap on marketed T-12', c.cap_rate_t12 == null ? null : fmt.pct(c.cap_rate_t12, 2)) + item('T-12 NOI (marketing)', c.t12_noi == null ? null : fmt.usdFull(c.t12_noi)))
       + item('Buyer', T(c.buyer)) + item('Seller', T(c.seller)) + item('Broker', T(c.broker), 'full')
       + `</dl></section><section class="msec"><h3>Source and location</h3><dl>`
       + item('Source', T(c.source)) + item('Verified', c.verified ? 'Yes' : 'No') + item('Source link', link, 'full')
@@ -571,18 +576,19 @@
   }
   const closeDetail = () => { $('#detail').classList.remove('open'); viewing = null; };
   $('#m-close').onclick = closeDetail;
+  $('#m-body').addEventListener('click', (e) => { const b = e.target.closest('[data-hist]'); if (b) WB.propertyHistory(b.dataset.hist); });
   $('#m-edit').onclick = () => { const c = viewing; closeDetail(); if (c) openDrawer(c); };
   $('#detail').addEventListener('mousedown', (e) => { if (e.target.id === 'detail') closeDetail(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#detail').classList.contains('open')) closeDetail(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#detail').classList.contains('open') && !document.querySelector('.wb-hist:not([hidden])')) closeDetail(); });
   map.on('dragstart', () => { map._fitOnce = true; });
 
   // ---------- export ----------
   // Export everything (every market, both types) so the quarterly archive is complete; one sheet per type.
   $('#b-export').onclick = () => {
-    const INV = ['Sale date', 'Market', 'Property', 'Address', 'City', 'Submarket', 'Units', 'Year built', 'Price', '$/unit', '$/SF', 'Cap rate %', 'Product', 'Buyer', 'Seller', 'Broker', 'Notes', 'Source', 'Source link', 'Verified', 'Latitude', 'Longitude'];
+    const INV = ['Sale date', 'Market', 'Property', 'Address', 'City', 'Submarket', 'Units', 'Year built', 'Price', '$/unit', '$/SF', 'Cap rate %', 'Cap on T-12 %', 'Product', 'Buyer', 'Seller', 'Broker', 'Notes', 'Source', 'Source link', 'Verified', 'Latitude', 'Longitude'];
     const LAND = ['Sale date', 'Market', 'Site', 'Address', 'City', 'Submarket', 'Acres', 'Proposed units', 'Price', '$/door', '$/land SF', 'Product', 'Construction', 'Buyer', 'Seller', 'Broker', 'Notes', 'Source', 'Source link', 'Verified', 'Latitude', 'Longitude'];
     const by = (t) => rows.filter((c) => c.comp_type === t).sort((a, b) => (b.sale_date || '').localeCompare(a.sale_date || ''));
-    const inv = by('investment').map((c) => [c.sale_date, WB.marketLabel(c.market_id), c.name, c.address, c.city, c.submarket, c.units, c.year_built, num(c.sale_price), num(c.price_per_unit), num(c.price_per_sf), num(c.cap_rate), c.product_type, c.buyer, c.seller, c.broker, c.notes, c.source, c.source_url, c.verified ? 'Yes' : '', num(c.lat), num(c.lng)]);
+    const inv = by('investment').map((c) => [c.sale_date, WB.marketLabel(c.market_id), c.name, c.address, c.city, c.submarket, c.units, c.year_built, num(c.sale_price), num(c.price_per_unit), num(c.price_per_sf), num(c.cap_rate), num(c.cap_rate_t12), c.product_type, c.buyer, c.seller, c.broker, c.notes, c.source, c.source_url, c.verified ? 'Yes' : '', num(c.lat), num(c.lng)]);
     const land = by('land').map((c) => [c.sale_date, WB.marketLabel(c.market_id), c.name, c.address, c.city, c.submarket, num(c.acres), c.proposed_units, num(c.sale_price), num(c.price_per_unit), num(c.price_per_land_sf), c.product_type, c.construction_type, c.buyer, c.seller, c.broker, c.notes, c.source, c.source_url, c.verified ? 'Yes' : '', num(c.lat), num(c.lng)]);
     const wb = XLSX.utils.book_new();
     [['Investment sales', INV, inv], ['Land sales', LAND, land]].forEach(([name, head, data]) => {
@@ -682,7 +688,7 @@
   if (near) { state.since = ''; }
   render();
   if (near) map.once('load', () => map.flyTo({ center: [near.at[1], near.at[0]], zoom: 12, duration: 0 }));
-  if (P.get('comp')) { const c = rows.find((r) => r.id === P.get('comp')); if (c) { state.type = c.comp_type; document.querySelectorAll('#f-type button').forEach((b) => b.classList.toggle('on', b.dataset.v === c.comp_type)); select(c.id, true); } }
+  if (P.get('comp')) { const c = rows.find((r) => r.id === P.get('comp')); if (c) { state.type = c.comp_type; document.querySelectorAll('#f-type button').forEach((b) => b.classList.toggle('on', b.dataset.v === c.comp_type)); select(c.id, true); openDetail(c); } }
   if (P.get('add')) openDrawer(null);
 })();
 </script>

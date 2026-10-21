@@ -481,6 +481,10 @@ html,body{background:#F3F2EF !important}
 .dlg input:focus,.dlg select:focus,.dlg textarea:focus{outline:none;border-color:#432890;box-shadow:0 0 0 3px rgba(67,40,144,.14)}
 .dlg label.ck{flex-direction:row;align-items:center;gap:8px;font-size:13px;color:#1D1247}
 .dlg label.ck input{width:16px;height:16px;accent-color:#1D1247}
+.dlg .sale-lead{margin:-2px 0 10px;font-size:13px;color:#433C63;line-height:1.45}
+.dlg .sale-lead a{color:#432890;text-decoration:none}.dlg .sale-lead a:hover{text-decoration:underline}
+.dlg .sale-cap{align-self:center;font-size:13px;color:#1D1247;font-variant-numeric:tabular-nums}
+.dlg .sale-act{grid-column:1/-1;display:flex;justify-content:flex-end}
 .dlg footer{display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid #EEECE8;background:#F8F7F4}
 .dlg .msg{font-size:13px;color:#722525}
 .dlg .btn{height:30px;padding:0 13px;border-radius:6px;border:1px solid #D3CEC7;background:#fff;font:600 13px var(--font);color:#1D1247;cursor:pointer;transition:background .12s,border-color .12s,transform .06s}
@@ -620,7 +624,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610211608"></script>
+<script src="../shared/wb.js?v=202610211737"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1580,7 +1584,7 @@ const FIELDS = [
     ["uw.occ", "Occupancy (%)", "num"], ["uw.concessionWeeks", "Concessions (weeks free)", "num"],
     ["uw.sens", "", "sens", "full"],
   ], "asset"],
-  ["Outcome", [["outcome_winner", "Buyer / winner", "text"], ["outcome_price", "Sale price ($)", "num"], ["outcome_date", "Sale date", "date"]]],
+  /* the sale (buyer, price, date) is recorded in its own Sale section below, which also writes the sale comp */
   ["Notes", [["summary", "Summary", "area", "full"], ["take", "Our take", "area", "full"], ["folder_path", "Deal folder (OneDrive link or path)", "text", "full"]]],
 ];
 let editing = null;
@@ -1626,16 +1630,90 @@ function paintEditor(){
     + '<button type="button" class="x" data-close aria-label="Close">×</button></header>'
     + '<div class="figs">' + figsHtml(d) + "</div><div class=\"body\">"
     + FIELDS.filter(g => !g[2] || g[2] === (r.kind || d.kind)).map(([t, fs]) => '<fieldset><legend>' + t + '</legend><div class="grid">' + fs.map(f => fieldHtml(f, r)).join("") + "</div></fieldset>").join("")
-    + "</div><footer><button type=\"button\" class=\"btn\" data-play>Open in the player</button><span class=\"msg\"></span><span style=\"flex:1\"></span>"
+    + saleHtml(d, r)
+    + "</div><footer><button type=\"button\" class=\"btn\" data-play>Open in the player</button><button type=\"button\" class=\"btn\" data-hist>Property history</button><span class=\"msg\"></span><span style=\"flex:1\"></span>"
     + '<button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save changes</button></footer></form>';
   m.querySelector("[data-play]").onclick = () => { const x = editing; closeEditor(); playDeal(deals.find(y => y.id === x.id)); };
+  m.querySelector("[data-hist]").onclick = () => WB.propertyHistory(RW(editing).property_id || editing.property_id);
   m.querySelector("form").onsubmit = saveEditor;
+  wireSale(m, d, r);
   const prev = () => {
     const box = m.querySelector("#sensPrev"); if(!box) return;
     const o = readEditor(), h = sensTable({kind: "asset", noi: o["uw.noi"], goingIn: o.going_in_yield, units: o.units, avgSf: o.avg_unit_sf, bldgSf: o.building_sf, guidance: o.guidance});
     box.innerHTML = h || '<p class="sens-note">Enter a T-12 NOI and a going-in yield to see price at 0.5% either side.</p>';
   };
   m.querySelector("form").addEventListener("input", prev); prev();
+}
+/* ---------- Sale: record who bought it, for how much and when. Writes (or updates) the sale comp on the same property,
+   and works out the cap rate on the T-12 NOI from marketing. Works the same when Claude records a closing package. ---------- */
+function saleHtml(d, r){
+  const e = WB.esc, today = isoToday();
+  const inp = (n, l, t, v, extra) => '<label><span>' + l + '</span><input name="' + n + '" type="' + t + '"' + (t === "number" ? ' step="any"' : "") + ' value="' + e(v == null ? "" : v) + '"' + (extra || "") + "></label>";
+  return '<fieldset class="sale" id="saleBox"><legend>Sale</legend>'
+    + '<p class="sale-lead" id="saleLead">' + (r.outcome_date ? "Sold " + e(WB.fmt.date(r.outcome_date)) + (r.outcome_winner ? " to " + e(r.outcome_winner) : "") + (r.outcome_price ? " for " + e(WB.fmt.usdFull(r.outcome_price)) : "") + "."
+      : "When it trades, record the sale here. It adds a sale comp on this property and works out the cap rate on the marketed T-12.") + "</p>"
+    + '<div class="grid">'
+    + inp("rs_price", "Sale price ($)", "number", r.outcome_price) + inp("rs_date", "Sale date", "date", r.outcome_date, ' max="' + today + '"') + inp("rs_buyer", "Buyer", "text", r.outcome_winner)
+    + inp("rs_seller", "Seller", "text", r.seller) + inp("rs_cap", "Reported cap rate (%)", "number", null) + inp("rs_noi", "T-12 NOI ($)", "number", (r.uw || {}).noi)
+    + '<label class="ck"><input type="checkbox" name="rs_ours"' + (r.stage === "closed" ? " checked" : "") + "> We bought it</label>"
+    + '<div class="sale-cap" id="saleCap" aria-live="polite"></div>'
+    + '<div class="sale-act"><button type="button" class="btn" id="saleGo">' + (r.outcome_date ? "Update sale" : "Record sale") + "</button></div>"
+    + "</div></fieldset>";
+}
+function wireSale(m, d, r){
+  const box = m.querySelector("#saleBox"); if(!box) return;
+  const f = n => box.querySelector('[name="' + n + '"]');
+  const capLine = () => {
+    const p = +f("rs_price").value, noi = +f("rs_noi").value, u = N(r.units);
+    const bits = [];
+    if(p && noi) bits.push((noi / p * 100).toFixed(2) + "% cap on the marketed T-12");
+    if(p && u) bits.push(WB.fmt.usdFull(p / u) + " per unit");
+    box.querySelector("#saleCap").textContent = bits.join(" · ");
+  };
+  box.addEventListener("input", capLine);
+  box.addEventListener("keydown", e => { if(e.key === "Enter" && e.target.tagName === "INPUT"){ e.preventDefault(); box.querySelector("#saleGo").click(); } });
+  /* prefill from the comp already on this deal, and the seller from the property's owner on record */
+  const pid = r.property_id || d.property_id;
+  Promise.all([
+    sb.schema("comps").from("sale_comps").select("id,sale_date,sale_price,buyer,seller,cap_rate,cap_rate_t12,t12_noi").eq("deal_id", d.id).maybeSingle(),
+    pid ? sb.schema("core").from("properties").select("owner").eq("id", pid).maybeSingle() : Promise.resolve({data: null}),
+  ]).then(([c, p]) => {
+    if(!m.contains(box)) return;
+    const comp = c && c.data, owner = p && p.data && p.data.owner;
+    if(!f("rs_seller").value && owner) f("rs_seller").value = owner;
+    if(comp){
+      if(comp.sale_price != null) f("rs_price").value = comp.sale_price;
+      if(comp.sale_date) f("rs_date").value = comp.sale_date;
+      if(comp.buyer) f("rs_buyer").value = comp.buyer;
+      if(comp.seller) f("rs_seller").value = comp.seller;
+      if(comp.cap_rate != null) f("rs_cap").value = comp.cap_rate;
+      if(comp.t12_noi != null) f("rs_noi").value = comp.t12_noi;
+      box.querySelector("#saleLead").innerHTML = "Sale recorded " + esc(WB.fmt.date(comp.sale_date)) + '. <a href="' + WB.ROOT + "comps/?comp=" + comp.id + '">Open the sale comp</a>. Change a figure and update it here.';
+      box.querySelector("#saleGo").textContent = "Update sale";
+    }
+    capLine();
+  });
+  capLine();
+  box.querySelector("#saleGo").onclick = async () => {
+    const msg = m.querySelector(".msg"), price = f("rs_price").value === "" ? null : +f("rs_price").value, date = f("rs_date").value || null;
+    if(!price || !date){ msg.textContent = "A sale needs a price and a date."; return; }
+    const num = n => f(n).value === "" ? null : +f(n).value, txt = n => f(n).value.trim() || null;
+    msg.textContent = "Recording the sale…";
+    const { error } = await sb.schema("pipeline").rpc("record_sale", {
+      p_deal: d.id, p_price: price, p_date: date, p_buyer: txt("rs_buyer"), p_cap_rate: num("rs_cap"), p_seller: txt("rs_seller"),
+      p_source: "broker", p_we_bought: f("rs_ours").checked, p_t12_noi: num("rs_noi"),
+    });
+    if(error){ msg.textContent = error.message; return; }
+    const [{ data: row }, { data: logs }] = await Promise.all([
+      sb.schema("pipeline").from("deals").select("*").eq("id", d.id).single(),
+      sb.schema("pipeline").from("deal_log").select("id,deal_id,logged_on,kind,body").eq("deal_id", d.id).order("logged_on").order("id"),
+    ]);
+    const live = deals.find(x => x.id === d.id) || d;
+    if(row) Object.assign(live, toDeal(row, logs || [], live._parcels));
+    const noi = num("rs_noi"), cap = noi ? " at a " + (noi / price * 100).toFixed(2) + "% cap on the marketed T-12" : "";
+    WB.toast("Sale recorded: " + WB.fmt.usd(price) + (txt("rs_buyer") ? " to " + txt("rs_buyer") : "") + cap + ". Added to Sale Comps.", 4200);
+    renderList(); editing = live; paintEditor();
+  };
 }
 function closeEditor(){ const m = document.getElementById("dealEd"); if(m) m.hidden = true; document.body.style.overflow = ""; editing = null; }
 function readEditor(){
@@ -1720,6 +1798,8 @@ if(new URLSearchParams(location.search).get("pin") === "1") setTimeout(() => {
 }, 2500);
 
 if(la) setTimeout(() => setList(true), 0);
+/* ?deal=<id>&edit=1 (from a property's history): open that deal's editor */
+{ const q = new URLSearchParams(location.search); if(q.get("edit") === "1" && q.get("deal")) setTimeout(() => { const d = deals.find(x => x.id === q.get("deal")); if(d){ setList(true); openEditor(d); } }, 0); }
 
 /* ---------- comps layers on the map: investment sales, land sales, and property comps (rent, occupancy) ---------- */
 (function layers(){
