@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sale comps · Willow Bridge Intel</title>
+<title>Sale Comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610202329">
+<link rel="stylesheet" href="../shared/wb.css?v=202610211608">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -135,7 +135,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610202329"></script>
+<script src="../shared/wb.js?v=202610211608"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -157,7 +157,7 @@
   let noLoc = P.get('attn') === 'location';
   const near = P.get('near') ? { at: P.get('near').split(',').map(Number), mi: +(P.get('mi') || 3) } : null;
   const miles = (c) => { if (c.lat == null || !near) return Infinity; const [la, lo] = near.at, r = Math.PI / 180, a = Math.sin((c.lat - la) * r / 2) ** 2 + Math.cos(la * r) * Math.cos(c.lat * r) * Math.sin((c.lng - lo) * r / 2) ** 2; return 7917.5 * Math.asin(Math.sqrt(a)); };
-  WB.band({ title: 'Sale comps', lede: 'Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.',
+  WB.band({ title: 'Sale Comps', lede: 'Investment and land sales in Denver and Phoenix, from our trackers, broker reports and CoStar.',
     actions: '<span id="near"></span><select class="fld" id="f-year" title="Calendar year of sale"><option value="">All years</option></select>'
       + '<select class="fld" id="f-since"><option value="">Any trailing period</option><option value="1">Last 12 months</option><option value="2">Last 2 years</option><option value="3">Last 3 years</option><option value="5">Last 5 years</option></select>'
       + '<input class="fld" id="f-q" type="search" placeholder="Search name, address, buyer, seller, broker" style="width:260px">'
@@ -598,7 +598,7 @@
 
   // ---------- add / edit ----------
   const F = [
-    ['comp_type', 'Type', 'select:investment=Investment,land=Land'], ['market_id', 'Market', 'select:denver=Denver,phoenix=Phoenix'],
+    ['comp_type', 'Type', 'select:investment=Investment,land=Land'], ['market_id', 'Market', 'select:' + (WB.markets.length ? WB.markets.map((m) => m.id + '=' + m.short).join(',') : 'denver=Denver,phoenix=Phoenix')],
     ['name', 'Name', 'text', 'full'], ['address', 'Address', 'text', 'full'], ['city', 'City', 'text'], ['submarket', 'Submarket', 'text'],
     ['sale_date', 'Sale date', 'date'], ['sale_price', 'Sale price ($)', 'number'],
     ['units', 'Units (existing)', 'number', '', 'investment'], ['year_built', 'Year built', 'number', '', 'investment'],
@@ -613,7 +613,7 @@
   let editing = null, pin = null;
   function openDrawer(c) {
     editing = c || null; $('#peek').hidden = true;
-    const v = c || { comp_type: state.type, market_id: state.market === 'all' ? 'denver' : state.market, source: 'manual', verified: true };
+    const v = c || { comp_type: state.type, market_id: state.market === 'all' ? ((WB.markets[0] || {}).id || 'denver') : state.market, source: 'manual', verified: true };
     $('#d-title').textContent = c ? 'Edit comp' : 'Add a comp';
     $('#d-form').innerHTML = F.map(([k, l, t, cls, only]) => {
       const val = v[k] ?? '';

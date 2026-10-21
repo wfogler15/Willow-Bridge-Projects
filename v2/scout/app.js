@@ -4905,6 +4905,12 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape') $('settingsOverla
 
 // ---------- Market switcher ----------
 function setMarket(mkt){
+  // A market added in core.markets but not wired up here yet (no parcel source): show the map at its centre, no parcels.
+  if(!MARKETS[mkt] && window.WB && WB.markets && WB.markets.some(x => x.id === mkt)){
+    const c = WB.marketCenter(mkt), nm = WB.marketLabel(mkt);
+    MARKETS[mkt] = { name: nm, sub: nm + ' parcel intelligence &amp; pipeline', center: c || [39.5,-98.35], zoom: c ? 11 : 4, ready:false,
+      parcelFields:'*', parcelFieldsFull:'*', normalize:(a)=>a, apnSearch:()=>'1=0', tileUrl:null, zoning:{}, minParcelZoom:16, genPx:2, split:false };
+  }
   if(!MARKETS[mkt] || mkt === currentMarket) return;
   currentMarket = mkt;
   const m = MARKETS[mkt];
@@ -4955,8 +4961,11 @@ initAuth();
 function closeDrawer(){ document.body.classList.remove('drawer-open'); }
 { const m=$('mobMenu'); if(m) m.addEventListener('click', ()=> document.body.classList.toggle('drawer-open')); }
 { const s=$('mobScrim'); if(s) s.addEventListener('click', closeDrawer); }
-{ const mm=$('mobMarket'); if(mm) mm.addEventListener('click', ()=>{ setMarket(currentMarket==='phoenix'?'denver':'phoenix'); }); }
-function syncMobMarket(){ const mm=$('mobMarket'); if(mm && MARKETS[currentMarket]) mm.textContent = currentMarket==='denver' ? 'Denver' : 'Phoenix'; }
+{ const mm=$('mobMarket'); if(mm) mm.addEventListener('click', ()=>{
+  const ids = (window.WB && WB.markets && WB.markets.length) ? WB.markets.map(x => x.id) : ['phoenix','denver'];
+  const next = ids[(ids.indexOf(currentMarket) + 1) % ids.length];
+  if(window.WB && WB.setMarket) WB.setMarket(next); else setMarket(next); }); }
+function syncMobMarket(){ const mm=$('mobMarket'); if(mm && MARKETS[currentMarket]) mm.textContent = (window.WB && WB.marketLabel) ? WB.marketLabel(currentMarket) : (currentMarket==='denver' ? 'Denver' : 'Phoenix'); }
 syncMobMarket();
 
 let _locMarker=null, _locCircle=null;

@@ -42,6 +42,11 @@ button{font-family:inherit}
 #bar button span{display:block;height:2px;background:rgba(29,18,71,.14);border-radius:1px;overflow:hidden}
 #bar button span i{display:block;height:100%;width:0;background:var(--ink)}
 #bar.dense button{width:7px}
+#bar button.mk{margin-left:10px}   /* a new market starts here */
+.mkts{margin:-4px 0 14px}.mkts b{color:var(--ink);font-weight:600}.mkts .lnk{font-size:inherit}
+tr.grp td{padding:22px 0 8px !important;border-bottom:1px solid var(--ink) !important;font:600 14px var(--font,inherit);color:var(--ink);background:none !important;cursor:default}
+tr.grp td span{margin-left:10px;font-weight:400;font-size:12.5px;color:var(--ink2,#4A4560)}
+tr.grp:first-child td{padding-top:4px !important}
 
 .slide{display:flex;flex-direction:column;gap:14px;opacity:0;transform:translateY(6px);transition:opacity .5s ease,transform .5s ease}
 .slide.on{opacity:1;transform:none}
@@ -235,7 +240,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610202329"></script>
+<script src="../shared/wb.js?v=202610211608"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -265,7 +270,11 @@ const fMonth = s => { if(!s) return ""; const [y, m] = s.split("-").map(Number);
 const fNum = n => n == null ? "" : (+n).toLocaleString("en-US", {maximumFractionDigits: +n < 10 ? 2 : (+n < 100 ? 1 : 0)});
 const plural = (n, w, ws) => n + " " + (n === 1 ? w : (ws || w + "s"));
 const monthsTo = s => { if(!s) return null; const [y, m] = s.split("-").map(Number), [ty, tm] = today.split("-").map(Number); return (y - ty) * 12 + (m - tm); };
-const MKT = {denver: "Denver", phoenix: "Phoenix"};
+/* markets come from core.markets (via WB), so a new market shows up here without code changes */
+const MKT = new Proxy({}, {get: (o, id) => typeof id === "string" ? WB.marketLabel(id) : undefined});
+const MORDER = () => WB.markets.map(m => m.id);
+const mIdx = id => { const i = MORDER().indexOf(id); return i < 0 ? 99 : i; };
+const marketsIn = list => [...new Set(list.map(p => p.market_id))].sort((a, b) => mIdx(a) - mIdx(b));
 
 /* ---------- classification ---------- */
 const live = p => p.review !== "dismissed";
@@ -337,6 +346,7 @@ async function queryPoint(svc, lng, lat, fields){
     coords: f.geometry.rings.map(r => r.map(q => [+q[0].toFixed(6), +q[1].toFixed(6)]))};
 }
 async function parcelAt(market, lng, lat){
+  if(!(PSRC[market] || []).length) return null;   // no county parcel source wired up for this market yet
   const tries = (PSRC[market] || []).filter(s => !s.b || (lat >= s.b[0] && lat <= s.b[2] && lng >= s.b[1] && lng <= s.b[3])).map(s => queryPoint(s.svc, lng, lat, s.fields));
   try{ return await Promise.any(tries.map(t => t.then(v => v || Promise.reject(new Error("none"))))); }
   catch(e){ const res = await Promise.allSettled(tries); if(res.some(r => r.status === "fulfilled")) return null; throw new Error("unreachable"); }
@@ -350,13 +360,18 @@ let SLIDES = [], vis = [], idx = 0, map = null, ready = false, markers = [], swa
 const ENT_ORDER = p => { const s = entState(p); return s === "upcoming" ? "0" + p.hearing_date : s === "recent" ? "1" + (99999999 - +p.hearing_date.replace(/-/g, "")) : "2" + (isDriver(p) ? "0" : "1") + p.name; };
 function rebuild(){
   vis = P.filter(p => p.track === track && inMkt(p) && onMap(p));
-  if(track === "entitlement") vis.sort((a, b) => ENT_ORDER(a).localeCompare(ENT_ORDER(b)));
-  else vis.sort((a, b) => (b.units || 0) - (a.units || 0) || a.name.localeCompare(b.name));
-  SLIDES = [{t: "cover"}].concat(vis.map(p => ({t: "case", p})));
+  /* markets never mix: projects are grouped by market (in core.markets order), and with All each market gets its own cover */
+  const within = track === "entitlement" ? (a, b) => ENT_ORDER(a).localeCompare(ENT_ORDER(b)) : (a, b) => (b.units || 0) - (a.units || 0) || a.name.localeCompare(b.name);
+  vis.sort((a, b) => mIdx(a.market_id) - mIdx(b.market_id) || within(a, b));
+  if(mkt === "all"){
+    const ms = marketsIn(vis);
+    SLIDES = ms.length ? ms.flatMap(m => [{t: "cover", m}].concat(vis.filter(p => p.market_id === m).map(p => ({t: "case", p})))) : [{t: "cover", m: null}];
+  } else SLIDES = [{t: "cover", m: mkt}].concat(vis.map(p => ({t: "case", p})));
   const bar = $("#bar"); bar.innerHTML = ""; bar.classList.toggle("dense", SLIDES.length > 24);
   SLIDES.forEach((s, i) => {
     const b = document.createElement("button"); b.type = "button";
-    b.setAttribute("aria-label", "Go to slide " + (i + 1) + (s.p ? ": " + s.p.name : ""));
+    b.setAttribute("aria-label", "Go to slide " + (i + 1) + (s.p ? ": " + s.p.name : s.m ? ": " + MKT[s.m] + " overview" : ""));
+    if(s.t === "cover" && i > 0) b.classList.add("mk");
     b.innerHTML = "<span><i></i></span>"; b.addEventListener("click", () => go(i)); bar.appendChild(b);
   });
   if(map && map.getSource("glow")) map.getSource("glow").setData(glowData());
@@ -364,34 +379,40 @@ function rebuild(){
   const j = wanted ? SLIDES.findIndex(s => s.p && s.p.id === wanted) : -1;
   if(ready) go(j > 0 ? j : 0); else idx = j > 0 ? j : 0;
 }
-function eyebrow(p){
-  const where = p ? MKT[p.market_id] : (mkt === "all" ? "Denver and Phoenix" : MKT[mkt]);
+function eyebrow(p, m){
+  const where = p ? MKT[p.market_id] : m ? MKT[m] : "All markets";
   return '<div class="eyebrow">' + esc(where + " · " + (track === "entitlement" ? "Entitlements" : "Under construction")) + "<small>" + fDate(today) + "</small></div>";
 }
 const agHead = (t, c2, c3) => '<div class="agenda"><div class="ag-row ag-head"><span>' + t + "</span><span>" + c2 + "</span><span>" + c3 + "</span></div>";
 const agRow = (p, c2, c3) => '<button type="button" class="ag-row" data-go="' + SLIDES.findIndex(s => s.p === p) + '"><span class="ag-name">' + esc(p.name) + (p.review === "new" ? "<em>New</em>" : "") + '</span><span class="ag-num">' + c2 + '</span><span class="ag-num">' + c3 + "</span></button>";
-function renderCover(){
+const visAll = () => vis;
+function renderCover(m){
+  const inM = p => !m || p.market_id === m;
+  const vm = visAll().filter(inM);
+  const nav = mkt === "all" ? (() => { const ms = SLIDES.map((s, i) => [s, i]).filter(([s]) => s.t === "cover" && s.m); return ms.length > 1 ? '<p class="meta mkts">' + ms.map(([s, i]) => s.m === m ? "<b>" + esc(MKT[s.m]) + "</b>" : '<button type="button" class="lnk" data-go="' + i + '">' + esc(MKT[s.m]) + "</button>").join(" · ") + "</p>" : ""; })() : "";
   if(track === "entitlement"){
+    const vis = vm;
     const g = k => vis.filter(p => entState(p) === k);
     const up = g("upcoming"), rec = g("recent"), wat = g("watch");
     const juris = new Set(vis.map(p => (p.place || "").split(" · ")[0]).filter(Boolean));
-    const nNew = P.filter(p => p.track === "entitlement" && inMkt(p) && p.review === "new").length;
+    const nNew = P.filter(p => p.track === "entitlement" && inMkt(p) && inM(p) && p.review === "new").length;
     const block = (t, list, c3) => list.length ? agHead(t + " (" + list.length + ")", "Units", c3) + list.map(p => agRow(p, p.units ? fNum(p.units) : "–", c3 === "Hearing" ? (p.hearing_date ? fShort(p.hearing_date) : "–") : esc(p.product_type || ""))).join("") + "</div>" : "";
-    return eyebrow() + '<div class="hd"><h1>Entitlement activity</h1><h2>' + plural(vis.length, "case") + " across " + plural(juris.size, "jurisdiction") + ": residential applications at planning and council, plus the projects that move apartment values.</h2></div>"
+    return eyebrow(null, m) + nav + '<div class="hd"><h1>Entitlement activity</h1><h2>' + plural(vis.length, "case") + " across " + plural(juris.size, "jurisdiction") + ": residential applications at planning and council, plus the projects that move apartment values.</h2></div>"
       + (nNew ? '<p class="lead">' + plural(nNew, "new finding") + ' from the weekly search ' + (nNew === 1 ? "needs" : "need") + ' review. <button type="button" class="lnk" data-review>Review in the data log</button></p>' : "")
       + block("Upcoming hearings", up, "Hearing") + block("Recently heard", rec, "Hearing") + block("Value drivers and watch list", wat, "Type")
       + (vis.length ? "" : '<p class="lead">Nothing on the map for this market yet.</p>')
       + '<p class="meta">Lilac points are residential cases; amber points are value drivers. Choose a row or a point to open it.</p>';
   }
-  const all = P.filter(p => p.track === "construction" && inMkt(p) && live(p));
+  const vis = vm;
+  const all = P.filter(p => p.track === "construction" && inMkt(p) && inM(p) && live(p));
   const pend = all.filter(p => p.verification === "unverified");
   const units = vis.reduce((t, p) => t + (p.units || 0), 0);
   const soon = vis.filter(p => { const m = monthsTo(p.delivery_date); return m != null && m >= 0 && m <= 12; });
-  const groups = (mkt === "all" ? ["denver", "phoenix"] : [mkt]).map(m => {
+  const groups = [m || mkt].map(m => {
     const list = vis.filter(p => p.market_id === m);
-    return list.length ? agHead(MKT[m] + " (" + list.length + ")", "Units", "Delivers") + list.map(p => agRow(p, p.units ? fNum(p.units) : "–", p.delivery_date ? fMonth(p.delivery_date) : "–")).join("") + "</div>" : "";
+    return list.length ? agHead("Verified (" + list.length + ")", "Units", "Delivers") + list.map(p => agRow(p, p.units ? fNum(p.units) : "–", p.delivery_date ? fMonth(p.delivery_date) : "–")).join("") + "</div>" : "";
   }).join("");
-  return eyebrow() + '<div class="hd"><h1>Under construction</h1><h2>Projects with evidence they are actually moving: a permit, groundbreaking or topping-out coverage, pre-leasing, or construction financing. CoStar listing alone does not count.</h2></div>'
+  return eyebrow(null, m) + nav + '<div class="hd"><h1>Under construction</h1><h2>Projects with evidence they are actually moving: a permit, groundbreaking or topping-out coverage, pre-leasing, or construction financing. CoStar listing alone does not count.</h2></div>'
     + '<div class="figs3"><div><b>' + vis.length + "</b><span>Verified projects</span></div><div><b>" + fNum(units) + "</b><span>Units</span></div><div><b>" + soon.length + "</b><span>Deliver in 12 months</span></div></div>"
     + (pend.length ? '<p class="lead">' + plural(pend.length, "CoStar project") + " listed as under construction " + (pend.length === 1 ? "is" : "are") + ' not verified yet, so they stay off the map. <button type="button" class="lnk" data-unverified>See them in the data log</button></p>' : "")
     + groups + (vis.length ? "" : '<p class="lead">No verified projects for this market yet. The weekly search verifies the largest CoStar projects first.</p>');
@@ -493,9 +514,9 @@ function addMarker(p, cur, dim){
   el.addEventListener("click", ev => { ev.stopPropagation(); openCase(p); });
   markers.push(new maplibregl.Marker({element: el, anchor: "center"}).setLngLat([p.lng, p.lat]).addTo(map));
 }
-function boundsOf(list){
+function boundsOf(list, m){
   const b = new maplibregl.LngLatBounds(), pts = list.filter(p => p.lat != null && p.lng != null);
-  if(!pts.length){ const c = mkt === "phoenix" ? [-112.0, 33.5] : [-104.99, 39.74]; b.extend([c[0] - .3, c[1] - .25]); b.extend([c[0] + .3, c[1] + .25]); return b; }
+  if(!pts.length){ const ll = WB.marketCenter(m || (mkt !== "all" ? mkt : MORDER()[0])) || [39.74, -104.99], c = [ll[1], ll[0]]; b.extend([c[0] - .3, c[1] - .25]); b.extend([c[0] + .3, c[1] + .25]); return b; }
   pts.forEach(p => b.extend([p.lng, p.lat])); return b;
 }
 function fit(b, maxZoom, ms){ if(reduce) map.jumpTo(map.cameraForBounds(b, {padding: pad(), maxZoom})); else map.fitBounds(b, {padding: pad(), maxZoom, duration: ms, curve: 1.5, essential: true}); }
@@ -505,10 +526,10 @@ function camera(s){
   map.setLayoutProperty("glow", "visibility", s.t === "cover" && track === "construction" ? "visible" : "none");
   $("#veil").classList.toggle("dim", s.t !== "case");
   if(s.t === "cover"){
-    /* two metros in one frame is too far out to read; with All, open on the market with more on the board */
-    let list = vis;
-    if(mkt === "all"){ const n = m => vis.filter(p => p.market_id === m).length; const m = n("phoenix") > n("denver") ? "phoenix" : "denver"; if(n(m)) list = vis.filter(p => p.market_id === m); }
-    fit(boundsOf(list), 11, 3200); vis.forEach(p => addMarker(p)); return;
+    /* one market per frame: each cover shows its own market (two metros in one frame is too far out to read) */
+    const cm = s.m || (mkt !== "all" ? mkt : null);
+    const list = cm ? vis.filter(p => p.market_id === cm) : vis;
+    fit(boundsOf(list, cm), 11, 3200); list.forEach(p => addMarker(p)); return;
   }
   const p = s.p, ps = parcelsOf(p).length ? parcelsOf(p) : (p._auto ? [p._auto] : []);
   if(ps.length){
@@ -545,7 +566,7 @@ function go(i){
   idx = (i + SLIDES.length) % SLIDES.length;
   const s = SLIDES[idx], el = $("#slide");
   el.classList.remove("on"); clearTimeout(swapT);
-  swapT = setTimeout(() => { el.innerHTML = s.t === "cover" ? renderCover() : renderCase(s.p); $("#pscroll").scrollTop = 0; el.classList.add("on"); }, reduce ? 0 : 300);
+  swapT = setTimeout(() => { el.innerHTML = s.t === "cover" ? renderCover(s.m) : renderCase(s.p); $("#pscroll").scrollTop = 0; el.classList.add("on"); }, reduce ? 0 : 300);
   [...$("#bar").querySelectorAll("i")].forEach((f, k) => f.style.width = k <= idx ? "100%" : "0%");
   $("#pick").hidden = s.t !== "case";
   camera(s);
@@ -618,7 +639,8 @@ const STATUS = {
     ["stalled", "Stalled", p => live(p) && p.verification === "stalled"], ["delivered", "Delivered", p => live(p) && p.verification === "delivered"],
     ["review", "Needs review", p => p.review === "new"], ["dismissed", "Dismissed", p => p.review === "dismissed"], ["all", "All", p => live(p)]],
 };
-const nameCell = p => '<td><b>' + esc(p.name) + "</b>" + (p.review === "new" ? '<span class="new">New</span>' : "") + "<small>" + esc([p.place, mkt === "all" && !(p.place || "").includes(MKT[p.market_id]) ? MKT[p.market_id] : ""].filter(Boolean).join(" · ")) + "</small></td>";
+const nameCell = p => '<td><b>' + esc(p.name) + "</b>" + (p.review === "new" ? '<span class="new">New</span>' : "") + "<small>" + esc(p.place || "") + "</small></td>";
+const MKTCOL = ["market", "Market", p => mIdx(p.market_id), p => esc(MKT[p.market_id] || ""), 0, .8];
 const entStatusCell = p => { const s = entState(p); return '<span class="st ' + (s === "upcoming" ? "s-up" : "") + '">' + esc(p.status_text || (s === "watch" ? "Watch" : "")) + "</span>"; };
 /* [key, label, value, cell, numeric, width] */
 const COLS = {
@@ -651,7 +673,7 @@ function rowsNow(){
 }
 function renderList(){
   if(!STATUS[track].some(s => s[0] === lstat)) lstat = track === "entitlement" ? "all" : "verified";
-  const cols = COLS[track];
+  const cols = mkt === "all" ? [COLS[track][0], MKTCOL].concat(COLS[track].slice(1)) : COLS[track];
   if(!lsort) lsort = track === "entitlement" ? {k: "date", d: -1} : {k: "units", d: -1};
   $("#lstat").innerHTML = STATUS[track].map(([k, l, f]) => '<button type="button" data-s="' + k + '" aria-pressed="' + (lstat === k) + '">' + l + "<i>" + P.filter(p => p.track === track && inMkt(p) && f(p)).length + "</i></button>").join("");
   const wsum = cols.reduce((t, c) => t + c[5], 0);
@@ -659,11 +681,16 @@ function renderList(){
   const col = cols.find(c => c[0] === lsort.k) || cols[0];
   $("#lth").innerHTML = "<tr>" + cols.map(c => '<th tabindex="0" data-k="' + c[0] + '"' + (c[4] ? ' class="num"' : "") + (c === col ? ' aria-sort="' + (lsort.d > 0 ? "ascending" : "descending") + '"' : "") + ">" + c[1] + (c === col ? (lsort.d > 0 ? " ↑" : " ↓") : "") + "</th>").join("") + "</tr>";
   const rows = rowsNow().sort((a, b) => {
+    if(mkt === "all" && col !== MKTCOL){ const d = mIdx(a.market_id) - mIdx(b.market_id); if(d) return d; }
     const x = col[2](a), y = col[2](b);
     if(x == null && y == null) return a.name.localeCompare(b.name); if(x == null || x === "") return 1; if(y == null || y === "") return -1;
     return ((typeof x === "number" ? x - y : String(x).localeCompare(String(y))) * lsort.d) || a.name.localeCompare(b.name);
   });
-  $("#ltb").innerHTML = rows.map(p => '<tr class="r" tabindex="0" data-id="' + p.id + '">' + cols.map(c => c[0] === "name" ? c[3](p) : "<td" + (c[4] ? ' class="num"' : "") + ">" + c[3](p) + "</td>").join("") + "</tr>").join("")
+  const rowHtml = p => '<tr class="r" tabindex="0" data-id="' + p.id + '">' + cols.map(c => c[0] === "name" ? c[3](p) : "<td" + (c[4] ? ' class="num"' : "") + ">" + c[3](p) + "</td>").join("") + "</tr>";
+  /* All markets: a section per market, never one mixed list */
+  const groupHead = m => { const g = rows.filter(p => p.market_id === m), u = g.reduce((t, p) => t + (p.units || 0), 0);
+    return '<tr class="grp"><td colspan="' + cols.length + '">' + esc(MKT[m]) + "<span>" + plural(g.length, "project") + (u ? ", " + fNum(u) + " units" : "") + "</span></td></tr>"; };
+  $("#ltb").innerHTML = (mkt === "all" ? marketsIn(rows).map(m => groupHead(m) + rows.filter(p => p.market_id === m).map(rowHtml).join("")).join("") : rows.map(rowHtml).join(""))
     || '<tr><td colspan="' + cols.length + '" class="empty">Nothing matches. Try another status or clear the search.</td></tr>';
   const units = rows.reduce((t, p) => t + (p.units || 0), 0);
   $("#ltitle").textContent = (track === "entitlement" ? "Entitlements" : "Under construction") + (mkt === "all" ? "" : ", " + MKT[mkt]);
@@ -691,9 +718,9 @@ $("#lcsv").addEventListener("click", () => {
   const cols = ["name", "track", "kind", "market_id", "place", "address", "product_type", "style", "units", "acres", "stories", "height", "developer", "applicant", "owner", "case_no", "hearing_body", "hearing_date", "status_text", "request", "note",
     "construction_start", "delivery_date", "verification", "evidence", "verified_on", "review", "found_by", "first_seen", "lat", "lng"];
   const cell = v => { if(v == null) return ""; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const csv = [cols.join(",")].concat(rowsNow().map(p => cols.map(c => cell(p[c])).join(","))).join("\n");
+  const csv = [cols.join(",")].concat(rowsNow().sort((a, b) => mIdx(a.market_id) - mIdx(b.market_id) || (b.units || 0) - (a.units || 0)).map(p => cols.map(c => cell(p[c])).join(","))).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
-  a.download = (track === "entitlement" ? "entitlements" : "under-construction") + "-" + today + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  a.download = (track === "entitlement" ? "entitlements" : "under-construction") + (mkt === "all" ? "" : "-" + mkt) + "-" + today + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 
 /* ---------- editor: every field, review and verification, history ---------- */
@@ -717,7 +744,7 @@ function fieldHtml(p, f){
   const lab = "<span>" + label + "</span>";
   if(type === "area") return wrap(lab + '<textarea id="' + id + '" rows="3">' + esc(v || "") + "</textarea>");
   if(type === "sources") return wrap(lab + '<textarea id="' + id + '" rows="3">' + esc((v || []).map(s => (s.label || "") + " | " + (s.url || "")).join("\n")) + "</textarea>");
-  if(type === "market") return wrap(lab + '<select id="' + id + '"' + (p ? " disabled title=\"Set from the location\"" : "") + ">" + Object.entries(MKT).map(([m, l]) => '<option value="' + m + '"' + ((v || (mkt === "all" ? "denver" : mkt)) === m ? " selected" : "") + ">" + l + "</option>").join("") + "</select>");
+  if(type === "market") return wrap(lab + '<select id="' + id + '"' + (p ? " disabled title=\"Set from the location\"" : "") + ">" + WB.markets.map(x => [x.id, x.short]).map(([m, l]) => '<option value="' + m + '"' + ((v || (mkt === "all" ? MORDER()[0] : mkt)) === m ? " selected" : "") + ">" + esc(l) + "</option>").join("") + "</select>");
   if(type.startsWith("select:")){
     const opts = type.slice(7).split(",").map(o => o.split("="));
     const cur = v == null ? (k === "track" ? track : k === "kind" ? "residential" : k === "verification" ? "unverified" : "") : v;

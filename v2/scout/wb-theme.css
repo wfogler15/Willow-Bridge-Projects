@@ -47,8 +47,7 @@ button:focus-visible{outline:none !important;box-shadow:0 0 0 2px #fff,0 0 0 4px
 #openSitesHome{background:#1D1247 !important;border-color:#1D1247 !important;color:#fff !important}
 #openSitesHome:hover{background:#2B1D63 !important}
 #brand .scout-mkt{position:absolute;top:9px;right:80px}
-#brand .scout-mkt button{color:#433C63 !important}
-#brand .scout-mkt button[aria-pressed="true"]{color:#1D1247 !important}
+#brand .scout-mkt{color:#1D1247 !important}
 
 /* ---------- minimal direction ---------- */
 :root{--bg:#FFFFFF;--bg-inset:#FFFFFF;--border:#E6E4EC;--line-hair:#EFEEF3;--text-muted:#4A4560;--text-faint:#77728C}

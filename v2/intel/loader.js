@@ -115,9 +115,9 @@
 
     // 1) views → left rail, grouped
     const groups = $$(':scope > .filter-group', inner);
-    const rail = document.createElement('nav'); rail.className = 'wbi-rail'; rail.setAttribute('aria-label', 'Market intel views');
+    const rail = document.createElement('nav'); rail.className = 'wbi-rail'; rail.setAttribute('aria-label', 'Market Intel views');
     const mkt = document.createElement('div'); mkt.className = 'wbi-rail-mkt';
-    const ttl = document.createElement('div'); ttl.className = 'wbi-rail-title'; ttl.textContent = (window.__WBD && window.__WBD.title) || 'Market intel';
+    const ttl = document.createElement('div'); ttl.className = 'wbi-rail-title'; ttl.textContent = (window.__WBD && window.__WBD.title) || 'Market Intel';
     mkt.append(ttl, WB.marketToggle()); rail.appendChild(mkt);
     const tabBy = Object.fromEntries($$('.tab', tabs).map((t) => [t.dataset.view, t]));
     [['Market', ['overview', 'trends', 'submarkets', 'properties']], ['Supply', ['absorption', 'pipeline']], ['Underwriting', ['yoc', 'salecomps', 'opportunities']]]
@@ -142,7 +142,7 @@
     tabs.style.display = 'none';
     main.insertBefore(hero, content);
     const h1 = $('.wbi-h1', hero), eyebrow = $('.wbi-eyebrow', hero);
-    const mktName = (window.__WBD && window.__WBD.title) || 'Market intel';
+    const mktName = (window.__WBD && window.__WBD.title) || 'Market Intel';
     const sectionOf = (t) => { let e = t.previousElementSibling; while (e && !e.classList.contains('wbi-rail-h')) e = e.previousElementSibling; return e ? e.textContent : ''; };
     // the view's lead KPI row: its first child, or right after a small sub-tab row (Sale comps), or the Trends KPI row
     const leadKpis = (v) => {

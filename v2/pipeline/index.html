@@ -620,7 +620,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610202329"></script>
+<script src="../shared/wb.js?v=202610211608"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -751,7 +751,7 @@ async function fillCtx(d){
   const e = WB.esc, st = c.stats || {}, ours = d.rentPsf || d.effRentPsf || null;
   const pct = (a, b) => a && b ? '<span class="d ' + (a >= b ? "pos" : "neg") + '">' + (a >= b ? "+" : "") + ((a / b - 1) * 100).toFixed(1) + "%</span>" : '<span class="d"></span>';
   const row = (l, v, d2) => '<span>' + l + '</span><span class="v">' + v + "</span>" + (d2 || '<span class="d"></span>');
-  let html = '<h3>Against the ' + e(c.submarket || "submarket") + ' submarket <a href="../intel/?market=' + e(d._row.market_id) + '">Market intel</a></h3><div class="cmp">'
+  let html = '<h3>Against the ' + e(c.submarket || "submarket") + ' submarket <a href="../intel/?market=' + e(d._row.market_id) + '">Market Intel</a></h3><div class="cmp">'
     + (ours && (st.new_rent_psf || st.rent_psf) ? '<span class="h"></span><span class="h"></span><span class="h d">Ours vs.</span>' : "")
     + (ours ? row(d.kind === "land" ? "Our UW rent / SF" : "In-place rent / SF", "$" + (+ours).toFixed(2)) : "")
     + (st.new_rent_psf ? row("Built in the last 8 years", "$" + (+st.new_rent_psf).toFixed(2), pct(ours, +st.new_rent_psf)) : "")
@@ -762,7 +762,7 @@ async function fillCtx(d){
   if(ours && st.new_rent_psf){ const p = (ours / st.new_rent_psf - 1) * 100;
     html += '<div class="note">' + (d.kind === "land" ? "Underwritten" : "In-place") + " rent is " + Math.abs(p).toFixed(0) + "% " + (p >= 0 ? "above" : "below") + " newer product in " + e(c.submarket) + "." + (nw ? " " + e(nw.name) + " (" + nw.year_built + ", " + nw.miles + " mi) asks $" + (+nw.rent_psf).toFixed(2) + "." : "") + "</div>"; }
   const sales = c.sales || [];
-  html += '<h3>Sales within ' + c.miles + ' miles <a href="../comps/?near=' + d.lat + "," + d.lon + "&mi=" + c.miles + '">Sale comps</a></h3>'
+  html += '<h3>Sales within ' + c.miles + ' miles <a href="../comps/?near=' + d.lat + "," + d.lon + "&mi=" + c.miles + '">Sale Comps</a></h3>'
     + (sales.length ? sales.slice(0, 4).map(x => '<div class="sale"><div><b>' + e(x.name) + "</b><br><span>" + [x.year_built, x.units ? x.units + " units" : "", x.miles + " mi"].filter(Boolean).join(", ") + '</span></div><div style="text-align:right"><b>'
         + (x.price_per_unit ? "$" + Math.round(x.price_per_unit / 1000) + "K/unit" : (x.sale_price ? usdM(+x.sale_price) : "–")) + "</b><br><span>" + [x.sale_date ? fmtDate(x.sale_date) : "", x.cap_rate ? (+x.cap_rate).toFixed(2) + "%" : ""].filter(Boolean).join(", ") + "</span></div></div>").join("")
       : '<div class="none">No recorded sales within ' + c.miles + " miles in the last three years.</div>");
@@ -782,7 +782,7 @@ function manageBlock(d){
     + '<label>Type<select name="kind"><option value="land"' + (r.kind === "land" ? " selected" : "") + '>Development</option><option value="asset"' + (r.kind === "asset" ? " selected" : "") + '>Investment</option></select></label>'
     + '<label>Units<input type="number" name="units" step="1" value="' + v(r.units) + '"></label>'
     + '<label>Acres<input type="number" name="acres" step="any" value="' + v(r.acres) + '"></label>'
-    + '<label>Market<select name="market_id"><option value="denver"' + (r.market_id === "denver" ? " selected" : "") + '>Denver</option><option value="phoenix"' + (r.market_id === "phoenix" ? " selected" : "") + '>Phoenix</option></select></label>'
+    + '<label>Market<select name="market_id">' + WB.markets.map(x => '<option value="' + e(x.id) + '"' + (r.market_id === x.id ? " selected" : "") + ">" + e(x.short) + "</option>").join("") + '</select></label>'
     + '<label>Latitude<input type="number" name="lat" step="any" value="' + v(r.lat) + '"></label>'
     + '<label>Longitude<input type="number" name="lng" step="any" value="' + v(r.lng) + '"></label>'
     + '<div class="full quick"><button type="button" data-pin>Set location on the map</button><button type="button" data-fixparcel>Fix the parcel outline</button><span class="pinmsg" style="font-size:11.5px;color:var(--muted);align-self:center"></span></div>'
@@ -1056,7 +1056,7 @@ function renderSales(m){
   return head({market: m}) + "<h1>Recent trades</h1><h2 class=\"accent\">" + esc(m) + ", " + plural(list.length, "sale") + " " + label + "</h2><div class=\"rule\"></div>"
     + '<table class="sales"><tbody>' + list.map(c => "<tr><td><b>" + esc(c.name) + "</b><small>" + esc([c.city, c.year_built, c.units ? c.units + " units" : ""].filter(Boolean).join(", ")) + (c.buyer ? "<br>To " + esc(c.buyer) : "") + "</small></td>"
       + '<td class="n"><b>' + K(c.price_per_unit) + "/unit</b><small>" + [c.sale_price ? usdM(+c.sale_price) : "", c.cap_rate ? (+c.cap_rate).toFixed(2) + "% cap" : "", shortDate(c.sale_date)].filter(Boolean).join(", ") + "</small></td></tr>").join("") + "</tbody></table>"
-    + '<div class="meta">From Sale comps. Dots on the map are these trades.</div>';
+    + '<div class="meta">From Sale Comps. Dots on the map are these trades.</div>';
 }
 /* Meeting order: cover, then each market (market board slide, its development deals, then its acquisitions). */
 let SLIDES = [{t:"cover", ms:9000}];
@@ -1274,7 +1274,8 @@ function addMarker(d, dim){
 function allBounds(list){
   const b = new maplibregl.LngLatBounds();
   const pts = list.filter(d => d.lat != null && d.lon != null);
-  (pts.length ? pts : [{lon:-104.99, lat:39.74}]).forEach(d => b.extend([d.lon, d.lat])); return b;
+  const c = WB.marketCenter(WB.getMarket() !== "all" ? WB.getMarket() : (WB.markets[0] || {}).id) || [39.74, -104.99];
+  (pts.length ? pts : [{lon:c[1], lat:c[0]}]).forEach(d => b.extend([d.lon, d.lat])); return b;
 }
 function camera(s){
   if(!map || !map.getSource("site")) return;
@@ -1771,13 +1772,13 @@ if(la) setTimeout(() => setList(true), 0);
       + row("Per door", p.ppu ? M(p.ppu) : null) + row("Per acre", p.price && p.acres ? M(p.price / p.acres) : null)
       + row("Per land SF", p.psf ? "$" + (+p.psf).toFixed(2) : null) + row("Product", p.product ? E(p.product) : null)
       + row("Seller", p.seller ? E(p.seller) : null) + row("Buyer", p.buyer ? E(p.buyer) : null) + row("Broker", p.broker ? E(p.broker) : null)
-      + '<a href="../comps/?comp=' + p.id + '">Open in Sale comps</a>';
+      + '<a href="../comps/?comp=' + p.id + '">Open in Sale Comps</a>';
     return "<h4>" + E(p.name) + "</h4><p>" + E([p.address || p.city, dt(p.date)].filter(Boolean).join(" · ")) + "</p>"
       + row("Price", M(p.price)) + row("Per unit", p.ppu ? M(p.ppu) : null) + row("Per SF", p.bsf ? "$" + (+p.bsf).toFixed(0) : null)
       + row("Cap rate", p.cap ? (+p.cap).toFixed(2) + "%" : null) + row("Units", num(p.units)) + row("Built", p.yb)
       + row("Product", p.product ? E(p.product) : null) + row("Construction", p.cons ? E(p.cons) : null) + row("Submarket", p.sub ? E(p.sub) : null)
       + row("Seller", p.seller ? E(p.seller) : null) + row("Buyer", p.buyer ? E(p.buyer) : null) + row("Broker", p.broker ? E(p.broker) : null)
-      + '<a href="../comps/?comp=' + p.id + '">Open in Sale comps</a>';
+      + '<a href="../comps/?comp=' + p.id + '">Open in Sale Comps</a>';
   }
   /* ---------- parcel outlines for comps in view (looked up by point, cached in this browser) ---------- */
   const PZ = 13, PKEY = "wb_comp_parcels_v1", on = new Set();

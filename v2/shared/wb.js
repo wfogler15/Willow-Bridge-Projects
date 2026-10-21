@@ -7,10 +7,10 @@
   const SB_KEY = 'sb_publishable_FWrjAmI9VJZpXWJ5Q7AmFg_2zluUmIL';
   const PAGES = [
     { id: 'home', label: 'Overview', href: '' },
-    { id: 'intel', label: 'Market intel', href: 'intel/' },
-    { id: 'scout', label: 'Site scout', href: 'scout/' },
+    { id: 'intel', label: 'Market Intel', href: 'intel/' },
+    { id: 'scout', label: 'Site Scout', href: 'scout/' },
     { id: 'pipeline', label: 'Pipeline', href: 'pipeline/' },
-    { id: 'comps', label: 'Sale comps', href: 'comps/' },
+    { id: 'comps', label: 'Sale Comps', href: 'comps/' },
     { id: 'dev', label: 'Development', href: 'development/' },
   ];
 
@@ -43,7 +43,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202610202329');
+    add(ROOT + 'shared/wb-chrome.css?v=202610211608');
   })();
 
   // ---------- market context shared across tabs ----------
@@ -54,19 +54,21 @@
   const valid = (m) => m === 'all' ? !SINGLE : MARKETS.some((x) => x.id === m);
   function getMarket() { const m = store.get('market:' + PAGE); return m && valid(m) ? m : (SINGLE ? (MARKETS[0] || {}).id : 'all'); }
   function activeMarket() { return getMarket(); }
-  function paintToggles(id) { document.querySelectorAll('.wb-mkt button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.m === id)); }
+  function paintToggles(id) { document.querySelectorAll('select.wb-mkt').forEach((s) => { if ([...s.options].some((o) => o.value === id)) s.value = id; }); }
   function showMarket(id) { paintToggles(id); }
   function setMarket(id) {
     if (!valid(id)) return;
     store.set('market:' + PAGE, id); paintToggles(id); paintStrip();
     window.dispatchEvent(new CustomEvent('wb:market', { detail: id }));
   }
-  /** A market toggle (All / Denver / Phoenix; no All on single-market tabs). Returns the element; the page puts it where it fits. */
+  /** The market picker: a drop-down fed by core.markets (All + every active market; no All on single-market tabs).
+      New markets appear here as soon as they're added to core.markets. Returns the element; the page puts it where it fits. */
   function marketToggle() {
-    const el = document.createElement('div'); el.className = 'wb-mkt'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Market');
+    const el = document.createElement('select'); el.className = 'wb-mkt'; el.setAttribute('aria-label', 'Market'); el.title = 'Market';
     const cur = getMarket();
-    el.innerHTML = (SINGLE ? [] : [{ id: 'all', short: 'All' }]).concat(MARKETS).map((m) => `<button type="button" data-m="${m.id}" aria-pressed="${m.id === cur}">${esc(m.short)}</button>`).join('');
-    el.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b && b.dataset.m !== getMarket()) setMarket(b.dataset.m); });
+    const opts = (SINGLE ? [] : [{ id: 'all', short: 'All markets' }]).concat(MARKETS.length ? MARKETS : [{ id: 'denver', short: 'Denver' }, { id: 'phoenix', short: 'Phoenix' }]);
+    el.innerHTML = opts.map((m) => `<option value="${esc(m.id)}"${m.id === cur ? ' selected' : ''}>${esc(m.short)}</option>`).join('');
+    el.addEventListener('change', () => { if (el.value !== getMarket()) setMarket(el.value); });
     return el;
   }
   const ICON = {
@@ -218,12 +220,12 @@
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return loginScreen();
     // Approved list check: the markets table only answers members.
-    const { data, error } = await sb.schema('core').from('markets').select('id,label,active:config->active').order('id');
+    const { data, error } = await sb.schema('core').from('markets').select('id,label,active:config->active,center:config->center').order('id');
     if (error || !data || data.length === 0) {
       await sb.auth.signOut();
       return loginScreen(`${session.user.email} isn't on the access list. Ask Will to add you.`, true);
     }
-    MARKETS = data.filter((m) => m.active !== false).map((m) => ({ id: m.id, label: m.label, short: shortName(m.label, m.id) }));
+    MARKETS = data.filter((m) => m.active !== false).map((m) => ({ id: m.id, label: m.label, short: shortName(m.label, m.id), center: Array.isArray(m.center) ? m.center : null }));
     renderNav(active, session.user, opts);
     return { sb, user: session.user };
   }
@@ -252,5 +254,6 @@
   };
   const median = (xs) => { const a = xs.filter((x) => x != null && !isNaN(x)).map(Number).sort((p, q) => p - q); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
 
-  window.WB = { sb, ready, band, marketToggle, fig, strip: () => loadStrip(), marketLabel: (id) => (MARKETS.find((m) => m.id === id) || {}).short || id, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
+  window.WB = { sb, ready, band, marketToggle, fig, strip: () => loadStrip(), marketLabel: (id) => (MARKETS.find((m) => m.id === id) || {}).short || (id ? id[0].toUpperCase() + id.slice(1) : id),
+    marketCenter: (id) => (MARKETS.find((m) => m.id === id) || {}).center || null, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
 })();
