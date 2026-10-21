@@ -624,7 +624,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610211910"></script>
+<script src="../shared/wb.js?v=202610211922"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -707,7 +707,7 @@ async function loadReport(){
     WB.fetchAll("pipeline", "deal_parcels", "deal_id,parcel_id"),
     WB.fetchAll("core", "parcels", "id,apn,geom"),
     WB.fetchAll("comps", "sale_comps", "id,market_id,name,city,sale_date,sale_price,units,year_built,price_per_unit,cap_rate,buyer,lat,lng",
-      q => q.eq("comp_type", "investment").gte("sale_date", since).order("sale_date", {ascending: false})).then(xs => xs.filter(c => (c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970))),   /* same scope as Sale comps */
+      q => q.eq("comp_type", "investment").gte("sale_date", since).is("excluded", null).order("sale_date", {ascending: false})).then(xs => xs.filter(c => (c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970))),   /* same scope as Sale comps */
     WB.fetchAll("market", "strip_summary", "*").catch(() => []),
   ]);
   const pById = new Map(parcels.map(p => [p.id, p]));

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overview · Willow Bridge Intel</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202610211910">
+<link rel="stylesheet" href="shared/wb.css?v=202610211922">
 <style>
   .ov{max-width:1180px}
   .kick{margin:0 0 12px;font-size:14px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
@@ -74,7 +74,7 @@
   </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202610211910"></script>
+<script src="shared/wb.js?v=202610211922"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('home');
@@ -85,8 +85,8 @@
 
   const [deals, comps, links, review, noLoc, devNew] = await Promise.all([
     WB.fetchAll('pipeline', 'deals', 'id,name,market_id,kind,stage,address,units,acres,guidance,bid_date,check_back_on,lat,lng,uw,first_seen,broker', (q) => q.is('merged_into', null)),
-    WB.fetchAll('comps', 'sale_comps', 'id,market_id,comp_type,sale_date,sale_price,units,year_built', (q) => q.gte('sale_date', lyJan1))
-      .then((xs) => xs.filter((c) => c.comp_type !== 'investment' || ((c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970)))),   // same scope as Sale comps
+    WB.fetchAll('comps', 'sale_comps', 'id,market_id,comp_type,sale_date,sale_price,units,year_built', (q) => q.gte('sale_date', lyJan1).is('excluded', null))
+      .then((xs) => xs.filter((c) => c.comp_type !== 'investment' ||((c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970)))),   // same scope as Sale comps
     WB.fetchAll('pipeline', 'deal_parcels', 'deal_id'),
     WB.fetchAll('core', 'review_queue', '*', (q) => q.eq('status', 'open').order('id')),
     sb.schema('comps').from('sale_comps').select('id', { count: 'exact', head: true }).is('lat', null).then((r) => r.count || 0, () => 0),

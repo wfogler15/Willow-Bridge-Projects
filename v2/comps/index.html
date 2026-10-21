@@ -6,7 +6,7 @@
 <title>Sale Comps · Willow Bridge Intel</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
-<link rel="stylesheet" href="../shared/wb.css?v=202610211910">
+<link rel="stylesheet" href="../shared/wb.css?v=202610211922">
 <style>
   html,body{height:100%}
   body{display:flex;flex-direction:column;overflow:hidden}
@@ -136,7 +136,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202610211910"></script>
+<script src="../shared/wb.js?v=202610211922"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('comps');
@@ -145,7 +145,8 @@
 
   let rows = await WB.fetchAll('comps', 'sale_comps', '*', (q) => q.order('sale_date', { ascending: false, nullsFirst: false }));
   // Investment sales: 100+ units, built 1970 or later, in both markets (unknown units or vintage stay in). Land sales are not filtered.
-  const inScope = (c) => c.comp_type !== 'investment' || ((c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970));
+  // Rows with `excluded` set (student housing, portfolio allocations) stay in the database but out of every view.
+  const inScope = (c) => !c.excluded && (c.comp_type !== 'investment' || ((c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970)));
   const outOfScope = rows.filter((c) => !inScope(c));
   rows = rows.filter(inScope);
   // fill per-door and per-land-SF figures when the inputs are there but the figure wasn't recorded
