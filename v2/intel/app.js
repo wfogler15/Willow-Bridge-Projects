@@ -7344,8 +7344,8 @@ let csWsMap = null, csWsView = null, csWsSetId = null;
 function csWorkspaceMapHtml() {
   return `<div class="cm-map-wrap cs-map-wrap">
       <div id="cs-map"></div>
-      <div class="cm-map-key"><span><i class="k-sub"></i>Subject</span><span><i class="k-in"></i>In the set</span><span><i class="k-out"></i>Other properties (click to add)</span></div>
-      <div class="cs-map-note">Click a numbered pin to remove it</div>
+      <div class="cm-map-key"><span><i class="k-sub"></i>Subject site</span><span><i class="k-in"></i>Comps, in rank order</span></div>
+      <div class="cs-map-note">Edit Set to add or remove comps</div>
     </div>`;
 }
 function csWorkspaceToggle(pid) {
@@ -7369,22 +7369,23 @@ function drawCsWorkspaceMap(cs, props) {
   const map = L.map(host, { zoomControl: true, preferCanvas: true, attributionControl: false });
   csWsMap = map;
   wbStreetLayer().addTo(map);
-  const memberIds = new Set((cs.propertyIds || []).map(String));
-  const tip = p => `<b>${escapeHTML(p.name || '(unnamed)')}</b><br>${fmt.int(p.units)} units${p.yearBuilt ? ' · ' + p.yearBuilt : ''}${p.avgAskingSF != null ? ' · $' + (+p.avgAskingSF).toFixed(2) + '/SF asking' : ''}`;
-  RAW_DATA.forEach(p => {
-    if (p.lat == null || p.lng == null || memberIds.has(String(p.id))) return;
-    L.circleMarker([p.lat, p.lng], { radius: 3.5, color: '#8C88A6', weight: 1, fillColor: '#B9B6CC', fillOpacity: 0.85 })
-      .bindTooltip(tip(p) + '<br><i>Click to add</i>', { direction: 'top', className: 'cm-tip' }).on('click', () => csWorkspaceToggle(String(p.id))).addTo(map);
-  });
+  // view only: the set's members and, when the set is tied to a site, the subject and how far each comp sits from it
+  const deal = cmDealOpp(cs.dealId);
+  const subj = deal && deal.lat != null && deal.lng != null ? L.latLng(deal.lat, deal.lng) : null;
+  const miles = p => subj ? subj.distanceTo([p.lat, p.lng]) / 1609.34 : null;
+  const tip = p => { const mi = miles(p); return `<b>${escapeHTML(p.name || '(unnamed)')}</b><br>${fmt.int(p.units)} units${p.yearBuilt ? ' · ' + p.yearBuilt : ''}${p.avgAskingSF != null ? ' · $' + (+p.avgAskingSF).toFixed(2) + '/SF asking' : ''}${mi != null ? '<br>' + mi.toFixed(1) + ' mi from ' + escapeHTML(deal.name) : ''}`; };
   const pts = [];
   props.forEach((p, i) => {
     if (p.lat == null || p.lng == null) return;
     pts.push([p.lat, p.lng]);
+    if (subj) L.polyline([subj, [p.lat, p.lng]], { color: '#432890', weight: 1, opacity: 0.45, dashArray: '3 4', interactive: false }).addTo(map);
+    const mi = miles(p);
     L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'cm-pin', html: `<span>${i + 1}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 500 })
-      .bindTooltip(tip(p) + '<br><i>Click to remove</i>', { direction: 'top', className: 'cm-tip' }).on('click', () => csWorkspaceToggle(String(p.id))).addTo(map);
+      .bindPopup(tip(p), { className: 'cs-map-pop', closeButton: false })
+      .bindTooltip(`${escapeHTML(p.name || '')}${mi != null ? ' · ' + mi.toFixed(1) + ' mi' : ''}`, { permanent: true, direction: 'right', offset: [10, 0], className: 'cs-map-label' })
+      .addTo(map);
   });
-  const deal = cmDealOpp(cs.dealId);
-  if (deal && deal.lat != null && deal.lng != null) {
+  if (subj) {
     pts.push([deal.lat, deal.lng]);
     L.marker([deal.lat, deal.lng], { icon: L.divIcon({ className: 'cm-subject', html: '<span></span>', iconSize: [18, 18], iconAnchor: [9, 9] }), zIndexOffset: 1000 })
       .bindTooltip(`<b>${escapeHTML(deal.name)}</b><br>Subject (pipeline deal)`, { direction: 'top', className: 'cm-tip' }).addTo(map);

@@ -8220,6 +8220,9 @@ tbody tr,
 /* the same map on the comp set workspace above the Property Index */
 .cs-map-wrap { position:relative; margin:0 0 16px; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
 #cs-map { height:420px; background:#f3f3f6; }
+.leaflet-tooltip.cs-map-label { background:rgba(255,255,255,.9); border:0; box-shadow:none; padding:1px 5px; font:500 11px Inter, sans-serif; color:#1D1247; }
+.leaflet-tooltip.cs-map-label::before { display:none; }
+.cs-map-pop .leaflet-popup-content { margin:8px 10px; font-size:12px; line-height:1.45; color:#1D1247; }
 .cs-map-note { position:absolute; right:12px; bottom:10px; z-index:500; padding:5px 10px; background:rgba(255,255,255,.92); border-radius:6px; font-size:11.5px; color:var(--ink-3); }
 .cm-map-key { position:absolute; left:12px; bottom:10px; z-index:500; display:flex; gap:14px; padding:5px 10px; background:rgba(255,255,255,.92); border-radius:6px; font-size:11.5px; color:var(--ink-2); }
 .cm-map-key span { display:inline-flex; align-items:center; gap:5px; }
@@ -8966,7 +8969,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610212250">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202610212252">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9219,10 +9222,10 @@ body { background:#fff; color:var(--ink-1); }
 .wb-life-link { color:#432890; text-decoration:none; font-weight:600; }
 .wb-life-link:hover { text-decoration:underline; }
 </style>
-<script src="../shared/wb.js?v=202610212250"></script>
-<script src="../shared/legacy-db.js?v=202610212250"></script>
-<script>window.WB_BUILD = '202610212250';</script>
-<script src="loader.js?v=202610212250"></script>
+<script src="../shared/wb.js?v=202610212252"></script>
+<script src="../shared/legacy-db.js?v=202610212252"></script>
+<script>window.WB_BUILD = '202610212252';</script>
+<script src="loader.js?v=202610212252"></script>
 
 
 
