@@ -7275,12 +7275,14 @@ function renderCompSetIntel() {
         <div class="panel-header" style="gap:14px;flex-wrap:wrap;">
           <div>
             <div class="panel-title">Comp Set · <em>${escapeHTML(cs.name)}</em></div>
-            <div class="panel-sub">Empty set · add properties to start working it</div>
+            <div class="panel-sub">Empty set · click properties on the map to add them${compSetDealName(cs) ? ' · Tied to ' + escapeHTML(compSetDealName(cs)) : ''}</div>
           </div>
           <div class="cs-actions">${actions}</div>
         </div>
+        <div class="panel-body">${csWorkspaceMapHtml()}</div>
       </div>`;
     wireCsIntel();
+    drawCsWorkspaceMap(cs, props);
     return;
   }
 
@@ -7330,10 +7332,72 @@ function renderCompSetIntel() {
           ${actions}
         </div>
       </div>
-      <div class="panel-body">${body}</div>
+      <div class="panel-body">${csWorkspaceMapHtml()}${body}</div>
     </div>
   `;
   wireCsIntel();
+  drawCsWorkspaceMap(cs, props);
+}
+
+/* ---------- comp set workspace map: the set on a map, click a property to add or remove it ---------- */
+let csWsMap = null, csWsView = null, csWsSetId = null;
+function csWorkspaceMapHtml() {
+  return `<div class="cm-map-wrap cs-map-wrap">
+      <div id="cs-map"></div>
+      <div class="cm-map-key"><span><i class="k-sub"></i>Subject</span><span><i class="k-in"></i>In the set</span><span><i class="k-out"></i>Other properties (click to add)</span></div>
+      <div class="cs-map-note">Click a numbered pin to remove it</div>
+    </div>`;
+}
+function csWorkspaceToggle(pid) {
+  const cs = compSets[state.activeCompSetId];
+  if (!cs) return;
+  const ids = (cs.propertyIds || []).map(String);
+  const at = ids.indexOf(pid);
+  if (at >= 0) ids.splice(at, 1); else ids.push(pid);
+  cs.propertyIds = ids;
+  cs.updatedAt = Date.now();
+  saveCompSets();
+  pushCompSet(cs);
+  renderCompSetList();
+  renderAll();
+}
+function drawCsWorkspaceMap(cs, props) {
+  const host = document.getElementById('cs-map');
+  if (!host || typeof L === 'undefined') return;
+  if (csWsSetId !== cs.id) { csWsView = null; csWsSetId = cs.id; }   // a different set opens framed on its own members
+  try { if (csWsMap) csWsMap.remove(); } catch (e) {}
+  const map = L.map(host, { zoomControl: true, preferCanvas: true, attributionControl: false });
+  csWsMap = map;
+  wbStreetLayer().addTo(map);
+  const memberIds = new Set((cs.propertyIds || []).map(String));
+  const tip = p => `<b>${escapeHTML(p.name || '(unnamed)')}</b><br>${fmt.int(p.units)} units${p.yearBuilt ? ' · ' + p.yearBuilt : ''}${p.avgAskingSF != null ? ' · $' + (+p.avgAskingSF).toFixed(2) + '/SF asking' : ''}`;
+  RAW_DATA.forEach(p => {
+    if (p.lat == null || p.lng == null || memberIds.has(String(p.id))) return;
+    L.circleMarker([p.lat, p.lng], { radius: 3.5, color: '#8C88A6', weight: 1, fillColor: '#B9B6CC', fillOpacity: 0.85 })
+      .bindTooltip(tip(p) + '<br><i>Click to add</i>', { direction: 'top', className: 'cm-tip' }).on('click', () => csWorkspaceToggle(String(p.id))).addTo(map);
+  });
+  const pts = [];
+  props.forEach((p, i) => {
+    if (p.lat == null || p.lng == null) return;
+    pts.push([p.lat, p.lng]);
+    L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'cm-pin', html: `<span>${i + 1}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 500 })
+      .bindTooltip(tip(p) + '<br><i>Click to remove</i>', { direction: 'top', className: 'cm-tip' }).on('click', () => csWorkspaceToggle(String(p.id))).addTo(map);
+  });
+  const deal = cmDealOpp(cs.dealId);
+  if (deal && deal.lat != null && deal.lng != null) {
+    pts.push([deal.lat, deal.lng]);
+    L.marker([deal.lat, deal.lng], { icon: L.divIcon({ className: 'cm-subject', html: '<span></span>', iconSize: [18, 18], iconAnchor: [9, 9] }), zIndexOffset: 1000 })
+      .bindTooltip(`<b>${escapeHTML(deal.name)}</b><br>Subject (pipeline deal)`, { direction: 'top', className: 'cm-tip' }).addTo(map);
+  }
+  const frame = () => {
+    if (csWsView) map.setView(csWsView.c, csWsView.z, { animate: false });
+    else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(0.3), { maxZoom: 14, animate: false });
+    else if (pts.length === 1) map.setView(pts[0], 13, { animate: false });
+    else { const c = (window.__WBD && window.__WBD.center) || [39.74, -104.99]; map.setView(c, 11, { animate: false }); }
+  };
+  frame();
+  map.on('moveend', () => { if (csWsMap === map) csWsView = { c: map.getCenter(), z: map.getZoom() }; });
+  setTimeout(() => { if (csWsMap !== map) return; try { map.invalidateSize(); frame(); } catch (e) {} }, 80);
 }
 
 /* =================================================================
