@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<title>Development · Canopy</title>
+<title>Radar · Canopy</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
@@ -240,7 +240,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610221924"></script>
+<script src="../shared/wb.js?v=202610221926"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -293,7 +293,7 @@ let mkt = WB.getMarket();
 const inMkt = p => mkt === "all" || p.market_id === mkt;
 
 /* ---------- shell: band with Map / Data log, the track toggle and the market toggle ---------- */
-const band = WB.band({title: "Development", tabs: '<button type="button" class="on" data-t="map" role="tab">Map</button><button type="button" data-t="list" role="tab">Data log</button>'});
+const band = WB.band({title: "Radar", tabs: '<button type="button" class="on" data-t="map" role="tab">Map</button><button type="button" data-t="list" role="tab">Data log</button>'});
 const trk = document.createElement("div"); trk.className = "trk"; trk.setAttribute("role", "group"); trk.setAttribute("aria-label", "Report");
 trk.innerHTML = '<button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="construction">Under construction</button>';
 band.querySelector(".acts").prepend(trk);

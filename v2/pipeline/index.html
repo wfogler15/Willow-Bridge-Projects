@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light">
-<title>Pipeline · Canopy</title>
+<title>Opportunities · Canopy</title>
 <link rel="icon" href="../shared/wb-mark.png">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap">
@@ -618,7 +618,7 @@ html,body{background:#fff !important}
 <div id="hint" role="status" hidden></div>
 <section id="list" aria-label="All deals" hidden>
   <div class="lin">
-  <div class="lhead3"><div><h1 id="ltitle">Pipeline</h1><p id="lcount"></p></div>
+  <div class="lhead3"><div><h1 id="ltitle">Opportunities</h1><p id="lcount"></p></div>
     <div class="lacts"><button type="button" class="lbtn" id="lmap">Show on map</button><button type="button" class="lbtn" id="lexport">Export to Excel</button><button type="button" class="lbtn primary" id="ladd">Add a deal</button></div></div>
   <div class="ltools"><div class="pills" id="lkind" role="group" aria-label="Deal type"></div><span class="lsep"></span><div class="pills" id="lstat" role="group" aria-label="Status"></div>
     <span style="flex:1"></span><label class="lsw"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg><input class="lsearch" id="lq" type="search" placeholder="Search deals, brokers, notes" aria-label="Search deals"></label></div>
@@ -635,7 +635,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610221924"></script>
+<script src="../shared/wb.js?v=202610221926"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -737,7 +737,7 @@ const REPORT = await loadReport();
 /* ---------- light shell: the Midnight page band, the card and the map side by side ---------- */
 (function shell(){
   /* sub-bar: Map and Deal log; Add a deal lives in the deal log, Fix parcel in each deal's settings */
-  const band = WB.band({title: "Pipeline", tabs: '<button type="button" class="on" data-t="call" role="tab">Map</button><button type="button" data-t="list" role="tab">Deal log</button>'});
+  const band = WB.band({title: "Opportunities", tabs: '<button type="button" class="on" data-t="call" role="tab">Map</button><button type="button" data-t="list" role="tab">Deal log</button>'});
   const row = document.createElement("div"); row.className = "pctl";
   ["prev", "next"].forEach(id => { const b = document.getElementById(id); if(b) row.appendChild(b); });
   document.getElementById("pfoot").appendChild(row);
@@ -1586,7 +1586,7 @@ function renderList(){
     || '<tr><td colspan="' + cols.length + '" class="empty">No ' + (lk === "land" ? "development" : "investment") + " deals match. Try another status or clear the search.</td></tr>";
   const units = rows.reduce((t, d) => t + (M.units(d) || 0), 0), gd = rows.reduce((t, d) => t + (M.guidance(d) || 0), 0);
   const stW = {active: "active", watch: "watched", archive: "archived", all: ""}[ls];
-  $("#ltitle").textContent = (lk === "land" ? "Development" : "Investment") + " pipeline" + (lm === "all" ? "" : ", " + lm);
+  $("#ltitle").textContent = (lk === "land" ? "Development" : "Investment") + " opportunities" + (lm === "all" ? "" : ", " + lm);
   $("#lcount").innerHTML = esc(rows.length + " " + (stW ? stW + " " : "") + (rows.length === 1 ? "deal" : "deals") + (la ? " " + ATTN[la][0] : "")
     + (units ? ", " + fI(units) + (lk === "land" ? " proposed units" : " units") : "") + (gd ? ", " + fM(gd) + " in guidance" : "") + ".")
     + (la ? ' <button type="button" class="lclear" id="lclear">Show all deals</button>' : "");
