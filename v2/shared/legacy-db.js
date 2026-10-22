@@ -1,4 +1,4 @@
-/* Willow Bridge Intel: legacy table adapter for the Market Intel dashboard.
+/* Canopy: legacy table adapter for the Market Intel dashboard.
    The dashboard was written against eight flat public tables (opportunities, custom_comps, property_edits, ...).
    This object answers those same calls (.from(t).select().eq().upsert().delete()) and reads/writes the new
    core / market / pipeline / comps tables underneath, so the dashboard code can stay as it is.

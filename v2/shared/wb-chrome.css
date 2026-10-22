@@ -1,4 +1,4 @@
-/* Willow Bridge Intel: app shell shared by every tab (top bar, market strip, sign-in, toast).
+/* Canopy: app shell shared by every tab (top bar, market strip, sign-in, toast).
    wb.js loads this on every page, including the tools that carry their own stylesheets. */
 :root{
   --wb-font:Aptos,"Segoe UI Variable Text","Segoe UI",Inter,system-ui,-apple-system,sans-serif;

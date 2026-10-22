@@ -1,4 +1,4 @@
-/* Willow Bridge Intel: Site Scout adapter.
+/* Canopy: Site Scout adapter.
    Site Scout was written against its own Supabase tables `sites` (one JSON blob per site) and `pois`.
    This object answers those calls and reads/writes the shared tables instead:
      sites -> pipeline.deals + core.parcels (+ deal_parcels, deal_log)     pois -> core.pois

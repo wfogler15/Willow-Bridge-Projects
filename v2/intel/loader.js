@@ -98,7 +98,7 @@
 
     const titleEl = document.getElementById('wb-mkt-title'); if (titleEl) titleEl.textContent = window.__WBD.title;
     const eyeEl = document.getElementById('wb-mkt-eyebrow'); if (eyeEl && cfg.eyebrow) eyeEl.textContent = market === 'denver' ? 'Greater Denver · Colorado' : cfg.eyebrow;
-    document.title = `Market Intel · ${MARKETS[market]} · Willow Bridge Intel`;
+    document.title = `Market Intel · ${MARKETS[market]} · Canopy`;
     for (const id of ['trends-chart-caption-title', 'sc-panel-sub', 'trends-sm-blend-info']) {
       const el = document.getElementById(id);
       if (el) el.innerHTML = el.innerHTML.replace(/Denver MSA/g, window.__WBD.title).replace('Denver-Aurora-Centennial MSA', window.__WBD.msa_label);

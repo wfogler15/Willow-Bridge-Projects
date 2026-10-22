@@ -1,4 +1,4 @@
-/* Willow Bridge Intel: shared client.
+/* Canopy: shared client.
    - One Supabase client for every page (publishable key: safe in public code; the database
      only serves rows to signed-in users on the approved list).
    - Email-link login gate, top navigation, paged reads, small helpers. */
@@ -43,7 +43,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202610212252');
+    add(ROOT + 'shared/wb-chrome.css?v=202610221924');
   })();
 
   // ---------- market context shared across tabs ----------
@@ -83,7 +83,7 @@
     const local = (user.email || '?').split('@')[0], parts = local.split(/[._-]/).filter(Boolean);
     const initials = (parts.length > 1 ? parts[0][0] + parts[1][0] : local.slice(0, 2)).toUpperCase();
     nav.innerHTML = `
-      <a class="brand" href="${ROOT}"><img src="${ROOT}shared/wb-mark.png" alt=""><span>Willow Bridge Intel</span></a>
+      <a class="brand" href="${ROOT}"><img src="${ROOT}shared/wb-mark.png" alt=""><span>Canopy</span></a>
       <nav>${PAGES.map((p) => `<a href="${ROOT}${p.href}" class="${p.id === active ? 'on' : ''}">${p.label}</a>`).join('')}</nav>
       <div class="right">
 
@@ -164,7 +164,7 @@
       el.innerHTML = `
         <div class="card">
           <img src="${ROOT}shared/wb-mark.png" alt="">
-          <h1>Willow Bridge Intel</h1>
+          <h1>Canopy</h1>
           <p>Sign in with your Willow Bridge email and password, or leave the password blank to get a code by email.</p>
           <form id="wb-f1">
             <input class="input" type="email" name="email" required placeholder="you@willowbridgepc.com" autocomplete="email">
