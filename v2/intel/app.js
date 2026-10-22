@@ -15183,7 +15183,7 @@ function renderSettingsModal() {
       <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
         ${REQUIRE_MICROSOFT_SIGNIN
           ? 'Signed in with your Microsoft 365 account. Your name is tagged on opportunities, comp sets, and sale comps you add or edit, so the team can see who touched what.'
-          : 'Signed in with your Canopy login. Your email is tagged on everything you add or edit. Sign out from the top bar.'}
+          : 'Signed in with your Willow Bridge Canopy login. Your email is tagged on everything you add or edit. Sign out from the top bar.'}
       </div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
         <div style="font-family:'Inter Tight',sans-serif;font-size:15px;font-weight:600;color:var(--ink-1);">${escapeHTML(syncState.editorName || 'Not set')}</div>
