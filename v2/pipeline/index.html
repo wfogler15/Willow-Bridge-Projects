@@ -635,7 +635,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610221958"></script>
+<script src="../shared/wb.js?v=202610222117"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1004,7 +1004,7 @@ function ppa(d){ return (d.guidance && d.acres) ? d.guidance / d.acres : null; }
 function ppland(d){ return (d.guidance && d.acres) ? d.guidance / (d.acres * 43560) : null; }
 function ppd(d){ return (d.guidance && d.doors) ? d.guidance / d.doors : null; }
 function density(d){ const u = d.kind === "land" ? d.doors : d.units; return (u && d.acres) ? u / d.acres : null; }
-function priceLine(d){ return d.guidance ? usdM(d.guidance) : (d.guidanceNote || "Unpriced"); }
+function priceLine(d){ return d.guidance ? usdM(d.guidance) : "Unpriced"; }   /* the guidance note shows under the figure on the slide, never in the cover table */
 function bidBadge(d){
   if(d.outcome) return '<span class="badge">' + esc(d.outcome.result || "Closed") + '</span>';
   const n = daysTo(d.bidDate); if(n == null) return "";
@@ -1195,7 +1195,8 @@ function renderDeal(d){
     ? [ppd(d) && usd(ppd(d)) + " / door", ppland(d) && psf(ppland(d)) + " / land SF", ppa(d) && usdM(ppa(d)) + " / ac"]
     : [ppu(d) && usd(ppu(d)) + " / unit", ppsf(d) && "$" + ppsf(d).toFixed(0) + " / SF", capOn(d, d.noi) && capOn(d, d.noi) + " cap on T-12"];
   const hero = '<div class="hero"><div class="tl">Guidance</div><div class="hv">' + esc(priceLine(d)) + '</div>'
-    + (per.filter(Boolean).length ? '<div class="hs">' + per.filter(Boolean).join(" · ") + "</div>" : "") + "</div>";
+    + (per.filter(Boolean).length ? '<div class="hs">' + per.filter(Boolean).join(" · ") + "</div>" : "")
+    + (!d.guidance && d.guidanceNote ? '<div class="hs">' + esc(d.guidanceNote) + "</div>" : "") + "</div>";
   const tiles = isLand ? [
       tile("Site", d.acres ? fmtNum(d.acres) + u(" ac") : "", [d.doors && fmtNum(d.doors) + " doors", density(d) && fmtNum(density(d)) + " / ac"].filter(Boolean).join(" · ")),
       tile("Rent (UW)", d.rentPsf ? psf(d.rentPsf) + u(" /SF") : "", d.rentMo ? usd(d.rentMo) + " / mo" : ""),
