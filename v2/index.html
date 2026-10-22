@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overview · Willow Bridge Canopy</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202610221927">
+<link rel="stylesheet" href="shared/wb.css?v=202610221933">
 <style>
   .ov{max-width:1180px}
   .kick{margin:0 0 12px;font-size:14px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
@@ -27,7 +27,7 @@
   .none{padding:16px 0;color:var(--muted)}
   .fig2{padding:24px 0;border-bottom:1px solid var(--rule-2)}
   .fig2 .l{margin:0;font-size:13px;color:var(--muted)}
-  .fig2 .v{margin:6px 0 0;font:500 32px/1.1 var(--font-display);letter-spacing:-.02em}
+  .fig2 .v{margin:6px 0 0;font:500 32px/1.1 var(--font-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
   .fig2 .s{margin:6px 0 0;font-size:13px;color:var(--ink-2)}
   .side .hd+.fig2{padding-top:20px}
   .gap{margin-top:48px}
@@ -74,7 +74,7 @@
   </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202610221927"></script>
+<script src="shared/wb.js?v=202610221933"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('home');
@@ -128,6 +128,23 @@
   pfBtn.onclick = (e) => { e.preventDefault(); incPf = !incPf; try { localStorage.setItem('wb_inc_portfolio', incPf ? '1' : '0'); } catch (x) {} pfLabel(); render(); };
   pfLabel();
 
+  // volume figures count up from zero when the card draws (skipped for reduced motion)
+  const countUp = (root) => {
+    if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    root.querySelectorAll('.fig2 .v').forEach((el) => {
+      const final = el.textContent, m = final.match(/^\$([\d.]+)([BMK]?)$/);
+      if (!m) return;
+      const end = +m[1], dec = (m[1].split('.')[1] || '').length, t0 = performance.now(), D = 800;
+      const step = (now) => {
+        const p = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - p, 3);
+        el.textContent = p < 1 ? '$' + (end * e).toFixed(dec) + m[2] : final;
+        if (p < 1) requestAnimationFrame(step);
+      };
+      el.textContent = '$' + (0).toFixed(dec) + m[2];
+      requestAnimationFrame(step);
+    });
+  };
+
   function render() {
     const act = deals.filter((d) => ACTIVE.includes(d.stage) && inMkt(d.market_id));
     const uw = act.filter((d) => UWS.includes(d.stage)), sc = act.filter((d) => d.stage === 'screening');
@@ -151,6 +168,7 @@
       return `<div class="fig2"><p class="l">${esc(m.short)}, ${n} ${n === 1 ? 'sale' : 'sales'} year to date</p><p class="v">${ytd ? usdM(ytd) : '$0'}</p>`
         + `<p class="s">${ch == null ? 'No sales by this date last year' : `${ch >= 0 ? 'Up' : 'Down'} ${Math.abs(ch).toFixed(0)}% from ${usdM(ly)} this time last year`}${lyAll ? `, ${usdM(lyAll)} for all of ${Y - 1}` : ''}</p></div>`;
     }).join('');
+    countUp($('#vol'));
 
     // coming up
     const up = [...deals.filter((d) => inMkt(d.market_id) && d.bid_date && d.bid_date >= todayIso && d.bid_date <= in30 && ACTIVE.concat('monitor', 'prospect').includes(d.stage)).map((d) => ({ d, when: d.bid_date, what: 'Call for offers' })),

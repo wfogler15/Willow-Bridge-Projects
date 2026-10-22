@@ -210,3 +210,54 @@
 .wb-hist .wbh-tl li>*,.wb-hist .wbh-tl p,.wb-hist .wbh-tl b,.wb-hist .wbh-sum,.wb-hist .wbh-facts dd{font-family:var(--wb-font);font-size:var(--wb-fs);white-space:normal}
 .wb-hist .wbh-tl .wbh-d{white-space:nowrap}
 .wb-hist .wbh-tl a{font-size:var(--wb-fs-sm)}
+
+/* =====================================================================
+   Polish pass (Oct 22 2026): small touches, shared by every tab.
+   Motion is opacity/short slides only and switches off for reduced motion.
+   ===================================================================== */
+/* nav: a hairline under the current tab, a faint one on hover */
+.wb-nav nav a{position:relative}
+.wb-nav nav a::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px 2px 0 0;background:var(--wb-ink);
+  transform:scaleX(0);opacity:0;transition:transform .2s ease,opacity .2s ease}
+.wb-nav nav a:hover::after{transform:scaleX(.5);opacity:.25}
+.wb-nav nav a.on::after{transform:scaleX(1);opacity:1}
+.wb-nav .brand{transition:opacity .15s}
+.wb-nav .brand:hover{opacity:.8}
+
+/* selection, focus, scrollbars */
+::selection{background:var(--wb-lilac);color:var(--wb-midnight)}
+:where(a,button,select,input,textarea,[tabindex]):focus-visible{outline:2px solid var(--wb-purple);outline-offset:2px}
+*{scrollbar-width:thin;scrollbar-color:#CFCBDA transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#D6D3E0;border-radius:10px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:#B9B4C9;background-clip:padding-box;border:3px solid transparent}
+::-webkit-scrollbar-track{background:transparent}
+
+/* page content eases in */
+@keyframes wb-in{from{opacity:0}to{opacity:1}}
+@keyframes wb-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes wb-slide{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+main.page{animation:wb-in .35s ease backwards}
+
+/* sign-in: the first screen anyone sees */
+.wb-login{background:radial-gradient(1200px 700px at 50% 38%,#2E1E6E 0%,var(--wb-midnight) 62%)}
+.wb-login .card{box-shadow:0 30px 80px rgba(6,2,24,.45),0 2px 6px rgba(6,2,24,.2);animation:wb-up .45s ease backwards;padding:34px 32px 30px}
+.wb-login h1{letter-spacing:-.015em}
+.wb-login .btn{transition:background .15s,border-color .15s,transform .06s}
+.wb-login .btn.primary:hover{background:#2B1D63;border-color:#2B1D63}
+.wb-login .btn:active{transform:translateY(1px)}
+.wb-login .input{transition:border-color .15s,box-shadow .15s}
+.wb-login .input:focus{outline:none;box-shadow:0 0 0 3px rgba(67,40,144,.16)}
+
+/* property history drawer slides in */
+.wb-hist:not([hidden]) .wb-hist-veil{animation:wb-in .2s ease backwards}
+.wb-hist:not([hidden]) .wb-hist-panel{animation:wb-slide .25s cubic-bezier(.2,.8,.2,1) backwards}
+
+/* toast rises */
+.wb-toast{transition:opacity .2s,transform .2s;transform:translate(-50%,6px)}
+.wb-toast.show{transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  main.page,.wb-login .card,.wb-hist:not([hidden]) .wb-hist-veil,.wb-hist:not([hidden]) .wb-hist-panel{animation:none}
+  .wb-nav nav a::after,.wb-toast{transition:none}
+}
