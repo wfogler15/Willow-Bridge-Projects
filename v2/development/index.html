@@ -240,7 +240,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610221955"></script>
+<script src="../shared/wb.js?v=202610221956"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -252,9 +252,11 @@ const DB = () => sb.schema("market");
 let P = [], EV = new Map();
 /* Institutional scope (Will, Oct 22 2026): what a luxury / market-rate multifamily developer needs to know.
    Value drivers always count. Rentals need 100+ units; for-sale and townhome projects need 200+ (unknown size is left out).
-   Rentals with unknown units stay in. Smaller rows stay in the database; "All sizes" in the band shows them. */
+   Rentals with unknown units stay in. All-affordable projects are left out. Smaller rows stay in the database; "All sizes" in the band shows them. */
 const FOR_SALE = /for-sale|for sale|townhome|condo|single-family|sfr/i;
-const inScope = p => p.kind === "driver" || (FOR_SALE.test(p.product_type || "") ? (p.units || 0) >= 200 : (p.units == null || p.units >= 100));
+/* fully affordable deals (LIHTC, income-restricted, housing authority) aren't market-rate competition; projects with an inclusionary share stay in */
+const ALL_AFFORDABLE = p => /housing authority/i.test(p.developer || "") || /lihtc|income-restricted|income restricted/i.test([p.request, p.note, p.affordable].join(" "));
+const inScope = p => p.kind === "driver" || (!ALL_AFFORDABLE(p) && (FOR_SALE.test(p.product_type || "") ? (p.units || 0) >= 200 : (p.units == null || p.units >= 100)));
 let allSizes = false; try { allSizes = localStorage.getItem("wbv2:dev:allSizes") === "1"; } catch(e){}
 let outOfScope = 0;
 async function load(){
@@ -306,8 +308,8 @@ const trk = document.createElement("div"); trk.className = "trk"; trk.setAttribu
 trk.innerHTML = '<button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="construction">Under construction</button>';
 band.querySelector(".acts").prepend(trk);
 { const sz = document.createElement("button"); sz.type = "button"; sz.className = "b";
-  sz.title = allSizes ? "Showing every project, including " + outOfScope + " smaller ones" : outOfScope + " smaller projects hidden: rentals under 100 units, for-sale under 200";
-  sz.textContent = allSizes ? "All sizes" : "100+ units"; sz.setAttribute("aria-pressed", String(!allSizes));
+  sz.title = allSizes ? "Showing every project, including " + outOfScope + " outside the institutional scope" : outOfScope + " projects hidden: rentals under 100 units, for-sale under 200, all-affordable";
+  sz.textContent = allSizes ? "All projects" : "Institutional only"; sz.setAttribute("aria-pressed", String(!allSizes));
   sz.onclick = () => { try { localStorage.setItem("wbv2:dev:allSizes", allSizes ? "0" : "1"); } catch(e){} location.reload(); };
   band.querySelector(".acts").prepend(sz); }
 const paintTrk = () => trk.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.k === track));
