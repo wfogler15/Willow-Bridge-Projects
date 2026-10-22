@@ -240,7 +240,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610221933"></script>
+<script src="../shared/wb.js?v=202610221955"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -250,12 +250,20 @@ const DB = () => sb.schema("market");
 
 /* ---------- data ---------- */
 let P = [], EV = new Map();
+/* Institutional scope (Will, Oct 22 2026): what a luxury / market-rate multifamily developer needs to know.
+   Value drivers always count. Rentals need 100+ units; for-sale and townhome projects need 200+ (unknown size is left out).
+   Rentals with unknown units stay in. Smaller rows stay in the database; "All sizes" in the band shows them. */
+const FOR_SALE = /for-sale|for sale|townhome|condo|single-family|sfr/i;
+const inScope = p => p.kind === "driver" || (FOR_SALE.test(p.product_type || "") ? (p.units || 0) >= 200 : (p.units == null || p.units >= 100));
+let allSizes = false; try { allSizes = localStorage.getItem("wbv2:dev:allSizes") === "1"; } catch(e){}
+let outOfScope = 0;
 async function load(){
   const [rows, evs] = await Promise.all([
     WB.fetchAll("market", "dev_projects", "*"),
     WB.fetchAll("market", "dev_events", "*", q => q.order("on_date", {ascending: true, nullsFirst: true}).order("id")),
   ]);
-  P = rows; EV = new Map();
+  outOfScope = rows.filter(p => p.review !== "dismissed" && !inScope(p)).length;
+  P = allSizes ? rows : rows.filter(inScope); EV = new Map();
   evs.forEach(e => (EV.get(e.project_id) || EV.set(e.project_id, []).get(e.project_id)).push(e));
 }
 await load();
@@ -297,6 +305,11 @@ const band = WB.band({title: "Radar", tabs: '<button type="button" class="on" da
 const trk = document.createElement("div"); trk.className = "trk"; trk.setAttribute("role", "group"); trk.setAttribute("aria-label", "Report");
 trk.innerHTML = '<button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="construction">Under construction</button>';
 band.querySelector(".acts").prepend(trk);
+{ const sz = document.createElement("button"); sz.type = "button"; sz.className = "b";
+  sz.title = allSizes ? "Showing every project, including " + outOfScope + " smaller ones" : outOfScope + " smaller projects hidden: rentals under 100 units, for-sale under 200";
+  sz.textContent = allSizes ? "All sizes" : "100+ units"; sz.setAttribute("aria-pressed", String(!allSizes));
+  sz.onclick = () => { try { localStorage.setItem("wbv2:dev:allSizes", allSizes ? "0" : "1"); } catch(e){} location.reload(); };
+  band.querySelector(".acts").prepend(sz); }
 const paintTrk = () => trk.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.k === track));
 paintTrk();
 trk.addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if(!b || b.dataset.k === track) return; setTrack(b.dataset.k); });
