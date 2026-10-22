@@ -635,7 +635,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610221956"></script>
+<script src="../shared/wb.js?v=202610221958"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -728,7 +728,7 @@ async function loadReport(){
     const p = pById.get(x.parcel_id); if(!p) return [];
     return ringsOf(p.geom).map(rings => ({id: p.id, apn: p.apn, coords: rings}));
   })));
-  return {market: "Southwest", title: "Pipeline", date: isoToday(), markets: ["Denver", "Phoenix"], deals,
+  return {market: "Southwest", title: "Opportunities", date: isoToday(), markets: ["Denver", "Phoenix"], deals,
     trades: trades.map(c => ({...c, market: MKT[c.market_id] || c.market_id, lat: num(c.lat), lon: num(c.lng)})),
     strip: Object.fromEntries((strip || []).map(x => [MKT[x.market_id] || x.market_id, x]))};
 }
