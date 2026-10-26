@@ -29,14 +29,18 @@ const MAIL_KEYS  = ['owneraddressfull','owneraddress','owneraddress1','mailaddr'
 const PHX_PARCEL_FIELDS = ['APN','APN_DASH','PHYSICAL_ADDRESS','PHYSICAL_CITY','OWNER_NAME','CONST_YEAR','LIVING_SPACE','LAND_SIZE','PUC','MAIL_CITY','MAIL_STATE','SALE_DATE','FCV_CUR'].join(',');
 const PHX_PARCEL_FIELDS_FULL = ['APN','APN_DASH','OWNER_NAME','PHYSICAL_ADDRESS','PHYSICAL_CITY','PHYSICAL_ZIP','MAIL_ADDR1','MAIL_CITY','MAIL_STATE','MAIL_ZIP','SALE_DATE','SALE_PRICE','LAND_SIZE','CONST_YEAR','LIVING_SPACE','FCV_CUR','LPV_CUR','PUC','CITY_ZONING','JURISDICTION','SUBNAME'].join(',');
 
+// bbox = rough city extent [west, south, east, north]: a click or a view only queries the cities it can be in.
+// field = the zoning-code attribute when auto-detection would pick the wrong one.
 const PHX_ZONING = [
-  { name:'Phoenix',    url:'https://maps.phoenix.gov/pub/rest/services/Public/Zoning/MapServer',                              layers:[0] },
-  { name:'Mesa',       url:'https://gis.mesaaz.gov/s_mesaaz/rest/services/Accela/Accela_Base/MapServer',                      layers:[33] },
-  { name:'Tempe',      url:'https://services.arcgis.com/lQySeXwbBg53XWDi/arcgis/rest/services/zoning_districts/FeatureServer', layers:[0] },
-  { name:'Gilbert',    url:'https://maps.gilbertaz.gov/arcgis/rest/services/OD/Growth_Development_Maps_1/MapServer',           layers:[8] },
-  { name:'Scottsdale', url:'https://maps.scottsdaleaz.gov/arcgis/rest/services/OpenData/MapServer',                           layers:[24] },
-  { name:'Chandler',   url:'https://gis.chandleraz.gov/appsanonymous/rest/services/OpenData/Planning_Zoning_Jurisdiction/MapServer', layers:[1] },
+  { name:'Phoenix',    url:'https://maps.phoenix.gov/pub/rest/services/Public/Zoning/MapServer',                              layers:[0],  bbox:[-112.34,33.29,-111.92,33.92] },
+  { name:'Mesa',       url:'https://gis.mesaaz.gov/s_mesaaz/rest/services/Accela/Accela_Base/MapServer',                      layers:[33], bbox:[-111.90,33.27,-111.58,33.51] },
+  { name:'Tempe',      url:'https://services.arcgis.com/lQySeXwbBg53XWDi/arcgis/rest/services/zoning_districts/FeatureServer', layers:[0],  bbox:[-111.98,33.31,-111.87,33.46] },
+  { name:'Gilbert',    url:'https://maps.gilbertaz.gov/arcgis/rest/services/OD/Growth_Development_Maps_1/MapServer',           layers:[8],  bbox:[-111.85,33.20,-111.63,33.40] },
+  { name:'Scottsdale', url:'https://maps.scottsdaleaz.gov/arcgis/rest/services/OpenData/MapServer',                           layers:[24], bbox:[-111.97,33.44,-111.74,33.85], field:'full_zoning' },
+  { name:'Chandler',   url:'https://gis.chandleraz.gov/appsanonymous/rest/services/OpenData/Planning_Zoning_Jurisdiction/MapServer', layers:[1], bbox:[-111.99,33.19,-111.74,33.37] },
 ];
+const inBox = (c, lng, lat) => !c.bbox || (lng >= c.bbox[0] && lng <= c.bbox[2] && lat >= c.bbox[1] && lat <= c.bbox[3]);
+const boxHits = (c, w, s, e, n) => !c.bbox || !(e < c.bbox[0] || w > c.bbox[2] || n < c.bbox[1] || s > c.bbox[3]);
 
 // Denver / Front Range — parcels come from each COUNTY's own fast ArcGIS service (much quicker
 // than the statewide composite). A universal normalizer maps each county's schema to the common
@@ -647,9 +651,9 @@ async function loadZoning(){
   const controller = new AbortController();
   const token = zoneAbort = {controller};
   const status = {};
-  await Promise.all(activeZoning().map(async c=>{
+  await Promise.all(activeZoning().filter(c=>boxHits(c, b.getWest(), b.getSouth(), b.getEast(), b.getNorth())).map(async c=>{
     try{
-      const cachedField = zoneFieldCache[c.name];
+      const cachedField = c.field || zoneFieldCache[c.name];
       const gj = await arcgisQuery(c.url + '/' + c.layers[0], {
         where:'1=1', geometry:env, geometryType:'esriGeometryEnvelope',
         inSR:4326, outSR:4326, spatialRel:'esriSpatialRelIntersects',
@@ -663,7 +667,7 @@ async function loadZoning(){
       const fresh = [];
       for(const f of gj.features){
         if(!f.geometry){ continue; }
-        const picked = pickZoneField(f.properties||{});
+        const picked = pickZoneField(f.properties||{}, c.field);
         if(picked && !zoneFieldCache[c.name]) zoneFieldCache[c.name] = picked.field;  // learn field once
         f._zcode = picked ? String(picked.value ?? '').trim() : '';
         f._zcity = c.name;
@@ -825,12 +829,14 @@ $('zoneFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(f) i
 idbAll().then(recs=>{ localZones = recs || []; renderLocalZoneList(); }).catch(()=>{});
 
 // Pick the attribute holding the zoning code, preferring exact/known names.
-function pickZoneField(props){
+function pickZoneField(props, preferred){
+  const has = (k) => props[k] != null && String(props[k]).trim() !== '';
+  if(preferred && preferred in props) return {field:preferred, value:props[preferred]};
   const keys = Object.keys(props);
-  const exact = keys.find(n => /^(zoningcode|zcode|zoning|zone_code|zoning_code|zone|zoneclass|zoning_cla|zn_code)$/i.test(n));
-  if(exact) return {field:exact, value:props[exact]};
-  const loose = keys.find(n => /zon/i.test(n) && !/desc|description|ordinance|label|legend|date|prior|_lu|luvs/i.test(n));
-  return loose ? {field:loose, value:props[loose]} : null;
+  const exact = keys.filter(n => /^(zoningcode|zcode|zoning|zone_code|zoning_code|zone|zoneclass|zoning_cla|zn_code|full_zoning)$/i.test(n));
+  const loose = keys.filter(n => /zon/i.test(n) && !/desc|description|ordinance|label|legend|date|prior|_lu|luvs/i.test(n));
+  const k = exact.find(has) || loose.find(has) || exact[0] || loose[0];   // prefer a field that actually has a value
+  return k ? {field:k, value:props[k]} : null;
 }
 
 // Query each city (and each candidate layer) at the point; return the first real code plus a
@@ -842,9 +848,10 @@ async function lookupZoning(latlng){
   // Local loaded files first — authoritative and instant.
   const local = lookupLocalZoning(latlng);
   if(local){ hit = local; trace.push({name:local.source, status:'ok'}); }
-  for(const c of activeZoning()){
-    if(hit) break;
-    let cityStatus = 'empty';
+  // every city that can contain the point is asked at once (not one after another); the first in list order with a code wins
+  const cities = hit ? [] : activeZoning().filter(c => inBox(c, latlng.lng, latlng.lat));
+  const results = await Promise.all(cities.map(async c => {
+    let cityStatus = 'empty', found = null;
     for(const layerId of c.layers){
       try{
         const gj = await arcgisQuery(c.url + '/' + layerId, {
@@ -855,20 +862,16 @@ async function lookupZoning(latlng){
         });
         const f = gj.features && gj.features[0];
         if(f){
-          const picked = pickZoneField(f.properties||{});
+          const picked = pickZoneField(f.properties||{}, c.field);
           if(picked && picked.value != null && String(picked.value).trim() !== ''){
-            cityStatus = 'ok';
-            if(!hit) hit = {code:String(picked.value).trim(), source:c.name, field:picked.field};
-            break;
-          } else {
-            cityStatus = 'no-field';
-          }
+            cityStatus = 'ok'; found = {code:String(picked.value).trim(), source:c.name, field:picked.field}; break;
+          } else cityStatus = 'no-field';
         }
       }catch(e){ cityStatus = 'error'; }
     }
-    trace.push({name:c.name, status:cityStatus});
-    if(hit) break; // stop at first city that resolves
-  }
+    return {c, cityStatus, found};
+  }));
+  for(const r of results){ trace.push({name:r.c.name, status:r.cityStatus}); if(!hit && r.found) hit = r.found; }
   return {hit, trace};
 }
 
