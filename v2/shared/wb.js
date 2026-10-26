@@ -18,8 +18,16 @@
   const scriptSrc = document.currentScript && document.currentScript.src;
   const ROOT = scriptSrc ? scriptSrc.replace(/shared\/wb\.js.*$/, '') : './';
 
+  // One sign-in for every tab: the session lives under its plain key, read and written with the browser's own
+  // storage methods captured here, before Site Scout and Market Intel re-scope localStorage for their own keys.
+  const _sGet = Storage.prototype.getItem, _sSet = Storage.prototype.setItem, _sDel = Storage.prototype.removeItem;
+  const authStorage = {
+    getItem: (k) => { try { return _sGet.call(window.localStorage, k); } catch (e) { return null; } },
+    setItem: (k, v) => { try { _sSet.call(window.localStorage, k, v); } catch (e) { /* private mode */ } },
+    removeItem: (k) => { try { _sDel.call(window.localStorage, k); } catch (e) { /* private mode */ } },
+  };
   const sb = window.supabase.createClient(SB_URL, SB_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storage: authStorage },
   });
 
   const $ = (sel, el = document) => el.querySelector(sel);
@@ -43,7 +51,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202610261834');
+    add(ROOT + 'shared/wb-chrome.css?v=202610261838');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
