@@ -176,6 +176,8 @@ ul.bul li::before{content:"";position:absolute;left:0;top:.5em;width:5px;height:
 .dh h1{font-size:26px;margin:0}
 .dh h2{font-size:15px}
 .dh .chips{margin-top:2px}
+.dh .to-scout{display:inline-block;margin-top:10px;font-size:13px;font-weight:500;color:var(--wb-purple,#432890);text-decoration:none}
+.dh .to-scout:hover{text-decoration:underline}
 .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--hair);border-radius:8px;overflow:hidden}
 .tiles .tile{box-shadow:1px 1px 0 var(--hair)}   /* inner grid lines; the outer edge is clipped by the container */
 .tile{background:var(--cloud);padding:10px 10px 11px;display:flex;flex-direction:column;gap:3px;min-width:0}
@@ -635,7 +637,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610222117"></script>
+<script src="../shared/wb.js?v=202610261834"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1254,7 +1256,8 @@ function renderDeal(d){
     + '<header class="dh"><h1>' + esc(d.name) + "</h1><h2>" + esc(d.where || d.address || "") + "</h2>"
     + '<div class="chips"><span class="chip' + (isLand ? " land" : "") + '">' + (isLand ? "Development" : "Investment") + "</span>"
     + (d.stage ? '<span class="chip stage' + (HOT.has(d.stage) ? " hot" : "") + '">' + esc(STAGES[d.stage] || d.stage) + "</span>" : "")
-    + (d.isNew ? '<span class="chip new">New this week</span>' : "") + (d.sample ? '<span class="chip sample">Sample</span>' : "") + "</div></header>"
+    + (d.isNew ? '<span class="chip new">New this week</span>' : "") + (d.sample ? '<span class="chip sample">Sample</span>' : "") + "</div>"
+    + (d.id && !d.sample ? '<a class="to-scout" href="../scout/?deal=' + encodeURIComponent(d.id) + '">Open in Site Scout →</a>' : "") + "</header>"
     + '<div class="figures">' + strip + "</div>"
     + section("Valuation on T-12 NOI", sensTable(d))
     + (d.take ? '<div class="callout"><strong>Our take</strong><p>' + esc(d.take) + "</p></div>" : "")

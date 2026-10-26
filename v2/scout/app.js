@@ -1777,6 +1777,7 @@ async function onAuthed(){
     if(!c || (s.updated||0) > (c.updated||0)) await sbPushSite(s);
   }
   await Store.syncFromCloud();
+  openDeepLinkedSite();
   onPoiAuthed();
   subscribeSites();
   updateSyncStatus();
@@ -3399,6 +3400,22 @@ function renderTracked(){
   }
   renderSitesHome();
   renderLegend();
+}
+/* ?deal=<pipeline deal id> (from Opportunities' "Open in Site Scout"): switch to the deal's market, frame its parcels and open the site. Runs once. */
+let _deepLinkDone = false;
+function openDeepLinkedSite(){
+  if(_deepLinkDone) return;
+  let dealId = null; try{ dealId = new URLSearchParams(location.search).get('deal'); }catch(e){}
+  if(!dealId) return;
+  _deepLinkDone = true;
+  const s = Store.all().find(x => x._dealId === dealId || x.id === dealId);
+  if(!s){ console.warn('Site Scout: no site for deal', dealId); return; }
+  if(s.market && s.market !== currentMarket) setMarket(s.market);
+  setTimeout(() => {
+    openSite(s.id);
+    if(typeof openSiteDetail === 'function') openSiteDetail(s.id);
+    try{ history.replaceState(null, '', location.pathname); }catch(e){}
+  }, 400);
 }
 function openSite(id){
   const s = Store.get(id); if(!s) return;
