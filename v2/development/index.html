@@ -241,7 +241,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610271858"></script>
+<script src="../shared/wb.js?v=202610271911"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -300,15 +300,15 @@ const TRACK_LABEL = {entitlement: "Entitlements", construction: "Under construct
 /* ---------- state: track, market, view ---------- */
 const store = {get(k){ try{ return localStorage.getItem("wbv2:dev:" + k); }catch(e){ return null; } }, set(k, v){ try{ localStorage.setItem("wbv2:dev:" + k, v); }catch(e){} }};
 const qs = new URLSearchParams(location.search);
-let track = qs.get("track") || store.get("track") || "entitlement";
-if(!["entitlement", "construction", "stalled"].includes(track)) track = "entitlement";
+let track = qs.get("track") || store.get("track") || "construction";
+if(!["entitlement", "construction", "stalled"].includes(track)) track = "construction";
 let mkt = WB.getMarket();
 const inMkt = p => mkt === "all" || p.market_id === mkt;
 
 /* ---------- shell: band with Map / Data log, the track toggle and the market toggle ---------- */
 const band = WB.band({title: "Radar", tabs: '<button type="button" class="on" data-t="map" role="tab">Map</button><button type="button" data-t="list" role="tab">Data log</button>'});
 const trk = document.createElement("div"); trk.className = "trk"; trk.setAttribute("role", "group"); trk.setAttribute("aria-label", "Report");
-trk.innerHTML = '<button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="construction">Under construction</button><button type="button" data-k="stalled">Stalled</button>';
+trk.innerHTML = '<button type="button" data-k="construction">Under construction</button><button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="stalled">Stalled</button>';
 band.querySelector(".acts").prepend(trk);
 { const sz = document.createElement("button"); sz.type = "button"; sz.className = "b";
   sz.title = allSizes ? "Showing every project, including " + outOfScope + " outside the institutional scope" : outOfScope + " projects hidden: rentals under 100 units, for-sale under 200, all-affordable";
