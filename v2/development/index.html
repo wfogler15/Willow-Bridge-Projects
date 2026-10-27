@@ -15,7 +15,7 @@
 :root{
   color-scheme:light;
   --ink:#1D1247; --ink2:#4A4560; --muted:#77728C; --faint:#9C97AE; --purple:#432890;
-  --rule:#E6E4EC; --hair:#EFEEF3; --hover:#F9F9FB; --lilac:#C7C9FE; --greentea:#CCECC3; --breeze:#F2D98B; --brick:#722525; --forest:#2F6B3A;
+  --rule:#E6E4EC; --hair:#EFEEF3; --hover:#F9F9FB; --lilac:#C7C9FE; --greentea:#CCECC3; --breeze:#F2D98B; --brick:#722525; --sand:#C2B8AF; --forest:#2F6B3A;
   --font:Aptos,"Segoe UI Variable Text","Segoe UI",Inter,system-ui,sans-serif;
   --display:"Aptos Display",Aptos,"Segoe UI Variable Display","Segoe UI",Inter,sans-serif;
   --top:92px; --pw:520px;
@@ -67,6 +67,7 @@ tr.grp:first-child td{padding-top:4px !important}
 .tags .t-up::before{background:var(--ink)}
 .tags .t-ok::before{background:var(--forest)}
 .tags .t-warn::before{background:var(--brick)}
+.tags .t-stl::before{background:var(--sand);box-shadow:0 0 0 1px var(--brick)}
 .tags .t-new{color:var(--purple);font-weight:600}
 .tags .t-new::before{display:none}
 .hero{display:flex;flex-direction:column;gap:2px}
@@ -113,7 +114,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 /* markers */
 .pin{width:16px;height:16px;cursor:pointer}
 .dot{box-sizing:border-box;width:16px;height:16px;border-radius:50%;background:var(--lilac);border:2px solid var(--ink);position:relative}
-.dot.drv{background:var(--breeze)} .dot.uc{background:var(--greentea)}
+.dot.drv{background:var(--breeze)} .dot.uc{background:var(--greentea)} .dot.stl{background:var(--sand);border-color:var(--brick)}
 .dot.cur::after{content:"";position:absolute;inset:-8px;border-radius:50%;border:2px solid #fff;opacity:.8;animation:ping 2.2s ease-out infinite}
 .dot.dim{opacity:.55}
 @keyframes ping{from{transform:scale(.6);opacity:.8}to{transform:scale(2.1);opacity:0}}
@@ -240,7 +241,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610262239"></script>
+<script src="../shared/wb.js?v=202610271852"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -292,20 +293,22 @@ const isDriver = p => p.kind === "driver";
 const entState = p => isDriver(p) || p.watch || !p.hearing_date ? "watch" : p.hearing_date >= today ? "upcoming" : "recent";
 const VER = {unverified: "Not verified", verified: "Verified moving", stalled: "Stalled", delivered: "Delivered"};
 const VCLS = {unverified: "", verified: "s-ok", stalled: "s-warn", delivered: ""};
-const onMap = p => live(p) && p.lat != null && p.lng != null && (p.track === "entitlement" || p.verification === "verified");
+const onMap = p => live(p) && p.lat != null && p.lng != null && (p.track !== "construction" || p.verification === "verified");
+const TRACK_LABEL = {entitlement: "Entitlements", construction: "Under construction", stalled: "Stalled"};
+
 
 /* ---------- state: track, market, view ---------- */
 const store = {get(k){ try{ return localStorage.getItem("wbv2:dev:" + k); }catch(e){ return null; } }, set(k, v){ try{ localStorage.setItem("wbv2:dev:" + k, v); }catch(e){} }};
 const qs = new URLSearchParams(location.search);
 let track = qs.get("track") || store.get("track") || "entitlement";
-if(!["entitlement", "construction"].includes(track)) track = "entitlement";
+if(!["entitlement", "construction", "stalled"].includes(track)) track = "entitlement";
 let mkt = WB.getMarket();
 const inMkt = p => mkt === "all" || p.market_id === mkt;
 
 /* ---------- shell: band with Map / Data log, the track toggle and the market toggle ---------- */
 const band = WB.band({title: "Radar", tabs: '<button type="button" class="on" data-t="map" role="tab">Map</button><button type="button" data-t="list" role="tab">Data log</button>'});
 const trk = document.createElement("div"); trk.className = "trk"; trk.setAttribute("role", "group"); trk.setAttribute("aria-label", "Report");
-trk.innerHTML = '<button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="construction">Under construction</button>';
+trk.innerHTML = '<button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="construction">Under construction</button><button type="button" data-k="stalled">Stalled</button>';
 band.querySelector(".acts").prepend(trk);
 { const sz = document.createElement("button"); sz.type = "button"; sz.className = "b";
   sz.title = allSizes ? "Showing every project, including " + outOfScope + " outside the institutional scope" : outOfScope + " projects hidden: rentals under 100 units, for-sale under 200, all-affordable";
@@ -376,7 +379,9 @@ const ENT_ORDER = p => { const s = entState(p); return s === "upcoming" ? "0" + 
 function rebuild(){
   vis = P.filter(p => p.track === track && inMkt(p) && onMap(p));
   /* markets never mix: projects are grouped by market (in core.markets order), and with All each market gets its own cover */
-  const within = track === "entitlement" ? (a, b) => ENT_ORDER(a).localeCompare(ENT_ORDER(b)) : (a, b) => (b.units || 0) - (a.units || 0) || a.name.localeCompare(b.name);
+  const within = track === "entitlement" ? (a, b) => ENT_ORDER(a).localeCompare(ENT_ORDER(b))
+    : track === "stalled" ? (a, b) => String(a.hearing_date || "9999").localeCompare(String(b.hearing_date || "9999")) || a.name.localeCompare(b.name)   /* longest-stalled first */
+    : (a, b) => (b.units || 0) - (a.units || 0) || a.name.localeCompare(b.name);
   vis.sort((a, b) => mIdx(a.market_id) - mIdx(b.market_id) || within(a, b));
   if(mkt === "all"){
     const ms = marketsIn(vis);
@@ -396,7 +401,7 @@ function rebuild(){
 }
 function eyebrow(p, m){
   const where = p ? MKT[p.market_id] : m ? MKT[m] : "All markets";
-  return '<div class="eyebrow">' + esc(where + " · " + (track === "entitlement" ? "Entitlements" : "Under construction")) + "<small>" + fDate(today) + "</small></div>";
+  return '<div class="eyebrow">' + esc(where + " · " + TRACK_LABEL[track]) + "<small>" + fDate(today) + "</small></div>";
 }
 const agHead = (t, c2, c3) => '<div class="agenda"><div class="ag-row ag-head"><span>' + t + "</span><span>" + c2 + "</span><span>" + c3 + "</span></div>";
 const agRow = (p, c2, c3) => '<button type="button" class="ag-row" data-go="' + SLIDES.findIndex(s => s.p === p) + '"><span class="ag-name">' + esc(p.name) + (p.review === "new" ? "<em>New</em>" : "") + '</span><span class="ag-num">' + c2 + '</span><span class="ag-num">' + c3 + "</span></button>";
@@ -417,6 +422,16 @@ function renderCover(m){
       + block("Upcoming hearings", up, "Hearing") + block("Recently heard", rec, "Hearing") + block("Value drivers and watch list", wat, "Type")
       + (vis.length ? "" : '<p class="lead">Nothing on the map for this market yet.</p>')
       + '<p class="meta">Lilac points are residential cases; amber points are value drivers. Choose a row or a point to open it.</p>';
+  }
+  if(track === "stalled"){
+    const vis = vm, units = vis.reduce((t, p) => t + (p.units || 0), 0);
+    const ages = vis.map(p => p.hearing_date ? -monthsTo(p.hearing_date) : null).filter(v => v != null && v >= 0);
+    const avgYrs = ages.length ? (ages.reduce((t, v) => t + v, 0) / ages.length / 12) : null;
+    const list = vis.length ? agHead("Stalled sites (" + vis.length + ")", "Units", "Last action") + vis.map(p => agRow(p, p.units ? fNum(p.units) : "–", p.hearing_date ? fMonth(p.hearing_date) : "–")).join("") + "</div>" : "";
+    return eyebrow(null, m) + nav + '<div class="hd"><h1>Stalled</h1><h2>Sites that were entitled or started and then went quiet: approvals aging out, paused construction, owners who may sell. Possible acquisitions, and supply that may never show up.</h2></div>'
+      + '<div class="figs3"><div><b>' + vis.length + "</b><span>Stalled sites</span></div><div><b>" + fNum(units) + "</b><span>Approved units</span></div><div><b>" + (avgYrs == null ? "–" : avgYrs.toFixed(1)) + "</b><span>Years since last action, on average</span></div></div>"
+      + list + (vis.length ? "" : '<p class="lead">No stalled sites in this market yet.</p>')
+      + '<p class="meta">Sand points with a red ring are stalled sites. Choose a row or a point to open it.</p>';
   }
   const vis = vm;
   const all = P.filter(p => p.track === "construction" && inMkt(p) && inM(p) && live(p));
@@ -452,7 +467,10 @@ const histLink = p => p.property_id ? '<p class="meta"><button type="button" cla
 document.addEventListener("click", e => { const b = e.target.closest("[data-hist]"); if(b) WB.propertyHistory(b.dataset.hist); });
 function renderCase(p){
   const tags = [];
-  if(p.track === "entitlement"){
+  if(p.track === "stalled"){
+    tags.push('<span class="t-res">' + esc(p.product_type || "Residential") + "</span>");
+    tags.push('<span class="t-stl">Stalled' + (p.hearing_date ? " since " + fMonth(p.hearing_date) : "") + "</span>");
+  } else if(p.track === "entitlement"){
     tags.push(isDriver(p) ? '<span class="t-drv">Value driver · ' + esc(p.product_type || "") + "</span>" : '<span class="t-res">' + esc(p.product_type || "Residential") + "</span>");
     const st = entState(p);
     if(st === "upcoming") tags.push('<span class="t-up">Upcoming hearing</span>'); else if(st === "watch") tags.push("<span>Watch</span>");
@@ -464,7 +482,7 @@ function renderCase(p){
   if(p.review === "new") tags.push('<span class="t-new">New</span>');
   const head = eyebrow(p) + '<div class="hd"><div class="top"><h1>' + esc(p.name) + '</h1><a data-edit="' + p.id + '">Edit</a></div><h2>' + esc([p.place, p.address && p.address !== p.name ? p.address : ""].filter(Boolean).join(" · ")) + '</h2><div class="tags">' + tags.join("") + "</div></div>";
   const srcs = (p.sources || []).filter(s => s && s.url).map(s => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.label || "Source") + "</a>").join(" · ");
-  if(p.track === "entitlement"){
+  if(p.track !== "construction"){
     const dens = p.units && p.acres ? fNum(p.units / p.acres) + " / acre" : "";
     const hero = p.units ? '<div class="hero"><div class="hv">' + fNum(p.units) + "<small>units</small></div>" + (p.size_note ? '<div class="hs">' + esc(p.size_note) + "</div>" : "") + "</div>"
       : p.size_note ? '<div class="hero"><div class="hs" style="font-size:15px;color:var(--ink)">' + esc(p.size_note) + "</div></div>" : "";
@@ -527,7 +545,7 @@ function clearMarkers(){ markers.forEach(m => m.remove()); markers = []; }
 function addMarker(p, cur, dim){
   if(!map || p.lat == null || p.lng == null) return;
   const el = document.createElement("div"); el.className = "pin"; el.title = p.name;
-  const d = document.createElement("div"); d.className = "dot" + (p.track === "construction" ? " uc" : isDriver(p) ? " drv" : "") + (cur ? " cur" : "") + (dim ? " dim" : "");
+  const d = document.createElement("div"); d.className = "dot" + (p.track === "construction" ? " uc" : p.track === "stalled" ? " stl" : isDriver(p) ? " drv" : "") + (cur ? " cur" : "") + (dim ? " dim" : "");
   el.appendChild(d);
   el.addEventListener("click", ev => { ev.stopPropagation(); openCase(p); });
   markers.push(new maplibregl.Marker({element: el, anchor: "center"}).setLngLat([p.lng, p.lat]).addTo(map));
@@ -656,6 +674,7 @@ const STATUS = {
   construction: [["verified", "Verified", p => live(p) && p.verification === "verified"], ["unverified", "Not verified (CoStar)", p => live(p) && p.verification === "unverified"],
     ["stalled", "Stalled", p => live(p) && p.verification === "stalled"], ["delivered", "Delivered", p => live(p) && p.verification === "delivered"],
     ["review", "Needs review", p => p.review === "new"], ["dismissed", "Dismissed", p => p.review === "dismissed"], ["all", "All", p => live(p)]],
+  stalled: [["all", "All", p => live(p)], ["review", "Needs review", p => p.review === "new"], ["dismissed", "Dismissed", p => p.review === "dismissed"]],
 };
 const nameCell = p => '<td><b>' + esc(p.name) + "</b>" + (p.review === "new" ? '<span class="new">New</span>' : "") + "<small>" + esc(p.place || "") + "</small></td>";
 const MKTCOL = ["market", "Market", p => mIdx(p.market_id), p => esc(MKT[p.market_id] || ""), 0, .8];
@@ -671,6 +690,16 @@ const COLS = {
     ["date", "Hearing", p => p.hearing_date, p => p.hearing_date ? fShort(p.hearing_date) + " '" + p.hearing_date.slice(2, 4) : "", 0, .8],
     ["status", "Status", p => p.status_text, entStatusCell, 0, 2],
     ["dev", "Developer / applicant", p => p.developer || p.applicant, p => esc(p.developer || p.applicant || ""), 0, 1.6],
+  ],
+  stalled: [
+    ["name", "Project", p => p.name, nameCell, 0, 2.6],
+    ["type", "Type", p => p.product_type, p => esc(p.product_type || ""), 0, 1.1],
+    ["units", "Units", p => p.units, p => p.units ? fNum(p.units) : "", 1, .7],
+    ["acres", "Acres", p => p.acres == null ? null : +p.acres, p => p.acres ? fNum(p.acres) : "", 1, .7],
+    ["date", "Last action", p => p.hearing_date, p => p.hearing_date ? fShort(p.hearing_date) + " '" + p.hearing_date.slice(2, 4) : "", 0, .9],
+    ["status", "Status", p => p.status_text, p => esc(p.status_text || ""), 0, 2.2],
+    ["dev", "Owner / applicant", p => p.owner || p.developer || p.applicant, p => esc(p.owner || p.developer || p.applicant || ""), 0, 1.6],
+    ["case", "Case", p => p.case_no, p => esc(p.case_no || ""), 0, .9],
   ],
   construction: [
     ["name", "Project", p => p.name, nameCell, 0, 2.4],
@@ -690,9 +719,9 @@ function rowsNow(){
   return P.filter(p => p.track === track && inMkt(p) && st[2](p) && (!q || [p.name, p.place, p.address, p.developer, p.applicant, p.owner, p.case_no, p.request, p.note, p.evidence].some(v => v && String(v).toLowerCase().includes(q))));
 }
 function renderList(){
-  if(!STATUS[track].some(s => s[0] === lstat)) lstat = track === "entitlement" ? "all" : "verified";
+  if(!STATUS[track].some(s => s[0] === lstat)) lstat = track === "construction" ? "verified" : "all";
   const cols = mkt === "all" ? [COLS[track][0], MKTCOL].concat(COLS[track].slice(1)) : COLS[track];
-  if(!lsort) lsort = track === "entitlement" ? {k: "date", d: -1} : {k: "units", d: -1};
+  if(!lsort) lsort = track === "entitlement" ? {k: "date", d: -1} : track === "stalled" ? {k: "date", d: 1} : {k: "units", d: -1};
   $("#lstat").innerHTML = STATUS[track].map(([k, l, f]) => '<button type="button" data-s="' + k + '" aria-pressed="' + (lstat === k) + '">' + l + "<i>" + P.filter(p => p.track === track && inMkt(p) && f(p)).length + "</i></button>").join("");
   const wsum = cols.reduce((t, c) => t + c[5], 0);
   $("#lcg").innerHTML = cols.map(c => '<col style="width:' + (c[5] / wsum * 100).toFixed(2) + '%">').join("");
@@ -711,7 +740,7 @@ function renderList(){
   $("#ltb").innerHTML = (mkt === "all" ? marketsIn(rows).map(m => groupHead(m) + rows.filter(p => p.market_id === m).map(rowHtml).join("")).join("") : rows.map(rowHtml).join(""))
     || '<tr><td colspan="' + cols.length + '" class="empty">Nothing matches. Try another status or clear the search.</td></tr>';
   const units = rows.reduce((t, p) => t + (p.units || 0), 0);
-  $("#ltitle").textContent = (track === "entitlement" ? "Entitlements" : "Under construction") + (mkt === "all" ? "" : ", " + MKT[mkt]);
+  $("#ltitle").textContent = TRACK_LABEL[track] + (mkt === "all" ? "" : ", " + MKT[mkt]);
   $("#lcount").textContent = plural(rows.length, "project") + (units ? ", " + fNum(units) + " units" : "") + "."
     + (track === "construction" ? " Only verified projects go on the map." : "");
 }
@@ -738,19 +767,19 @@ $("#lcsv").addEventListener("click", () => {
   const cell = v => { if(v == null) return ""; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const csv = [cols.join(",")].concat(rowsNow().sort((a, b) => mIdx(a.market_id) - mIdx(b.market_id) || (b.units || 0) - (a.units || 0)).map(p => cols.map(c => cell(p[c])).join(","))).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
-  a.download = (track === "entitlement" ? "entitlements" : "under-construction") + (mkt === "all" ? "" : "-" + mkt) + "-" + today + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  a.download = ({entitlement: "entitlements", construction: "under-construction", stalled: "stalled"})[track] + (mkt === "all" ? "" : "-" + mkt) + "-" + today + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 
 /* ---------- editor: every field, review and verification, history ---------- */
 const FIELDS = [
-  ["Project", [["name", "Name", "text", "full"], ["track", "Report", "select:entitlement=Entitlements,construction=Under construction"], ["kind", "Kind", "select:residential=Residential,driver=Value driver"],
+  ["Project", [["name", "Name", "text", "full"], ["track", "Report", "select:entitlement=Entitlements,construction=Under construction,stalled=Stalled"], ["kind", "Kind", "select:residential=Residential,driver=Value driver"],
     ["market_id", "Market", "market"], ["product_type", "Product type", "text"], ["style", "Style (garden, mid-rise…)", "text"],
     ["place", "Place (city · area)", "text", "full"], ["address", "Address", "text", "full"], ["lat", "Latitude", "num"], ["lng", "Longitude", "num"],
     ["location_quality", "Location is", "select:=Unknown,parcel=Parcel outline,address=Address point,estimated=Estimated,source=CoStar point"]]],
   ["Size", [["units", "Units", "int"], ["acres", "Acres", "num"], ["stories", "Stories", "int"], ["height", "Height", "text"], ["size_note", "Size note (drivers)", "text", "full"]]],
   ["Parties", [["developer", "Developer", "text"], ["applicant", "Applicant", "text"], ["owner", "Owner", "text"]]],
   ["Entitlement", [["case_no", "Case number", "text"], ["hearing_body", "Hearing body", "text"], ["hearing_date", "Hearing date", "date"],
-    ["status_text", "Status", "text", "full"], ["watch", "Watch item (no hearing yet)", "check", "full"], ["request", "Request", "area", "full"]], "entitlement"],
+    ["status_text", "Status", "text", "full"], ["watch", "Watch item (no hearing yet)", "check", "full"], ["request", "Request", "area", "full"]], "entitlement stalled"],
   ["Construction", [["construction_start", "Construction start", "month"], ["delivery_date", "Delivery", "month"], ["affordable", "Affordability", "text"],
     ["verification", "Verification", "select:unverified=Not verified,verified=Verified moving,stalled=Stalled,delivered=Delivered"], ["verified_on", "Checked on", "date"],
     ["evidence", "Evidence it's moving (permit, groundbreaking, topping out, pre-leasing, construction loan)", "area", "full"]], "construction"],
@@ -787,7 +816,7 @@ function openEditor(p){
     + '<span class="msg" id="dmsg"></span><span style="flex:1"></span>' + (p ? '<button type="button" class="btn ghost" data-showmap>Show on map</button>' : "")
     + '<button type="button" class="btn ghost" data-close>Cancel</button><button type="button" class="btn primary" data-save>' + (isNew ? "Add project" : "Save") + "</button></footer></div>";
   d.hidden = false;
-  const syncTrack = () => { const t = $("#f_track").value; d.querySelectorAll("fieldset[data-only]").forEach(fs => { fs.hidden = !!fs.dataset.only && fs.dataset.only !== t; }); };
+  const syncTrack = () => { const t = $("#f_track").value; d.querySelectorAll("fieldset[data-only]").forEach(fs => { fs.hidden = !!fs.dataset.only && !fs.dataset.only.split(" ").includes(t); }); };
   $("#f_track").addEventListener("change", syncTrack); syncTrack();
   $("#evadd").onclick = () => $("#evs").insertAdjacentHTML("beforeend", evRow(null));
   $("#evs").onclick = e => { const b = e.target.closest("[data-del]"); if(b) b.closest(".ev").remove(); };
