@@ -499,6 +499,7 @@ html,body{background:#F3F2EF !important}
 .dlg .sale-cap{align-self:center;font-size:13px;color:#1D1247;font-variant-numeric:tabular-nums}
 .dlg .sale-act{grid-column:1/-1;display:flex;justify-content:flex-end}
 .dlg footer{display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid #EEECE8;background:#F8F7F4}
+#list td .due{color:#722525;font-weight:600}
 .dlg footer .btn.del{color:#722525}.dlg footer .btn.del[data-armed]{border-color:#722525}
 .dlg .msg{font-size:13px;color:#722525}
 .dlg .btn{height:30px;padding:0 13px;border-radius:6px;border:1px solid #D3CEC7;background:#fff;font:600 13px var(--font);color:#1D1247;cursor:pointer;transition:background .12s,border-color .12s,transform .06s}
@@ -638,7 +639,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610272016"></script>
+<script src="../shared/wb.js?v=202610272017"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1573,7 +1574,9 @@ function inFilter(d, kind = lk, st = ls){
   return inStatus(d, st);
 }
 function renderList(){
-  const cols = COLS[lk].filter(c => c[0] !== "stage" || ls !== "active");
+  /* Passed and dead: swap the CFO date for the check-back date, so the list doubles as the circle-back queue */
+  const CB = ["checkBack", "Check back", d => RW(d).check_back_on || null, d => { const v = RW(d).check_back_on; return v ? '<span' + (v <= new Date().toLocaleDateString("en-CA") ? ' class="due"' : "") + ">" + fD(v) + "</span>" : ""; }];
+  const cols = COLS[lk].filter(c => (c[0] !== "stage" || ls !== "active") && (ls !== "pd" || c[0] !== "cfo")).concat(ls === "pd" ? [CB] : []);
   $("#lkind").innerHTML = [["land", "Development"], ["asset", "Investment"]].map(([k, l]) => '<button type="button" data-k="' + k + '" aria-pressed="' + (lk === k) + '">' + l + "<i>" + deals.filter(d => inFilter(d, k)).length + "</i></button>").join("");
   $("#lstat").innerHTML = SFILT.map(([k, l]) => '<button type="button" data-s="' + k + '" aria-pressed="' + (ls === k) + '">' + l + "<i>" + deals.filter(d => inFilter(d, lk, k)).length + "</i></button>").join("");
   const col = cols.find(c => c[0] === lsort.k) || cols[0];
