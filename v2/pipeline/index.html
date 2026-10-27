@@ -633,13 +633,14 @@ html,body{background:#fff !important}
     <button id="addb" type="button">Add a deal</button>
   <button id="pick" type="button" aria-pressed="false">Fix parcel</button>
   <button id="listb" type="button" aria-pressed="false">List</button>
+  <button id="home" type="button" hidden>All deals</button>
   <button id="prev" type="button" aria-label="Previous slide">Prev</button>
   <button id="next" type="button" aria-label="Next slide">Next</button>
 </div>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610272017"></script>
+<script src="../shared/wb.js?v=202610272018"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1410,7 +1411,14 @@ function go(i){
     $("#pscroll").scrollTop = 0; el.classList.add("on");
   }, reduce ? 0 : 380);
   fills.forEach((f, k) => f.style.width = k < idx ? "100%" : "0%");
+  $("#home").hidden = s.t !== "deal";
   camera(s);
+}
+/* back to the deal's market board (the deal table) from any deal, wherever it sits in the run */
+function boardIdx(){
+  const s = SLIDES[idx], m = s.m || (s.d && s.d.market);
+  const i = SLIDES.findIndex(x => x.t === "market" && x.m === m);
+  return i >= 0 ? i : 0;
 }
 function step(dir){
   let j = idx;
@@ -1431,6 +1439,7 @@ function loop(now){
 function setPlaying(){ playing = false; }
 $("#next").addEventListener("click", () => step(1));
 $("#prev").addEventListener("click", () => step(-1));
+$("#home").addEventListener("click", () => go(boardIdx()));
 addEventListener("keydown", e => {
   if(!$("#list").hidden) return;
   if(e.key === "ArrowRight") step(1);
