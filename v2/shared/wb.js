@@ -51,7 +51,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202610271922');
+    add(ROOT + 'shared/wb-chrome.css?v=202610271949');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
@@ -315,7 +315,7 @@
       S.length ? `sold ${times(S.length)}` : 'no sales on record', lastTxt].filter(Boolean).join(' · ');
     const href = (e) => e.ref_table === 'deal' ? `${ROOT}pipeline/?deal=${e.ref_id}&edit=1`
       : e.ref_table === 'sale_comp' ? `${ROOT}comps/?comp=${e.ref_id}`
-      : e.ref_table === 'dev_project' ? `${ROOT}development/?id=${e.ref_id}&track=${e.kind === 'entitlement' ? 'entitlement' : 'construction'}` : null;
+      : e.ref_table === 'dev_project' ? `${ROOT}development/?id=${e.ref_id}` : null;
     const open = { deal: 'Open deal', sale_comp: 'Open comp', dev_project: 'Open case' };
     body.innerHTML = (facts.length ? `<dl class="wbh-facts">${facts.map(([v, l]) => `<div><dt>${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : '')
       + `<p class="wbh-sum">${esc(summary.charAt(0).toUpperCase() + summary.slice(1))}.</p>`

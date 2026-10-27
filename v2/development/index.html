@@ -205,6 +205,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 .dlg .btn.primary{background:var(--ink);border-color:var(--ink);color:#fff}
 .dlg .btn.primary:hover{background:#2B1D63}
 .dlg .btn.ghost{border-color:transparent;font-weight:500;color:var(--ink2)}
+.dlg .btn.danger{color:#A33A2B}.dlg .btn.danger[data-armed]{border-color:#A33A2B}
 .dlg .btn:focus-visible,.dlg .x:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px var(--purple)}
 
 @media (max-width:760px){
@@ -241,7 +242,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610271922"></script>
+<script src="../shared/wb.js?v=202610271949"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -377,6 +378,8 @@ const parcelAcres = ps => ps.reduce((t, p) => t + Math.abs(p.coords.reduce((a, r
 let SLIDES = [], vis = [], idx = 0, map = null, ready = false, markers = [], swapT = 0, picking = false, lookup = 0, extra = null;
 const ENT_ORDER = p => { const s = entState(p); return s === "upcoming" ? "0" + p.hearing_date : s === "recent" ? "1" + (99999999 - +p.hearing_date.replace(/-/g, "")) : "2" + (isDriver(p) ? "0" : "1") + p.name; };
 function rebuild(){
+  const wid = qs.get("id"), w = wid && P.find(x => x.id === wid);
+  if(w && w.track !== track){ track = w.track; store.set("track", track); paintTrk(); }   /* links from property history land on the right list */
   vis = P.filter(p => p.track === track && inMkt(p) && onMap(p));
   /* markets never mix: projects are grouped by market (in core.markets order), and with All each market gets its own cover */
   const within = track === "entitlement" ? (a, b) => ENT_ORDER(a).localeCompare(ENT_ORDER(b))
@@ -849,9 +852,11 @@ function openEditor(p){
   d.innerHTML = '<div class="card" role="dialog" aria-modal="true" aria-labelledby="dlgt"><header><div><h2 id="dlgt">' + (p ? esc(p.name) : "Add a project") + "</h2><p>" + esc(sub) + '</p></div><button type="button" class="x" data-close aria-label="Close">×</button></header><div class="body">'
     + FIELDS.map(([leg, fs, only]) => '<fieldset data-only="' + (only || "") + '"><legend>' + leg + '</legend><div class="grid">' + fs.map(f => fieldHtml(p, f)).join("") + "</div></fieldset>").join("")
     + '<fieldset><legend>History</legend><div class="evs" id="evs">' + (p ? (EV.get(p.id) || []).map(evRow).join("") : "") + '</div><p style="margin:8px 0 0"><button type="button" class="btn ghost" id="evadd">Add an entry</button></p></fieldset>'
-    + '</div><footer>' + (p && p.review === "new" ? '<button type="button" class="btn" data-review="confirmed">Confirm</button><button type="button" class="btn" data-review="dismissed">Dismiss</button>' : "")
+    + '</div><footer>' + (p && p.review === "new" ? '<button type="button" class="btn" data-review="confirmed">Confirm</button>' : "")
+    + (p && p.review !== "dismissed" ? '<button type="button" class="btn" data-review="dismissed" title="Hide it everywhere but keep it under Dismissed, so the search never re-adds it">Dismiss</button>' : "")
     + (p && p.review === "dismissed" ? '<button type="button" class="btn" data-review="confirmed">Restore</button>' : "")
-    + '<span class="msg" id="dmsg"></span><span style="flex:1"></span>' + (p ? '<button type="button" class="btn ghost" data-showmap>Show on map</button>' : "")
+    + (p ? '<button type="button" class="btn ghost danger" data-delete title="Remove it and its history for good">Delete</button>' : "")
+    + '<span class="msg" id="dmsg"></span><span style="flex:1"></span>' + (p && p.property_id ? '<button type="button" class="btn ghost" data-hist="' + p.property_id + '">Property history</button>' : "") + (p ? '<button type="button" class="btn ghost" data-showmap>Show on map</button>' : "")
     + '<button type="button" class="btn ghost" data-close>Cancel</button><button type="button" class="btn primary" data-save>' + (isNew ? "Add project" : "Save") + "</button></footer></div>";
   d.hidden = false;
   const syncTrack = () => { const t = $("#f_track").value; d.querySelectorAll("fieldset[data-only]").forEach(fs => { fs.hidden = !!fs.dataset.only && !fs.dataset.only.split(" ").includes(t); }); };
@@ -861,6 +866,14 @@ function openEditor(p){
   d.onclick = async e => {
     if(e.target === d || e.target.closest("[data-close]")){ d.hidden = true; return; }
     if(e.target.closest("[data-showmap]")){ d.hidden = true; openCase(p); return; }
+    if(e.target.closest("[data-hist]")){ d.hidden = true; return; }
+    const del = e.target.closest("[data-delete]");
+    if(del){
+      if(!del.dataset.armed){ del.dataset.armed = "1"; del.textContent = "Delete for good?"; $("#dmsg").textContent = "This removes it and its history. Dismiss keeps it."; return; }
+      const { error } = await DB().from("dev_projects").delete().eq("id", p.id);
+      if(error){ $("#dmsg").textContent = "Couldn't delete: " + error.message; return; }
+      d.hidden = true; await load(); rebuild(); if(!$("#list").hidden) renderList(); WB.toast("Deleted."); return;
+    }
     const rv = e.target.closest("[data-review]");
     if(rv){ await save(p, rv.dataset.review); return; }
     if(e.target.closest("[data-save]")) await save(p, null);
