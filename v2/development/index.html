@@ -241,7 +241,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610271852"></script>
+<script src="../shared/wb.js?v=202610271858"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -449,6 +449,25 @@ function renderCover(m){
 }
 const dl = rows => { rows = rows.filter(r => r[1] != null && r[1] !== ""); return rows.length ? '<dl class="kv">' + rows.map(r => "<dt>" + r[0] + "</dt><dd>" + r[1] + "</dd>").join("") + "</dl>" : ""; };
 const sec = (t, body) => body ? '<section class="sec"><h3>' + t + "</h3>" + body + "</section>" : "";
+/* entitlement status: is the site entitled, for what, and on what terms */
+const ENT_LABEL = {"by right": "By right", "in process": "In process", approved: "Approved", denied: "Denied", withdrawn: "Withdrawn", expired: "Expired"};
+const entLine = p => {
+  if(!p.ent_status) return "";
+  const use = p.ent_use ? p.ent_use.charAt(0).toLowerCase() + p.ent_use.slice(1) : "";
+  return p.ent_status === "approved" ? "Entitled" + (use ? " for " + use : "")
+    : p.ent_status === "by right" ? "Allowed by right" + (use ? " for " + use : "")
+    : p.ent_status === "in process" ? "Entitlement in process" + (use ? " for " + use : "")
+    : ENT_LABEL[p.ent_status] + (use ? " (" + use + ")" : "");
+};
+const entShort = p => p.ent_status ? ENT_LABEL[p.ent_status] + (p.ent_use ? " · " + p.ent_use : "") : "";
+const entBlock = p => {
+  const line = entLine(p);
+  const zoning = p.zoning_from && p.zoning_to ? esc(p.zoning_from) + " → " + esc(p.zoning_to) : esc(p.zoning_to || p.zoning_from || "");
+  const exp = p.expires_on ? fDate(p.expires_on) + (p.expires_on < today ? " (lapsed)" : "") : "";
+  const rows = dl([["Zoning", zoning], ["Density", p.approved_density ? fNum(p.approved_density) + " units / acre" : ""], ["Units", p.approved_units ? fNum(p.approved_units) : ""],
+    ["Height", esc(p.approved_height || "")], ["Approved", p.approved_on ? fDate(p.approved_on) : ""], ["Expires", exp]]);
+  return line || rows ? sec("Entitlement", (line ? '<p><b style="color:var(--ink)">' + esc(line) + "</b></p>" : "") + rows) : "";
+};
 const stat = (l, v) => v == null || v === "" ? "" : '<div class="stat"><div class="tl">' + l + '</div><div class="tv">' + v + "</div></div>";
 function hist(p){
   const ev = EV.get(p.id) || [];
@@ -470,10 +489,12 @@ function renderCase(p){
   if(p.track === "stalled"){
     tags.push('<span class="t-res">' + esc(p.product_type || "Residential") + "</span>");
     tags.push('<span class="t-stl">Stalled' + (p.hearing_date ? " since " + fMonth(p.hearing_date) : "") + "</span>");
+    if(p.ent_status) tags.push('<span class="' + (p.ent_status === "approved" || p.ent_status === "by right" ? "t-ok" : p.ent_status === "in process" ? "" : "t-warn") + '">' + esc(ENT_LABEL[p.ent_status]) + "</span>");
   } else if(p.track === "entitlement"){
     tags.push(isDriver(p) ? '<span class="t-drv">Value driver · ' + esc(p.product_type || "") + "</span>" : '<span class="t-res">' + esc(p.product_type || "Residential") + "</span>");
     const st = entState(p);
     if(st === "upcoming") tags.push('<span class="t-up">Upcoming hearing</span>'); else if(st === "watch") tags.push("<span>Watch</span>");
+    if(p.ent_status) tags.push('<span class="' + (p.ent_status === "approved" || p.ent_status === "by right" ? "t-ok" : p.ent_status === "in process" ? "" : "t-warn") + '">' + esc(ENT_LABEL[p.ent_status]) + "</span>");
   } else {
     tags.push('<span class="t-uc">' + esc(p.style || "Multifamily") + "</span>");
     tags.push('<span class="' + (p.verification === "verified" ? "t-ok" : p.verification === "stalled" ? "t-warn" : "") + '">' + VER[p.verification] + "</span>");
@@ -490,6 +511,7 @@ function renderCase(p){
     const stats = [stat("Acres", p.acres ? fNum(p.acres) : ""), stat("Density", dens), stat("Height", shortH ? esc(p.height) : "")].join("");
     const hearing = (p.hearing_body || p.hearing_date) ? '<p><b style="color:var(--ink)">' + esc(p.hearing_body || "") + "</b>" + (p.hearing_date ? " · " + fDate(p.hearing_date) : "") + "</p>" : "";
     return head + hero + (stats ? '<div class="stats">' + stats + "</div>" : "")
+      + entBlock(p)
       + sec("Status", hearing + (p.status_text ? '<p class="note">' + esc(p.status_text) + "</p>" : ""))
       + sec("Request", (p.request ? "<p>" + esc(p.request) + "</p>" : "") + (p.height && !shortH ? dl([["Height", esc(p.height)]]) : ""))
       + sec("Notes", p.note ? "<p>" + esc(p.note) + "</p>" : "")
@@ -502,6 +524,7 @@ function renderCase(p){
   const deliv = p.delivery_date ? (m < 0 ? "Was due " + fMonth(p.delivery_date) : "Delivers " + fMonth(p.delivery_date) + (m === 0 ? ", this month" : ", about " + plural(m, "month") + " out")) : "No delivery date";
   return head + '<div class="hero"><div class="hv">' + (p.units ? fNum(p.units) + "<small>units</small>" : "Units unknown") + '</div><div class="hs">' + esc(deliv) + "</div></div>"
     + '<div class="stats">' + [stat("Stories", p.stories || ""), stat("Started", p.construction_start ? fMonth(p.construction_start) + (st < 0 ? " (" + -st + " mo)" : "") : ""), stat("Acres", p.acres ? fNum(p.acres) : "")].join("") + "</div>"
+    + entBlock(p)
     + sec("Evidence it's moving", (p.evidence ? '<p class="note">' + esc(p.evidence) + "</p>" : "<p>None recorded yet. CoStar lists it as under construction.</p>") + (p.verified_on ? '<p class="meta">Checked ' + fDate(p.verified_on) + "</p>" : ""))
     + sec("Parties", dl([["Developer", esc(p.developer || "")], ["Owner", p.owner && p.owner !== p.developer ? esc(p.owner) : ""]]))
     + sec("Notes", p.note ? "<p>" + esc(p.note) + "</p>" : "")
@@ -688,6 +711,7 @@ const COLS = {
     ["acres", "Acres", p => p.acres == null ? null : +p.acres, p => p.acres ? fNum(p.acres) : "", 1, .7],
     ["body", "Hearing body", p => p.hearing_body, p => esc(p.hearing_body || ""), 0, 1.4],
     ["date", "Hearing", p => p.hearing_date, p => p.hearing_date ? fShort(p.hearing_date) + " '" + p.hearing_date.slice(2, 4) : "", 0, .8],
+    ["ent", "Entitlement", p => entShort(p), p => esc(entShort(p)), 0, 1.3],
     ["status", "Status", p => p.status_text, entStatusCell, 0, 2],
     ["dev", "Developer / applicant", p => p.developer || p.applicant, p => esc(p.developer || p.applicant || ""), 0, 1.6],
   ],
@@ -697,7 +721,8 @@ const COLS = {
     ["units", "Units", p => p.units, p => p.units ? fNum(p.units) : "", 1, .7],
     ["acres", "Acres", p => p.acres == null ? null : +p.acres, p => p.acres ? fNum(p.acres) : "", 1, .7],
     ["date", "Last action", p => p.hearing_date, p => p.hearing_date ? fShort(p.hearing_date) + " '" + p.hearing_date.slice(2, 4) : "", 0, .9],
-    ["status", "Status", p => p.status_text, p => esc(p.status_text || ""), 0, 2.2],
+    ["ent", "Entitlement", p => entShort(p), p => esc(entShort(p)), 0, 1.5],
+    ["status", "Status", p => p.status_text, p => esc(p.status_text || ""), 0, 2.0],
     ["dev", "Owner / applicant", p => p.owner || p.developer || p.applicant, p => esc(p.owner || p.developer || p.applicant || ""), 0, 1.6],
     ["case", "Case", p => p.case_no, p => esc(p.case_no || ""), 0, .9],
   ],
@@ -763,6 +788,7 @@ $("#lmap").addEventListener("click", () => {
 });
 $("#lcsv").addEventListener("click", () => {
   const cols = ["name", "track", "kind", "market_id", "place", "address", "product_type", "style", "units", "acres", "stories", "height", "developer", "applicant", "owner", "case_no", "hearing_body", "hearing_date", "status_text", "request", "note",
+    "ent_status", "ent_use", "zoning_from", "zoning_to", "approved_density", "approved_units", "approved_height", "approved_on", "expires_on",
     "construction_start", "delivery_date", "verification", "evidence", "verified_on", "review", "found_by", "first_seen", "lat", "lng"];
   const cell = v => { if(v == null) return ""; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const csv = [cols.join(",")].concat(rowsNow().sort((a, b) => mIdx(a.market_id) - mIdx(b.market_id) || (b.units || 0) - (a.units || 0)).map(p => cols.map(c => cell(p[c])).join(","))).join("\n");
@@ -777,6 +803,10 @@ const FIELDS = [
     ["place", "Place (city · area)", "text", "full"], ["address", "Address", "text", "full"], ["lat", "Latitude", "num"], ["lng", "Longitude", "num"],
     ["location_quality", "Location is", "select:=Unknown,parcel=Parcel outline,address=Address point,estimated=Estimated,source=CoStar point"]]],
   ["Size", [["units", "Units", "int"], ["acres", "Acres", "num"], ["stories", "Stories", "int"], ["height", "Height", "text"], ["size_note", "Size note (drivers)", "text", "full"]]],
+  ["Entitlement status", [["ent_status", "Status", "select:=Unknown,by right=By right,in process=In process,approved=Approved,denied=Denied,withdrawn=Withdrawn,expired=Expired"],
+    ["ent_use", "Entitled for (multifamily, mixed-use, hotel…)", "text"], ["zoning_from", "Zoning from", "text"], ["zoning_to", "Zoning to", "text"],
+    ["approved_density", "Approved density (units / acre)", "num"], ["approved_units", "Approved units", "int"], ["approved_height", "Approved height", "text"],
+    ["approved_on", "Approved on", "date"], ["expires_on", "Expires on", "date"]]],
   ["Parties", [["developer", "Developer", "text"], ["applicant", "Applicant", "text"], ["owner", "Owner", "text"]]],
   ["Entitlement", [["case_no", "Case number", "text"], ["hearing_body", "Hearing body", "text"], ["hearing_date", "Hearing date", "date"],
     ["status_text", "Status", "text", "full"], ["watch", "Watch item (no hearing yet)", "check", "full"], ["request", "Request", "area", "full"]], "entitlement stalled"],
