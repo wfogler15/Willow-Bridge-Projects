@@ -158,7 +158,11 @@
     },
     async opportunities_remove(f) {
       const d = await findDeal(f.id); if (!d) return;
-      const { error } = await S('pipeline').from('deals').delete().eq('id', d.id); if (error) throw error;
+      // never a silent hard delete: removing in Market Intel archives the deal as Passed and logs it (delete for good from Opportunities)
+      if (!['passed', 'lost', 'dead', 'closed'].includes(d.stage)) {
+        const { error } = await S('pipeline').from('deals').update({ stage: 'passed' }).eq('id', d.id); if (error) throw error;
+        await S('pipeline').from('deal_log').insert({ deal_id: d.id, kind: 'stage', body: 'Removed in Market Intel; archived as Passed.' });
+      }
     },
 
     async custom_comps_select() {

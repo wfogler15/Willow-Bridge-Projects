@@ -499,6 +499,7 @@ html,body{background:#F3F2EF !important}
 .dlg .sale-cap{align-self:center;font-size:13px;color:#1D1247;font-variant-numeric:tabular-nums}
 .dlg .sale-act{grid-column:1/-1;display:flex;justify-content:flex-end}
 .dlg footer{display:flex;align-items:center;gap:8px;padding:12px 20px;border-top:1px solid #EEECE8;background:#F8F7F4}
+.dlg footer .btn.del{color:#722525}.dlg footer .btn.del[data-armed]{border-color:#722525}
 .dlg .msg{font-size:13px;color:#722525}
 .dlg .btn{height:30px;padding:0 13px;border-radius:6px;border:1px solid #D3CEC7;background:#fff;font:600 13px var(--font);color:#1D1247;cursor:pointer;transition:background .12s,border-color .12s,transform .06s}
 .dlg .btn:hover{background:#F3F2EF;border-color:#BDB6AD}
@@ -637,7 +638,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202610271949"></script>
+<script src="../shared/wb.js?v=202610272016"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -1561,8 +1562,9 @@ const ATTN = {
 };
 let la = (k => ATTN[k] ? k : null)(new URLSearchParams(location.search).get("attn"));
 if(la === "cfo") lk = "land";
-const SFILT = [["active", "Active"], ["watch", "Watching"], ["archive", "Archive"], ["all", "All"]];
-function inStatus(d, s){ return s === "all" ? true : s === "archive" ? archived(d) : s === "watch" ? (watching(d) && !archived(d)) : (!archived(d) && !watching(d)); }
+const SFILT = [["active", "Active"], ["watch", "Watching"], ["pd", "Passed and dead"], ["archive", "Archive"], ["all", "All"]];
+const PASSED_DEAD = ["passed", "lost", "dead"];   /* every deal we walked from, lost, or that died: kept for good unless deliberately deleted */
+function inStatus(d, s){ return s === "all" ? true : s === "pd" ? PASSED_DEAD.includes(d.stage) : s === "archive" ? archived(d) : s === "watch" ? (watching(d) && !archived(d)) : (!archived(d) && !watching(d)); }
 function inFilter(d, kind = lk, st = ls){
   if(d.kind !== kind) return false;
   if(la && !ATTN[la][1](d)) return false;
@@ -1589,7 +1591,7 @@ function renderList(){
   $("#ltb").innerHTML = rows.map(d => '<tr class="r" tabindex="0" data-id="' + d.id + '">' + cols.map(c => c[0] === "name" ? c[3](d) : "<td" + (c[4] ? ' class="num"' : TXT.includes(c[0]) ? ' class="txt"' : "") + ">" + (c[3] ? c[3](d) : esc(c[2](d) ?? "")) + "</td>").join("") + "</tr>").join("")
     || '<tr><td colspan="' + cols.length + '" class="empty">No ' + (lk === "land" ? "development" : "investment") + " deals match. Try another status or clear the search.</td></tr>";
   const units = rows.reduce((t, d) => t + (M.units(d) || 0), 0), gd = rows.reduce((t, d) => t + (M.guidance(d) || 0), 0);
-  const stW = {active: "active", watch: "watched", archive: "archived", all: ""}[ls];
+  const stW = {active: "active", watch: "watched", pd: "passed, lost or dead", archive: "archived", all: ""}[ls];
   $("#ltitle").textContent = (lk === "land" ? "Development" : "Investment") + " opportunities" + (lm === "all" ? "" : ", " + lm);
   $("#lcount").innerHTML = esc(rows.length + " " + (stW ? stW + " " : "") + (rows.length === 1 ? "deal" : "deals") + (la ? " " + ATTN[la][0] : "")
     + (units ? ", " + fI(units) + (lk === "land" ? " proposed units" : " units") : "") + (gd ? ", " + fM(gd) + " in guidance" : "") + ".")
@@ -1690,11 +1692,19 @@ function paintEditor(){
     + '<div class="figs">' + figsHtml(d) + "</div><div class=\"body\">"
     + FIELDS.filter(g => !g[2] || g[2] === (r.kind || d.kind)).map(([t, fs]) => '<fieldset><legend>' + t + '</legend><div class="grid">' + fs.map(f => fieldHtml(f, r)).join("") + "</div></fieldset>").join("")
     + saleHtml(d, r)
-    + "</div><footer><button type=\"button\" class=\"btn\" data-play>Open in the player</button><button type=\"button\" class=\"btn\" data-hist>Property history</button><span class=\"msg\"></span><span style=\"flex:1\"></span>"
+    + "</div><footer><button type=\"button\" class=\"btn\" data-play>Open in the player</button><button type=\"button\" class=\"btn\" data-hist>Property history</button><button type=\"button\" class=\"btn del\" data-del title=\"Remove this deal and its log for good. To keep a record, set the stage to Passed or Dead instead.\">Delete</button><span class=\"msg\"></span><span style=\"flex:1\"></span>"
     + '<button type="button" class="btn" data-close>Cancel</button><button type="submit" class="btn primary">Save changes</button></footer></form>';
   m.querySelector("[data-play]").onclick = () => { const x = editing; closeEditor(); playDeal(deals.find(y => y.id === x.id)); };
   m.querySelector("[data-hist]").onclick = () => WB.propertyHistory(RW(editing).property_id || editing.property_id);
   m.querySelector("form").onsubmit = saveEditor;
+  m.querySelector("[data-del]").onclick = async ev => {
+    const b = ev.currentTarget, msg = m.querySelector(".msg");
+    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Delete for good?"; msg.textContent = "Removes the deal, its log and parcels. Passed or Dead keeps the record."; return; }
+    const id = editing.id, { error } = await sb.schema("pipeline").from("deals").delete().eq("id", id);
+    if(error){ msg.textContent = "Couldn't delete: " + error.message; return; }
+    const i = deals.findIndex(x => x.id === id); if(i >= 0) deals.splice(i, 1);
+    closeEditor(); renderList(); WB.toast("Deleted. The player drops it next time the page loads.");
+  };
   wireSale(m, d, r);
   const prev = () => {
     const box = m.querySelector("#sensPrev"); if(!box) return;
