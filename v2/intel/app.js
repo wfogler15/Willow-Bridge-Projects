@@ -2337,13 +2337,15 @@ function getAllComps(type) {
 const compSets = {};
 function loadCompSets() {
   try {
-    const raw = localStorage.getItem('wb_dashboard_compsets_v1');
+    // per market: a shared key let one market's sets get pushed (and emptied) while another market was loaded
+    const raw = localStorage.getItem('wb_dashboard_compsets_v1:' + ACTIVE_MARKET);
     if (raw) Object.assign(compSets, JSON.parse(raw));
+    localStorage.removeItem('wb_dashboard_compsets_v1');   // retire the old shared copy
   } catch(e) {}
 }
 function saveCompSets() {
   try {
-    localStorage.setItem('wb_dashboard_compsets_v1', JSON.stringify(compSets));
+    localStorage.setItem('wb_dashboard_compsets_v1:' + ACTIVE_MARKET, JSON.stringify(compSets));
   } catch(e) {}
 }
 loadCompSets();
@@ -2453,11 +2455,11 @@ async function reconcileCompSetsOnBoot() {
         await pushCompSet(set);
         pushed += 1;
       } else {
-        const localStr = JSON.stringify(set);
-        const cloudStr = JSON.stringify(cloud.data || {});
+        // compare only what a person edits; push only a strictly newer local edit
+        const pick = (o) => JSON.stringify([o.name || '', o.description || '', o.propertyIds || []]);
         const localUpdatedAt = set.updatedAt || 0;
         const cloudUpdatedAt = cloud.updated_at ? new Date(cloud.updated_at).getTime() : 0;
-        if (localStr !== cloudStr && localUpdatedAt >= cloudUpdatedAt) {
+        if (pick(set) !== pick(cloud.data || {}) && localUpdatedAt > cloudUpdatedAt) {
           await pushCompSet(set);
           pushed += 1;
         }

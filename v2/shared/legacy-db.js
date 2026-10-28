@@ -252,6 +252,12 @@
     async comp_sets_upsert(row) {
       const c = ctx();
       const found = await findCompSet(row.id);
+      // resolve members first; never empty a set because its ids belong to another market or failed to resolve
+      const ids = [];
+      for (const pid of row.property_ids || []) { const u = await propUuid(pid); if (u && !ids.includes(u)) ids.push(u); }
+      const asked = (row.property_ids || []).length;
+      if (found && found.market_id && found.market_id !== c.market) throw new Error(`Comp set "${row.name}" belongs to ${found.market_id}; not saved while ${c.market} is loaded.`);
+      if (asked && ids.length < asked) throw new Error(`Comp set "${row.name}": ${asked - ids.length} of ${asked} properties couldn't be matched, so nothing was saved.`);
       let setId;
       if (found) {
         setId = found.id;
@@ -267,8 +273,6 @@
         if (dealId) { const { error: e3 } = await S('market').from('comp_sets').update({ deal_id: null }).eq('deal_id', dealId).neq('id', setId); if (e3) throw e3; }
         const { error: e4 } = await S('market').from('comp_sets').update({ deal_id: dealId }).eq('id', setId); if (e4) throw e4;
       }
-      const ids = [];
-      for (const pid of row.property_ids || []) { const u = await propUuid(pid); if (u && !ids.includes(u)) ids.push(u); }
       if (ids.length) {
         const { error } = await S('market').from('comp_set_members').insert(ids.map((property_id, i) => ({ comp_set_id: setId, property_id, sort: i + 1 })));
         if (error) throw error;
@@ -294,8 +298,8 @@
   }
   async function findCompSet(legacyId) {
     const k = String(legacyId);
-    if (isUuid(k)) { const { data } = await S('market').from('comp_sets').select('id').eq('id', k).limit(1); if (data && data[0]) return data[0]; }
-    const { data } = await S('market').from('comp_sets').select('id').eq('legacy_id', k).limit(1);
+    if (isUuid(k)) { const { data } = await S('market').from('comp_sets').select('id,market_id').eq('id', k).limit(1); if (data && data[0]) return data[0]; }
+    const { data } = await S('market').from('comp_sets').select('id,market_id').eq('legacy_id', k).limit(1);
     return data && data[0];
   }
   // one set per deal: linking clears the deal from any other set; null unlinks the deal from every set
