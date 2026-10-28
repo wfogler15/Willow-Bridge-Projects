@@ -3568,7 +3568,8 @@ function renderOverview() {
   const leaseUpCutoff = new Date(TODAY);
   leaseUpCutoff.setMonth(leaseUpCutoff.getMonth() - 12);
   const isLeaseUp = p => {
-    const d = monthYearToDate(p.monthBuilt, p.yearBuilt);
+    // a recorded pre-lease start beats the delivery month: leasing begins before the building is finished
+    const d = p.preLeaseStart ? new Date(p.preLeaseStart + 'T12:00:00') : monthYearToDate(p.monthBuilt, p.yearBuilt);
     return d && d >= leaseUpCutoff && d <= TODAY;
   };
 
@@ -18016,7 +18017,8 @@ function openSubmarketOccupancyDetail(submarket) {
   const leaseUpCutoff = new Date(TODAY);
   leaseUpCutoff.setMonth(leaseUpCutoff.getMonth() - 12);
   const isLeaseUp = p => {
-    const d = monthYearToDate(p.monthBuilt, p.yearBuilt);
+    // a recorded pre-lease start beats the delivery month: leasing begins before the building is finished
+    const d = p.preLeaseStart ? new Date(p.preLeaseStart + 'T12:00:00') : monthYearToDate(p.monthBuilt, p.yearBuilt);
     return d && d >= leaseUpCutoff && d <= TODAY;
   };
 
