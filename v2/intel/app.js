@@ -7295,6 +7295,7 @@ function renderCompSetIntel() {
     ['concessions', 'Concessions'],
     ['mix', 'Unit Mix'],
     ['position', 'Positioning'],
+    ['sales', 'Sales'],
     ['uw', 'Underwriting' + (linkedDeals.length ? ' · ' + linkedDeals.length : '')]
   ];
   const tabRow = tabs.map(([k, lbl]) =>
@@ -7320,6 +7321,7 @@ function renderCompSetIntel() {
   else if (tab === 'concessions') body = renderCsConcessions(props);
   else if (tab === 'mix') body = renderCsRentMatrix(props);
   else if (tab === 'uw') body = renderCsUnderwriting(props);
+  else if (tab === 'sales') body = renderCsSales(props);
   else body = renderCsPositioning(props);
 
   host.innerHTML = `
@@ -9164,6 +9166,225 @@ function csRentTrajectory(b, rate, years) {
   return { rows, crossover, neededGrowth, rate, years };
 }
 
+/* ---------- Sales tab: each comp's land and investment sale, plus a hand-picked investment sale set
+   (market.comp_set_sales) to test the linked deal's underwritten basis. Most rent comps haven't sold,
+   so the hand-picked set is what carries the investment benchmark. ---------- */
+const CS_SALE_COLS = 'id,property_id,comp_type,name,address,city,submarket,lat,lng,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_sf,price_per_land_sf,cap_rate,cap_rate_t12,buyer,seller,excluded,portfolio';
+const csSalesCache = {};
+let csSalePool = null;   // every investment sale in this market, loaded when the picker opens
+const csUuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function csPropUuid(p) { const W = window.__WBD || {}; return (W.propByCostar && W.propByCostar[p.id]) || p.id; }
+function csSalesKey(cs, props) { return cs.id + ':' + props.map(csPropUuid).join(','); }
+async function csSetUuid(cs) {
+  if (cs.uuid) return cs.uuid;
+  const { data } = await WB.sb.schema('market').from('comp_sets').select('id').eq('legacy_id', String(cs.id)).limit(1);
+  if (data && data[0]) cs.uuid = data[0].id;
+  return cs.uuid || null;
+}
+async function csLoadSales(cs, props, key) {
+  const c = csSalesCache[key] = { loading: true };
+  try {
+    const ids = props.map(csPropUuid).filter(id => csUuidRe.test(String(id)));
+    const uuid = await csSetUuid(cs);
+    const [own, links] = await Promise.all([
+      ids.length ? WB.sb.schema('comps').from('sale_comps').select(CS_SALE_COLS).in('property_id', ids).is('excluded', null) : Promise.resolve({ data: [] }),
+      uuid ? WB.sb.schema('market').from('comp_set_sales').select('sale_comp_id,sort').eq('comp_set_id', uuid).order('sort') : Promise.resolve({ data: [] }),
+    ]);
+    if (own.error) throw own.error; if (links.error) throw links.error;
+    const pickIds = (links.data || []).map(r => r.sale_comp_id);
+    let picks = [];
+    if (pickIds.length) { const r = await WB.sb.schema('comps').from('sale_comps').select(CS_SALE_COLS).in('id', pickIds); if (r.error) throw r.error; picks = r.data || []; }
+    Object.assign(c, { loading: false, loaded: true, own: own.data || [], picks: pickIds.map(id => picks.find(x => x.id === id)).filter(Boolean), uuid });
+  } catch (e) { Object.assign(c, { loading: false, loaded: true, error: e.message || String(e), own: [], picks: [] }); }
+}
+function csNum(v) { return v == null || v === '' || isNaN(+v) || +v === 0 ? null : +v; }
+function csSaleMonth(d) { if (!d) return '—'; const [y, m] = String(d).split('-'); return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m - 1] + ' ' + y; }
+function csMoneyM(n) { return n == null ? '—' : n >= 1e6 ? '$' + (n / 1e6).toFixed(n >= 1e8 ? 0 : 1) + 'M' : fmt.money(n); }
+function csK(n) { return n == null ? '—' : '$' + Math.round(n / 1000).toLocaleString() + 'K'; }
+function csSalePerUnit(s) { const u = csNum(s.units) || csNum(s.proposed_units); return csNum(s.price_per_unit) ?? (csNum(s.sale_price) && u ? s.sale_price / u : null); }
+function csSaleCap(s) { return csNum(s.cap_rate) ?? csNum(s.cap_rate_t12); }
+function csMiles(a, b) {
+  if (!a || !b || a.lat == null || b.lat == null) return null;
+  const R = 3958.8, r = x => x * Math.PI / 180, dLa = r(b.lat - a.lat), dLo = r(b.lng - a.lng);
+  const h = Math.sin(dLa / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLo / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+/* the deal's underwritten basis: total cost per unit for a development deal, price per unit for an acquisition */
+function csBasis(o) {
+  if (!o) return null;
+  const units = csNum(o.units);
+  if ((o.oppType || 'development') === 'development') {
+    const total = csNum(o.totalProjectCostPerUnit) ?? (csNum(o.uwTotalCost) && units ? o.uwTotalCost / units : null);
+    const sf = csNum(o.uwAvgUnitSize) ?? csNum(o.avgSf);
+    const land = csNum(o.underwrittenLandPricePerUnit) ?? (csNum(o.uwLandPrice) && units ? o.uwLandPrice / units : (csNum(o.pricingGuidance) && units ? o.pricingGuidance / units : null));
+    return { dev: true, name: o.name, perUnit: total, perSf: total && sf ? total / sf : null, landPerUnit: land };
+  }
+  const price = csNum(o.offerPricePerUnit) ?? (csNum(o.pricingGuidance) && units ? o.pricingGuidance / units : null);
+  return { dev: false, name: o.name, perUnit: price, perSf: null, landPerUnit: null };
+}
+function renderCsSales(props) {
+  const cs = compSets[state.activeCompSetId];
+  const key = csSalesKey(cs, props);
+  const c = csSalesCache[key];
+  if (!c) {
+    csLoadSales(cs, props, key).then(() => { if (state.csIntelTab === 'sales' && state.activeCompSetId === cs.id) renderCompSetIntel(); });
+    return '<div class="cs-footnote">Loading sales…</div>';
+  }
+  if (c.loading) return '<div class="cs-footnote">Loading sales…</div>';
+  if (c.error) return `<div class="cs-footnote">Couldn't load sales: ${escapeHTML(c.error)}</div>`;
+
+  const deal = oppsForCompSet(cs.id)[0] || cmDealOpp(cs.dealId);
+  const basis = csBasis(deal);
+  const subj = deal && deal.lat != null ? { lat: +deal.lat, lng: +deal.lng } : null;
+  const latest = (rows, type) => rows.filter(s => s.comp_type === type && s.sale_date).sort((a, b) => b.sale_date.localeCompare(a.sale_date));
+
+  /* 1. what each comp in the set traded for: land (what the developer paid) and the latest investment sale */
+  const rows = props.map(p => {
+    const mine = c.own.filter(s => s.property_id === csPropUuid(p));
+    return { p, land: latest(mine, 'land'), inv: latest(mine, 'investment') };
+  });
+  const landPer = rows.map(r => r.land[0] && csSalePerUnit(r.land[0])).filter(v => v != null);
+  const ownInv = rows.filter(r => r.inv.length).length;
+  const compTable = `
+    <div class="panel">
+      <div class="panel-header"><div>
+        <div class="panel-title-sm">Comp <em>Sales</em></div>
+        <div class="panel-sub">Latest land and investment sale for each comp · ${rows.filter(r => r.land.length).length} land · ${ownInv} investment</div>
+      </div></div>
+      <div class="panel-body" style="overflow-x:auto;">
+        <table class="data-table">
+          <thead><tr><th>Property</th><th>Units</th><th>Land sold</th><th>Price</th><th>$/door</th><th>$/land SF</th><th>Investment sold</th><th>Price</th><th>$/unit</th><th>Cap</th></tr></thead>
+          <tbody>${rows.map(({ p, land, inv }) => {
+            const l = land[0], i = inv[0];
+            return `<tr>
+              <td>${escapeHTML(p.name || '(unnamed)')}</td><td>${fmt.int(p.units)}</td>
+              <td>${l ? csSaleMonth(l.sale_date) : '<span style="opacity:.45">—</span>'}</td><td>${l ? csMoneyM(csNum(l.sale_price)) : ''}</td><td>${l ? csK(csSalePerUnit(l)) : ''}</td><td>${l && csNum(l.price_per_land_sf) ? fmt.money2(+l.price_per_land_sf) : ''}</td>
+              <td>${i ? csSaleMonth(i.sale_date) + (inv.length > 1 ? ` <span style="opacity:.55">+${inv.length - 1}</span>` : '') : '<span style="opacity:.45">Not sold</span>'}</td><td>${i ? csMoneyM(csNum(i.sale_price)) + (i.portfolio ? ' <span title="Portfolio allocation">P</span>' : '') : ''}</td><td>${i ? csK(csSalePerUnit(i)) : ''}</td><td>${i && csSaleCap(i) ? csSaleCap(i).toFixed(2) + '%' : ''}</td>
+            </tr>`; }).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  /* 2. our own investment sale comp set, benchmarked against the deal's basis */
+  const picks = c.picks;
+  const pu = picks.map(csSalePerUnit).filter(v => v != null), caps = picks.map(csSaleCap).filter(v => v != null), psf = picks.map(s => csNum(s.price_per_sf)).filter(v => v != null);
+  const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+  const avgPU = avg(pu), avgCap = avg(caps), avgSF = avg(psf), avgLand = avg(landPer);
+  const vs = basis && basis.perUnit && avgPU ? basis.perUnit / avgPU - 1 : null;
+  const kpi = (label, value, sub) => `<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-sub">${sub || '&nbsp;'}</div></div>`;
+  const kpis = `<div class="kpi-row kpi-4">
+      ${kpi(basis && basis.dev ? 'Our Basis (Total Cost)' : 'Our Basis', basis && basis.perUnit ? csK(basis.perUnit) + '<span class="unit">/unit</span>' : '—', basis ? (basis.perUnit ? escapeHTML(basis.name || '') + (basis.perSf ? ' · ' + fmt.money(basis.perSf) + '/SF' : '') : 'no underwritten cost on ' + escapeHTML(basis.name || 'the deal')) : 'link a deal to this set')}
+      ${kpi('Investment Sales', avgPU ? csK(avgPU) + '<span class="unit">/unit</span>' : '—', picks.length ? `average of ${picks.length} sale${picks.length === 1 ? '' : 's'}${avgSF ? ' · ' + fmt.money(avgSF) + '/SF' : ''}` : 'add sales below')}
+      ${kpi('Basis vs Sales', vs == null ? '—' : (vs > 0 ? '+' : '') + (vs * 100).toFixed(0) + '%', vs == null ? '&nbsp;' : vs > 0 ? 'we build above what these trade for' : 'we build below what these trade for')}
+      ${kpi('Avg Cap', avgCap ? avgCap.toFixed(2) + '%' : '—', basis && basis.dev && basis.landPerUnit ? 'our land ' + csK(basis.landPerUnit) + '/door' + (avgLand ? ' · comps ' + csK(avgLand) : '') : (avgLand ? 'comps paid ' + csK(avgLand) + '/door for land' : '&nbsp;'))}
+    </div>`;
+  const pickRows = picks.map(s => {
+    const v = csSalePerUnit(s), d = csMiles(subj, s), delta = basis && basis.perUnit && v ? basis.perUnit / v - 1 : null;
+    return `<tr>
+      <td>${escapeHTML(s.name || s.address || '(unnamed)')}${s.portfolio ? ' <span title="Portfolio allocation">P</span>' : ''}</td><td>${escapeHTML(s.submarket || s.city || '')}</td>
+      <td>${csSaleMonth(s.sale_date)}</td><td>${fmt.int(s.units)}</td><td>${s.year_built || '—'}</td><td>${csMoneyM(csNum(s.sale_price))}</td><td>${csK(v)}</td><td>${csNum(s.price_per_sf) ? fmt.money(+s.price_per_sf) : '—'}</td>
+      <td>${csSaleCap(s) ? csSaleCap(s).toFixed(2) + '%' : '—'}</td><td>${d == null ? '—' : d.toFixed(1) + ' mi'}</td>
+      <td>${delta == null ? '—' : (delta > 0 ? '+' : '') + (delta * 100).toFixed(0) + '%'}</td>
+      <td><button class="cs-action" data-sale-del="${s.id}" title="Remove from this set">×</button></td></tr>`;
+  }).join('');
+  const ownSales = rows.flatMap(r => r.inv.slice(0, 1)).filter(s => !picks.some(x => x.id === s.id));
+  const picker = state.csSalesPick ? csSalePickerHtml(picks, subj, props) : '';
+  const own = `
+    <div class="panel">
+      <div class="panel-header" style="flex-wrap:wrap;gap:10px;"><div>
+        <div class="panel-title-sm">Investment Sale <em>Comps</em></div>
+        <div class="panel-sub">Sales we pick for this set · $/unit vs our basis${subj ? ' · distance from ' + escapeHTML(deal.name || 'the site') : ''}</div>
+      </div>
+      <div class="cs-actions">
+        ${ownSales.length ? `<button class="cs-action" data-sale-addown>+ Add the comps' own sales (${ownSales.length})</button>` : ''}
+        <button class="cs-action ${state.csSalesPick ? 'cs-action-primary' : ''}" data-sale-pick>${state.csSalesPick ? '✓ Done' : '+ Add sales'}</button>
+      </div></div>
+      <div class="panel-body" style="overflow-x:auto;">
+        ${picks.length ? `<table class="data-table">
+          <thead><tr><th>Property</th><th>Submarket</th><th>Sold</th><th>Units</th><th>Built</th><th>Price</th><th>$/unit</th><th>$/SF</th><th>Cap</th><th>Distance</th><th>Our basis vs</th><th></th></tr></thead>
+          <tbody>${pickRows}</tbody>
+          <tfoot><tr><td><strong>Average</strong></td><td></td><td></td><td></td><td></td><td></td><td><strong>${csK(avgPU)}</strong></td><td>${avgSF ? fmt.money(avgSF) : '—'}</td><td>${avgCap ? avgCap.toFixed(2) + '%' : '—'}</td><td></td><td><strong>${vs == null ? '—' : (vs > 0 ? '+' : '') + (vs * 100).toFixed(0) + '%'}</strong></td><td></td></tr></tfoot>
+        </table>` : '<div class="cs-footnote">No investment sales picked yet. Add nearby trades of similar product to see how our basis compares.</div>'}
+        ${picker}
+      </div>
+    </div>`;
+  return kpis + own + compTable;
+}
+function csSalePickerHtml(picks, subj, props) {
+  if (!csSalePool) {
+    WB.fetchAll('comps', 'sale_comps', CS_SALE_COLS, q => q.eq('market_id', window.__WBD.market).eq('comp_type', 'investment').is('excluded', null))
+      .then(rows => { csSalePool = rows; renderCompSetIntel(); })
+      .catch(e => { csSalePool = []; WB.toast && WB.toast("Couldn't load sales: " + (e.message || e)); });
+    return '<div class="cs-footnote">Loading this market\'s investment sales…</div>';
+  }
+  /* no linked site: measure from the middle of the set */
+  const pts = props.filter(p => p.lat != null);
+  const ctr = subj || (pts.length ? { lat: pts.reduce((t, p) => t + +p.lat, 0) / pts.length, lng: pts.reduce((t, p) => t + +p.lng, 0) / pts.length } : null);
+  const have = new Set(picks.map(s => s.id));
+  const list = csSalePool.filter(s => !have.has(s.id) && s.sale_date)
+    .map(s => ({ s, d: csMiles(ctr, s) }))
+    .sort((a, b) => (a.d ?? 1e9) - (b.d ?? 1e9) || b.s.sale_date.localeCompare(a.s.sale_date))
+    .slice(0, 150);
+  return `<div class="cs-tab-toolbar" style="margin-top:14px;">
+      <div class="cs-tab-toolbar-note">Nearest first${subj ? '' : ' (from the middle of the set)'} · ${csSalePool.length.toLocaleString()} investment sales in this market</div>
+      <input class="cs-side-picker" id="cs-sale-q" type="search" placeholder="Filter by name, submarket, buyer" style="min-width:240px;">
+    </div>
+    <div style="max-height:360px;overflow:auto;">
+      <table class="data-table" id="cs-sale-pool">
+        <thead><tr><th></th><th>Property</th><th>Submarket</th><th>Sold</th><th>Units</th><th>Built</th><th>Price</th><th>$/unit</th><th>Cap</th><th>Distance</th></tr></thead>
+        <tbody>${list.map(({ s, d }) => `<tr data-q="${escapeHTML([s.name, s.address, s.submarket, s.city, s.buyer, s.seller].filter(Boolean).join(' ').toLowerCase())}">
+          <td><button class="cs-action" data-sale-add="${s.id}">+ Add</button></td>
+          <td>${escapeHTML(s.name || s.address || '(unnamed)')}</td><td>${escapeHTML(s.submarket || s.city || '')}</td><td>${csSaleMonth(s.sale_date)}</td>
+          <td>${fmt.int(s.units)}</td><td>${s.year_built || '—'}</td><td>${csMoneyM(csNum(s.sale_price))}</td><td>${csK(csSalePerUnit(s))}</td>
+          <td>${csSaleCap(s) ? csSaleCap(s).toFixed(2) + '%' : '—'}</td><td>${d == null ? '—' : d.toFixed(1) + ' mi'}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+}
+function csSalesCurrent() {
+  const cs = compSets[state.activeCompSetId]; if (!cs) return {};
+  const props = compSetProperties();
+  return { cs, props, c: csSalesCache[csSalesKey(cs, props)] };
+}
+async function csSalesAdd(ids) {
+  const { cs, c } = csSalesCurrent(); if (!c || !ids.length) return;
+  const uuid = c.uuid || await csSetUuid(cs);
+  if (!uuid) { WB.toast && WB.toast('Save the comp set first, then add sales.'); return; }
+  const start = c.picks.length;
+  const rows = ids.map((id, i) => ({ comp_set_id: uuid, sale_comp_id: id, sort: start + i + 1, created_by: (window.__WBD.user && window.__WBD.user.email) || null }));
+  const { error } = await WB.sb.schema('market').from('comp_set_sales').upsert(rows, { onConflict: 'comp_set_id,sale_comp_id', ignoreDuplicates: true });
+  if (error) { WB.toast && WB.toast("Couldn't add: " + error.message); return; }
+  const pool = (csSalePool || []).concat(c.own);
+  ids.forEach(id => { const s = pool.find(x => x.id === id); if (s && !c.picks.some(x => x.id === id)) c.picks.push(s); });
+  renderCompSetIntel();
+}
+async function csSalesRemove(id) {
+  const { c } = csSalesCurrent(); if (!c || !c.uuid) return;
+  const { error } = await WB.sb.schema('market').from('comp_set_sales').delete().eq('comp_set_id', c.uuid).eq('sale_comp_id', id);
+  if (error) { WB.toast && WB.toast("Couldn't remove: " + error.message); return; }
+  c.picks = c.picks.filter(s => s.id !== id);
+  renderCompSetIntel();
+}
+function wireCsSales(host) {
+  if (host.dataset.salesWired) return;
+  host.dataset.salesWired = '1';
+  host.addEventListener('click', e => {
+    const add = e.target.closest('[data-sale-add]'); if (add) { add.disabled = true; csSalesAdd([add.dataset.saleAdd]); return; }
+    const del = e.target.closest('[data-sale-del]'); if (del) { csSalesRemove(del.dataset.saleDel); return; }
+    if (e.target.closest('[data-sale-pick]')) { state.csSalesPick = !state.csSalesPick; renderCompSetIntel(); return; }
+    if (e.target.closest('[data-sale-addown]')) {
+      const { props, c } = csSalesCurrent(); if (!c) return;
+      const ids = props.map(p => c.own.filter(s => s.property_id === csPropUuid(p) && s.comp_type === 'investment' && s.sale_date).sort((a, b) => b.sale_date.localeCompare(a.sale_date))[0])
+        .filter(s => s && !c.picks.some(x => x.id === s.id)).map(s => s.id);
+      csSalesAdd(ids);
+    }
+  });
+  host.addEventListener('input', e => {
+    if (e.target.id !== 'cs-sale-q') return;
+    const q = e.target.value.trim().toLowerCase();
+    host.querySelectorAll('#cs-sale-pool tbody tr').forEach(tr => { tr.style.display = !q || tr.dataset.q.includes(q) ? '' : 'none'; });
+  });
+}
+
 function renderCsUnderwriting(props) {
   const csId = state.activeCompSetId;
   const linkedOpps = oppsForCompSet(csId);
@@ -9384,6 +9605,7 @@ function wireCsIntel() {
 
   const manageBtn = document.getElementById('cs-manage-btn');
   if (manageBtn) manageBtn.addEventListener('click', openManageCompSet);
+  wireCsSales(host);
 
   // Fee inputs commit on change (not on every keystroke) so typing stays smooth.
   host.querySelectorAll('.cs-fee-input').forEach(el => {
