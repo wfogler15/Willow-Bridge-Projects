@@ -2188,6 +2188,55 @@ async function refreshComps(){
   if(!map.hasLayer(compsCluster)) map.addLayer(compsCluster);
 }
 
+// ---- Radar: other developers' projects, tracked (not sites). Read-only here; edited on the Radar tab. ----
+let radarOn = true, _radarData = null, _radarLoading = null;
+const RADAR_TRACK = { entitlement:{label:'Entitlements', hex:'#432890'}, construction:{label:'Under construction', hex:'#1D1247'}, stalled:{label:'Stalled', hex:'#A89C90'} };
+const radarLayer = L.layerGroup();
+function loadRadar(){
+  if(_radarData) return Promise.resolve(_radarData);
+  if(!_radarLoading) _radarLoading = WB.fetchAll('market','dev_projects',
+    'id,market_id,track,kind,name,address,place,lat,lng,units,acres,stories,developer,status_text,ent_status,ent_use,verification,review,product_type,delivery_date',
+    q => q.neq('review','dismissed').not('lat','is',null))
+    .then(rows => (_radarData = rows))
+    .catch(() => (_radarData = []));
+  return _radarLoading;
+}
+/* same institutional scope as Radar: drivers always; rentals 100+ units (unknown size stays in) */
+const radarInScope = p => p.kind === 'driver' || p.units == null || p.units >= 100;
+function radarMarker(p){
+  const t = RADAR_TRACK[p.track] || RADAR_TRACK.entitlement;
+  const quiet = p.track === 'construction' && p.verification === 'unverified';
+  const driver = p.kind === 'driver';
+  const icon = L.divIcon({ className:'radar-pin', iconSize:[14,14], iconAnchor:[7,7],
+    html:`<span style="display:block;width:10px;height:10px;margin:2px;background:${t.hex};border:1.5px solid #fff;box-shadow:0 0 0 1px ${t.hex};transform:rotate(45deg);${driver?'border-radius:50%;transform:none;':''}${quiet?'opacity:.45;':''}"></span>` });
+  const rows = [
+    ['Units', p.units!=null ? Number(p.units).toLocaleString() : null], ['Acres', p.acres], ['Stories', p.stories],
+    ['Developer', p.developer], ['Entitlement', [p.ent_status, p.ent_use].filter(Boolean).join(' · ') || null],
+    ['Delivery', p.delivery_date ? String(p.delivery_date).slice(0,7) : null],
+  ].filter(r => r[1]!=null && r[1]!=='').map(r => `<div class="cpx-row"><span class="cpx-k">${r[0]}</span><span class="cpx-val">${esc(String(r[1]))}</span></div>`).join('');
+  const pill = driver ? 'Value driver' : t.label + (quiet ? ' · unverified' : p.verification === 'delivered' ? ' · delivered' : '');
+  const html = `<div class="cpx">
+      <div class="cpx-head" style="--sc:${t.hex}">
+        <div class="cpx-htop"><span class="cpx-pill"><span class="cpx-pdot"></span>Radar · ${esc(pill)}</span></div>
+        <div class="cpx-name">${esc(p.name || 'Unnamed project')}</div>
+        ${(p.address||p.place)?`<div class="cpx-sub">${esc(p.address||'')}${p.place?(p.address?' · ':'')+esc(p.place):''}</div>`:''}
+      </div>
+      ${p.status_text?`<div class="cpx-detail" style="padding-bottom:0"><div style="font-size:12px;line-height:1.45;color:#3d3a52">${esc(p.status_text)}</div></div>`:''}
+      <div class="cpx-detail">${rows}</div>
+      <div class="cpx-actions"><a class="cpx-act" href="../development/?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">Open in Radar →</a></div>
+    </div>`;
+  return L.marker([p.lat, p.lng], { icon, zIndexOffset:300, title:p.name||'' })
+    .bindPopup(html, {className:'comp-popup', maxWidth:300, minWidth:252})
+    .bindTooltip(`<b>${esc(p.name||'')}</b><br>${esc(pill)}${p.units?` · ${Number(p.units).toLocaleString()} units`:''}`, {className:'parcel-tip', direction:'top', offset:[0,-6]});
+}
+async function refreshRadar(){
+  if(!radarOn){ if(map.hasLayer(radarLayer)) map.removeLayer(radarLayer); return; }
+  const data = await loadRadar();
+  radarLayer.clearLayers();
+  data.filter(p => p.market_id === currentMarket && radarInScope(p)).forEach(p => radarLayer.addLayer(radarMarker(p)));
+  if(!map.hasLayer(radarLayer)) map.addLayer(radarLayer);
+}
+
 // ---- Major attractions (POI): team-editable, Supabase-backed, labeled ----
 let poiOn = false, poiChannel = null, _poiSeedLoaded = false;
 const poiPane = map.createPane('poi'); poiPane.style.zIndex = 618;
@@ -4839,6 +4888,8 @@ document.addEventListener('keydown', e=>{ if(e.key==='Escape' && _addPoiMode){ _
 { const b=$('snapLegend'); if(b) b.addEventListener('change', ()=>{ if(_snapComposed) $('snapFrLegend').style.display = b.checked ? '' : 'none'; }); }
 { const b=$('snapScale'); if(b) b.addEventListener('change', ()=>{ if(_snapComposed) $('snapFrScale').style.display = b.checked ? '' : 'none'; }); }
 { const t=$('tglComps'); if(t) t.addEventListener('change', e=>{ compsOn = competitorsOn = e.target.checked; refreshComps(); renderCompetitors(); }); }
+{ const t=$('tglRadar'); if(t) t.addEventListener('change', e=>{ radarOn = e.target.checked; refreshRadar(); }); }
+refreshRadar();
 { const t=$('tglPoi'); if(t) t.addEventListener('change', async e=>{ poiOn = e.target.checked; if(poiOn) await ensurePoiData(); refreshPoi(); }); }
 { const cp=$('ctxPoi'); if(cp) cp.addEventListener('click', ()=>{ hideCtxMenu(); if(_ctxLatLng) addPoiAt(_ctxLatLng.lat, _ctxLatLng.lng); }); }
 { const b=$('peSave'); if(b) b.addEventListener('click', savePoiEditor); }
@@ -4954,6 +5005,7 @@ function setMarket(mkt){
   renderTracked();          // re-scope markers, readout, and pipeline to the new market
   renderCompetitors();      // re-scope competitors to the new market
   refreshComps();           // re-scope CoStar comps to the new market
+  refreshRadar();           // Radar projects for the new market
   refreshPoi();             // re-scope attractions to the new market
   if(typeof syncMobMarket==='function') syncMobMarket();
   document.body.classList.remove('drawer-open');
