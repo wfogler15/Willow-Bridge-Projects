@@ -1908,23 +1908,29 @@ async function ensureParcelGeometry(site, parcel){
    wrong match is easy to spot; fixing it in the site's parcels replaces it like any other parcel. */
 const _autoParcelTried = new Set();
 async function resolvePlaceholderParcels(){
-  const todo = Store.all().filter(s => (s.parcels||[]).length === 1 && s.parcels[0]._synthetic && !_autoParcelTried.has(s.id));
+  const todo = Store.all().filter(s => (s.parcels||[]).length === 1 && s.parcels[0]._synthetic && !_autoParcelTried.has(s.id))
+    .sort((a,b) => (siteMarket(a) === currentMarket ? 0 : 1) - (siteMarket(b) === currentMarket ? 0 : 1));   // this market first
   if(!todo.length) return;
   let i = 0, done = 0;
+  // a slow county server must not stall the queue: give each site 25 s, then move on (it retries next load)
+  const timeout = ms => new Promise(res => setTimeout(() => res('timeout'), ms));
   const worker = async () => {
     while(i < todo.length){
       const s = todo[i++]; _autoParcelTried.add(s.id);
-      try{ if(await resolvePlaceholderSite(s)) done++; }catch(e){ console.warn('[autoparcel]', s.name, e); }
+      try{ const r = await Promise.race([resolvePlaceholderSite(s), timeout(25000)]); if(r === true) done++; else if(r === 'timeout') console.warn('[autoparcel] timed out:', s.name); }
+      catch(e){ console.warn('[autoparcel]', s.name, e); }
     }
   };
-  await Promise.all([worker(), worker(), worker()]);
+  await Promise.all([worker(), worker(), worker(), worker(), worker()]);
   if(done){ console.log('[autoparcel] outlined', done, 'of', todo.length, 'sites'); renderTracked(); }
 }
 async function resolvePlaceholderSite(site){
   const m = MARKETS[siteMarket(site)]; if(!m) return false;
-  const svc = m.fallbackSvc || m.parcelSvc; if(!svc) return false;
   const ph = site.parcels[0], lat = ph._lat, lng = ph._lng;
   if(lat == null || lng == null) return false;
+  // a wired county service covering the pin is much faster than the statewide layer
+  const county = (m.counties||[]).find(c => c.svc && c.bounds && lat >= c.bounds[0][0] && lat <= c.bounds[1][0] && lng >= c.bounds[0][1] && lng <= c.bounds[1][1]);
+  const svc = (county && county.svc) || m.parcelSvc || m.fallbackSvc; if(!svc) return false;
   const norm = f => (m.normalize ? m.normalize({...(f.properties||{})}) : {...(f.properties||{})});
   const q = (geom, type, n) => arcgisQuery(svc, { geometry:JSON.stringify(geom), geometryType:type, inSR:4326, outSR:4326,
     spatialRel:'esriSpatialRelIntersects', outFields:'*', returnGeometry:true, resultRecordCount:n }).catch(() => null);
