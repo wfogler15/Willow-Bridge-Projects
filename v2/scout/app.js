@@ -2191,6 +2191,9 @@ async function refreshComps(){
 // ---- Radar: other developers' projects, tracked (not sites). Read-only here; edited on the Radar tab. ----
 let radarOn = true, _radarData = null, _radarLoading = null;
 const RADAR_TRACK = { entitlement:{label:'Entitlements', hex:'#432890'}, construction:{label:'Under construction', hex:'#1D1247'}, stalled:{label:'Stalled', hex:'#A89C90'} };
+/* Own pane above the comps canvas (620): Leaflet's canvas renderer covers the whole map and
+   swallows clicks, so markers left in the default markerPane (600) couldn't be clicked. */
+const radarPane = map.createPane('radar'); radarPane.style.zIndex = 640;
 const radarLayer = L.layerGroup();
 function loadRadar(){
   if(_radarData) return Promise.resolve(_radarData);
@@ -2225,7 +2228,7 @@ function radarMarker(p){
       <div class="cpx-detail">${rows}</div>
       <div class="cpx-actions"><a class="cpx-act" href="../development/?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">Open in Radar →</a></div>
     </div>`;
-  return L.marker([p.lat, p.lng], { icon, zIndexOffset:300, title:p.name||'' })
+  return L.marker([p.lat, p.lng], { icon, pane:'radar', zIndexOffset:300, title:p.name||'' })
     .bindPopup(html, {className:'comp-popup', maxWidth:300, minWidth:252})
     .bindTooltip(`<b>${esc(p.name||'')}</b><br>${esc(pill)}${p.units?` · ${Number(p.units).toLocaleString()} units`:''}`, {className:'parcel-tip', direction:'top', offset:[0,-6]});
 }
