@@ -1786,6 +1786,7 @@ async function onAuthed(){
   updateSyncStatus();
   if(typeof renderTracked==='function') renderTracked();
   if(typeof updateReadout==='function') updateReadout();
+  resolvePlaceholderParcels();   // swap placeholder squares for real parcel outlines (saved once)
 }
 function updateSyncStatus(){
   const el = $('syncStatus'); if(!el) return;
@@ -1898,6 +1899,69 @@ async function ensureParcelGeometry(site, parcel){
     }
   }catch(e){ console.warn('[geom] failed', e); }
   finally{ _geomFetching.delete(apn); }
+}
+
+/* Deals from Opportunities with a location but no parcel outline arrive from scout-db as a placeholder
+   square. Swap each square for the real county parcel at the deal's pin and save it (deal_parcels), so
+   it sticks everywhere. If the deal's acreage says it's bigger than that one parcel, add neighbouring
+   parcels with the same owner (an assemblage), capped near the deal's acreage. Tagged attrs.auto so a
+   wrong match is easy to spot; fixing it in the site's parcels replaces it like any other parcel. */
+const _autoParcelTried = new Set();
+async function resolvePlaceholderParcels(){
+  const todo = Store.all().filter(s => (s.parcels||[]).length === 1 && s.parcels[0]._synthetic && !_autoParcelTried.has(s.id));
+  if(!todo.length) return;
+  let i = 0, done = 0;
+  const worker = async () => {
+    while(i < todo.length){
+      const s = todo[i++]; _autoParcelTried.add(s.id);
+      try{ if(await resolvePlaceholderSite(s)) done++; }catch(e){ console.warn('[autoparcel]', s.name, e); }
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  if(done){ console.log('[autoparcel] outlined', done, 'of', todo.length, 'sites'); renderTracked(); }
+}
+async function resolvePlaceholderSite(site){
+  const m = MARKETS[siteMarket(site)]; if(!m) return false;
+  const svc = m.fallbackSvc || m.parcelSvc; if(!svc) return false;
+  const ph = site.parcels[0], lat = ph._lat, lng = ph._lng;
+  if(lat == null || lng == null) return false;
+  const norm = f => (m.normalize ? m.normalize({...(f.properties||{})}) : {...(f.properties||{})});
+  const q = (geom, type, n) => arcgisQuery(svc, { geometry:JSON.stringify(geom), geometryType:type, inSR:4326, outSR:4326,
+    spatialRel:'esriSpatialRelIntersects', outFields:'*', returnGeometry:true, resultRecordCount:n }).catch(() => null);
+  const feats = gj => ((gj && gj.features) || []).filter(f => f && f.geometry);
+  // 1) the parcel under the pin; 2) if the pin sits in a street, the largest parcel within ~25 m
+  let hit = feats(await q({x:lng, y:lat, spatialReference:{wkid:4326}}, 'esriGeometryPoint', 1))[0];
+  if(!hit){
+    const d = 0.00025;
+    hit = feats(await q({xmin:lng-d, ymin:lat-d, xmax:lng+d, ymax:lat+d, spatialReference:{wkid:4326}}, 'esriGeometryEnvelope', 20))
+      .sort((a,b) => (geomAcres(b.geometry)||0) - (geomAcres(a.geometry)||0))[0];
+  }
+  if(!hit) return false;
+  const picked = [hit];
+  // 3) assemblage: deal acreage well above the hit parcel → add same-owner neighbours, nearest first
+  const want = +site.acresOverride || 0, p0 = norm(hit), owner = String(p0.OWNER_NAME||'').trim().toUpperCase();
+  let total = geomAcres(hit.geometry) || 0;
+  if(owner && want > 0 && total < want * 0.7){
+    const half = Math.sqrt(want * 4046.86) * 0.9, dy = half / 111320, dx = half / (111320 * Math.cos(lat * Math.PI / 180));
+    const near = feats(await q({xmin:lng-dx, ymin:lat-dy, xmax:lng+dx, ymax:lat+dy, spatialReference:{wkid:4326}}, 'esriGeometryEnvelope', 200));
+    const key = f => { const p = norm(f); return p.APN || p.APN_DASH || JSON.stringify(f.geometry).slice(0, 80); };
+    const have = new Set([key(hit)]);
+    const ctr = f => { try{ return L.geoJSON(f.geometry).getBounds().getCenter(); }catch(e){ return null; } };
+    near.filter(f => String(norm(f).OWNER_NAME||'').trim().toUpperCase() === owner && !have.has(key(f)))
+      .map(f => ({ f, c: ctr(f) })).filter(o => o.c)
+      .sort((a,b) => Math.hypot(a.c.lat-lat, a.c.lng-lng) - Math.hypot(b.c.lat-lat, b.c.lng-lng))
+      .forEach(o => { const ac = geomAcres(o.f.geometry) || 0; if(total + ac <= want * 1.3){ picked.push(o.f); have.add(key(o.f)); total += ac; } });
+  }
+  const cur = Store.get(site.id);
+  if(!cur || !((cur.parcels||[]).length === 1 && cur.parcels[0]._synthetic)) return false;   // edited meanwhile
+  cur.parcels = picked.map(f => {
+    const props = norm(f), c = (() => { try{ return L.geoJSON(f.geometry).getBounds().getCenter(); }catch(e){ return null; } })();
+    return { apn: props.APN || String(props.APN_DASH||'').replace(/-/g,''), apnDash: props.APN_DASH || null,
+      attrs: { ...props, auto: 'Matched to the Opportunities pin' }, geometry: f.geometry, acres: geomAcres(f.geometry) || null,
+      _lat: c ? c.lat : lat, _lng: c ? c.lng : lng };
+  });
+  Store.upsert(cur);
+  return true;
 }
 
 function computedAcres(s){ return (s.parcels||[]).reduce((a,p)=>a+(p.acres||0),0); }
