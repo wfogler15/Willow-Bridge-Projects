@@ -1613,7 +1613,11 @@ function pruneOffscreenParcels(){
 const handleMove = debounce(()=>{ loadParcels(); refreshZoning(); }, 280);
 map.on('movestart', ()=>{ if(map.getZoom() >= MIN_PARCEL_ZOOM) $('loader').style.display = 'none'; });
 map.on('moveend', handleMove);
+// metro zoom: quieter markers (no pulse, no count badges, past pursuits as small rings)
+const syncZoomClass = () => map.getContainer().classList.toggle('z-metro', map.getZoom() < 13);
+syncZoomClass();
 map.on('zoomend', ()=>{
+  syncZoomClass();
   if(!useTiles() && map.getZoom() < MIN_PARCEL_ZOOM) clearVectorParcels();
   $('zoomHint').classList.toggle('show', parcelsOn && !useTiles() && map.getZoom() < parcelFloorZoom());
   if(typeof syncZoningUI === 'function') syncZoningUI();
@@ -2181,7 +2185,14 @@ let _compsData = null, _compsLoading = false;
 // dots must sit ABOVE the parcel tiles (z-index 415) or the tiles swallow their clicks
 const compsPane = map.createPane('comps'); compsPane.style.zIndex = 620;
 const compsRenderer = L.canvas({ pane:'comps', padding:0.5 });
-const compsCluster = L.markerClusterGroup({ chunkedLoading:true, maxClusterRadius:50, spiderfyOnMaxZoom:true, disableClusteringAtZoom:16, clusterPane:'comps' });
+// quiet glass chips instead of the default green/yellow bubbles; wider grouping when zoomed out
+function quietClusterIcon(cl){
+  const n = cl.getChildCount(), d = n < 10 ? 22 : n < 50 ? 27 : n < 200 ? 32 : 38;
+  return L.divIcon({ className:'cc-wrap', iconSize:[d, d], html:`<div class="cc" style="width:${d}px;height:${d}px">${n}</div>` });
+}
+const clusterRadius = z => z <= 10 ? 90 : z <= 12 ? 70 : 48;
+const compsCluster = L.markerClusterGroup({ chunkedLoading:true, maxClusterRadius:clusterRadius, spiderfyOnMaxZoom:true, disableClusteringAtZoom:16, clusterPane:'comps',
+  showCoverageOnHover:false, iconCreateFunction:quietClusterIcon });
 let compsOn = true;   // unified "Comps" — drives both CoStar comps and manually-added comps
 const PIPELINE_STATUSES = /under construction|proposed|planning|final planning/i;
 // user-hidden comps (bad/outdated CoStar rows) persist across sessions
@@ -2246,7 +2257,7 @@ function compCard(c0){
 }
 function compMarker(c0){
   const ll=compLL(c0), card=compCard(c0);
-  const m = L.circleMarker(ll, { radius:5, color:'#fff', weight:1, fillColor:card.color, fillOpacity:0.9, renderer:compsRenderer });
+  const m = L.circleMarker(ll, { radius:4, color:'#fff', weight:1.25, fillColor:card.color, fillOpacity:0.95, renderer:compsRenderer });
   m.bindPopup(card.html, {className:'comp-popup', maxWidth:288, minWidth:252, closeButton:false});
   m.on('popupopen', card.wire);
   return m;
@@ -2328,7 +2339,7 @@ function drawRadar(){
     });
     const n = items.length;
     const icon = L.divIcon({ className:'radar-pin', iconSize:[14,14], iconAnchor:[7,7],
-      html:`<span style="display:block;width:10px;height:10px;margin:2px;background:${card.color};border:1.5px solid #fff;box-shadow:0 0 0 1px ${card.color};transform:rotate(45deg);${card.driver?'border-radius:50%;transform:none;':''}${card.quiet?'opacity:.45;':''}"></span>${n>1?`<span class="stk-badge">${n}</span>`:''}` });
+      html:`<span style="display:block;width:9px;height:9px;margin:2.5px;background:${card.color};border:1.5px solid #fff;box-shadow:0 0 0 1px ${card.color};transform:rotate(45deg);${card.driver?'border-radius:50%;transform:none;':''}${card.quiet?'opacity:.45;':''}"></span>${n>1?`<span class="stk-badge">${n}</span>`:''}` });
     const m = L.marker(a, { icon, pane:'radar', zIndexOffset:300, title:p.name||'' })
       .bindTooltip(`<b>${esc(p.name||'')}</b><br>${esc(card.pill)}${p.units?` · ${Number(p.units).toLocaleString()} units`:''}${n>1?` · ${n} records`:''}`, {className:'parcel-tip', direction:'top', offset:[0,-6]});
     m.on('click', () => openStack(a, items));
@@ -2419,7 +2430,7 @@ function openStack(latlng, items){
 // ---- Major attractions (POI): team-editable, Supabase-backed, labeled ----
 let poiOn = false, poiChannel = null, _poiSeedLoaded = false;
 const poiPane = map.createPane('poi'); poiPane.style.zIndex = 618;
-const poiCluster = L.markerClusterGroup({ chunkedLoading:true, maxClusterRadius:38, spiderfyOnMaxZoom:true, disableClusteringAtZoom:12, clusterPane:'poi' });
+const poiCluster = L.markerClusterGroup({ chunkedLoading:true, maxClusterRadius:38, spiderfyOnMaxZoom:true, disableClusteringAtZoom:12, clusterPane:'poi', showCoverageOnHover:false, iconCreateFunction:quietClusterIcon });
 const POI_CATS = {
   employer:  {label:'Employer / HQ', color:'#3B5BDB', icon:'M3 5h10v9H3V5Zm2 2v1.5h1.5V7H5Zm3.5 0v1.5H10V7H8.5ZM5 10v1.5h1.5V10H5Zm3.5 0v1.5H10V10H8.5Z'},
   hospital:  {label:'Hospital', color:'#DB5A7B', icon:'M6.5 2h3v3h3v3h-3v3h-3V8h-3V5h3V2Z'},
@@ -2711,7 +2722,7 @@ let _compOv={}; try{ _compOv=JSON.parse(localStorage.getItem(COMP_OV_KEY)||'{}')
 function compView(c){ const o=_compOv[compKey(c)]; return o?Object.assign({},c,o):c; }
 function compLL(c){ const o=_compOv[compKey(c)]; return [ (o&&o.la!=null)?o.la:c.la, (o&&o.lo!=null)?o.lo:c.lo ]; }
 function saveCompOv(key,patch){ _compOv[key]=Object.assign({},_compOv[key]||{},patch); try{localStorage.setItem(COMP_OV_KEY,JSON.stringify(_compOv));}catch(e){} }
-function compStatusColor(s){ s=(s||'').toLowerCase(); if(/under construction/.test(s)) return '#E08A2E'; if(/propos|planning/.test(s)) return '#9B6DD6'; return '#3F7FD6'; }
+function compStatusColor(s){ s=(s||'').toLowerCase(); if(/under construction/.test(s)) return '#D3913F'; if(/propos|planning/.test(s)) return '#9583CF'; return '#6F84B4'; }
 function compStatusLabel(s){ s=(s||'').toLowerCase(); if(/under construction/.test(s)) return 'Under construction'; if(/propos|planning/.test(s)) return 'Proposed / planning'; return 'Existing'; }
 function snapDir(latlng){ const pt=map.latLngToContainerPoint(latlng), sz=map.getSize(); return (pt.x>sz.x*0.5?'l':'r')+(pt.y>sz.y*0.5?'t':'b'); }
 function addSnapCard(latlng,color,name,meta,key){
@@ -3622,7 +3633,7 @@ function renderTracked(fromStacks){
     if(c && !calloutShown){
       const extra = STACKS.bySite.get(site.id) || [];
       const icon = L.divIcon({className:'', iconSize:[0,0],
-        html:`<div class="opp-marker" style="--c:${st.hex}"><div class="opp-pulse"></div><div class="opp-core">${cnt>1?cnt:''}</div>${extra.length?`<span class="stk-badge">+${extra.length}</span>`:''}</div>`});
+        html:`<div class="opp-marker ${st.pipeline?'live':'quiet'}" style="--c:${st.hex}"><div class="opp-pulse"></div><div class="opp-core">${cnt>1?cnt:''}</div>${extra.length?`<span class="stk-badge">+${extra.length}</span>`:''}</div>`});
       const m = L.marker(c, {icon, pane:'siteMarkers', riseOnHover:true});
       const also = extra.length ? ' · also ' + [['radar','Radar'],['comp','CoStar']].map(([t, l]) => { const k = extra.filter(x => x.type === t).length; return k ? (k > 1 ? k + ' ' : '') + l : ''; }).filter(Boolean).join(', ') : '';
       m.bindTooltip(`<b>${esc(siteName(site))}</b><br>${st.label} · ${siteAcres(site).toFixed(2)} ac${cnt>1?` · ${cnt} parcels`:''}${esc(also)}`,
