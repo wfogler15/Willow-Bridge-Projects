@@ -242,7 +242,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202611021443"></script>
+<script src="../shared/wb.js?v=202611021720"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -295,21 +295,23 @@ const entState = p => isDriver(p) || p.watch || !p.hearing_date ? "watch" : p.he
 const VER = {unverified: "Not verified", verified: "Verified moving", stalled: "Stalled", delivered: "Delivered"};
 const VCLS = {unverified: "", verified: "s-ok", stalled: "s-warn", delivered: ""};
 const onMap = p => live(p) && p.lat != null && p.lng != null && (p.track !== "construction" || p.verification === "verified");
-const TRACK_LABEL = {entitlement: "Entitlements", construction: "Under construction", stalled: "Stalled"};
+const TRACK_LABEL = {all: "Everything", entitlement: "Entitlements", construction: "Under construction", stalled: "Stalled"};
+const inTrack = p => track === "all" || p.track === track;
+const TRACK_ORDER = {stalled: 0, entitlement: 1, construction: 2};
 
 
 /* ---------- state: track, market, view ---------- */
 const store = {get(k){ try{ return localStorage.getItem("wbv2:dev:" + k); }catch(e){ return null; } }, set(k, v){ try{ localStorage.setItem("wbv2:dev:" + k, v); }catch(e){} }};
 const qs = new URLSearchParams(location.search);
 let track = qs.get("track") || store.get("track") || "construction";
-if(!["entitlement", "construction", "stalled"].includes(track)) track = "construction";
+if(!["all", "entitlement", "construction", "stalled"].includes(track)) track = "construction";
 let mkt = WB.getMarket();
 const inMkt = p => mkt === "all" || p.market_id === mkt;
 
 /* ---------- shell: band with Map / Data log, the track toggle and the market toggle ---------- */
 const band = WB.band({title: "Radar", tabs: '<button type="button" class="on" data-t="map" role="tab">Map</button><button type="button" data-t="list" role="tab">Data log</button>'});
 const trk = document.createElement("div"); trk.className = "trk"; trk.setAttribute("role", "group"); trk.setAttribute("aria-label", "Report");
-trk.innerHTML = '<button type="button" data-k="construction">Under construction</button><button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="stalled">Stalled</button>';
+trk.innerHTML = '<button type="button" data-k="all">All</button><button type="button" data-k="construction">Under construction</button><button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="stalled">Stalled</button>';
 band.querySelector(".acts").prepend(trk);
 { const sz = document.createElement("button"); sz.type = "button"; sz.className = "b";
   sz.title = allSizes ? "Showing every project, including " + outOfScope + " outside the institutional scope" : outOfScope + " projects hidden: rentals under 100 units, for-sale under 200, all-affordable";
@@ -379,11 +381,13 @@ let SLIDES = [], vis = [], idx = 0, map = null, ready = false, markers = [], swa
 const ENT_ORDER = p => { const s = entState(p); return s === "upcoming" ? "0" + p.hearing_date : s === "recent" ? "1" + (99999999 - +p.hearing_date.replace(/-/g, "")) : "2" + (isDriver(p) ? "0" : "1") + p.name; };
 function rebuild(){
   const wid = qs.get("id"), w = wid && P.find(x => x.id === wid);
-  if(w && w.track !== track){ track = w.track; store.set("track", track); paintTrk(); }   /* links from property history land on the right list */
-  vis = P.filter(p => p.track === track && inMkt(p) && onMap(p));
+  if(w && track !== "all" && w.track !== track){ track = w.track; store.set("track", track); paintTrk(); }   /* links from property history land on the right list */
+  /* All: every list at once, including CoStar construction rows not yet verified (drawn faded) */
+  vis = P.filter(p => inTrack(p) && inMkt(p) && (track === "all" ? live(p) && p.lat != null && p.lng != null : onMap(p)));
   /* markets never mix: projects are grouped by market (in core.markets order), and with All each market gets its own cover */
   const within = track === "entitlement" ? (a, b) => ENT_ORDER(a).localeCompare(ENT_ORDER(b))
     : track === "stalled" ? (a, b) => String(a.hearing_date || "9999").localeCompare(String(b.hearing_date || "9999")) || a.name.localeCompare(b.name)   /* longest-stalled first */
+    : track === "all" ? (a, b) => TRACK_ORDER[a.track] - TRACK_ORDER[b.track] || (b.units || 0) - (a.units || 0) || a.name.localeCompare(b.name)
     : (a, b) => (b.units || 0) - (a.units || 0) || a.name.localeCompare(b.name);
   vis.sort((a, b) => mIdx(a.market_id) - mIdx(b.market_id) || within(a, b));
   if(mkt === "all"){
@@ -413,6 +417,19 @@ function renderCover(m){
   const inM = p => !m || p.market_id === m;
   const vm = visAll().filter(inM);
   const nav = mkt === "all" ? (() => { const ms = SLIDES.map((s, i) => [s, i]).filter(([s]) => s.t === "cover" && s.m); return ms.length > 1 ? '<p class="meta mkts">' + ms.map(([s, i]) => s.m === m ? "<b>" + esc(MKT[s.m]) + "</b>" : '<button type="button" class="lnk" data-go="' + i + '">' + esc(MKT[s.m]) + "</button>").join(" · ") + "</p>" : ""; })() : "";
+  if(track === "all"){
+    const n = k => vm.filter(p => p.track === k), u = l => l.reduce((t, p) => t + (p.units || 0), 0);
+    const ent = n("entitlement"), uc = n("construction"), stl = n("stalled"), pend = uc.filter(p => p.verification === "unverified");
+    const block = (t, list, c3, f) => list.length ? agHead(t + " (" + list.length + ")", "Units", c3) + list.map(p => agRow(p, p.units ? fNum(p.units) : "–", f(p))).join("") + "</div>" : "";
+    return eyebrow(null, m) + nav + '<div class="hd"><h1>Everything</h1><h2>Every project on Radar in one view: stalled sites, entitlement cases and value drivers, and construction.</h2></div>'
+      + '<div class="figs3"><div><b>' + stl.length + "</b><span>Stalled · " + fNum(u(stl)) + " units</span></div><div><b>" + ent.length + "</b><span>Entitlements · " + fNum(u(ent)) + " units</span></div><div><b>" + uc.length + "</b><span>Under construction · " + fNum(u(uc)) + " units</span></div></div>"
+      + (pend.length ? '<p class="lead">' + plural(pend.length, "construction project") + " listed by CoStar but not verified " + (pend.length === 1 ? "is" : "are") + " included and drawn faded.</p>" : "")
+      + block("Stalled", stl, "Last action", p => p.hearing_date ? fMonth(p.hearing_date) : "–")
+      + block("Entitlements", ent, "Hearing", p => p.hearing_date ? fShort(p.hearing_date) : "–")
+      + block("Under construction", uc, "Delivers", p => p.delivery_date ? fMonth(p.delivery_date) : (p.verification === "unverified" ? "Not verified" : "–"))
+      + (vm.length ? "" : '<p class="lead">Nothing on the map for this market yet.</p>')
+      + '<p class="meta">Sand points with a red ring are stalled, lilac are entitlement cases, amber are value drivers, green are under construction (faded until verified). Choose a row or a point to open it.</p>';
+  }
   if(track === "entitlement"){
     const vis = vm;
     const g = k => vis.filter(p => entState(p) === k);
@@ -571,7 +588,7 @@ function clearMarkers(){ markers.forEach(m => m.remove()); markers = []; }
 function addMarker(p, cur, dim){
   if(!map || p.lat == null || p.lng == null) return;
   const el = document.createElement("div"); el.className = "pin"; el.title = p.name;
-  const d = document.createElement("div"); d.className = "dot" + (p.track === "construction" ? " uc" : p.track === "stalled" ? " stl" : isDriver(p) ? " drv" : "") + (cur ? " cur" : "") + (dim ? " dim" : "");
+  const d = document.createElement("div"); d.className = "dot" + (p.track === "construction" ? " uc" : p.track === "stalled" ? " stl" : isDriver(p) ? " drv" : "") + (cur ? " cur" : "") + (dim || (p.track === "construction" && p.verification !== "verified") ? " dim" : "");
   el.appendChild(d);
   el.addEventListener("click", ev => { ev.stopPropagation(); openCase(p); });
   markers.push(new maplibregl.Marker({element: el, anchor: "center"}).setLngLat([p.lng, p.lat]).addTo(map));
@@ -643,7 +660,7 @@ function coverIdx(){
 /* a project that isn't in the flyover (unverified, dismissed, other track): show it on the map anyway */
 function openCase(p){
   setList(false);
-  if(p.track !== track){ track = p.track; store.set("track", track); paintTrk(); rebuild(); }
+  if(track !== "all" && p.track !== track){ track = p.track; store.set("track", track); paintTrk(); rebuild(); }
   const i = SLIDES.findIndex(s => s.p && s.p.id === p.id);
   if(i >= 0){ go(i); return; }
   if(picking) setPick(false);
@@ -709,6 +726,8 @@ const STATUS = {
     ["stalled", "Stalled", p => live(p) && p.verification === "stalled"], ["delivered", "Delivered", p => live(p) && p.verification === "delivered"],
     ["review", "Needs review", p => p.review === "new"], ["dismissed", "Dismissed", p => p.review === "dismissed"], ["all", "All", p => live(p)]],
   stalled: [["all", "All", p => live(p)], ["review", "Needs review", p => p.review === "new"], ["dismissed", "Dismissed", p => p.review === "dismissed"]],
+  all: [["all", "All", p => live(p)], ["stl", "Stalled", p => live(p) && p.track === "stalled"], ["ent", "Entitlements", p => live(p) && p.track === "entitlement"],
+    ["uc", "Under construction", p => live(p) && p.track === "construction"], ["review", "Needs review", p => p.review === "new"], ["dismissed", "Dismissed", p => p.review === "dismissed"]],
 };
 const nameCell = p => '<td><b>' + esc(p.name) + "</b>" + (p.review === "new" ? '<span class="new">New</span>' : "") + "<small>" + esc(p.place || "") + "</small></td>";
 const MKTCOL = ["market", "Market", p => mIdx(p.market_id), p => esc(MKT[p.market_id] || ""), 0, .8];
@@ -725,6 +744,17 @@ const COLS = {
     ["ent", "Entitlement", p => entShort(p), p => esc(entShort(p)), 0, 1.3],
     ["status", "Status", p => p.status_text, entStatusCell, 0, 2],
     ["dev", "Developer / applicant", p => p.developer || p.applicant, p => esc(p.developer || p.applicant || ""), 0, 1.6],
+  ],
+  all: [
+    ["name", "Project", p => p.name, nameCell, 0, 2.6],
+    ["report", "Report", p => TRACK_ORDER[p.track], p => esc(TRACK_LABEL[p.track] || ""), 0, 1.1],
+    ["type", "Type", p => (isDriver(p) ? "Driver · " : "") + (p.product_type || p.style || ""), p => esc((isDriver(p) ? "Driver · " : "") + (p.product_type || p.style || "")), 0, 1.1],
+    ["units", "Units", p => p.units, p => p.units ? fNum(p.units) : "", 1, .7],
+    ["acres", "Acres", p => p.acres == null ? null : +p.acres, p => p.acres ? fNum(p.acres) : "", 1, .7],
+    ["date", "Last action / hearing", p => p.hearing_date, p => p.hearing_date ? fShort(p.hearing_date) + " '" + p.hearing_date.slice(2, 4) : "", 0, .9],
+    ["ent", "Entitlement", p => entShort(p), p => esc(entShort(p)), 0, 1.4],
+    ["status", "Status", p => p.status_text, p => esc(p.status_text || (p.track === "construction" ? VER[p.verification] || "" : "")), 0, 2.0],
+    ["dev", "Developer / owner", p => p.developer || p.owner || p.applicant, p => esc(p.developer || p.owner || p.applicant || ""), 0, 1.5],
   ],
   stalled: [
     ["name", "Project", p => p.name, nameCell, 0, 2.6],
@@ -752,13 +782,13 @@ const COLS = {
 function rowsNow(){
   const st = STATUS[track].find(s => s[0] === lstat) || STATUS[track][0];
   const q = lq.toLowerCase();
-  return P.filter(p => p.track === track && inMkt(p) && st[2](p) && (!q || [p.name, p.place, p.address, p.developer, p.applicant, p.owner, p.case_no, p.request, p.note, p.evidence].some(v => v && String(v).toLowerCase().includes(q))));
+  return P.filter(p => inTrack(p) && inMkt(p) && st[2](p) && (!q || [p.name, p.place, p.address, p.developer, p.applicant, p.owner, p.case_no, p.request, p.note, p.evidence].some(v => v && String(v).toLowerCase().includes(q))));
 }
 function renderList(){
   if(!STATUS[track].some(s => s[0] === lstat)) lstat = track === "construction" ? "verified" : "all";
   const cols = mkt === "all" ? [COLS[track][0], MKTCOL].concat(COLS[track].slice(1)) : COLS[track];
-  if(!lsort) lsort = track === "entitlement" ? {k: "date", d: -1} : track === "stalled" ? {k: "date", d: 1} : {k: "units", d: -1};
-  $("#lstat").innerHTML = STATUS[track].map(([k, l, f]) => '<button type="button" data-s="' + k + '" aria-pressed="' + (lstat === k) + '">' + l + "<i>" + P.filter(p => p.track === track && inMkt(p) && f(p)).length + "</i></button>").join("");
+  if(!lsort) lsort = track === "entitlement" ? {k: "date", d: -1} : track === "stalled" ? {k: "date", d: 1} : track === "all" ? {k: "report", d: 1} : {k: "units", d: -1};
+  $("#lstat").innerHTML = STATUS[track].map(([k, l, f]) => '<button type="button" data-s="' + k + '" aria-pressed="' + (lstat === k) + '">' + l + "<i>" + P.filter(p => inTrack(p) && inMkt(p) && f(p)).length + "</i></button>").join("");
   const wsum = cols.reduce((t, c) => t + c[5], 0);
   $("#lcg").innerHTML = cols.map(c => '<col style="width:' + (c[5] / wsum * 100).toFixed(2) + '%">').join("");
   const col = cols.find(c => c[0] === lsort.k) || cols[0];
@@ -804,7 +834,7 @@ $("#lcsv").addEventListener("click", () => {
   const cell = v => { if(v == null) return ""; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const csv = [cols.join(",")].concat(rowsNow().sort((a, b) => mIdx(a.market_id) - mIdx(b.market_id) || (b.units || 0) - (a.units || 0)).map(p => cols.map(c => cell(p[c])).join(","))).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
-  a.download = ({entitlement: "entitlements", construction: "under-construction", stalled: "stalled"})[track] + (mkt === "all" ? "" : "-" + mkt) + "-" + today + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  a.download = ({all: "radar-all", entitlement: "entitlements", construction: "under-construction", stalled: "stalled"})[track] + (mkt === "all" ? "" : "-" + mkt) + "-" + today + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 });
 
 /* ---------- editor: every field, review and verification, history ---------- */
@@ -835,7 +865,7 @@ function fieldHtml(p, f){
   if(type === "market") return wrap(lab + '<select id="' + id + '"' + (p ? " disabled title=\"Set from the location\"" : "") + ">" + WB.markets.map(x => [x.id, x.short]).map(([m, l]) => '<option value="' + m + '"' + ((v || (mkt === "all" ? MORDER()[0] : mkt)) === m ? " selected" : "") + ">" + esc(l) + "</option>").join("") + "</select>");
   if(type.startsWith("select:")){
     const opts = type.slice(7).split(",").map(o => o.split("="));
-    const cur = v == null ? (k === "track" ? track : k === "kind" ? "residential" : k === "verification" ? "unverified" : "") : v;
+    const cur = v == null ? (k === "track" ? (track === "all" ? "entitlement" : track) : k === "kind" ? "residential" : k === "verification" ? "unverified" : "") : v;
     return wrap(lab + '<select id="' + id + '">' + opts.map(([val, l]) => '<option value="' + val + '"' + (String(cur) === val ? " selected" : "") + ">" + l + "</option>").join("") + "</select>");
   }
   const t = type === "num" || type === "int" ? "number" : type === "month" ? "month" : type === "date" ? "date" : "text";
