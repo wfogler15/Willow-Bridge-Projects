@@ -896,7 +896,8 @@ body.rail-collapsed .leaflet-top.leaflet-left{top:56px}
 .stk-b:disabled{opacity:.3;cursor:default}
 .stk-b:not(:disabled):hover{background:#1D1247;color:#fff}
 .stk-badge{position:absolute;left:8px;top:-17px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#1D1247;color:#fff;border:1.5px solid #fff;font:700 9.5px/13px 'Inter Tight',sans-serif;text-align:center;pointer-events:none;box-sizing:border-box}
-.radar-pin{position:relative}
+/* no position rule on .radar-pin: Leaflet positions markers absolutely; position:relative put every pin in page flow,
+   so each one sat lower than the one before it and they shifted as pins were added or removed on zoom */
 /* quiet cluster chips (CoStar comps, POIs) */
 .cc-wrap{background:none!important;border:none!important}
 .cc{box-sizing:border-box;border-radius:50%;display:flex;align-items:center;justify-content:center;
@@ -2122,11 +2123,11 @@ select.cp-f:focus{border-color:var(--wb-purple);box-shadow:0 0 0 2px rgba(67,40,
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/shpjs@6.1.0/dist/shp.min.js"></script>
-<link rel="stylesheet" href="wb-theme.css?v=202611021741">
-<script src="../shared/wb.js?v=202611021741"></script>
-<script src="../shared/scout-db.js?v=202611021741"></script>
-<script>window.WB_BUILD = '202611021741';</script>
-<script src="loader.js?v=202611021741"></script>
+<link rel="stylesheet" href="wb-theme.css?v=202611031042">
+<script src="../shared/wb.js?v=202611031042"></script>
+<script src="../shared/scout-db.js?v=202611031042"></script>
+<script>window.WB_BUILD = '202611031042';</script>
+<script src="loader.js?v=202611031042"></script>
 
 </body>
 </html>

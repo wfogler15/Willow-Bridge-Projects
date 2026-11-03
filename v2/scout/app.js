@@ -2375,7 +2375,17 @@ function metersBetween(a, b){ const dy=(a[0]-b[0])*111320, dx=(a[1]-b[1])*111320
 function radarGeoms(p){ return (Array.isArray(p.parcels) ? p.parcels : []).filter(x => x && Array.isArray(x.coords) && x.coords.length).map(x => ({type:'Polygon', coordinates:x.coords})); }
 function radarAnchor(p){
   const gs = radarGeoms(p);
-  if(gs.length){ try{ const b = L.latLngBounds([]); gs.forEach(g => b.extend(L.geoJSON(g).getBounds())); const c = b.getCenter(); return [c.lat, c.lng]; }catch(e){} }
+  if(gs.length){ try{
+    const b = L.latLngBounds([]); gs.forEach(g => b.extend(L.geoJSON(g).getBounds())); const c = b.getCenter();
+    // the pin has to sit on the project: wrap-around parcels (a golf course around a hotel) have a centre outside them
+    const inside = ll => ll && ll[0] != null && gs.some(g => ptInGeom(ll[0], ll[1], g));
+    const ringAvg = g => { const r = g.coordinates[0] || []; const n = r.length || 1; return [r.reduce((s, q) => s + q[1], 0) / n, r.reduce((s, q) => s + q[0], 0) / n]; };
+    const cands = [[c.lat, c.lng], [p.lat, p.lng]].concat(gs.map(ringAvg));
+    const hit = cands.find(inside);
+    if(hit) return hit;
+    const r0 = (gs[0].coordinates[0] || [])[0]; if(r0) return [r0[1], r0[0]];
+    return [c.lat, c.lng];
+  }catch(e){} }
   return [p.lat, p.lng];
 }
 function computeStacks(){
