@@ -886,6 +886,18 @@ body.rail-collapsed .leaflet-top.leaflet-left{top:56px}
 .comp-popup .leaflet-popup-content-wrapper{border-radius:13px;padding:0;overflow:hidden;box-shadow:0 12px 38px rgba(20,18,40,.34),0 0 0 1px rgba(20,18,40,.06)}
 .comp-popup .leaflet-popup-content{margin:0;width:300px!important}
 .comp-popup .leaflet-popup-tip{background:#fff}
+/* stacks: several records on one parcel share a pin; the card steps through them */
+.stk-nav{display:flex;align-items:center;gap:6px;padding:7px 8px;border-bottom:1px solid rgba(29,18,71,.1);background:#fff;font-family:'Inter Tight',sans-serif}
+.stk-nav span{flex:1;display:flex;align-items:center;gap:4px;justify-content:center;font-size:11px;color:#6b6880;white-space:nowrap}
+.stk-nav b{font-weight:600;padding:2px 7px;border-radius:10px;color:#6b6880}
+.stk-nav b.on{background:#1D1247;color:#fff}
+.stk-nav em{font-style:normal;margin-left:4px;color:#9a97ab}
+.stk-b{width:26px;height:26px;border-radius:50%;border:1px solid rgba(29,18,71,.18);background:#fff;color:#1D1247;font-size:16px;line-height:1;cursor:pointer}
+.stk-b:disabled{opacity:.3;cursor:default}
+.stk-b:not(:disabled):hover{background:#1D1247;color:#fff}
+.stk-badge{position:absolute;left:8px;top:-17px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#1D1247;color:#fff;border:1.5px solid #fff;font:700 9.5px/13px 'Inter Tight',sans-serif;text-align:center;pointer-events:none;box-sizing:border-box}
+.radar-pin{position:relative}
+.radar-pin .stk-badge{left:9px;top:-9px}
 .cpx{font-family:'Inter',sans-serif;color:#1a1a22}
 .cpx-head{background:linear-gradient(155deg,#2c2247,#181322);padding:11px 15px 14px;position:relative}
 .cpx-head::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--sc,#4A7FB5)}
@@ -2092,11 +2104,11 @@ select.cp-f:focus{border-color:var(--wb-purple);box-shadow:0 0 0 2px rgba(67,40,
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/shpjs@6.1.0/dist/shp.min.js"></script>
-<link rel="stylesheet" href="wb-theme.css?v=202611021720">
-<script src="../shared/wb.js?v=202611021720"></script>
-<script src="../shared/scout-db.js?v=202611021720"></script>
-<script>window.WB_BUILD = '202611021720';</script>
-<script src="loader.js?v=202611021720"></script>
+<link rel="stylesheet" href="wb-theme.css?v=202611021735">
+<script src="../shared/wb.js?v=202611021735"></script>
+<script src="../shared/scout-db.js?v=202611021735"></script>
+<script>window.WB_BUILD = '202611021735';</script>
+<script src="loader.js?v=202611021735"></script>
 
 </body>
 </html>

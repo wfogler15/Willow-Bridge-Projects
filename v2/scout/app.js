@@ -2203,11 +2203,9 @@ async function loadComps(){
   _compsLoading = false;
   return _compsData;
 }
-function compMarker(c0){
-  const c=compView(c0), ll=compLL(c0);
-  const pipeline = PIPELINE_STATUSES.test(c.s||'');
+function compCard(c0){
+  const c=compView(c0);
   const color = compStatusColor(c.s);
-  const m = L.circleMarker(ll, { radius:5, color:'#fff', weight:1, fillColor:color, fillOpacity:0.9, renderer:compsRenderer });
   const id = 'cdel_'+Math.random().toString(36).slice(2,9);
   const eid='ced_'+id, rid='crl_'+id;
   const usd = v => v!=null ? '$'+Number(v).toLocaleString('en-US') : '—';
@@ -2238,21 +2236,32 @@ function compMarker(c0){
       <div class="cpx-detail">${detail}</div>
       <div class="cpx-actions"><button class="cpx-act cpx-reloc" id="${rid}"><svg viewBox="0 0 16 16" width="12" height="12" style="vertical-align:-1px"><path fill="currentColor" d="M8 1 5.5 3.5h1.7v3.7H3.5V5.5L1 8l2.5 2.5V8.8h3.7v3.7H5.5L8 15l2.5-2.5H8.8V8.8h3.7v1.7L15 8l-2.5-2.5v1.7H8.8V3.5h1.7L8 1Z"/></svg> Relocate</button><button class="cpx-act cpx-del" id="${id}">Remove</button></div>
     </div>`;
-  m.bindPopup(html, {className:'comp-popup', maxWidth:288, minWidth:252, closeButton:false});
-  m.on('popupopen', ()=>{
+  const wire = ()=>{
     const del=document.getElementById(id); if(del) del.onclick=()=>{ map.closePopup(); hideComp(c0); };
     const ed=document.getElementById(eid); if(ed) ed.onclick=()=>{ map.closePopup(); openCompEditor('cs:'+compKey(c0)); };
     const rl=document.getElementById(rid); if(rl) rl.onclick=()=>{ map.closePopup(); startCompMove('cs:'+compKey(c0), c.n||'comp'); };
     const cl=document.getElementById(cid); if(cl) cl.onclick=()=>map.closePopup();
-  });
+  };
+  return { html, wire, color };
+}
+function compMarker(c0){
+  const ll=compLL(c0), card=compCard(c0);
+  const m = L.circleMarker(ll, { radius:5, color:'#fff', weight:1, fillColor:card.color, fillOpacity:0.9, renderer:compsRenderer });
+  m.bindPopup(card.html, {className:'comp-popup', maxWidth:288, minWidth:252, closeButton:false});
+  m.on('popupopen', card.wire);
   return m;
 }
 async function refreshComps(){
-  if(!compsOn){ if(map.hasLayer(compsCluster)) map.removeLayer(compsCluster); return; }
-  const data = await loadComps();
+  if(!compsOn){ if(map.hasLayer(compsCluster)) map.removeLayer(compsCluster); scheduleStacks(); return; }
+  await loadComps();
+  drawComps(); scheduleStacks();
+}
+// CoStar dots, minus the ones that sit on a deal or Radar parcel (those live in that parcel's stack)
+function drawComps(){
+  if(!compsOn || !_compsData) return;
   compsCluster.clearLayers();
-  const markers = data
-    .filter(c => c.m === currentMarket && !_compHidden.has(compKey(c)))
+  const markers = _compsData
+    .filter(c => c.m === currentMarket && !_compHidden.has(compKey(c)) && !STACKS.compTaken.has(compKey(c)))
     .map(compMarker);
   compsCluster.addLayers(markers);
   if(!map.hasLayer(compsCluster)) map.addLayer(compsCluster);
@@ -2268,7 +2277,7 @@ const radarLayer = L.layerGroup();
 function loadRadar(){
   if(_radarData) return Promise.resolve(_radarData);
   if(!_radarLoading) _radarLoading = WB.fetchAll('market','dev_projects',
-    'id,market_id,track,kind,name,address,place,lat,lng,units,acres,stories,developer,status_text,ent_status,ent_use,verification,review,product_type,delivery_date',
+    'id,market_id,track,kind,name,address,place,lat,lng,parcels,units,acres,stories,developer,status_text,ent_status,ent_use,verification,review,product_type,delivery_date',
     q => q.neq('review','dismissed').not('lat','is',null))
     .then(rows => (_radarData = rows))
     .catch(() => (_radarData = []));
@@ -2276,12 +2285,10 @@ function loadRadar(){
 }
 /* same institutional scope as Radar: drivers always; rentals 100+ units (unknown size stays in) */
 const radarInScope = p => p.kind === 'driver' || p.units == null || p.units >= 100;
-function radarMarker(p){
+function radarCard(p){
   const t = RADAR_TRACK[p.track] || RADAR_TRACK.entitlement;
   const quiet = p.track === 'construction' && p.verification === 'unverified';
   const driver = p.kind === 'driver';
-  const icon = L.divIcon({ className:'radar-pin', iconSize:[14,14], iconAnchor:[7,7],
-    html:`<span style="display:block;width:10px;height:10px;margin:2px;background:${t.hex};border:1.5px solid #fff;box-shadow:0 0 0 1px ${t.hex};transform:rotate(45deg);${driver?'border-radius:50%;transform:none;':''}${quiet?'opacity:.45;':''}"></span>` });
   const rows = [
     ['Units', p.units!=null ? Number(p.units).toLocaleString() : null], ['Acres', p.acres], ['Stories', p.stories],
     ['Developer', p.developer], ['Entitlement', [p.ent_status, p.ent_use].filter(Boolean).join(' · ') || null],
@@ -2298,16 +2305,115 @@ function radarMarker(p){
       <div class="cpx-detail">${rows}</div>
       <div class="cpx-actions"><a class="cpx-act" href="../development/?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener">Open in Radar →</a></div>
     </div>`;
-  return L.marker([p.lat, p.lng], { icon, pane:'radar', zIndexOffset:300, title:p.name||'' })
-    .bindPopup(html, {className:'comp-popup', maxWidth:300, minWidth:252})
-    .bindTooltip(`<b>${esc(p.name||'')}</b><br>${esc(pill)}${p.units?` · ${Number(p.units).toLocaleString()} units`:''}`, {className:'parcel-tip', direction:'top', offset:[0,-6]});
+  return { html, wire:()=>{}, color:t.hex, pill, quiet, driver };
 }
 async function refreshRadar(){
-  if(!radarOn){ if(map.hasLayer(radarLayer)) map.removeLayer(radarLayer); return; }
-  const data = await loadRadar();
+  if(!radarOn){ if(map.hasLayer(radarLayer)) map.removeLayer(radarLayer); scheduleStacks(); return; }
+  await loadRadar();
+  drawRadar(); scheduleStacks();
+}
+// Radar projects that aren't on a deal's parcel: their own outline (track colour) + one pin; CoStar records
+// on the same parcel stack into that pin. Radar projects on a deal's parcel live in the deal's stack instead.
+const radarShapeRenderer = L.svg({ pane:'radarShapes' });
+function drawRadar(){
+  if(!radarOn || !_radarData) return;
   radarLayer.clearLayers();
-  data.filter(p => p.market_id === currentMarket && radarInScope(p)).forEach(p => radarLayer.addLayer(radarMarker(p)));
+  _radarData.filter(p => p.market_id === currentMarket && radarInScope(p) && !STACKS.radarTaken.has(p.id)).forEach(p => {
+    const card = radarCard(p), a = radarAnchor(p), items = [{type:'radar', p}].concat(STACKS.byRadar.get(p.id) || []);
+    radarGeoms(p).forEach(g => {
+      const lyr = L.geoJSON({type:'Feature', geometry:g, properties:{}}, { pane:'radarShapes', renderer:radarShapeRenderer,
+        style:{ color:card.color, weight:2.25, opacity:.95, fillColor:card.color, fillOpacity:.16, dashArray: p.track==='stalled' ? '6 4' : null } });
+      lyr.on('click', ev => { L.DomEvent.stopPropagation(ev); openStack(ev.latlng, items); });
+      radarLayer.addLayer(lyr);
+    });
+    const n = items.length;
+    const icon = L.divIcon({ className:'radar-pin', iconSize:[14,14], iconAnchor:[7,7],
+      html:`<span style="display:block;width:10px;height:10px;margin:2px;background:${card.color};border:1.5px solid #fff;box-shadow:0 0 0 1px ${card.color};transform:rotate(45deg);${card.driver?'border-radius:50%;transform:none;':''}${card.quiet?'opacity:.45;':''}"></span>${n>1?`<span class="stk-badge">${n}</span>`:''}` });
+    const m = L.marker(a, { icon, pane:'radar', zIndexOffset:300, title:p.name||'' })
+      .bindTooltip(`<b>${esc(p.name||'')}</b><br>${esc(card.pill)}${p.units?` · ${Number(p.units).toLocaleString()} units`:''}${n>1?` · ${n} records`:''}`, {className:'parcel-tip', direction:'top', offset:[0,-6]});
+    m.on('click', () => openStack(a, items));
+    radarLayer.addLayer(m);
+  });
   if(!map.hasLayer(radarLayer)) map.addLayer(radarLayer);
+}
+
+// ---- Stacks: one highlight per parcel. A deal, a Radar project and CoStar records on the same parcel share one
+// outline (coloured by the most important: deal, then Radar, then CoStar) and one pin; the pin opens a card with
+// arrows to step through each record. ----
+let STACKS = { bySite:new Map(), byRadar:new Map(), compTaken:new Set(), radarTaken:new Set() }, _stackSig = '', _stackT = 0;
+const radarShapesPane = map.createPane('radarShapes'); radarShapesPane.style.zIndex = 425;
+function ptInRing(lat, lng, ring){ let inside = false; for(let i=0, j=ring.length-1; i<ring.length; j=i++){ const xi=ring[i][0], yi=ring[i][1], xj=ring[j][0], yj=ring[j][1]; if(((yi>lat)!==(yj>lat)) && (lng < (xj-xi)*(lat-yi)/(yj-yi)+xi)) inside = !inside; } return inside; }
+function ptInGeom(lat, lng, g){
+  if(!g) return false;
+  const polys = g.type==='Polygon' ? [g.coordinates] : g.type==='MultiPolygon' ? g.coordinates : [];
+  return polys.some(p => p.length && ptInRing(lat, lng, p[0]) && !p.slice(1).some(h => ptInRing(lat, lng, h)));
+}
+function metersBetween(a, b){ const dy=(a[0]-b[0])*111320, dx=(a[1]-b[1])*111320*Math.cos(a[0]*Math.PI/180); return Math.hypot(dx, dy); }
+function radarGeoms(p){ return (Array.isArray(p.parcels) ? p.parcels : []).filter(x => x && Array.isArray(x.coords) && x.coords.length).map(x => ({type:'Polygon', coordinates:x.coords})); }
+function radarAnchor(p){
+  const gs = radarGeoms(p);
+  if(gs.length){ try{ const b = L.latLngBounds([]); gs.forEach(g => b.extend(L.geoJSON(g).getBounds())); const c = b.getCenter(); return [c.lat, c.lng]; }catch(e){} }
+  return [p.lat, p.lng];
+}
+function computeStacks(){
+  const S = { bySite:new Map(), byRadar:new Map(), compTaken:new Set(), radarTaken:new Set() };
+  const add = (m, k, it) => (m.get(k) || m.set(k, []).get(k)).push(it);
+  const sites = (pipelineOn ? marketSites() : []).map(s => {
+    const geoms = (s.parcels||[]).map(p => p.geometry).filter(Boolean);
+    let b = null; try{ b = L.latLngBounds([]); geoms.forEach(g => b.extend(L.geoJSON(g).getBounds())); if(!b.isValid()) b = null; }catch(e){ b = null; }
+    return { s, geoms, b, c: b ? b.getCenter() : null };
+  }).filter(o => o.b);
+  const inSite = (lat, lng) => sites.find(o => o.b.contains([lat, lng]) && o.geoms.some(g => ptInGeom(lat, lng, g)));
+  const radar = (radarOn && _radarData) ? _radarData.filter(p => p.market_id === currentMarket && radarInScope(p) && p.lat != null) : [];
+  for(const p of radar){
+    const a = radarAnchor(p), gs = radarGeoms(p);
+    const o = inSite(a[0], a[1]) || inSite(p.lat, p.lng) || sites.find(x => gs.some(g => ptInGeom(x.c.lat, x.c.lng, g)));
+    if(o){ add(S.bySite, o.s.id, {type:'radar', p}); S.radarTaken.add(p.id); }
+  }
+  const rFree = radar.filter(p => !S.radarTaken.has(p.id)).map(p => ({ p, a:radarAnchor(p), gs:radarGeoms(p) }));
+  const comps = (compsOn && _compsData) ? _compsData.filter(c => c.m === currentMarket && !_compHidden.has(compKey(c))) : [];
+  for(const c of comps){
+    const ll = compLL(c); if(ll[0] == null || ll[1] == null) continue;
+    const o = inSite(ll[0], ll[1]);
+    if(o){ add(S.bySite, o.s.id, {type:'comp', c}); S.compTaken.add(compKey(c)); continue; }
+    const r = rFree.find(x => x.gs.length ? x.gs.some(g => ptInGeom(ll[0], ll[1], g)) : metersBetween(x.a, ll) < 45);
+    if(r){ add(S.byRadar, r.p.id, {type:'comp', c}); S.compTaken.add(compKey(c)); }
+  }
+  return S;
+}
+// Recompute after any of the three sources changes; redraw only when the grouping actually changed.
+function scheduleStacks(){
+  clearTimeout(_stackT);
+  _stackT = setTimeout(() => {
+    try{
+      const S = computeStacks();
+      const sig = [...S.bySite].map(([k, v]) => k + ':' + v.length).join(',') + '|' + [...S.byRadar].map(([k, v]) => k + ':' + v.length).join(',') + '|' + S.compTaken.size + '|' + S.radarTaken.size;
+      STACKS = S;
+      if(sig !== _stackSig){ _stackSig = sig; renderTracked(true); drawRadar(); drawComps(); }
+    }catch(e){ console.warn('[stacks]', e); }
+  }, 150);
+}
+function siteStackCard(s){
+  const st = statusById[s.status] || STATUSES[0], id = 'sopen_' + Math.random().toString(36).slice(2, 9), cnt = (s.parcels||[]).length, ac = siteAcres(s);
+  const rows = [['Acres', ac ? ac.toFixed(2) : null], ['Parcels', cnt || null], ['Entitlement', s.entitlement || null]].filter(r => r[1])
+    .map(r => `<div class="cpx-row"><span class="cpx-k">${r[0]}</span><span class="cpx-val">${esc(String(r[1]))}</span></div>`).join('');
+  return { html:`<div class="cpx"><div class="cpx-head" style="--sc:${st.hex}"><div class="cpx-htop"><span class="cpx-pill"><span class="cpx-pdot"></span>Deal · ${esc(st.label)}</span></div><div class="cpx-name">${esc(siteName(s))}</div></div><div class="cpx-detail">${rows}</div><div class="cpx-actions"><button class="cpx-act" id="${id}">Open site →</button></div></div>`,
+    wire:()=>{ const b = document.getElementById(id); if(b) b.onclick = () => { map.closePopup(); openSiteDetail(s.id); }; } };
+}
+const STACK_LABEL = { site:'Deal', radar:'Radar', comp:'CoStar' };
+function openStack(latlng, items){
+  if(!items || !items.length) return;
+  let i = 0;
+  const box = document.createElement('div'); box.className = 'stk';
+  const popup = L.popup({ className:'comp-popup', maxWidth:300, minWidth:256, closeButton:false, autoPanPadding:[40, 40] }).setLatLng(latlng).setContent(box);
+  const card = it => it.type === 'site' ? siteStackCard(it.s) : it.type === 'radar' ? radarCard(it.p) : compCard(it.c);
+  const draw = () => {
+    const c = card(items[i]);
+    box.innerHTML = (items.length > 1 ? `<div class="stk-nav"><button type="button" class="stk-b" data-d="-1" aria-label="Previous record" ${i===0?'disabled':''}>‹</button><span>${items.map((x, j) => `<b class="${j===i?'on':''}">${STACK_LABEL[x.type]}</b>`).join('')}<em>${i+1} of ${items.length}</em></span><button type="button" class="stk-b" data-d="1" aria-label="Next record" ${i===items.length-1?'disabled':''}>›</button></div>` : '') + c.html;
+    box.querySelectorAll('.stk-b').forEach(b => b.onclick = ev => { L.DomEvent.stop(ev); i = Math.max(0, Math.min(items.length - 1, i + (+b.dataset.d))); draw(); });
+    c.wire && c.wire(); popup.update();
+  };
+  popup.openOn(map); draw();
 }
 
 // ---- Major attractions (POI): team-editable, Supabase-backed, labeled ----
@@ -3484,7 +3590,7 @@ function openCompetitor(id){
   $('cfDel').addEventListener('click', ()=>{ if(confirm('Delete this competitor?')){ Comp.remove(id); renderCompetitors(); hideModal(); if(_snapComposed){ _snapLabeled.delete('cp:'+id); snapExpandMarkers(); buildSnapLegend(); } } });
 }
 
-function renderTracked(){
+function renderTracked(fromStacks){
   trackedLayer.clearLayers();
   siteMarkerLayer.clearLayers();
   if(typeof updateReadout === "function") updateReadout();
@@ -3514,17 +3620,20 @@ function renderTracked(){
     // is the clean anchor — the pulsing live marker would just collide with the card.
     const calloutShown = _snapComposed && $('snapSiteCallout') && $('snapSiteCallout').checked;
     if(c && !calloutShown){
+      const extra = STACKS.bySite.get(site.id) || [];
       const icon = L.divIcon({className:'', iconSize:[0,0],
-        html:`<div class="opp-marker" style="--c:${st.hex}"><div class="opp-pulse"></div><div class="opp-core">${cnt>1?cnt:''}</div></div>`});
+        html:`<div class="opp-marker" style="--c:${st.hex}"><div class="opp-pulse"></div><div class="opp-core">${cnt>1?cnt:''}</div>${extra.length?`<span class="stk-badge">+${extra.length}</span>`:''}</div>`});
       const m = L.marker(c, {icon, pane:'siteMarkers', riseOnHover:true});
-      m.bindTooltip(`<b>${esc(siteName(site))}</b><br>${st.label} · ${siteAcres(site).toFixed(2)} ac${cnt>1?` · ${cnt} parcels`:''}`,
+      const also = extra.length ? ' · also ' + [['radar','Radar'],['comp','CoStar']].map(([t, l]) => { const k = extra.filter(x => x.type === t).length; return k ? (k > 1 ? k + ' ' : '') + l : ''; }).filter(Boolean).join(', ') : '';
+      m.bindTooltip(`<b>${esc(siteName(site))}</b><br>${st.label} · ${siteAcres(site).toFixed(2)} ac${cnt>1?` · ${cnt} parcels`:''}${esc(also)}`,
         {className:'parcel-tip', direction:'top', offset:[0,-12]});
-      m.on('click', ()=> openSiteDetail(site.id));
+      m.on('click', ()=> extra.length ? openStack(c, [{type:'site', s:site}].concat(extra)) : openSiteDetail(site.id));
       m.addTo(siteMarkerLayer);
     }
   }
   renderSitesHome();
   renderLegend();
+  if(!fromStacks) scheduleStacks();
 }
 /* ?deal=<pipeline deal id> (from Opportunities' "Open in Site Scout"): switch to the deal's market, frame its parcels and open the site. Runs once. */
 let _deepLinkDone = false;
