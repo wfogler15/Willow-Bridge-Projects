@@ -1614,7 +1614,16 @@ const handleMove = debounce(()=>{ loadParcels(); refreshZoning(); }, 280);
 map.on('movestart', ()=>{ if(map.getZoom() >= MIN_PARCEL_ZOOM) $('loader').style.display = 'none'; });
 map.on('moveend', handleMove);
 // metro zoom: quieter markers (no pulse, no count badges, past pursuits as small rings)
-const syncZoomClass = () => map.getContainer().classList.toggle('z-metro', map.getZoom() < 13);
+// Zoomed out, every record (deal, Radar, CoStar) is the same small white dot with a midnight ring: it just
+// says "we have something here". Colours and shapes come back from zoom 13 in.
+const METRO_ZOOM = 13;
+const isMetro = () => map.getZoom() < METRO_ZOOM;
+let _wasMetro = null;
+const syncZoomClass = () => {
+  const m = isMetro(); map.getContainer().classList.toggle('z-metro', m);
+  if(_wasMetro !== null && m !== _wasMetro && typeof styleCompDots === 'function') styleCompDots();
+  _wasMetro = m;
+};
 syncZoomClass();
 map.on('zoomend', ()=>{
   syncZoomClass();
@@ -2255,9 +2264,12 @@ function compCard(c0){
   };
   return { html, wire, color };
 }
+const compDotStyle = color => isMetro() ? { radius:4, color:'#1D1247', weight:1.5, fillColor:'#fff' } : { radius:4, color:'#fff', weight:1.25, fillColor:color };
+function styleCompDots(){ compsCluster.eachLayer(l => { if(l._wbColor) l.setStyle(compDotStyle(l._wbColor)); }); }
 function compMarker(c0){
   const ll=compLL(c0), card=compCard(c0);
-  const m = L.circleMarker(ll, { radius:4, color:'#fff', weight:1.25, fillColor:card.color, fillOpacity:0.95, renderer:compsRenderer });
+  const m = L.circleMarker(ll, Object.assign({ renderer:compsRenderer, fillOpacity:1 }, compDotStyle(card.color)));
+  m._wbColor = card.color;
   m.bindPopup(card.html, {className:'comp-popup', maxWidth:288, minWidth:252, closeButton:false});
   m.on('popupopen', card.wire);
   return m;

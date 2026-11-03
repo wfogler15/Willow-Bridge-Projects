@@ -900,19 +900,21 @@ body.rail-collapsed .leaflet-top.leaflet-left{top:56px}
 /* quiet cluster chips (CoStar comps, POIs) */
 .cc-wrap{background:none!important;border:none!important}
 .cc{box-sizing:border-box;border-radius:50%;display:flex;align-items:center;justify-content:center;
-  background:rgba(255,255,255,.86);border:1px solid rgba(29,18,71,.28);color:#1D1247;
-  font:600 10.5px/1 'Inter Tight',sans-serif;box-shadow:0 1px 4px rgba(15,10,35,.28);
+  background:rgba(255,255,255,.9);border:1.5px solid rgba(29,18,71,.6);color:#1D1247;
+  font:600 10.5px/1 'Inter Tight',sans-serif;box-shadow:0 1px 4px rgba(15,10,35,.25);
   -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);transition:transform .15s ease}
 .cc-wrap:hover .cc{transform:scale(1.08);background:#fff}
 /* deal markers: past pursuits and monitor are small rings with no pulse; live deals keep the solid dot */
 .opp-marker.quiet .opp-pulse{display:none}
 .opp-marker.quiet .opp-core{width:12px;height:12px;background:#fff;border:3px solid var(--c);box-shadow:0 1px 3px rgba(0,0,0,.35);font-size:0}
-/* metro zoom: smaller, no pulse, no count badges */
+/* zoomed out: one look for everything (white dot, midnight ring), no pulses or badges */
 .z-metro .opp-pulse{display:none}
-.z-metro .opp-marker.live .opp-core{width:14px;height:14px;border-width:2px;font-size:0;box-shadow:0 0 0 1px rgba(0,0,0,.25),0 2px 6px rgba(0,0,0,.35)}
-.z-metro .opp-marker.quiet .opp-core{width:9px;height:9px;border-width:2.5px}
 .z-metro .stk-badge{display:none}
-.z-metro .cc{background:rgba(255,255,255,.74);border-color:rgba(29,18,71,.2);color:#3d3a52;font-size:10px}
+.z-metro .opp-marker .opp-core,.z-metro .opp-marker.live .opp-core,.z-metro .opp-marker.quiet .opp-core{
+  width:10px;height:10px;background:#fff;border:2px solid #1D1247;font-size:0;box-shadow:0 1px 3px rgba(15,10,35,.35)}
+.z-metro .radar-pin > span:first-child{width:8px!important;height:8px!important;margin:2px!important;background:#fff!important;
+  border:2px solid #1D1247!important;box-shadow:0 1px 3px rgba(15,10,35,.35)!important;border-radius:50%!important;transform:none!important;opacity:1!important}
+.z-metro .cc{background:rgba(255,255,255,.9);border-color:rgba(29,18,71,.6);color:#1D1247;font-size:10px}
 .radar-pin .stk-badge{left:9px;top:-9px}
 .cpx{font-family:'Inter',sans-serif;color:#1a1a22}
 .cpx-head{background:linear-gradient(155deg,#2c2247,#181322);padding:11px 15px 14px;position:relative}
@@ -2120,11 +2122,11 @@ select.cp-f:focus{border-color:var(--wb-purple);box-shadow:0 0 0 2px rgba(67,40,
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/shpjs@6.1.0/dist/shp.min.js"></script>
-<link rel="stylesheet" href="wb-theme.css?v=202611021738">
-<script src="../shared/wb.js?v=202611021738"></script>
-<script src="../shared/scout-db.js?v=202611021738"></script>
-<script>window.WB_BUILD = '202611021738';</script>
-<script src="loader.js?v=202611021738"></script>
+<link rel="stylesheet" href="wb-theme.css?v=202611021741">
+<script src="../shared/wb.js?v=202611021741"></script>
+<script src="../shared/scout-db.js?v=202611021741"></script>
+<script>window.WB_BUILD = '202611021741';</script>
+<script src="loader.js?v=202611021741"></script>
 
 </body>
 </html>
