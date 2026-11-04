@@ -110,6 +110,27 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 .lead{margin:0;font-size:13px;line-height:1.5;color:var(--ink2)}
 .lnk{border:0;background:none;padding:0;font:500 13px var(--font);color:var(--purple);cursor:pointer}
 .lnk:hover{text-decoration:underline}
+/* this week: the Thursday highlights */
+.hl-list{display:flex;flex-direction:column}
+.hl-row{display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:2px 10px;align-items:baseline;width:calc(100% + 12px);margin:0 -6px;padding:9px 6px;
+  background:none;border:0;border-bottom:1px solid var(--hair);border-radius:4px;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.hl-row:hover,.hl-row:focus-visible{background:#F7F6FB;outline:none}
+.hl-n{font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.hl-name{min-width:0;font-size:13px;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hl-fig{font-size:13px;color:var(--ink2);white-space:nowrap;text-align:right}
+.hl-line{grid-column:2/-1;font-size:12.5px;line-height:1.45;color:var(--ink2)}
+.hl-cat{font-size:12px;font-weight:600;margin-right:8px}
+.c-ok{color:var(--forest)} .c-warn{color:var(--brick)} .c-up{color:var(--ink)} .c-mut{color:var(--muted)}
+.wknav{display:flex;flex-wrap:wrap;gap:4px 16px;margin:-4px 0 0}
+.dot.sale{background:#fff}
+#list td input.wline{width:100%;height:26px;border:0;border-bottom:1px solid transparent;background:none;font:14px var(--font);color:var(--ink);padding:0;outline:0}
+#list td input.wline:hover{border-bottom-color:var(--rule)}
+#list td input.wline:focus{border-bottom-color:var(--purple)}
+#list td input[type=checkbox]{width:16px;height:16px;margin:3px 0 0;accent-color:var(--ink);cursor:pointer}
+#list tr.off td{color:var(--faint)}
+#list tr.off td input.wline{color:var(--muted)}
+.mv{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 4px;text-decoration:none}
+.mv:hover{color:var(--ink)} .mv:disabled{opacity:.25;cursor:default}
 
 /* markers */
 .pin{width:16px;height:16px;cursor:pointer}
@@ -242,7 +263,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202611031042"></script>
+<script src="../shared/wb.js?v=202611041628"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -261,14 +282,24 @@ const ALL_AFFORDABLE = p => /housing authority/i.test(p.developer || "") || /lih
 const inScope = p => p.kind === "driver" || (!ALL_AFFORDABLE(p) && (FOR_SALE.test(p.product_type || "") ? (p.units || 0) >= 200 : (p.units == null || p.units >= 100)));
 let allSizes = false; try { allSizes = localStorage.getItem("wbv2:dev:allSizes") === "1"; } catch(e){}
 let outOfScope = 0;
+/* This week: recent sale comps (Sale Comps scope applies) and the weekly curation rows */
+let SALES = [], HLROWS = [], HLS = new Map(), afterLoad = () => {};
+const SALE_COLS = "id,comp_type,name,address,city,market_id,lat,lng,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_land_sf,cap_rate,cap_rate_t12,buyer,seller,broker,notes,source,source_url,excluded,portfolio,created_at,property_id";
+async function loadHL(){
+  try { HLROWS = await WB.fetchAll("market", "weekly_highlights", "*"); } catch(e){ HLROWS = []; console.warn("weekly_highlights", e); }
+  HLS = new Map(HLROWS.map(r => [r.week_of + "|" + r.item_key, r]));
+}
 async function load(){
-  const [rows, evs] = await Promise.all([
+  const [rows, evs, sales] = await Promise.all([
     WB.fetchAll("market", "dev_projects", "*"),
     WB.fetchAll("market", "dev_events", "*", q => q.order("on_date", {ascending: true, nullsFirst: true}).order("id")),
+    WB.fetchAll("comps", "sale_comps", SALE_COLS, q => q.gte("sale_date", "2025-06-01")).catch(e => { console.warn("sale_comps", e); return []; }),
+    loadHL(),
   ]);
   outOfScope = rows.filter(p => p.review !== "dismissed" && !inScope(p)).length;
-  P = allSizes ? rows : rows.filter(inScope); EV = new Map();
+  P = allSizes ? rows : rows.filter(inScope); EV = new Map(); SALES = sales;
   evs.forEach(e => (EV.get(e.project_id) || EV.set(e.project_id, []).get(e.project_id)).push(e));
+  afterLoad();
 }
 await load();
 
@@ -295,7 +326,7 @@ const entState = p => isDriver(p) || p.watch || !p.hearing_date ? "watch" : p.he
 const VER = {unverified: "Not verified", verified: "Verified moving", stalled: "Stalled", delivered: "Delivered"};
 const VCLS = {unverified: "", verified: "s-ok", stalled: "s-warn", delivered: ""};
 const onMap = p => live(p) && p.lat != null && p.lng != null && (p.track !== "construction" || p.verification === "verified");
-const TRACK_LABEL = {all: "Everything", entitlement: "Entitlements", construction: "Under construction", stalled: "Stalled"};
+const TRACK_LABEL = {week: "This week", all: "Everything", entitlement: "Entitlements", construction: "Under construction", stalled: "Stalled"};
 const inTrack = p => track === "all" || p.track === track;
 const TRACK_ORDER = {stalled: 0, entitlement: 1, construction: 2};
 
@@ -304,14 +335,145 @@ const TRACK_ORDER = {stalled: 0, entitlement: 1, construction: 2};
 const store = {get(k){ try{ return localStorage.getItem("wbv2:dev:" + k); }catch(e){ return null; } }, set(k, v){ try{ localStorage.setItem("wbv2:dev:" + k, v); }catch(e){} }};
 const qs = new URLSearchParams(location.search);
 let track = qs.get("track") || store.get("track") || "construction";
-if(!["all", "entitlement", "construction", "stalled"].includes(track)) track = "construction";
+if(!["week", "all", "entitlement", "construction", "stalled"].includes(track)) track = "construction";
 let mkt = WB.getMarket();
 const inMkt = p => mkt === "all" || p.market_id === mkt;
+
+/* ---------- this week: highlights for the Thursday meeting ----------
+   A week runs Thursday to Wednesday and is named by its meeting (the Thursday after). Candidates come from the data:
+   hearing outcomes (dev_events with an outcome), construction rows whose verification changed (verified_on), new cases from the
+   weekly search, and sale comps. Until anyone ranks a market's week, the top eight by score show; once any item has a rank
+   (the weekly search ranks them, or Will reorders), only ranked items that aren't hidden show. Rows: market.weekly_highlights. */
+const addDays = (d, n) => { const t = new Date(d + "T12:00:00Z"); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); };
+const dayDiff = (a, b) => Math.round((Date.parse(b + "T12:00:00Z") - Date.parse(a + "T12:00:00Z")) / 864e5);
+const thuOnOrAfter = d => { const t = new Date(d + "T12:00:00Z"); t.setUTCDate(t.getUTCDate() + (4 - t.getUTCDay() + 7) % 7); return t.toISOString().slice(0, 10); };
+const weekFor = d => thuOnOrAfter(addDays(d, 1));   /* news goes to the first meeting after it */
+const curWeek = thuOnOrAfter(today);
+let week = /^\d{4}-\d{2}-\d{2}$/.test(qs.get("week") || "") ? thuOnOrAfter(qs.get("week")) : curWeek;
+if(week > curWeek) week = curWeek;
+/* when something became news: its own date, unless we only learned of it later (then the day it was logged); old backfill keeps its date */
+const newsDate = (ev, created) => { const c = created ? String(created).slice(0, 10) : ev; if(!ev) return c; if(ev > c) return c; const lag = dayDiff(ev, c); return lag <= 7 ? ev : lag <= 60 ? c : ev; };
+const weekLabel = (w = week) => fShort(addDays(w, -7)) + " – " + fShort(addDays(w, -1)) + ", " + addDays(w, -1).slice(0, 4) + " · meeting " + fShort(w);
+/* [label, colour class, base score] */
+const HCAT = {
+  denied: ["Denied", "c-warn", 90], approved: ["Approved", "c-ok", 85], rec: ["Recommended", "", 55], continued: ["Continued", "c-mut", 30], hearing: ["Hearing", "c-mut", 25],
+  sale: ["Sale", "c-up", 70], land: ["Land sale", "c-up", 60],
+  start: ["Started", "c-ok", 60], delivered: ["Delivered", "", 45], stalled: ["Stalled", "c-warn", 50], confirmed: ["Under construction", "c-mut", 15],
+  new: ["New case", "", 35], note: ["Note", "", 40],
+};
+const TAG = {"c-ok": "t-ok", "c-warn": "t-warn", "c-up": "t-up"};
+const clip = (s, n) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1).replace(/[\s,;:.]+\S*$/, "") + "…" : s; };
+/* evidence reads "Source (accessed date): what it says. More…"; keep what it says, first sentence */
+const firstSentence = s => clip(String(s || "").split(/\s\|\s/)[0].replace(/^[^:]{0,80}\((?:[^)]*\d{4}[^)]*)\):\s*/, "").split(/(?<=[a-z0-9)]\.)\s(?=[A-Z])/)[0].replace(/[;.]\s*$/, "").replace(/^./, c => c.toUpperCase()), 140);
+const fMoney = v => WB.fmt.usd(v);
+function classify(t){
+  t = String(t || "").toLowerCase();
+  if(/recommend/.test(t)) return "rec";
+  if(/\bden(ied|ial)\b|reject|voted down/.test(t)) return "denied";
+  if(/approv|adopted|passed/.test(t)) return "approved";
+  if(/continu|postpon|tabled|defer/.test(t)) return "continued";
+  return "hearing";
+}
+let CANDS = [];
+function buildCands(){
+  const byId = new Map(P.map(p => [p.id, p])), out = [];
+  const uBonus = (p, d) => Math.min((p.units || 0) / d, 15);
+  const src = (p, last) => { const s = (p.sources || []).filter(x => x && x.url), x = last ? s[s.length - 1] : s[0]; return x ? x.url : null; };
+  EV.forEach((list, pid) => {
+    const p = byId.get(pid); if(!p || !live(p)) return;
+    list.forEach(e => {
+      if(!e.outcome || !["hearing", "status"].includes(e.kind)) return;
+      const cat = classify(e.outcome), d = newsDate(e.on_date, e.created_at);
+      out.push({key: "ev:" + e.id, week: weekFor(d), date: e.on_date || d, market: p.market_id, cat, p, title: p.name,
+        label: clip(e.outcome.split(/[;(]/)[0], 40), fig: p.units ? fNum(p.units) + " units" : (p.product_type || ""),
+        auto: clip(p.status_text || e.body, 220), url: e.url || src(p), score: HCAT[cat][2] + uBonus(p, 40)});
+    });
+  });
+  P.forEach(p => {
+    if(!live(p)) return;
+    if(p.track === "construction" && p.verified_on && p.verification !== "unverified"){
+      let cat = p.verification === "delivered" ? "delivered" : p.verification === "stalled" ? "stalled" : "confirmed";
+      if(cat === "confirmed" && ((p.construction_start && dayDiff(p.construction_start, p.verified_on) <= 120) || (p.first_seen === p.verified_on && /^Weekly search/i.test(p.found_by || "")))) cat = "start";
+      out.push({key: "ver:" + p.id + ":" + p.verification, week: weekFor(p.verified_on), date: p.verified_on, market: p.market_id, cat, p, title: p.name,
+        fig: p.units ? fNum(p.units) + " units" : "", auto: firstSentence(p.evidence), url: src(p, true), score: HCAT[cat][2] + uBonus(p, 50)});
+    }
+    if(p.track !== "construction" && p.first_seen && /^Weekly search/i.test(p.found_by || "")){
+      out.push({key: "new:" + p.id, week: weekFor(p.first_seen), date: p.first_seen, market: p.market_id, cat: "new", p, title: p.name, label: isDriver(p) ? "New driver" : "New case",
+        fig: p.hearing_date && p.hearing_date >= p.first_seen ? "Hearing " + fShort(p.hearing_date) : (p.units ? fNum(p.units) + " units" : ""),
+        auto: clip(p.request || p.status_text, 220), url: src(p), score: (isDriver(p) ? 50 : 35) + uBonus(p, 40)});
+    }
+  });
+  SALES.forEach(c => {
+    if(c.excluded || !c.sale_date || c.sale_date > today) return;
+    const inv = c.comp_type !== "land";
+    if(inv && ((c.units != null && c.units < 100) || (c.year_built != null && c.year_built < 1970))) return;   /* Sale Comps scope: 100+ units, built 1970 or later */
+    const d = newsDate(c.sale_date, c.created_at), price = +c.sale_price || 0, ppu = c.price_per_unit || (price && c.units ? price / c.units : null);
+    const auto = inv ? [c.units ? fNum(c.units) + " units" : "", c.year_built ? "built " + c.year_built : "", ppu ? fMoney(ppu) + " / unit" : "", c.cap_rate ? WB.fmt.pct(c.cap_rate, 2) + " cap" : "", c.buyer ? "buyer " + c.buyer : ""]
+      : [c.acres ? fNum(c.acres) + " acres" : "", c.price_per_land_sf ? "$" + fNum(c.price_per_land_sf) + " / land SF" : "", c.proposed_units ? fNum(c.proposed_units) + " units planned" : "", c.buyer ? "buyer " + c.buyer : ""];
+    out.push({key: "comp:" + c.id, week: weekFor(d), date: c.sale_date, market: c.market_id, cat: inv ? "sale" : "land", c, title: c.name || c.address || "Sale", fig: price ? fMoney(price) : "Unpriced",
+      auto: auto.filter(Boolean).join(" · "), url: c.source_url, score: inv ? 70 + Math.min(price / 1e7, 20) : 60 + Math.min(price / 5e6, 15)});
+  });
+  /* items added by hand on the page (or by the weekly search) for news that isn't in the data */
+  HLROWS.filter(r => String(r.item_key).startsWith("man:")).forEach(r => {
+    const c = r.comp_id ? SALES.find(x => x.id === r.comp_id) : null;
+    out.push({key: r.item_key, week: r.week_of, date: null, market: r.market_id, cat: HCAT[r.category] ? r.category : "note", p: r.project_id ? byId.get(r.project_id) || null : null, c,
+      title: r.title || "Note", fig: "", auto: "", url: r.url, score: 40, manual: true});
+  });
+  CANDS = out;
+}
+const hlRow = (k, w = week) => HLS.get(w + "|" + k);
+/* the automatic list: top eight by score, no more than three of a kind until the rest run out */
+const autoPick = list => { const n = {}, pick = list.filter(i => (n[i.cat] = (n[i.cat] || 0) + 1) <= 3).slice(0, 8); return pick.concat(list.filter(i => !pick.includes(i)).slice(0, 8 - pick.length)).sort((a, b) => b.score - a.score); };
+function weekItems(m, w = week){
+  const items = CANDS.filter(i => i.week === w && (!m || i.market === m)).map(i => {
+    const r = hlRow(i.key, w) || {};
+    return Object.assign({}, i, {title: r.title || i.title, line: r.line || i.auto || "", rank: r.rank == null ? null : r.rank, hidden: !!r.hidden, shown: false, pos: null});
+  });
+  const curated = items.some(i => i.rank != null);
+  const shown = curated ? items.filter(i => i.rank != null && !i.hidden).sort((a, b) => a.rank - b.rank)
+    : autoPick(items.filter(i => !i.hidden && i.cat !== "confirmed" && i.cat !== "hearing").sort((a, b) => b.score - a.score));
+  shown.forEach((i, n) => { i.shown = true; i.pos = n + 1; i.of = shown.length; });
+  return {items, shown, curated};
+}
+const upcoming = (m, w = week) => P.filter(p => live(p) && p.track === "entitlement" && p.market_id === m && p.hearing_date && p.hearing_date >= w && p.hearing_date <= addDays(w, 13))
+  .sort((a, b) => a.hearing_date.localeCompare(b.hearing_date) || a.name.localeCompare(b.name));
+function setWeek(w){
+  week = !w || w > curWeek ? curWeek : w;
+  try { const u = new URL(location.href); if(week === curWeek) u.searchParams.delete("week"); else u.searchParams.set("week", week); history.replaceState(null, "", u); } catch(e){}
+  rebuild(); if(!$("#list").hidden) renderList();
+}
+const weekNav = () => '<button type="button" class="lnk" data-wk="-7">‹ Previous week</button>'
+  + (week < curWeek ? '<button type="button" class="lnk" data-wk="7">Next week ›</button>' + (addDays(week, 7) < curWeek ? '<button type="button" class="lnk" data-wk="0">This week</button>' : "") : "");
+/* saving: one row per (week, item); rank and hidden decide what's on the slides, line is the one-liner */
+async function upsertHL(rows){
+  if(!rows.length) return true;
+  const { error } = await DB().from("weekly_highlights").upsert(rows, {onConflict: "week_of,item_key"});
+  if(error){ WB.toast("Couldn't save: " + error.message, 5000); return false; }
+  await loadHL(); buildCands(); rebuild(); if(!$("#list").hidden) renderList(); return true;
+}
+const curState = m => { const d = weekItems(m); return {order: d.shown.map(i => i.key), hidden: new Set(d.items.filter(i => i.hidden).map(i => i.key))}; };
+function setOrder(m, order, hidden){
+  const rows = weekItems(m).items.filter(i => order.includes(i.key) || hidden.has(i.key) || hlRow(i.key))
+    .map(i => ({week_of: week, item_key: i.key, market_id: i.market, category: i.cat, rank: order.includes(i.key) ? order.indexOf(i.key) + 1 : null, hidden: hidden.has(i.key)}));
+  return upsertHL(rows);
+}
+async function toggleInc(m, k, on){ const s = curState(m); if(on){ s.hidden.delete(k); if(!s.order.includes(k)) s.order.push(k); } else { s.order = s.order.filter(x => x !== k); s.hidden.add(k); } await setOrder(m, s.order, s.hidden); }
+async function moveItem(m, k, dir){ const s = curState(m), i = s.order.indexOf(k), j = i + dir; if(i < 0 || j < 0 || j >= s.order.length) return; [s.order[i], s.order[j]] = [s.order[j], s.order[i]]; await setOrder(m, s.order, s.hidden); }
+async function saveLine(m, k, line){
+  const i = weekItems(m).items.find(x => x.key === k); if(!i || line === (i.line || "")) return;
+  await upsertHL([{week_of: week, item_key: k, market_id: i.market, category: i.cat, line: line || null}]);
+}
+async function delManual(k){
+  const { error } = await DB().from("weekly_highlights").delete().eq("week_of", week).eq("item_key", k);
+  if(error){ WB.toast("Couldn't delete: " + error.message, 5000); return; }
+  await loadHL(); buildCands(); rebuild(); if(!$("#list").hidden) renderList(); WB.toast("Deleted.");
+}
+afterLoad = buildCands; buildCands();
 
 /* ---------- shell: band with Map / Data log, the track toggle and the market toggle ---------- */
 const band = WB.band({title: "Radar", tabs: '<button type="button" class="on" data-t="map" role="tab">Map</button><button type="button" data-t="list" role="tab">Data log</button>'});
 const trk = document.createElement("div"); trk.className = "trk"; trk.setAttribute("role", "group"); trk.setAttribute("aria-label", "Report");
-trk.innerHTML = '<button type="button" data-k="all">All</button><button type="button" data-k="construction">Under construction</button><button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="stalled">Stalled</button>';
+trk.innerHTML = '<button type="button" data-k="week">This week</button><button type="button" data-k="all">All</button><button type="button" data-k="construction">Under construction</button><button type="button" data-k="entitlement">Entitlements</button><button type="button" data-k="stalled">Stalled</button>';
 band.querySelector(".acts").prepend(trk);
 { const sz = document.createElement("button"); sz.type = "button"; sz.className = "b";
   sz.title = allSizes ? "Showing every project, including " + outOfScope + " outside the institutional scope" : outOfScope + " projects hidden: rentals under 100 units, for-sale under 200, all-affordable";
@@ -382,6 +544,32 @@ const ENT_ORDER = p => { const s = entState(p); return s === "upcoming" ? "0" + 
 function rebuild(){
   const wid = qs.get("id"), w = wid && P.find(x => x.id === wid);
   if(w && track !== "all" && w.track !== track){ track = w.track; store.set("track", track); paintTrk(); }   /* links from property history land on the right list */
+  if(track === "week") rebuildWeek(); else rebuildTrack();
+  const bar = $("#bar"); bar.innerHTML = ""; bar.classList.toggle("dense", SLIDES.length > 24);
+  SLIDES.forEach((s, i) => {
+    const b = document.createElement("button"); b.type = "button";
+    b.setAttribute("aria-label", "Go to slide " + (i + 1) + (s.h ? ": " + s.h.title : s.p ? ": " + s.p.name : s.m ? ": " + MKT[s.m] + " overview" : ""));
+    if(s.t === "cover" && i > 0) b.classList.add("mk");
+    b.innerHTML = "<span><i></i></span>"; b.addEventListener("click", () => go(i)); bar.appendChild(b);
+  });
+  if(map && map.getSource("glow")) map.getSource("glow").setData(glowData());
+  const wanted = qs.get("id"); qs.delete("id");
+  const j = wanted ? SLIDES.findIndex(s => s.p && s.p.id === wanted) : -1;
+  if(ready) go(j > 0 ? j : 0); else idx = j > 0 ? j : 0;
+}
+/* This week: a cover per market (ranked list plus upcoming hearings), then one slide per highlight in order */
+function rebuildWeek(){
+  SLIDES = []; vis = [];
+  (mkt === "all" ? MORDER() : [mkt]).forEach(m => {
+    SLIDES.push({t: "cover", m});
+    weekItems(m).shown.forEach(h => {
+      if(h.p){ SLIDES.push({t: "case", p: h.p, h}); if(h.p.lat != null && h.p.lng != null && !vis.includes(h.p)) vis.push(h.p); }
+      else if(h.c) SLIDES.push({t: "sale", c: h.c, h});
+      else SLIDES.push({t: "note", h, m});
+    });
+  });
+}
+function rebuildTrack(){
   /* All: every list at once, including CoStar construction rows not yet verified (drawn faded) */
   vis = P.filter(p => inTrack(p) && inMkt(p) && (track === "all" ? live(p) && p.lat != null && p.lng != null : onMap(p)));
   /* markets never mix: projects are grouped by market (in core.markets order), and with All each market gets its own cover */
@@ -394,22 +582,48 @@ function rebuild(){
     const ms = marketsIn(vis);
     SLIDES = ms.length ? ms.flatMap(m => [{t: "cover", m}].concat(vis.filter(p => p.market_id === m).map(p => ({t: "case", p})))) : [{t: "cover", m: null}];
   } else SLIDES = [{t: "cover", m: mkt}].concat(vis.map(p => ({t: "case", p})));
-  const bar = $("#bar"); bar.innerHTML = ""; bar.classList.toggle("dense", SLIDES.length > 24);
-  SLIDES.forEach((s, i) => {
-    const b = document.createElement("button"); b.type = "button";
-    b.setAttribute("aria-label", "Go to slide " + (i + 1) + (s.p ? ": " + s.p.name : s.m ? ": " + MKT[s.m] + " overview" : ""));
-    if(s.t === "cover" && i > 0) b.classList.add("mk");
-    b.innerHTML = "<span><i></i></span>"; b.addEventListener("click", () => go(i)); bar.appendChild(b);
-  });
-  if(map && map.getSource("glow")) map.getSource("glow").setData(glowData());
-  const wanted = qs.get("id"); qs.delete("id");
-  const j = wanted ? SLIDES.findIndex(s => s.p && s.p.id === wanted) : -1;
-  if(ready) go(j > 0 ? j : 0); else idx = j > 0 ? j : 0;
 }
 function eyebrow(p, m){
   const where = p ? MKT[p.market_id] : m ? MKT[m] : "All markets";
-  return '<div class="eyebrow">' + esc(where + " · " + TRACK_LABEL[track]) + "<small>" + fDate(today) + "</small></div>";
+  return '<div class="eyebrow">' + esc(where + " · " + TRACK_LABEL[track]) + "<small>" + (track === "week" ? esc(weekLabel()) : fDate(today)) + "</small></div>";
 }
+/* ---------- this week: cover and slides ---------- */
+const hlRowHtml = i => '<button type="button" class="hl-row" data-go="' + SLIDES.findIndex(s => s.h && s.h.key === i.key) + '"><span class="hl-n">' + i.pos + '</span><span class="hl-name"><span class="hl-cat ' + HCAT[i.cat][1] + '">'
+  + esc(i.label || HCAT[i.cat][0]) + "</span>" + esc(i.title) + '</span><span class="hl-fig">' + esc(i.fig || "") + "</span>" + (i.line ? '<span class="hl-line">' + esc(i.line) + "</span>" : "") + "</button>";
+const hlBlock = h => '<section class="sec"><h3>This week · ' + h.pos + " of " + h.of + '</h3><div class="tags"><span class="' + (TAG[HCAT[h.cat][1]] || "") + '">' + esc(h.label || HCAT[h.cat][0]) + "</span>"
+  + (h.date ? "<span>" + fDate(h.date) + "</span>" : "") + "</div>" + (h.line ? '<p class="note">' + esc(h.line) + "</p>" : "")
+  + (h.url ? '<p class="srcs"><a href="' + esc(h.url) + '" target="_blank" rel="noopener">Source</a></p>' : "") + "</section>";
+function renderWeekCover(m, nav){
+  const {items, shown} = weekItems(m), up = upcoming(m);
+  const n = (...ks) => shown.filter(i => ks.includes(i.cat)).length;
+  const sum = [[n("approved"), "approval"], [n("denied"), "denial"], [n("rec"), "recommendation"], [n("sale", "land"), "sale"], [n("start"), "start"], [n("delivered"), "delivery", "deliveries"],
+    [n("stalled"), "project stalled", "projects stalled"], [n("new"), "new case"], [n("note", "continued", "hearing", "confirmed"), "other item"]].filter(x => x[0]).map(x => plural(x[0], x[1], x[2])).join(", ");
+  const inv = items.filter(i => i.cat === "sale"), vol = inv.reduce((t, i) => t + (+i.c.sale_price || 0), 0);
+  const dec = items.filter(i => i.cat === "approved" || i.cat === "denied").length;
+  return eyebrow(null, m) + nav + '<p class="meta wknav">' + weekNav() + '<button type="button" class="lnk" data-curate>Edit the list</button></p>'
+    + '<div class="hd"><h1>' + (week === curWeek ? "This week in " : "Week of " + fShort(addDays(week, -7)) + " in ") + esc(MKT[m]) + "</h1><h2>"
+    + (sum ? esc(sum) + "." : "A quiet week: no decisions, sales or starts logged yet.") + "</h2></div>"
+    + '<div class="figs3"><div><b>' + (vol ? fMoney(vol) : "–") + "</b><span>Investment sales · " + inv.length + "</span></div><div><b>" + dec + "</b><span>Approvals and denials</span></div><div><b>" + up.length + "</b><span>Hearings in the next two weeks</span></div></div>"
+    + (shown.length ? '<div class="hl-list">' + shown.map(hlRowHtml).join("") + "</div>" : "")
+    + (up.length ? agHead("Upcoming hearings", "Units", "Hearing") + up.map(p => '<button type="button" class="ag-row" data-open="' + p.id + '"><span class="ag-name">' + esc(p.name) + '</span><span class="ag-num">' + (p.units ? fNum(p.units) : "–")
+      + '</span><span class="ag-num" title="' + esc(p.hearing_body || "") + '">' + esc(fShort(p.hearing_date)) + "</span></button>").join("") + "</div>" : "")
+    + '<p class="meta">Built from Radar and Sale Comps for the week. The weekly search ranks it and writes the one-liners; use Edit the list to change what shows and in what order.</p>';
+}
+function renderSale(s){
+  const c = s.c, inv = c.comp_type !== "land", price = +c.sale_price || 0, ppu = c.price_per_unit || (price && c.units ? price / c.units : null);
+  const cap = [c.cap_rate ? WB.fmt.pct(c.cap_rate, 2) : "", c.cap_rate_t12 ? WB.fmt.pct(c.cap_rate_t12, 2) + " T-12" : ""].filter(Boolean).join(" · ");
+  return eyebrow({market_id: c.market_id}) + '<div class="hd"><div class="top"><h1>' + esc(c.name || c.address || "Sale") + '</h1><a href="../comps/?comp=' + esc(c.id) + '">Open in Sale Comps</a></div><h2>'
+    + esc([c.address && c.address !== c.name ? c.address : "", c.city].filter(Boolean).join(" · ")) + '</h2><div class="tags"><span class="t-up">' + (inv ? "Investment sale" : "Land sale") + "</span>" + (c.portfolio ? "<span>Portfolio allocation</span>" : "") + "</div></div>"
+    + (s.h ? hlBlock(s.h) : "")
+    + '<div class="hero"><div class="hv">' + (price ? fMoney(price) : "Unpriced") + '</div><div class="hs">Sold ' + fDate(c.sale_date) + "</div></div>"
+    + '<div class="stats">' + (inv ? [stat("Units", c.units ? fNum(c.units) : ""), stat("Per unit", ppu ? fMoney(ppu) : ""), stat("Cap", cap), stat("Built", c.year_built || "")]
+      : [stat("Acres", c.acres ? fNum(c.acres) : ""), stat("Per land SF", c.price_per_land_sf ? "$" + fNum(c.price_per_land_sf) : ""), stat("Units planned", c.proposed_units ? fNum(c.proposed_units) : "")]).join("") + "</div>"
+    + sec("Parties", dl([["Buyer", esc(c.buyer || "")], ["Seller", esc(c.seller || "")], ["Broker", esc(c.broker || "")]]))
+    + sec("Notes", c.notes ? "<p>" + esc(c.notes) + "</p>" : "")
+    + sec("Sources", c.source_url ? '<div class="srcs"><a href="' + esc(c.source_url) + '" target="_blank" rel="noopener">' + esc(c.source || "Source") + "</a></div>" : "")
+    + histLink(c);
+}
+const renderNote = s => eyebrow({market_id: s.h.market}) + '<div class="hd"><h1>' + esc(s.h.title) + "</h1></div>" + hlBlock(s.h);
 const agHead = (t, c2, c3) => '<div class="agenda"><div class="ag-row ag-head"><span>' + t + "</span><span>" + c2 + "</span><span>" + c3 + "</span></div>";
 const agRow = (p, c2, c3) => '<button type="button" class="ag-row" data-go="' + SLIDES.findIndex(s => s.p === p) + '"><span class="ag-name">' + esc(p.name) + (p.review === "new" ? "<em>New</em>" : "") + '</span><span class="ag-num">' + c2 + '</span><span class="ag-num">' + c3 + "</span></button>";
 const visAll = () => vis;
@@ -417,6 +631,7 @@ function renderCover(m){
   const inM = p => !m || p.market_id === m;
   const vm = visAll().filter(inM);
   const nav = mkt === "all" ? (() => { const ms = SLIDES.map((s, i) => [s, i]).filter(([s]) => s.t === "cover" && s.m); return ms.length > 1 ? '<p class="meta mkts">' + ms.map(([s, i]) => s.m === m ? "<b>" + esc(MKT[s.m]) + "</b>" : '<button type="button" class="lnk" data-go="' + i + '">' + esc(MKT[s.m]) + "</button>").join(" · ") + "</p>" : ""; })() : "";
+  if(track === "week") return renderWeekCover(m, nav);
   if(track === "all"){
     const n = k => vm.filter(p => p.track === k), u = l => l.reduce((t, p) => t + (p.units || 0), 0);
     const ent = n("entitlement"), uc = n("construction"), stl = n("stalled"), pend = uc.filter(p => p.verification === "unverified");
@@ -504,7 +719,7 @@ function parcelLine(p){
 /* the same building over time (sales, each time it was marketed): only when the case is linked to a property */
 const histLink = p => p.property_id ? '<p class="meta"><button type="button" class="wb-hlink" data-hist="' + esc(p.property_id) + '">Property history</button></p>' : "";
 document.addEventListener("click", e => { const b = e.target.closest("[data-hist]"); if(b) WB.propertyHistory(b.dataset.hist); });
-function renderCase(p){
+function renderCase(p, top){
   const tags = [];
   if(p.track === "stalled"){
     tags.push('<span class="t-res">' + esc(p.product_type || "Residential") + "</span>");
@@ -530,7 +745,7 @@ function renderCase(p){
     const shortH = p.height && p.height.length <= 18;
     const stats = [stat("Acres", p.acres ? fNum(p.acres) : ""), stat("Density", dens), stat("Height", shortH ? esc(p.height) : "")].join("");
     const hearing = (p.hearing_body || p.hearing_date) ? '<p><b style="color:var(--ink)">' + esc(p.hearing_body || "") + "</b>" + (p.hearing_date ? " · " + fDate(p.hearing_date) : "") + "</p>" : "";
-    return head + hero + (stats ? '<div class="stats">' + stats + "</div>" : "")
+    return head + (top || "") + hero + (stats ? '<div class="stats">' + stats + "</div>" : "")
       + entBlock(p)
       + sec("Status", hearing + (p.status_text ? '<p class="note">' + esc(p.status_text) + "</p>" : ""))
       + sec("Request", (p.request ? "<p>" + esc(p.request) + "</p>" : "") + (p.height && !shortH ? dl([["Height", esc(p.height)]]) : ""))
@@ -542,7 +757,7 @@ function renderCase(p){
   }
   const m = monthsTo(p.delivery_date), st = monthsTo(p.construction_start);
   const deliv = p.delivery_date ? (m < 0 ? "Was due " + fMonth(p.delivery_date) : "Delivers " + fMonth(p.delivery_date) + (m === 0 ? ", this month" : ", about " + plural(m, "month") + " out")) : "No delivery date";
-  return head + '<div class="hero"><div class="hv">' + (p.units ? fNum(p.units) + "<small>units</small>" : "Units unknown") + '</div><div class="hs">' + esc(deliv) + "</div></div>"
+  return head + (top || "") + '<div class="hero"><div class="hv">' + (p.units ? fNum(p.units) + "<small>units</small>" : "Units unknown") + '</div><div class="hs">' + esc(deliv) + "</div></div>"
     + '<div class="stats">' + [stat("Stories", p.stories || ""), stat("Started", p.construction_start ? fMonth(p.construction_start) + (st < 0 ? " (" + -st + " mo)" : "") : ""), stat("Acres", p.acres ? fNum(p.acres) : "")].join("") + "</div>"
     + entBlock(p)
     + sec("Evidence it's moving", (p.evidence ? '<p class="note">' + esc(p.evidence) + "</p>" : "<p>None recorded yet. CoStar lists it as under construction.</p>") + (p.verified_on ? '<p class="meta">Checked ' + fDate(p.verified_on) + "</p>" : ""))
@@ -588,10 +803,17 @@ function clearMarkers(){ markers.forEach(m => m.remove()); markers = []; }
 function addMarker(p, cur, dim){
   if(!map || p.lat == null || p.lng == null) return;
   const el = document.createElement("div"); el.className = "pin"; el.title = p.name;
-  const d = document.createElement("div"); d.className = "dot" + (p.track === "construction" ? " uc" : p.track === "stalled" ? " stl" : isDriver(p) ? " drv" : "") + (cur ? " cur" : "") + (dim || (p.track === "construction" && p.verification !== "verified") ? " dim" : "");
+  const d = document.createElement("div"); d.className = "dot" + (p.track === "construction" ? " uc" : p.track === "stalled" ? " stl" : isDriver(p) ? " drv" : "") + (cur ? " cur" : "") + (dim || (track !== "week" && p.track === "construction" && p.verification !== "verified") ? " dim" : "");
   el.appendChild(d);
   el.addEventListener("click", ev => { ev.stopPropagation(); openCase(p); });
   markers.push(new maplibregl.Marker({element: el, anchor: "center"}).setLngLat([p.lng, p.lat]).addTo(map));
+}
+function addSaleMarker(c, h, cur){
+  if(!map || c.lat == null || c.lng == null) return;
+  const el = document.createElement("div"); el.className = "pin"; el.title = c.name || c.address || "Sale";
+  const d = document.createElement("div"); d.className = "dot sale" + (cur ? " cur" : ""); el.appendChild(d);
+  el.addEventListener("click", ev => { ev.stopPropagation(); const i = SLIDES.findIndex(s => s.h && h && s.h.key === h.key); if(i >= 0){ extra = null; go(i); } });
+  markers.push(new maplibregl.Marker({element: el, anchor: "center"}).setLngLat([c.lng, c.lat]).addTo(map));
 }
 function boundsOf(list, m){
   const b = new maplibregl.LngLatBounds(), pts = list.filter(p => p.lat != null && p.lng != null);
@@ -603,7 +825,19 @@ function camera(s){
   if(!map || !map.getSource("site") || !s) return;
   clearMarkers(); map.getSource("site").setData({type: "FeatureCollection", features: []});
   map.setLayoutProperty("glow", "visibility", s.t === "cover" && track === "construction" ? "visible" : "none");
-  $("#veil").classList.toggle("dim", s.t !== "case");
+  $("#veil").classList.toggle("dim", s.t !== "case" && s.t !== "sale");
+  if(s.t === "cover" && track === "week"){
+    const items = weekItems(s.m).shown, pts = items.map(h => h.p || h.c).filter(x => x && x.lat != null && x.lng != null);
+    fit(boundsOf(pts, s.m), 11, 3200);
+    items.forEach(h => { if(h.p) addMarker(h.p); else if(h.c) addSaleMarker(h.c, h); }); return;
+  }
+  if(s.t === "sale"){
+    const c = s.c;
+    if(c.lat != null && c.lng != null){ const dy = .0035, dx = dy / Math.cos(c.lat * Math.PI / 180); fit(new maplibregl.LngLatBounds([c.lng - dx, c.lat - dy], [c.lng + dx, c.lat + dy]), 16.4, 5200); addSaleMarker(c, s.h, true); }
+    else fit(boundsOf([], c.market_id), 11, 3200);
+    return;
+  }
+  if(s.t === "note"){ const m = s.h.market; fit(boundsOf(vis.filter(p => p.market_id === m), m), 11, 3200); return; }
   if(s.t === "cover"){
     /* one market per frame: each cover shows its own market (two metros in one frame is too far out to read) */
     const cm = s.m || (mkt !== "all" ? mkt : null);
@@ -626,7 +860,7 @@ function camera(s){
     p._tried = true;
     parcelAt(p.market_id, p.lng, p.lat).then(f => {
       if(!f) return; p._auto = f;
-      const cur = SLIDES[idx]; if(cur && cur.p === p && !picking){ drawSite(p); $("#slide").innerHTML = renderCase(p); }
+      const cur = curSlide(); if(cur && cur.p === p && !picking){ drawSite(p); $("#slide").innerHTML = renderCase(p, cur.h ? hlBlock(cur.h) : ""); }
     }).catch(() => { p._tried = false; });
   }
 }
@@ -645,9 +879,10 @@ function go(i){
   idx = (i + SLIDES.length) % SLIDES.length;
   const s = SLIDES[idx], el = $("#slide");
   el.classList.remove("on"); clearTimeout(swapT);
-  swapT = setTimeout(() => { el.innerHTML = s.t === "cover" ? renderCover(s.m) : renderCase(s.p); $("#pscroll").scrollTop = 0; el.classList.add("on"); }, reduce ? 0 : 300);
+  swapT = setTimeout(() => { el.innerHTML = s.t === "cover" ? renderCover(s.m) : s.t === "sale" ? renderSale(s) : s.t === "note" ? renderNote(s) : renderCase(s.p, s.h ? hlBlock(s.h) : ""); $("#pscroll").scrollTop = 0; el.classList.add("on"); }, reduce ? 0 : 300);
   [...$("#bar").querySelectorAll("i")].forEach((f, k) => f.style.width = k <= idx ? "100%" : "0%");
   $("#pick").hidden = s.t !== "case"; $("#home").hidden = s.t === "cover";
+  $("#home").textContent = track === "week" ? "Back to the list" : "All sites";
   camera(s);
 }
 /* back to the market's cover (the stalled/entitlement summary) from anywhere in the list */
@@ -660,7 +895,7 @@ function coverIdx(){
 /* a project that isn't in the flyover (unverified, dismissed, other track): show it on the map anyway */
 function openCase(p){
   setList(false);
-  if(track !== "all" && p.track !== track){ track = p.track; store.set("track", track); paintTrk(); rebuild(); }
+  if(track !== "all" && track !== "week" && p.track !== track){ track = p.track; store.set("track", track); paintTrk(); rebuild(); }
   const i = SLIDES.findIndex(s => s.p && s.p.id === p.id);
   if(i >= 0){ go(i); return; }
   if(picking) setPick(false);
@@ -677,6 +912,9 @@ addEventListener("keydown", e => {
   if(e.key === "ArrowRight"){ extra = null; go(idx + 1); } else if(e.key === "ArrowLeft"){ extra = null; go(idx - 1); }
 });
 $("#slide").addEventListener("click", e => {
+  const wk = e.target.closest("[data-wk]"); if(wk){ setWeek(+wk.dataset.wk ? addDays(week, +wk.dataset.wk) : curWeek); return; }
+  if(e.target.closest("[data-curate]")){ setList(true); return; }
+  const op = e.target.closest("[data-open]"); if(op){ const p = P.find(x => x.id === op.dataset.open); if(p) openCase(p); return; }
   const g = e.target.closest("[data-go]"); if(g){ extra = null; go(+g.dataset.go); return; }
   const ed = e.target.closest("[data-edit]"); if(ed){ openEditor(P.find(p => p.id === ed.dataset.edit)); return; }
   if(e.target.closest("[data-review]")){ lstat = "review"; setList(true); return; }
@@ -712,7 +950,7 @@ async function onMapClick(e){
   const { error } = await DB().from("dev_projects").update(patch).eq("id", p.id);
   if(error){ hint.textContent = "Couldn't save the parcel: " + error.message; return; }
   Object.assign(p, patch); p._auto = null;
-  drawSite(p); $("#slide").innerHTML = renderCase(p);
+  drawSite(p); { const cs = curSlide(); $("#slide").innerHTML = renderCase(p, cs && cs.h ? hlBlock(cs.h) : ""); }
   hint.textContent = (i >= 0 ? "Removed. " : "Added " + (f.situs || f.apn || "parcel") + ". ") + plural(list.length, "parcel") + ", " + fNum(parcelAcres(list)) + " acres.";
 }
 
@@ -784,7 +1022,70 @@ function rowsNow(){
   const q = lq.toLowerCase();
   return P.filter(p => inTrack(p) && inMkt(p) && st[2](p) && (!q || [p.name, p.place, p.address, p.developer, p.applicant, p.owner, p.case_no, p.request, p.note, p.evidence].some(v => v && String(v).toLowerCase().includes(q))));
 }
+/* This week in the data log: tick what goes on the slides, set the order, edit the one-liners */
+let wstat = "all";
+function renderWeekList(){
+  $("#ladd").textContent = "Add an item"; $("#lmap").textContent = "Present";
+  const ms = mkt === "all" ? MORDER() : [mkt], data = ms.map(m => [m, weekItems(m)]), all = data.flatMap(([, d]) => d.items);
+  const F = {all: () => true, shown: i => i.shown, hidden: i => i.hidden};
+  $("#lstat").innerHTML = [["all", "All candidates"], ["shown", "On the slides"], ["hidden", "Hidden"]].map(([k, l]) => '<button type="button" data-ws="' + k + '" aria-pressed="' + (wstat === k) + '">' + l + "<i>" + all.filter(F[k]).length + "</i></button>").join("")
+    + '<span class="lsep"></span>' + weekNav().replace(/class="lnk"/g, "");
+  const cols = [["", .35], ["", .35], ["Item", 2.3], ["What happened", 1.3], ["Size / price", .9], ["Why it matters (shows on the slide)", 3.6], ["Date", .65], ["", .75]];
+  const wsum = cols.reduce((t, c) => t + c[1], 0);
+  $("#lcg").innerHTML = cols.map(c => '<col style="width:' + (c[1] / wsum * 100).toFixed(2) + '%">').join("");
+  $("#lth").innerHTML = "<tr>" + cols.map(c => '<th style="cursor:default">' + c[0] + "</th>").join("") + "</tr>";
+  const q = lq.toLowerCase();
+  const rowHtml = (i, d) => {
+    const sub = i.p ? i.p.place : i.c ? [i.c.city, i.c.comp_type === "land" ? "Land" : "Investment"].filter(Boolean).join(" · ") : "Added by hand";
+    return '<tr class="' + (i.shown ? "" : "off") + '" data-k="' + esc(i.key) + '" data-m="' + esc(i.market) + '">'
+      + '<td><input type="checkbox" data-inc' + (i.shown ? " checked" : "") + ' aria-label="On the slides"></td>'
+      + '<td class="num">' + (i.shown ? i.pos : "") + "</td>"
+      + "<td><b>" + esc(i.title) + "</b><small>" + esc(sub || "") + "</small></td>"
+      + '<td><span class="' + HCAT[i.cat][1] + '">' + esc(i.label || HCAT[i.cat][0]) + "</span></td>"
+      + "<td>" + esc(i.fig || "") + "</td>"
+      + '<td><input class="wline" data-line value="' + esc(i.line) + '" placeholder="One line on why it matters" aria-label="Why it matters"></td>'
+      + "<td>" + (i.date ? fShort(i.date) : "") + "</td>"
+      + '<td style="white-space:nowrap;text-align:right">' + (i.shown ? '<button type="button" class="mv" data-mv="-1" title="Move up"' + (i.pos === 1 ? " disabled" : "") + '>↑</button><button type="button" class="mv" data-mv="1" title="Move down"' + (i.pos === d.shown.length ? " disabled" : "") + ">↓</button>" : "")
+      + (i.url ? '<a class="mv" href="' + esc(i.url) + '" target="_blank" rel="noopener" title="Source">↗</a>' : "") + (i.manual ? '<button type="button" class="mv" data-delman title="Delete this item">×</button>' : "") + "</td></tr>";
+  };
+  $("#ltb").innerHTML = data.map(([m, d]) => {
+    const rows = d.shown.concat(d.items.filter(i => !i.shown).sort((a, b) => b.score - a.score)).filter(F[wstat])
+      .filter(i => !q || [i.title, i.line, i.fig, i.label, i.p && i.p.place].some(v => v && String(v).toLowerCase().includes(q)));
+    return '<tr class="grp"><td colspan="' + cols.length + '">' + esc(MKT[m]) + "<span>" + plural(d.shown.length, "item") + " on the slides" + (d.curated ? "" : ", picked automatically until you change something") + "</span></td></tr>"
+      + (rows.map(i => rowHtml(i, d)).join("") || '<tr><td colspan="' + cols.length + '" class="empty">Nothing logged for this week.</td></tr>');
+  }).join("");
+  $("#ltitle").textContent = week === curWeek ? "This week" : "Week of " + fShort(addDays(week, -7));
+  $("#lcount").textContent = weekLabel() + ". Tick what goes on the slides, set the order and edit the one-liners. Upcoming hearings are added to each cover automatically.";
+}
+function openAddItem(){
+  const d = $("#dlg"), m0 = mkt === "all" ? MORDER()[0] : mkt;
+  d.innerHTML = '<div class="card" role="dialog" aria-modal="true" aria-labelledby="dlgt" style="width:min(640px,100%)"><header><div><h2 id="dlgt">Add an item</h2><p>' + esc(weekLabel()) + '. For news that isn\'t in Radar or Sale Comps: a big lease, a policy change, a deal you heard about.</p></div><button type="button" class="x" data-close aria-label="Close">×</button></header>'
+    + '<div class="body"><fieldset><div class="grid">'
+    + '<label><span>Market</span><select id="h_m">' + WB.markets.map(x => '<option value="' + esc(x.id) + '"' + (x.id === m0 ? " selected" : "") + ">" + esc(x.short) + "</option>").join("") + "</select></label>"
+    + '<label><span>Kind</span><select id="h_c">' + ["note", "approved", "denied", "sale", "land", "start", "delivered"].map(k => '<option value="' + k + '">' + HCAT[k][0] + "</option>").join("") + "</select></label><span></span>"
+    + '<label class="full"><span>Headline</span><input id="h_t" placeholder="e.g. Greystar buys 12 acres at Arapahoe and Yosemite"></label>'
+    + '<label class="full"><span>Why it matters</span><textarea id="h_l" rows="2"></textarea></label>'
+    + '<label class="full"><span>Link</span><input id="h_u" placeholder="https://"></label></div></fieldset></div>'
+    + '<footer><span class="msg" id="dmsg"></span><span style="flex:1"></span><button type="button" class="btn ghost" data-close>Cancel</button><button type="button" class="btn primary" data-addhl>Add</button></footer></div>';
+  d.hidden = false;
+  d.onkeydown = e => { if(e.key === "Escape") d.hidden = true; };
+  d.onclick = async e => {
+    if(e.target === d || e.target.closest("[data-close]")){ d.hidden = true; return; }
+    if(!e.target.closest("[data-addhl]")) return;
+    const m = $("#h_m").value, t = $("#h_t").value.trim();
+    if(!t){ $("#dmsg").textContent = "Give it a headline."; return; }
+    const key = "man:" + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+    const s = curState(m);
+    const { error } = await DB().from("weekly_highlights").insert({week_of: week, item_key: key, market_id: m, category: $("#h_c").value, title: t, line: $("#h_l").value.trim() || null, url: $("#h_u").value.trim() || null});
+    if(error){ $("#dmsg").textContent = "Couldn't add: " + error.message; return; }
+    d.hidden = true; await loadHL(); buildCands(); s.order.push(key);
+    if(await setOrder(m, s.order, s.hidden)) WB.toast("Added.");
+  };
+  setTimeout(() => $("#h_t").focus(), 0);
+}
 function renderList(){
+  if(track === "week"){ renderWeekList(); return; }
+  $("#ladd").textContent = "Add a project"; $("#lmap").textContent = "Show on map";
   if(!STATUS[track].some(s => s[0] === lstat)) lstat = track === "construction" ? "verified" : "all";
   const cols = mkt === "all" ? [COLS[track][0], MKTCOL].concat(COLS[track].slice(1)) : COLS[track];
   if(!lsort) lsort = track === "entitlement" ? {k: "date", d: -1} : track === "stalled" ? {k: "date", d: 1} : track === "all" ? {k: "report", d: 1} : {k: "units", d: -1};
@@ -815,23 +1116,46 @@ function setList(open){
   band.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", (b.dataset.t === "list") === open));
   if(open){ if(picking) setPick(false); renderList(); }
 }
-$("#lstat").addEventListener("click", e => { const b = e.target.closest("button[data-s]"); if(b){ lstat = b.dataset.s; renderList(); } });
+$("#lstat").addEventListener("click", e => {
+  const ws = e.target.closest("[data-ws]"); if(ws){ wstat = ws.dataset.ws; renderList(); return; }
+  const wk = e.target.closest("[data-wk]"); if(wk){ setWeek(+wk.dataset.wk ? addDays(week, +wk.dataset.wk) : curWeek); return; }
+  const b = e.target.closest("button[data-s]"); if(b){ lstat = b.dataset.s; renderList(); }
+});
+$("#ltb").addEventListener("change", async e => {
+  if(track !== "week") return; const tr = e.target.closest("tr[data-k]"); if(!tr) return;
+  if(e.target.matches("[data-inc]")) await toggleInc(tr.dataset.m, tr.dataset.k, e.target.checked);
+  else if(e.target.matches("[data-line]")) await saveLine(tr.dataset.m, tr.dataset.k, e.target.value.trim());
+});
+$("#ltb").addEventListener("keydown", e => { if(track === "week" && e.key === "Enter" && e.target.matches("[data-line]")){ e.preventDefault(); e.target.blur(); } });
+$("#ltb").addEventListener("click", async e => {
+  if(track !== "week") return; const tr = e.target.closest("tr[data-k]"); if(!tr) return;
+  const mv = e.target.closest("[data-mv]"); if(mv){ await moveItem(tr.dataset.m, tr.dataset.k, +mv.dataset.mv); return; }
+  if(e.target.closest("[data-delman]")) await delManual(tr.dataset.k);
+});
 $("#lq").addEventListener("input", e => { lq = e.target.value; renderList(); });
-const sortBy = th => { if(!th) return; const k = th.dataset.k, c = COLS[track].find(x => x[0] === k); lsort = {k, d: lsort.k === k ? -lsort.d : (c[4] || k === "date" ? -1 : 1)}; renderList(); };
+const sortBy = th => { if(!th || track === "week") return; const k = th.dataset.k, c = COLS[track].find(x => x[0] === k); lsort = {k, d: lsort.k === k ? -lsort.d : (c[4] || k === "date" ? -1 : 1)}; renderList(); };
 $("#lth").addEventListener("click", e => sortBy(e.target.closest("th")));
 $("#lth").addEventListener("keydown", e => { if(e.key === "Enter") sortBy(e.target.closest("th")); });
 $("#ltb").addEventListener("click", e => { const tr = e.target.closest("tr.r"); if(tr) openEditor(P.find(p => p.id === tr.dataset.id)); });
 $("#ltb").addEventListener("keydown", e => { if(e.key === "Enter"){ const tr = e.target.closest("tr.r"); if(tr) openEditor(P.find(p => p.id === tr.dataset.id)); } });
-$("#ladd").addEventListener("click", () => openEditor(null));
+$("#ladd").addEventListener("click", () => track === "week" ? openAddItem() : openEditor(null));
 $("#lmap").addEventListener("click", () => {
+  if(track === "week"){ setList(false); extra = null; go(0); return; }
   const rows = rowsNow().filter(onMap); setList(false);
   if(map && rows.length){ extra = null; clearMarkers(); map.getSource("site").setData({type: "FeatureCollection", features: []}); rows.forEach(p => addMarker(p)); fit(boundsOf(rows), 12, 2400); }
 });
 $("#lcsv").addEventListener("click", () => {
+  const cell = v => { if(v == null) return ""; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  if(track === "week"){
+    const rows = (mkt === "all" ? MORDER() : [mkt]).flatMap(m => { const d = weekItems(m); return d.shown.concat(d.items.filter(i => !i.shown).sort((a, b) => b.score - a.score)); });
+    const csv = [["market", "on_slides", "order", "what_happened", "item", "size_or_price", "why_it_matters", "date", "source"].join(",")]
+      .concat(rows.map(i => [MKT[i.market], i.shown ? "yes" : "no", i.pos || "", i.label || HCAT[i.cat][0], i.title, i.fig, i.line, i.date, i.url].map(cell).join(","))).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
+    a.download = "radar-week-" + week + (mkt === "all" ? "" : "-" + mkt) + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); return;
+  }
   const cols = ["name", "track", "kind", "market_id", "place", "address", "product_type", "style", "units", "acres", "stories", "height", "developer", "applicant", "owner", "case_no", "hearing_body", "hearing_date", "status_text", "request", "note",
     "ent_status", "ent_use", "zoning_from", "zoning_to", "approved_density", "approved_units", "approved_height", "approved_on", "expires_on",
     "construction_start", "delivery_date", "verification", "evidence", "verified_on", "review", "found_by", "first_seen", "lat", "lng"];
-  const cell = v => { if(v == null) return ""; const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
   const csv = [cols.join(",")].concat(rowsNow().sort((a, b) => mIdx(a.market_id) - mIdx(b.market_id) || (b.units || 0) - (a.units || 0)).map(p => cols.map(c => cell(p[c])).join(","))).join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type: "text/csv"}));
   a.download = ({all: "radar-all", entitlement: "entitlements", construction: "under-construction", stalled: "stalled"})[track] + (mkt === "all" ? "" : "-" + mkt) + "-" + today + ".csv"; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
@@ -940,14 +1264,20 @@ async function save(p, review){
     if(error){ msg.textContent = "Couldn't add: " + error.message; return; }
     id = data.id;
   }
-  /* history: replace this project's entries with what's in the dialog */
-  const evs = [...document.querySelectorAll("#evs .ev")].map(r => { const [dt, kd, body, out] = r.querySelectorAll("input,select"); const o = out.value.trim();
-    return {project_id: id, on_date: dt.value || null, kind: kd.value, body: body.value.trim(), outcome: /^https?:\/\//.test(o) ? null : o || null, url: /^https?:\/\//.test(o) ? o : null}; }).filter(e => e.body);
-  const old = (EV.get(id) || []).map(e => e.id), changed = JSON.stringify(evs.map(e => [e.on_date, e.kind, e.body, e.outcome, e.url])) !== JSON.stringify((EV.get(id) || []).map(e => [e.on_date, e.kind, e.body, e.outcome, e.url]));
-  if(changed){
-    if(old.length){ const { error } = await DB().from("dev_events").delete().in("id", old); if(error){ msg.textContent = "Saved the project, but not the history: " + error.message; return; } }
-    if(evs.length){ const { error } = await DB().from("dev_events").insert(evs); if(error){ msg.textContent = "Saved the project, but not the history: " + error.message; return; } }
-  }
+  /* history: update entries in place (so their logged dates stay put for This week), add new ones, remove deleted ones */
+  const oldEv = new Map((EV.get(id) || []).map(e => [e.id, e]));
+  const evs = [...document.querySelectorAll("#evs .ev")].map(r => {
+    const [dt, kd, body, out] = r.querySelectorAll("input,select"), o = out.value.trim(), isUrl = /^https?:\/\//.test(o), orig = r.dataset.ev ? oldEv.get(+r.dataset.ev) : null;
+    return {id: orig ? orig.id : null, project_id: id, on_date: dt.value || null, kind: kd.value, body: body.value.trim(),
+      outcome: isUrl ? (orig && orig.url === o ? orig.outcome : null) : o || null, url: isUrl ? o : (orig ? orig.url : null)};
+  }).filter(e => e.body);
+  const same = (a, b) => a.on_date === b.on_date && a.kind === b.kind && a.body === b.body && (a.outcome || null) === (b.outcome || null) && (a.url || null) === (b.url || null);
+  const keep = new Set(evs.filter(e => e.id).map(e => e.id)), gone = [...oldEv.keys()].filter(k => !keep.has(k));
+  const histFail = m => { msg.textContent = "Saved the project, but not the history: " + m; };
+  if(gone.length){ const { error } = await DB().from("dev_events").delete().in("id", gone); if(error) return histFail(error.message); }
+  for(const e of evs.filter(e => e.id && !same(e, oldEv.get(e.id)))){ const { id: eid, ...rest } = e; const { error } = await DB().from("dev_events").update(rest).eq("id", eid); if(error) return histFail(error.message); }
+  const add = evs.filter(e => !e.id).map(({id: _, ...rest}) => rest);
+  if(add.length){ const { error } = await DB().from("dev_events").insert(add); if(error) return histFail(error.message); }
   await load(); rebuild();
   $("#dlg").hidden = true;
   if(!$("#list").hidden) renderList();
