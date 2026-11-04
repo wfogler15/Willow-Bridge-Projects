@@ -2699,8 +2699,11 @@ function snapBoxBounds(){
   return L.latLngBounds(nw,se);
 }
 function snapCompose(){
-  _snapPrev = _snapPrev || { comps:compsOn, poi:poiOn, comp:competitorsOn, pipeline:pipelineOn };
+  _snapPrev = _snapPrev || { comps:compsOn, poi:poiOn, comp:competitorsOn, pipeline:pipelineOn, radar:radarOn };
   compsOn = competitorsOn = $('snapComps').checked; poiOn = $('snapPoi').checked; pipelineOn = $('snapPipeline').checked;
+  radarOn = $('snapRadar') ? $('snapRadar').checked : false;   // Radar diamonds are off in a deck snapshot unless ticked
+  const trd=$('tglRadar'); if(trd) trd.checked=radarOn;
+  refreshRadar();
   const tc=$('tglComps'); if(tc) tc.checked=compsOn;
   const tp=$('tglPoi'); if(tp) tp.checked=poiOn;
   const tpl=$('tglPipeline'); if(tpl) tpl.checked=pipelineOn;
@@ -3526,8 +3529,9 @@ function snapDone(){
   if(!map.hasLayer(compMarkerLayer)) map.addLayer(compMarkerLayer);   // restore competitor triangles
   if(_snapPrev){
     compsOn=_snapPrev.comps; poiOn=_snapPrev.poi; competitorsOn=_snapPrev.comp; pipelineOn=_snapPrev.pipeline;
-    refreshComps(); refreshPoi(); renderCompetitors(); renderTracked();
-    const tc=$('tglComps'); if(tc) tc.checked=compsOn; const tp=$('tglPoi'); if(tp) tp.checked=poiOn; const tpl=$('tglPipeline'); if(tpl) tpl.checked=pipelineOn;
+    if(_snapPrev.radar!==undefined) radarOn=_snapPrev.radar;
+    refreshComps(); refreshPoi(); renderCompetitors(); renderTracked(); refreshRadar();
+    const tc=$('tglComps'); if(tc) tc.checked=compsOn; const tp=$('tglPoi'); if(tp) tp.checked=poiOn; const tpl=$('tglPipeline'); if(tpl) tpl.checked=pipelineOn; const trd=$('tglRadar'); if(trd) trd.checked=radarOn;
     _snapPrev=null;
   }
 }
@@ -5068,6 +5072,7 @@ document.querySelectorAll('#snapAspect button').forEach(b=>b.addEventListener('c
 { const b=$('snapCompetitors'); if(b) b.addEventListener('change', ()=>{ if(_snapComposed){ competitorsOn=b.checked; snapExpandMarkers(); buildSnapLegend(); } }); }
 { const b=$('snapComps'); if(b) b.addEventListener('change', ()=>{ if(_snapComposed){ compsOn=competitorsOn=b.checked; refreshComps().then(()=>{ snapExpandMarkers(); buildSnapLegend(); }); } }); }
 { const b=$('snapPoi'); if(b) b.addEventListener('change', ()=>{ if(_snapComposed){ poiOn=b.checked; snapExpandMarkers(); } }); }
+{ const b=$('snapRadar'); if(b) b.addEventListener('change', ()=>{ if(_snapComposed){ radarOn=b.checked; const t=$('tglRadar'); if(t) t.checked=radarOn; refreshRadar(); } }); }
 { const b=$('cpAdd'); if(b) b.addEventListener('click', startAddComp); }
 document.querySelectorAll('#cpScope button').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('#cpScope button').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); _cpScope=btn.dataset.scope; buildCompPickList(); }));
 document.querySelectorAll('#cpStatus button').forEach(btn=>btn.addEventListener('click',()=>{ document.querySelectorAll('#cpStatus button').forEach(x=>x.classList.remove('active')); btn.classList.add('active'); _cpStatus=btn.dataset.st; buildCompPickList(); }));
