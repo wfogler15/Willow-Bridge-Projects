@@ -483,6 +483,11 @@ const basemaps = {
   roads: new RoadTintLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
     maxZoom:20, maxNativeZoom:19, pane:'shadowPane', crossOrigin:true, className:'bm-roads', opacity:0.68, detectRetina:true
   }),
+  // Regional-zoom labels: CARTO's labels-only set (cities + major roads only, light text with dark halo).
+  // Used in Hybrid below z13 so the mile-road grid and its labels don't bury the imagery.
+  cleanLabels: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+    maxZoom:20, subdomains:'abcd', attribution:'© OpenStreetMap © CARTO', crossOrigin:true, pane:'shadowPane', className:'bm-clean', detectRetina:true
+  }),
   streets: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
     maxZoom:20, attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', crossOrigin:true, detectRetina:true
   }),
@@ -569,8 +574,19 @@ function buildStreetsVectorLayer(){
   }catch(e){ console.error('[streets labels] build failed', e); _streetsVec=null; }
   return _streetsVec;
 }
+// Raster Hybrid is zoom-aware: regional view (<z13) = sparse city + highway labels only;
+// street view (>=z13) = full road lines + labels.
+function syncHybridRaster(force){
+  if(currentBM!=='hybrid' && !force) return;
+  if(_vectorLayer && map.hasLayer(_vectorLayer)) return;
+  const regional = map.getZoom() < 13;
+  [basemaps.roads, basemaps.labels, basemaps.cleanLabels].forEach(l=>map.removeLayer(l));
+  if(regional) basemaps.cleanLabels.addTo(map);
+  else { basemaps.roads.addTo(map); basemaps.labels.addTo(map); }
+}
+map.on('zoomend', ()=>syncHybridRaster(false));
 function applyBasemap(bm){
-  [basemaps.aerial, basemaps.labels, basemaps.roads, basemaps.streets, basemaps.streetsLabels].forEach(l=>map.removeLayer(l));
+  [basemaps.aerial, basemaps.labels, basemaps.roads, basemaps.cleanLabels, basemaps.streets, basemaps.streetsLabels].forEach(l=>map.removeLayer(l));
   if(_vectorLayer) map.removeLayer(_vectorLayer);
   if(_streetsVec) map.removeLayer(_streetsVec);
   if(bm==='aerial') basemaps.aerial.addTo(map);
@@ -578,7 +594,7 @@ function applyBasemap(bm){
     basemaps.aerial.addTo(map);
     const vl = buildVectorLayer();
     if(vl) vl.addTo(map);                                   // crisp vector labels
-    else { basemaps.roads.addTo(map); basemaps.labels.addTo(map); }  // Esri raster fallback
+    else syncHybridRaster(true);                            // Esri/CARTO raster fallback, zoom-aware
   }
   else {
     basemaps.streets.addTo(map);
