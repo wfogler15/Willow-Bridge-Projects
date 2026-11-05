@@ -3675,7 +3675,7 @@ function renderTracked(fromStacks){
     if(c && !calloutShown){
       const extra = STACKS.bySite.get(site.id) || [];
       const icon = L.divIcon({className:'', iconSize:[0,0],
-        html:`<div class="opp-marker ${st.pipeline?'live':'quiet'}" style="--c:${st.hex}"><div class="opp-pulse"></div><div class="opp-core">${cnt>1?cnt:''}</div>${extra.length?`<span class="stk-badge">+${extra.length}</span>`:''}</div>`});
+        html:`<div class="opp-marker ${st.pipeline?'live':'quiet'}" style="--c:${st.hex}"><div class="opp-pulse"></div><div class="opp-core"></div>${extra.length?`<span class="stk-badge">+${extra.length}</span>`:''}</div>`});
       const m = L.marker(c, {icon, pane:'siteMarkers', riseOnHover:true});
       const also = extra.length ? ' · also ' + [['radar','Radar'],['comp','CoStar']].map(([t, l]) => { const k = extra.filter(x => x.type === t).length; return k ? (k > 1 ? k + ' ' : '') + l : ''; }).filter(Boolean).join(', ') : '';
       m.bindTooltip(`<b>${esc(siteName(site))}</b><br>${st.label} · ${siteAcres(site).toFixed(2)} ac${cnt>1?` · ${cnt} parcels`:''}${esc(also)}`,
