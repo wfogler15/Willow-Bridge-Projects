@@ -59,3 +59,51 @@ button:focus-visible{outline:none !important;box-shadow:0 0 0 2px #fff,0 0 0 4px
 #openSitesHome:hover{background:none !important;color:#432890 !important}
 #openSitesHome .pip-count{background:none !important;color:#77728C !important}
 #sidebar input,#sidebar select{border-color:#E6E4EC !important;box-shadow:none !important}
+
+/* ---------- Pipeline list: search, filters, table (minimal: hairlines, text toggles, no cards) ---------- */
+#sitesHomeModal{width:1120px !important;max-height:88vh !important;border-radius:10px !important}
+#sitesHomeHead h2{font-size:17px !important;font-weight:600 !important}
+#sitesHomeHead .sh-n{font-weight:400;color:#77728C !important;margin-left:4px}
+#shTools{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;padding:12px 20px;border-bottom:1px solid #E6E4EC}
+#shSearch{flex:1 1 300px;min-width:220px;height:34px;padding:0 12px;border:1px solid #E6E4EC;border-radius:6px;font-size:13.5px;color:#1D1247;background:#fff;outline:none}
+#shSearch:focus{border-color:#1D1247}
+#shSearch::placeholder{color:#9A96AC}
+.sh-tg{display:flex;gap:2px}
+.sh-tg button{background:none;border:0;border-bottom:1.5px solid transparent;border-radius:0;padding:5px 7px;font-size:13px;color:#77728C;cursor:pointer}
+.sh-tg button:hover{color:#1D1247}
+.sh-tg button.on{color:#1D1247;font-weight:600;border-bottom-color:#1D1247}
+.sh-tg button i{font-style:normal;color:#9A96AC;font-weight:400;margin-left:1px}
+#sitesHomeBody{padding:0 20px 18px !important}
+.sh-summary{position:sticky;top:0;z-index:2;background:#fff;margin:0 !important;padding:12px 0 10px;font-size:12.5px;color:#4A4560}
+.sh-summary b{font-weight:600}
+.sh-clear{color:#432890;text-decoration:none;margin-left:2px}
+.sh-clear:hover{text-decoration:underline}
+.sh-table{font-size:13px}
+.sh-tr{display:grid;grid-template-columns:minmax(200px,2.3fr) 128px 96px 66px 60px minmax(120px,1.6fr) minmax(120px,1.4fr) 70px 64px;gap:0 14px;align-items:center;
+  padding:9px 6px;border-bottom:1px solid #EFEEF3;text-align:left;cursor:pointer}
+.sh-tr:not(.sh-head):hover,.sh-tr:focus-visible{background:#F7F7FA;outline:none}
+.sh-head{position:sticky;top:38px;z-index:1;background:#fff;cursor:default;padding-top:6px;padding-bottom:6px;border-bottom-color:#E6E4EC}
+.sh-th{background:none;border:0;padding:0;text-align:left;font-size:11.5px;font-weight:600;color:#77728C;cursor:pointer;white-space:nowrap}
+span.sh-th{cursor:default}
+.sh-th.on,.sh-th:hover{color:#1D1247}
+.sh-th span{margin-left:3px}
+.sh-site{min-width:0;display:flex;flex-direction:column}
+.sh-site b{font-weight:600;color:#1D1247;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sh-site em{font-style:normal;font-size:11.5px;color:#77728C;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px}
+.sh-st{display:flex;align-items:center;gap:6px;white-space:nowrap;color:#1D1247}
+.sh-st i{width:7px;height:7px;border-radius:50%;flex:none}
+.sh-dim{color:#4A4560}
+.sh-clip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.sh-clip small{color:#9A96AC;font-size:11px}
+.sh-tr .num{font-variant-numeric:tabular-nums}
+.sh-arch{visibility:hidden;background:none;border:0;padding:0;font-size:12px;color:#77728C;cursor:pointer}
+.sh-tr:hover .sh-arch,.sh-tr:focus-within .sh-arch{visibility:visible}
+.sh-arch:hover{color:#9E3B36;text-decoration:underline}
+.sh-empty{padding:36px 10px !important;text-align:left !important}
+@media (max-width:900px){
+  .sh-tr{grid-template-columns:minmax(0,1fr) 112px 60px;row-gap:2px}
+  .sh-tr > :nth-child(n+3):not(:nth-child(4)){display:none}
+  .sh-head{top:38px}
+}
+#homeNewSite{background:#1D1247 !important;border-color:#1D1247 !important;color:#fff !important;box-shadow:none !important;background-image:none !important}
+#homeNewSite:hover{background:#2B1D63 !important}

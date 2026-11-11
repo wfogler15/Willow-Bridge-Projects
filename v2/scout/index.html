@@ -1994,7 +1994,7 @@ select.cp-f:focus{border-color:var(--wb-purple);box-shadow:0 0 0 2px rgba(67,40,
 <div id="sitesHomeOverlay">
   <div id="sitesHomeModal">
     <div id="sitesHomeHead">
-      <h2>Tracked Sites</h2>
+      <h2>Pipeline <span class="sh-n" id="shTitleN"></span></h2>
       <div class="shh-actions">
         <button class="btn" id="homeNewSite">＋ New site</button>
         <button class="mini-btn" id="exportCsv" title="Flat export for Excel">CSV</button>
@@ -2002,6 +2002,15 @@ select.cp-f:focus{border-color:var(--wb-purple);box-shadow:0 0 0 2px rgba(67,40,
         <button class="mini-btn" id="importJson">Import</button>
         <input type="file" id="importFile" accept=".json" style="display:none">
         <button id="sitesHomeClose" title="Close">×</button>
+      </div>
+    </div>
+    <div id="shTools">
+      <input type="search" id="shSearch" placeholder="Search name, address, city, owner, APN, broker, notes" autocomplete="off" spellcheck="false" aria-label="Search the pipeline">
+      <div class="sh-tg" id="shStatus" role="group" aria-label="Status">
+        <button type="button" data-v="open">Open <i></i></button><button type="button" data-v="active">Active <i></i></button><button type="button" data-v="watching">Watching <i></i></button><button type="button" data-v="past">Past <i></i></button><button type="button" data-v="all">All <i></i></button>
+      </div>
+      <div class="sh-tg" id="shKind" role="group" aria-label="Type">
+        <button type="button" data-v="all">All types</button><button type="button" data-v="land">Development</button><button type="button" data-v="asset">Investment</button>
       </div>
     </div>
     <div id="sitesHomeBody"></div>
@@ -2124,11 +2133,11 @@ select.cp-f:focus{border-color:var(--wb-purple);box-shadow:0 0 0 2px rgba(67,40,
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://unpkg.com/shpjs@6.1.0/dist/shp.min.js"></script>
-<link rel="stylesheet" href="wb-theme.css?v=202611051705">
-<script src="../shared/wb.js?v=202611051705"></script>
-<script src="../shared/scout-db.js?v=202611051705"></script>
-<script>window.WB_BUILD = '202611051705';</script>
-<script src="loader.js?v=202611051705"></script>
+<link rel="stylesheet" href="wb-theme.css?v=202611112306">
+<script src="../shared/wb.js?v=202611112306"></script>
+<script src="../shared/scout-db.js?v=202611112306"></script>
+<script>window.WB_BUILD = '202611112306';</script>
+<script src="loader.js?v=202611112306"></script>
 
 </body>
 </html>

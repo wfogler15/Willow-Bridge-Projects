@@ -244,6 +244,22 @@ const STATUSES = [
   {id:'past',        label:'Past Pursuit',   color:'var(--st-past)',        hex:'#9E3B36', pipeline:false},
 ];
 const statusById = Object.fromEntries(STATUSES.map(s=>[s.id,s]));
+// Pipeline list filters (see renderSitesHome)
+const HOME_KEY = 'wb_sitehome_v2';
+const HOME_STATUS = {
+  open:     { label:'Open',     test: s => s.status !== 'past' },
+  active:   { label:'Active',   test: s => ['underwriting','contacted','loi'].includes(s.status) },
+  watching: { label:'Watching', test: s => ['prospect','monitor'].includes(s.status) },
+  past:     { label:'Past',     test: s => s.status === 'past' },
+  all:      { label:'All',      test: () => true },
+};
+const HOME_KIND = { all:'All', land:'Development', asset:'Investment' };
+const homeState = (function(){
+  const d = { status:'open', kind:'all', sort:'updated', dir:-1, q:'' };
+  try{ const v = JSON.parse(localStorage.getItem(HOME_KEY) || '{}'); return Object.assign(d, v, { q:'' }); }catch(e){ return d; }
+})();
+function saveHomeState(){ try{ const { q, ...keep } = homeState; localStorage.setItem(HOME_KEY, JSON.stringify(keep)); }catch(e){} }
+const kindOf = s => s._kind === 'asset' ? 'asset' : 'land';
 
 // ---------- Small utilities ----------
 const $ = id => document.getElementById(id);
@@ -1296,7 +1312,7 @@ function updateFilterCount(){
 function updateReadout(){
   const sites = marketSites();
   const total = sites.length;
-  const active = total;
+  const active = sites.filter(HOME_STATUS.active.test).length;   // Underwriting, Owner Contacted, LOI (same as the list's Active filter)
   const advancing = sites.filter(s => s.status === 'contacted' || s.status === 'loi').length;
   const rt = $('roTracked'), ra = $('roActive'), rv = $('roAdvancing'), rc = $('pipeCount');
   if(rt) rt.textContent = total;
@@ -1734,15 +1750,16 @@ const Store = {
     }
     if(changed) this.save();
   },
-  save(){ localStorage.setItem(STORE_KEY, JSON.stringify(this.data)); },
+  // the browser copy is only a cache (the database is the truth); a full or blocked storage must never stop a save
+  save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(this.data)); }catch(e){ console.warn('[store] local cache not saved', e && e.name); } },
   newId(){ this.data.seq = (this.data.seq||0)+1; return 'site_'+this.data.seq+'_'+Date.now().toString(36); },
   get(id){ return this.data.sites[id] || null; },
   all(){ return Object.values(this.data.sites); },
   upsert(site){ site.updated = Date.now(); this.data.sites[site.id] = site; this.save(); sbPushSite(site); },
   remove(id){ delete this.data.sites[id]; this.save(); sbDeleteSite(id); },
   siteForApn(apn){ return this.all().find(s => (s.parcels||[]).some(p=>p.apn===apn)) || null; },
-  async syncFromCloud(){
-    const rows = await sbFetchAll();
+  async syncFromCloud(prefetched){
+    const rows = prefetched || await sbFetchAll();
     if(!rows) return false;
     const sites = {};
     for(const r of rows){ const d = r.data; if(d && d.id) sites[d.id] = d; }
@@ -1801,14 +1818,15 @@ async function onAuthed(){
   hideLogin();
   try{ const { data } = await sb.auth.getUser(); const em = data && data.user && data.user.email; const ag=$('acctGroup'), ae=$('acctEmail'); if(ag) ag.style.display=''; if(ae && em) ae.textContent = em; }catch(e){}
   const localSites = Object.values(Store.data.sites || {});
-  const cloud = await sbFetchAll() || [];
-  const cloudById = {}; cloud.forEach(r=>{ cloudById[r.id] = r; });
-  // migration: push any local site the cloud lacks, or that's newer locally — nothing re-added
-  for(const s of localSites){
-    const c = cloudById[s.id];
-    if(!c || (s.updated||0) > (c.updated||0)) await sbPushSite(s);
+  const cloud = await sbFetchAll();
+  // The database is the truth. Only a site made in this browser that never reached it (no deal id yet) is pushed up;
+  // stale cached copies of real deals are never written back (that used to re-save old versions on every load).
+  if(cloud){
+    const have = new Set(cloud.map(r => r.id));
+    const orphans = localSites.filter(s => !s._dealId && !have.has(s.id) && (s.parcels||[]).some(p => !p._synthetic));
+    if(orphans.length){ for(const s of orphans) await sbPushSite(s); await Store.syncFromCloud(); }
+    else await Store.syncFromCloud(cloud);
   }
-  await Store.syncFromCloud();
   openDeepLinkedSite();
   onPoiAuthed();
   subscribeSites();
@@ -1890,14 +1908,13 @@ let competitorsOn = true;
 let pipelineOn = true;
 // Tile-clicked parcels store no polygon. If a tracked parcel lacks geometry, fetch it by APN from
 // the county service and cache it on the record, so every tracked site highlights on the map.
-const _geomFetching = new Set();
+const _geomFetching = new Set(), _geomFailed = new Set();
 async function ensureParcelGeometry(site, parcel){
-  const apn = parcel.apn; if(!apn || _geomFetching.has(apn)) return;
+  const apn = parcel.apn; if(!apn || _geomFetching.has(apn) || _geomFailed.has(apn)) return;   // a miss isn't retried on every redraw
   const m = MARKETS[siteMarket(site)] || mkt();
   const svc = m.fallbackSvc || m.parcelSvc;
   if(!svc){ console.warn('[geom] no service for', siteMarket(site)); return; }
   _geomFetching.add(apn);
-  console.log('[geom] fetching', apn, '· click:', parcel._lat, parcel._lng, '· svc:', svc);
   try{
     let feat = null;
     if(parcel._lat != null && parcel._lng != null){
@@ -1907,26 +1924,23 @@ async function ensureParcelGeometry(site, parcel){
         spatialRel:'esriSpatialRelIntersects', outFields:'', returnGeometry:true, outSR:4326, resultRecordCount:1,
       }).catch(e=>{ console.warn('[geom] point query error', e); return null; });
       feat = gj && gj.features && gj.features[0];
-      console.log('[geom] point query →', gj ? (gj.features||[]).length+' features' : 'null', feat&&feat.geometry?'(has geometry)':'(no geometry)');
-    } else { console.log('[geom] no click point stored, trying APN'); }
+    }
     if(!feat){
       const gj = await arcgisQuery(svc, {
         where: m.apnSearch ? m.apnSearch(apn) : `APN='${apn}'`,
         outFields:'', returnGeometry:true, outSR:4326, resultRecordCount:1,
       }).catch(e=>{ console.warn('[geom] APN query error', e); return null; });
       feat = gj && gj.features && gj.features[0];
-      console.log('[geom] APN query →', gj ? (gj.features||[]).length+' features' : 'null');
     }
     if(feat && feat.geometry){
       const ac = geomAcres(feat.geometry);
       const s = Store.get(site.id);
       if(s){ const rec=(s.parcels||[]).find(x=>x.apn===apn); if(rec){ rec.geometry=feat.geometry; if(!(rec.acres>0)&&ac>0) rec.acres=ac; } Store.upsert(s); }
-      console.log('[geom] ✓ stored geometry for', apn);
       renderTracked();
     } else {
-      console.warn('[geom] ✗ no geometry found for', apn, '— it will not highlight');
+      _geomFailed.add(apn);
     }
-  }catch(e){ console.warn('[geom] failed', e); }
+  }catch(e){ _geomFailed.add(apn); }
   finally{ _geomFetching.delete(apn); }
 }
 
@@ -2050,11 +2064,20 @@ function siteAcres(s){
   if(s && s.acresOverride != null && s.acresOverride !== '') return +s.acresOverride || 0;
   return (s.parcels||[]).reduce((a,p)=>a+(p.acres||0),0);
 }
-function siteBounds(s){
-  const b = L.latLngBounds([]);
-  (s.parcels||[]).forEach(p=>{ if(p.geometry){ try{ b.extend(L.geoJSON(p.geometry).getBounds()); }catch(e){} } });
-  return b.isValid() ? b : null;
+// bounds of a set of geometries, without building Leaflet layers; memoised on the geometry objects
+const _gbCache = new WeakMap();
+function geomsBounds(geoms){
+  let w=180, so=90, e=-180, n=-90, any=false;
+  for(const g of geoms){
+    let bb = _gbCache.get(g);
+    if(!bb){ let a=180, b=90, c=-180, d=-90; const walk = k => { if(typeof k[0] === 'number'){ if(k[0]<a) a=k[0]; if(k[0]>c) c=k[0]; if(k[1]<b) b=k[1]; if(k[1]>d) d=k[1]; } else k.forEach(walk); };
+      try{ walk(g.coordinates); }catch(err){ continue; } bb = [a,b,c,d]; _gbCache.set(g, bb); }
+    if(bb[0] > bb[2]) continue;
+    any = true; if(bb[0]<w) w=bb[0]; if(bb[2]>e) e=bb[2]; if(bb[1]<so) so=bb[1]; if(bb[3]>n) n=bb[3];
+  }
+  return any ? L.latLngBounds([so, w], [n, e]) : null;
 }
+function siteBounds(s){ return geomsBounds((s.parcels||[]).map(p => p.geometry).filter(Boolean)); }
 function siteCentroid(s){ const b = siteBounds(s); return b ? b.getCenter() : null; }
 function siteName(s){ return s.name || (s.parcels[0] && (s.parcels[0].apnDash || s.parcels[0].apn)) || 'Site'; }
 function parcelRec(apn, attrs, geometry, acres){
@@ -2281,13 +2304,26 @@ function compCard(c0){
   return { html, wire, color };
 }
 const compDotStyle = color => isMetro() ? { radius:4, color:'#1D1247', weight:1.5, fillColor:'#fff' } : { radius:4, color:'#fff', weight:1.25, fillColor:color };
-function styleCompDots(){ compsCluster.eachLayer(l => { if(l._wbColor) l.setStyle(compDotStyle(l._wbColor)); }); }
+function styleCompDots(){ const metro = isMetro(); compsCluster.eachLayer(l => { if(l._wbColor){ l.setStyle(compDotStyle(l._wbColor)); l._wbMetro = metro; } }); }
+// One marker per comp, built once and reused across redraws. The popup card is built when it opens, not up front
+// (building ~3,000 cards on every redraw was the main stall when switching markets or toggling layers).
+const _compMarkers = new Map();
 function compMarker(c0){
-  const ll=compLL(c0), card=compCard(c0);
-  const m = L.circleMarker(ll, Object.assign({ renderer:compsRenderer, fillOpacity:1 }, compDotStyle(card.color)));
-  m._wbColor = card.color;
-  m.bindPopup(card.html, {className:'comp-popup', maxWidth:288, minWidth:252, closeButton:false});
-  m.on('popupopen', card.wire);
+  const key = compKey(c0), ll = compLL(c0);
+  let m = _compMarkers.get(key);
+  const color = compStatusColor(compView(c0).s);
+  if(m && m._wbLL[0] === ll[0] && m._wbLL[1] === ll[1]){
+    const metro = isMetro();
+    if(m._wbMetro !== metro || m._wbColor !== color){ m._wbColor = color; m.setStyle(compDotStyle(color)); m._wbMetro = metro; }
+    return m;
+  }
+  if(m) compsCluster.removeLayer(m);
+  m = L.circleMarker(ll, Object.assign({ renderer:compsRenderer, fillOpacity:1 }, compDotStyle(color)));
+  m._wbColor = color; m._wbLL = ll; m._wbMetro = isMetro();
+  let wire = null;
+  m.bindPopup(() => { const card = compCard(c0); wire = card.wire; return card.html; }, {className:'comp-popup', maxWidth:288, minWidth:252, closeButton:false});
+  m.on('popupopen', () => { if(wire) wire(); });
+  _compMarkers.set(key, m);
   return m;
 }
 async function refreshComps(){
@@ -2296,13 +2332,20 @@ async function refreshComps(){
   drawComps(); scheduleStacks();
 }
 // CoStar dots, minus the ones that sit on a deal or Radar parcel (those live in that parcel's stack)
+// Only the difference is applied: a stack change or a hidden comp touches a handful of dots, not all ~3,000.
 function drawComps(){
   if(!compsOn || !_compsData) return;
-  compsCluster.clearLayers();
-  const markers = _compsData
-    .filter(c => c.m === currentMarket && !_compHidden.has(compKey(c)) && !STACKS.compTaken.has(compKey(c)))
-    .map(compMarker);
-  compsCluster.addLayers(markers);
+  const want = new Set();
+  for(const c of _compsData){
+    if(c.m !== currentMarket) continue;
+    const k = compKey(c); if(_compHidden.has(k) || STACKS.compTaken.has(k)) continue;
+    want.add(compMarker(c));
+  }
+  const drop = [], add = [];
+  compsCluster.eachLayer(l => { if(!want.has(l)) drop.push(l); });
+  want.forEach(m => { if(!compsCluster.hasLayer(m)) add.push(m); });
+  if(drop.length) compsCluster.removeLayers(drop);
+  if(add.length) compsCluster.addLayers(add);
   if(!map.hasLayer(compsCluster)) map.addLayer(compsCluster);
 }
 
@@ -2409,7 +2452,7 @@ function computeStacks(){
   const add = (m, k, it) => (m.get(k) || m.set(k, []).get(k)).push(it);
   const sites = (pipelineOn ? marketSites() : []).map(s => {
     const geoms = (s.parcels||[]).map(p => p.geometry).filter(Boolean);
-    let b = null; try{ b = L.latLngBounds([]); geoms.forEach(g => b.extend(L.geoJSON(g).getBounds())); if(!b.isValid()) b = null; }catch(e){ b = null; }
+    const b = geomsBounds(geoms);
     return { s, geoms, b, c: b ? b.getCenter() : null };
   }).filter(o => o.b);
   const inSite = (lat, lng) => sites.find(o => o.b.contains([lat, lng]) && o.geoms.some(g => ptInGeom(lat, lng, g)));
@@ -2419,13 +2462,15 @@ function computeStacks(){
     const o = inSite(a[0], a[1]) || inSite(p.lat, p.lng) || sites.find(x => gs.some(g => ptInGeom(x.c.lat, x.c.lng, g)));
     if(o){ add(S.bySite, o.s.id, {type:'radar', p}); S.radarTaken.add(p.id); }
   }
-  const rFree = radar.filter(p => !S.radarTaken.has(p.id)).map(p => ({ p, a:radarAnchor(p), gs:radarGeoms(p) }));
+  const gBox = gs => { let w=180, so=90, e=-180, n=-90; const walk = c => { if(typeof c[0] === 'number'){ if(c[0]<w) w=c[0]; if(c[0]>e) e=c[0]; if(c[1]<so) so=c[1]; if(c[1]>n) n=c[1]; } else c.forEach(walk); }; gs.forEach(g => walk(g.coordinates)); return [w, so, e, n]; };
+  const rFree = radar.filter(p => !S.radarTaken.has(p.id)).map(p => { const gs = radarGeoms(p); return { p, a:radarAnchor(p), gs, bx: gs.length ? gBox(gs) : null }; });
   const comps = (compsOn && _compsData) ? _compsData.filter(c => c.m === currentMarket && !_compHidden.has(compKey(c))) : [];
   for(const c of comps){
     const ll = compLL(c); if(ll[0] == null || ll[1] == null) continue;
     const o = inSite(ll[0], ll[1]);
     if(o){ add(S.bySite, o.s.id, {type:'comp', c}); S.compTaken.add(compKey(c)); continue; }
-    const r = rFree.find(x => x.gs.length ? x.gs.some(g => ptInGeom(ll[0], ll[1], g)) : metersBetween(x.a, ll) < 45);
+    const r = rFree.find(x => x.bx ? (ll[1] >= x.bx[0] && ll[1] <= x.bx[2] && ll[0] >= x.bx[1] && ll[0] <= x.bx[3] && x.gs.some(g => ptInGeom(ll[0], ll[1], g)))
+      : (Math.abs(x.a[0] - ll[0]) < 0.001 && metersBetween(x.a, ll) < 45));
     if(r){ add(S.byRadar, r.p.id, {type:'comp', c}); S.compTaken.add(compKey(c)); }
   }
   return S;
@@ -3684,7 +3729,7 @@ function renderTracked(fromStacks){
       m.addTo(siteMarkerLayer);
     }
   }
-  renderSitesHome();
+  if(homeOpen()) renderSitesHome(); else _homeDirty = true;   // the list is only rebuilt when it's on screen
   renderLegend();
   if(!fromStacks) scheduleStacks();
 }
@@ -3718,54 +3763,128 @@ function renderLegend(){
     .map(s=>`<div class="lg-row"><span class="dot" style="background:${s.hex}"></span>${s.label}</div>`).join('');
   lg.classList.add('show');
 }
+/* ---- Pipeline list (the "Pipeline" button): search, status / type filters, sortable columns ---- */
+let _homeDirty = false;
+// per-site derived fields + search text, rebuilt only when the site changes
+const _homeRow = new Map();
+function homeRow(s){
+  const hit = _homeRow.get(s.id);
+  if(hit && hit.upd === s.updated && hit.st === s.status && hit.n === s.parcels.length) return hit;
+  const ps = s.parcels || [];
+  const cities = [...new Set(ps.map(p => p.attrs && (p.attrs.PHYSICAL_CITY || p.attrs.CITY)).filter(Boolean))];
+  const owners = [...new Set(ps.map(p => p.attrs && p.attrs.OWNER_NAME).filter(Boolean))];
+  const apns = ps.map(p => p.apnDash || p.apn).filter(Boolean);
+  const st = statusById[s.status] || STATUSES[0];
+  const r = { upd:s.updated, st:s.status, n:ps.length, s, name:siteName(s), cities, owners, apns, stObj:st, acres:siteAcres(s), kind:kindOf(s),
+    sub: s._address || cities.join(', '), units: s._units };
+  r.hay = [r.name, s._address, cities.join(' '), owners.join(' '), apns.join(' '), s.entitlement, s.flu, s._broker, st.label, HOME_KIND[r.kind],
+    (s.notes||[]).map(n => n.text).join(' ')].filter(Boolean).join('   ').toLowerCase();
+  _homeRow.set(s.id, r);
+  return r;
+}
+// rows matching the search and type (the status toggle counts are taken from these)
+function homeBase(){
+  const words = homeState.q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return marketSites().map(homeRow).filter(r => (homeState.kind === 'all' || r.kind === homeState.kind) && words.every(w => r.hay.includes(w)));
+}
+function homeFiltered(base){
+  const stTest = (HOME_STATUS[homeState.status] || HOME_STATUS.all).test;
+  const rows = (base || homeBase()).filter(r => stTest(r.s));
+  const d = homeState.dir, ord = STATUSES.map(x => x.id);
+  const by = { updated: r => r.upd || 0, name: r => r.name.toLowerCase(), acres: r => r.acres || 0, units: r => r.units || 0, status: r => ord.indexOf(r.st) };
+  const key = by[homeState.sort] || by.updated;
+  rows.sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * d || b.upd - a.upd; });
+  return rows;
+}
+function syncHomeTools(base){
+  const all = marketSites();
+  document.querySelectorAll('#shStatus button').forEach(b => {
+    const k = b.dataset.v, n = base.filter(r => HOME_STATUS[k].test(r.s)).length;
+    b.classList.toggle('on', k === homeState.status); b.querySelector('i').textContent = n;
+  });
+  document.querySelectorAll('#shKind button').forEach(b => b.classList.toggle('on', b.dataset.v === homeState.kind));
+  const q = $('shSearch'); if(q && q.value !== homeState.q) q.value = homeState.q;
+  const t = $('shTitleN'); if(t) t.textContent = all.length;
+}
 function renderSitesHome(){
   const body = $('sitesHomeBody');
   if(!body) return;
-  const sites = marketSites().sort((a,b)=>b.updated-a.updated);
-  const mktLabel = MARKETS[currentMarket] ? MARKETS[currentMarket].name : currentMarket;
-  if(!sites.length){
+  _homeDirty = false;
+  const base = homeBase();
+  syncHomeTools(base);
+  const mktLabel = MARKETS[currentMarket] ? MARKETS[currentMarket].name.replace(/&amp;/g,'&') : currentMarket;
+  const total = marketSites().length;
+  if(!total){
     body.innerHTML = '<div class="sh-empty">No tracked sites in '+esc(mktLabel)+' yet.<br>Hit “＋ New site,” then click parcels on the map to build one.</div>';
     return;
   }
-  const totalAc = sites.reduce((a,s)=>a+siteAcres(s),0);
-  const totalP = sites.reduce((a,s)=>a+s.parcels.length,0);
+  const rows = homeFiltered(base);
+  const ac = rows.reduce((a, r) => a + (r.acres || 0), 0), pc = rows.reduce((a, r) => a + r.n, 0);
+  const filtered = homeState.q.trim() || homeState.status !== 'all' || homeState.kind !== 'all';
+  const fmtD = ms => { if(!ms) return '—'; const d = new Date(ms); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); };
+  const col = (k, label) => `<button type="button" class="sh-th${homeState.sort===k?' on':''}" data-sort="${k}">${label}${homeState.sort===k?`<span>${homeState.dir<0?'↓':'↑'}</span>`:''}</button>`;
   body.innerHTML = `
-    <div class="sh-summary"><b>${sites.length}</b> ${esc(mktLabel)} sites · <b>${totalP}</b> parcels · <b>${totalAc.toFixed(1)}</b> acres tracked</div>
-    <div class="sh-list">
-      ${sites.map(s=>{
-        const st = statusById[s.status]||STATUSES[0];
-        const cities = [...new Set(s.parcels.map(p=>p.attrs&&p.attrs.PHYSICAL_CITY).filter(Boolean))].join(', ');
-        const owners = [...new Set(s.parcels.map(p=>p.attrs&&p.attrs.OWNER_NAME).filter(Boolean))];
-        const notes = (s.notes||[]).length;
-        return `<div class="sh-banner" data-open="${s.id}">
-          <div class="sh-banner-stripe" style="background:${st.hex}"></div>
-          <div class="sh-banner-main">
-            <div class="sh-banner-name">${esc(siteName(s))}</div>
-            <div class="sh-banner-status" style="color:${st.hex}"><span class="dot" style="background:${st.hex}"></span>${st.label}</div>
-            <div class="sh-banner-meta">
-              <span class="m"><b>${s.parcels.length}</b> parcel${s.parcels.length>1?'s':''}</span>
-              ${cities?`<span class="m">${esc(cities)}</span>`:''}
-              ${s.flu?`<span class="m">FLU <b>${esc(s.flu)}</b></span>`:''}
-              ${s.entitlement?`<span class="m">Entitlement <b>${esc(s.entitlement)}</b></span>`:''}
-              ${notes?`<span class="m">${notes} note${notes>1?'s':''}</span>`:''}
-            </div>
-            <div class="sh-banner-owner">${owners.length ? esc(owners.slice(0,2).join('; ')) + (owners.length>2?` +${owners.length-2} more`:'') : 'Owner —'}</div>
-          </div>
-          <div class="sh-banner-side">
-            <div class="sh-banner-ac">${siteAcres(s).toFixed(2)}<span> ac</span></div>
-          </div>
-          <button class="sh-banner-del mini-btn" data-del="${s.id}" title="Delete site">✕</button>
-        </div>`;
-      }).join('')}
-    </div>
-  `;
-  body.querySelectorAll('.sh-banner').forEach(c=>c.addEventListener('click', ()=>{ $('sitesHomeOverlay').classList.remove('open'); openSiteDetail(c.dataset.open); }));
-  body.querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click', ev=>{
-    ev.stopPropagation();
-    const s = Store.get(b.dataset.del);
-    if(s && confirm(`Delete site “${siteName(s)}”?`)){ Store.remove(s.id); renderTracked(); renderSitesHome(); }
-  }));
+    <div class="sh-summary"><b>${rows.length}</b>${filtered ? ' of '+total : ''} ${esc(mktLabel)} site${rows.length===1?'':'s'} · <b>${pc}</b> parcel${pc===1?'':'s'} · <b>${ac.toFixed(1)}</b> acres${filtered?` · <a href="#" class="sh-clear" id="shClear">Clear filters</a>`:''}</div>
+    ${rows.length ? `<div class="sh-table" role="table">
+      <div class="sh-tr sh-head" role="row">${col('name','Site')}${col('status','Status')}<span class="sh-th">Type</span>${col('acres','Acres')}${col('units','Units')}<span class="sh-th">Entitlement</span><span class="sh-th">Owner</span>${col('updated','Updated')}<span></span></div>
+      ${rows.map(r => `<div class="sh-tr" role="row" tabindex="0" data-open="${esc(r.s.id)}">
+        <span class="sh-site"><b>${esc(r.name)}</b>${r.sub ? `<em>${esc(r.sub)}</em>` : ''}</span>
+        <span class="sh-st"><i style="background:${r.stObj.hex}"></i>${esc(r.stObj.label)}</span>
+        <span class="sh-dim">${HOME_KIND[r.kind]}</span>
+        <span class="num">${r.acres ? r.acres.toFixed(2) : '—'}</span>
+        <span class="num sh-dim">${r.units ? Number(r.units).toLocaleString('en-US') : '—'}</span>
+        <span class="sh-clip sh-dim" title="${esc(r.s.entitlement||'')}">${esc(r.s.entitlement || '—')}</span>
+        <span class="sh-clip sh-dim" title="${esc(r.owners.join('; '))}">${esc(r.owners[0] || '—')}${r.owners.length > 1 ? ` <small>+${r.owners.length-1}</small>` : ''}</span>
+        <span class="num sh-dim">${fmtD(r.upd)}</span>
+        <span>${r.s.status !== 'past' ? `<button type="button" class="sh-arch" data-del="${esc(r.s.id)}" title="Archive (moves to Past Pursuit)">Archive</button>` : ''}</span>
+      </div>`).join('')}
+    </div>` : `<div class="sh-empty">No sites match${homeState.q.trim() ? ` “${esc(homeState.q.trim())}”` : ''}. <a href="#" class="sh-clear" id="shClear2">Clear filters</a></div>`}`;
 }
+function openHomeRow(id){ $('sitesHomeOverlay').classList.remove('open'); openSiteDetail(id); }
+function openSitesHome(){
+  renderSitesHome();
+  $('sitesHomeOverlay').classList.add('open');
+  const q = $('shSearch'); if(q && !matchMedia('(pointer:coarse)').matches) setTimeout(() => q.focus(), 30);
+}
+(function wireSitesHome(){
+  const body = $('sitesHomeBody'); if(!body) return;
+  // one set of delegated listeners for the whole list (no per-row wiring on every render)
+  body.addEventListener('click', ev => {
+    const clr = ev.target.closest('.sh-clear');
+    if(clr){ ev.preventDefault(); Object.assign(homeState, { q:'', status:'all', kind:'all' }); saveHomeState(); renderSitesHome(); return; }
+    const th = ev.target.closest('[data-sort]');
+    if(th){ const k = th.dataset.sort; if(homeState.sort === k) homeState.dir *= -1; else { homeState.sort = k; homeState.dir = (k === 'name' || k === 'status') ? 1 : -1; } saveHomeState(); renderSitesHome(); return; }
+    const del = ev.target.closest('[data-del]');
+    if(del){
+      ev.stopPropagation();
+      const s = Store.get(del.dataset.del);
+      if(s && confirm(`Archive “${siteName(s)}”? It moves to Past Pursuit here and in Opportunities. Nothing is deleted.`)){
+        Store.remove(s.id);                                            // archives the deal (stage passed); never deletes
+        s.status = 'past'; Store.data.sites[s.id] = s; Store.save();   // keep it on the map as Past Pursuit right away
+        renderTracked(); renderSitesHome();
+      }
+      return;
+    }
+    const row = ev.target.closest('.sh-tr[data-open]'); if(row) openHomeRow(row.dataset.open);
+  });
+  body.addEventListener('keydown', ev => { if(ev.key === 'Enter'){ const row = ev.target.closest('.sh-tr[data-open]'); if(row) openHomeRow(row.dataset.open); } });
+  const q = $('shSearch');
+  if(q){
+    const go = debounce(() => { homeState.q = q.value; renderSitesHome(); }, 90);
+    q.addEventListener('input', go);
+    q.addEventListener('keydown', ev => {
+      if(ev.key === 'Enter'){ homeState.q = q.value; const r = homeFiltered()[0]; if(r) openHomeRow(r.s.id); }
+      if(ev.key === 'Escape' && q.value){ ev.stopPropagation(); q.value = ''; homeState.q = ''; renderSitesHome(); }
+    });
+  }
+  document.querySelectorAll('#shStatus button').forEach(b => b.addEventListener('click', () => { homeState.status = b.dataset.v; saveHomeState(); renderSitesHome(); }));
+  document.querySelectorAll('#shKind button').forEach(b => b.addEventListener('click', () => { homeState.kind = b.dataset.v; saveHomeState(); renderSitesHome(); }));
+  document.addEventListener('keydown', ev => {
+    if(!homeOpen()) return;
+    if(ev.key === 'Escape'){ $('sitesHomeOverlay').classList.remove('open'); return; }
+    if(ev.key === '/' && !/INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName || '')){ ev.preventDefault(); const i = $('shSearch'); if(i) i.focus(); }
+  });
+})();
 function homeOpen(){ return $('sitesHomeOverlay').classList.contains('open'); }
 
 // ---------- Detail panel ----------
@@ -4609,14 +4728,16 @@ $('exportJson').addEventListener('click', ()=>{
     JSON.stringify(Store.data, null, 2), 'application/json');
 });
 function exportSitesCsv(){
-  const cols = ['Site','Status','Parcels','APNs','Total Acres','Cities','Owners','Notes'];
-  const rows = Store.all().map(s=>{
+  const cols = ['Site','Status','Type','Parcels','APNs','Total Acres','Units','Entitlement','Cities','Owners','Notes'];
+  // from the open Pipeline list, export what it's showing (search and filters applied)
+  const list = homeOpen() ? homeFiltered().map(r => r.s) : Store.all();
+  const rows = list.map(s=>{
     const apns = s.parcels.map(p=>p.apnDash||p.apn).join('; ');
     const cities = [...new Set(s.parcels.map(p=>p.attrs&&p.attrs.PHYSICAL_CITY).filter(Boolean))].join('; ');
     const owners = [...new Set(s.parcels.map(p=>p.attrs&&p.attrs.OWNER_NAME).filter(Boolean))].join('; ');
     const notes = (s.notes||[]).map(n=>`[${new Date(n.t).toLocaleDateString('en-US')}] ${n.text}`).join(' | ');
-    return [ siteName(s), (statusById[s.status]||{}).label||s.status, s.parcels.length, apns,
-      siteAcres(s).toFixed(3), cities, owners, notes ]
+    return [ siteName(s), (statusById[s.status]||{}).label||s.status, HOME_KIND[kindOf(s)], s.parcels.length, apns,
+      siteAcres(s).toFixed(3), s._units || '', s.entitlement || '', cities, owners, notes ]
       .map(v=>{ v=String(v); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }).join(',');
   });
   download(`wb-sitescout-sites-${new Date().toISOString().slice(0,10)}.csv`, cols.join(',')+'\n'+rows.join('\n'), 'text/csv');
@@ -4707,7 +4828,7 @@ function startNewSite(){
   $('sitesHomeOverlay').classList.remove('open');
   startAssembly(id);
 }
-$('openSitesHome').addEventListener('click', ()=>{ renderSitesHome(); $('sitesHomeOverlay').classList.add('open'); });
+$('openSitesHome').addEventListener('click', openSitesHome);
 $('sitesHomeClose').addEventListener('click', ()=> $('sitesHomeOverlay').classList.remove('open'));
 $('sitesHomeOverlay').addEventListener('click', e=>{ if(e.target === $('sitesHomeOverlay')) $('sitesHomeOverlay').classList.remove('open'); });
 $('homeNewSite').addEventListener('click', startNewSite);
@@ -4933,7 +5054,7 @@ function renderSiteDetailBody(s){
 $('sdName').addEventListener('change', ()=>{ const s=Store.get(sdCurrentId); if(!s) return; s.name = $('sdName').value.trim() || siteName(s); Store.upsert(s); renderTracked(); });
 $('sdStatus').addEventListener('change', ()=>{ const s=Store.get(sdCurrentId); if(!s) return; s.status = $('sdStatus').value; Store.upsert(s); renderTracked(); });
 $('siteDetailClose').addEventListener('click', ()=> $('siteDetailOverlay').classList.remove('open'));
-$('sdBack').addEventListener('click', ()=>{ $('siteDetailOverlay').classList.remove('open'); renderSitesHome(); $('sitesHomeOverlay').classList.add('open'); });
+$('sdBack').addEventListener('click', ()=>{ $('siteDetailOverlay').classList.remove('open'); openSitesHome(); });
 $('siteDetailOverlay').addEventListener('click', e=>{ if(e.target === $('siteDetailOverlay')) $('siteDetailOverlay').classList.remove('open'); });
 $('sdAddParcels').addEventListener('click', ()=>{ if(sdCurrentId) startAssembly(sdCurrentId); });
 $('sdZoom').addEventListener('click', ()=>{

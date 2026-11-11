@@ -44,13 +44,38 @@
   };
 
   // ---------- sites ----------
+  // Fetch every page of a table in parallel (ordered by id so pages don't overlap). WB.fetchAll walks pages one at a time.
+  async function fetchPar(schema, table, select, build = (q) => q, order = 'id') {
+    const size = 1000;
+    const page = (from) => build(S(schema).from(table).select(select, from === 0 ? { count: 'exact' } : undefined)).order(order).range(from, from + size - 1);
+    const first = await page(0);
+    if (first.error) throw first.error;
+    const total = first.count || first.data.length, out = first.data.slice();
+    if (total > size) {
+      const rest = await Promise.all(Array.from({ length: Math.ceil(total / size) - 1 }, (_, i) => page((i + 1) * size)));
+      for (const r of rest) { if (r.error) throw r.error; out.push(...r.data); }
+    }
+    return out;
+  }
+  // geometry / attribute signatures as last loaded or saved, so a save only writes parcels that actually changed
+  const geomSig = new Map(), attrSig = new Map();
+  const sigOf = (v) => { const s = JSON.stringify(v || null); let h = 0; for (let i = 0; i < s.length; i += 7) h = (h * 31 + s.charCodeAt(i)) | 0; return s.length + ':' + h; };
+  let _loading = null, _loadedAt = 0, _loaded = null;
   async function loadAll() {
+    // two callers in the same second (sign-in, then sync) share one round of requests
+    if (_loading) return _loading;
+    if (_loaded && Date.now() - _loadedAt < 4000) return _loaded;
+    _loading = loadAllFresh().then((r) => { _loaded = r; _loadedAt = Date.now(); return r; }).finally(() => { _loading = null; });
+    return _loading;
+  }
+  async function loadAllFresh() {
     const [deals, links, parcels, logs] = await Promise.all([
       WB.fetchAll('pipeline', 'deals', '*', (q) => q.is('merged_into', null)),
       WB.fetchAll('pipeline', 'deal_parcels', 'deal_id,parcel_id'),
-      WB.fetchAll('core', 'parcels', 'id,market_id,county,apn,acres,geom,attrs'),
+      WB.fetchAll('core', 'parcels', 'id,market_id,county,apn,acres,geom,attrs,property_id'),
       WB.fetchAll('pipeline', 'deal_log', 'deal_id,logged_on,kind,body,created_at', (q) => q.eq('kind', 'note').order('created_at')),
     ]);
+    parcels.forEach((p) => { geomSig.set(p.id, sigOf(p.geom)); });
     const pById = new Map(parcels.map((p) => [p.id, p]));
     const linksByDeal = new Map(); links.forEach((l) => (linksByDeal.get(l.deal_id) || linksByDeal.set(l.deal_id, []).get(l.deal_id)).push(l.parcel_id));
     const logsByDeal = new Map(); logs.forEach((l) => (logsByDeal.get(l.deal_id) || logsByDeal.set(l.deal_id, []).get(l.deal_id)).push(l));
@@ -62,6 +87,7 @@
     const parcels = (all.linksByDeal.get(d.id) || []).map((pid) => all.pById.get(pid)).filter((p) => p && p.geom).map((p) => {
       const a = { ...(p.attrs || {}) }; const overrides = a.overrides; delete a.overrides; delete a.source; delete a.note;
       const [lat, lng] = centroid(p.geom);
+      attrSig.set(p.id, sigOf({ acres: num(p.acres), attrs: { ...a, ...(overrides ? { overrides } : {}) }, prop: p.property_id || null }));
       return { _parcelId: p.id, apn: p.apn || '', apnDash: a.APN_DASH || a.apnDash || p.apn || '', acres: num(p.acres), geometry: p.geom,
         _lat: lat, _lng: lng, attrs: a, ...(overrides ? { overrides } : {}) };
     });
@@ -79,6 +105,7 @@
     const notes = (all.logsByDeal.get(d.id) || []).map((l) => ({ t: new Date(l.created_at || l.logged_on).getTime(), text: l.body }));
     const status = scoutStatus(d);
     const site = { id, _dealId: d.id, name: d.name, status, market: d.market_id, notes, parcels,
+      _kind: d.kind || null, _stage: d.stage || null, _units: num(d.units), _address: d.address || '', _broker: d.broker || '', _bid: d.bid_date || null,
       entitlement: d.entitlement || '', flu: u.flu || '', created: new Date(d.created_at).getTime(), updated: new Date(d.updated_at).getTime() };
     const sum = parcels.reduce((t, p) => t + (p.acres || 0), 0);
     if (d.acres != null && (pinOnly || Math.abs(+d.acres - sum) > 0.05)) site.acresOverride = +d.acres;
@@ -135,9 +162,15 @@
         pid = newId;
       } else {
         if (!linkedIds.has(pid)) await S('pipeline').from('deal_parcels').insert({ deal_id: d.id, parcel_id: pid });
-        if (p.geometry) await S('core').rpc('set_parcel_geom', { p_parcel: pid, p_geojson: JSON.stringify(p.geometry) });
+        const gs = sigOf(p.geometry);
+        if (p.geometry && geomSig.get(pid) !== gs) { await S('core').rpc('set_parcel_geom', { p_parcel: pid, p_geojson: JSON.stringify(p.geometry) }); geomSig.set(pid, gs); }
       }
-      await S('core').from('parcels').update({ acres: num(p.acres), attrs, property_id: d.property_id }).eq('id', pid);
+      const as = sigOf({ acres: num(p.acres), attrs, prop: d.property_id || null });
+      if (attrSig.get(pid) !== as) {   // unchanged parcels are left alone (this also keeps attrs.source / attrs.note)
+        await S('core').from('parcels').update({ acres: num(p.acres), attrs, property_id: d.property_id }).eq('id', pid);
+        attrSig.set(pid, as);
+      }
+      if (p.geometry) geomSig.set(pid, sigOf(p.geometry));
       p._parcelId = pid; keep.add(pid);
     }
     for (const id of linkedIds) if (!keep.has(id)) await S('pipeline').from('deal_parcels').delete().eq('deal_id', d.id).eq('parcel_id', id);
@@ -156,9 +189,27 @@
   const poiData = (r) => ({ ...(r.data || {}), id: r.id, m: r.market_id, cat: r.category, n: r.name, la: r.lat, lo: r.lng,
     updated: r.updated_at ? new Date(r.updated_at).getTime() : undefined });
 
+  // One save at a time per site. Rapid edits collapse into one save of the latest version, so two saves of the
+  // same site can't race (which used to double-insert parcels and notes).
+  const saveQ = new Map();
+  function queueSave(site) {
+    const k = String(site.id);
+    const q = saveQ.get(k) || { running: null, next: null, waiters: [] };
+    saveQ.set(k, q);
+    q.next = site;
+    const p = new Promise((res, rej) => q.waiters.push({ res, rej }));
+    const pump = async () => {
+      if (q.running || !q.next) return;
+      const s = q.next, ws = q.waiters.splice(0); q.next = null;
+      q.running = saveSite(s).then(() => { _loaded = null; ws.forEach((w) => w.res()); }, (e) => ws.forEach((w) => w.rej(e)))
+        .finally(() => { q.running = null; if (q.next) pump(); else saveQ.delete(k); });
+    };
+    pump();
+    return p;
+  }
   const H = {
     async sites_select() { const all = await loadAll(); return all.deals.map((d) => dealToSite(d, all)).filter(Boolean).map((s) => ({ id: s.id, data: s, updated: s.updated })); },
-    async sites_upsert(row) { await saveSite(row.data || row); },
+    async sites_upsert(row) { await queueSave(row.data || row); },
     // Pipeline owns the deal, so "remove" in Site Scout archives it (stage Passed) instead of hiding it. It stays on both maps.
     async sites_remove(f) {
       const d = await findDeal(f.id); if (!d) return;
@@ -193,10 +244,13 @@
 
   // CoStar properties in Site Scout's compact comp format (replaces the public comps.json)
   async function loadComps() {
-    const rows = await WB.fetchAll('core', 'properties', 'name,address,class,developer,market_id,owner,status,units,year_built,city,lat,lng,costar_submarket,avg_unit_sf,attrs',
+    // only the six attrs the comp card uses, not the whole CoStar record (cuts the download several-fold); pages in parallel
+    const rows = await fetchPar('core', 'properties',
+      'name,address,class,developer,market_id,owner,status,units,year_built,city,lat,lng,costar_submarket,avg_unit_sf,'
+      + 'vacancy:attrs->>vacancy,avgAskingSF:attrs->>avgAskingSF,avgAskingUnit:attrs->>avgAskingUnit,avgEffectiveSF:attrs->>avgEffectiveSF,avgEffectiveUnit:attrs->>avgEffectiveUnit',
       (q) => q.eq('source', 'costar'));
     return rows.map((p) => {
-      const a = p.attrs || {}, vac = num(a.vacancy);
+      const a = p, vac = num(a.vacancy);
       return { a: p.address, c: p.class, d: p.developer, m: p.market_id, n: p.name, o: p.owner, s: p.status, u: p.units, y: p.year_built, ci: p.city,
         la: p.lat, lo: p.lng, oc: vac == null ? null : Math.round((100 - vac) * 10) / 10, sb: p.costar_submarket,
         aps: num(a.avgAskingSF), apu: num(a.avgAskingUnit), eps: num(a.avgEffectiveSF), epu: num(a.avgEffectiveUnit), usf: num(p.avg_unit_sf) };
