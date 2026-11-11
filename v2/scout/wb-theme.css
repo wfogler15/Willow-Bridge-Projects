@@ -61,7 +61,7 @@ button:focus-visible{outline:none !important;box-shadow:0 0 0 2px #fff,0 0 0 4px
 #sidebar input,#sidebar select{border-color:#E6E4EC !important;box-shadow:none !important}
 
 /* ---------- Pipeline list: search, filters, table (minimal: hairlines, text toggles, no cards) ---------- */
-#sitesHomeModal{width:1120px !important;max-height:88vh !important;border-radius:10px !important}
+#sitesHomeModal{width:1120px !important;max-height:88vh !important;min-height:min(560px,88vh);border-radius:10px !important}  /* steady height: the filters stay put while results change */
 #sitesHomeHead h2{font-size:17px !important;font-weight:600 !important}
 #sitesHomeHead .sh-n{font-weight:400;color:#77728C !important;margin-left:4px}
 #shTools{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px;padding:12px 20px;border-bottom:1px solid #E6E4EC}

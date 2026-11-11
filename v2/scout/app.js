@@ -3844,7 +3844,7 @@ function openHomeRow(id){ $('sitesHomeOverlay').classList.remove('open'); openSi
 function openSitesHome(){
   renderSitesHome();
   $('sitesHomeOverlay').classList.add('open');
-  const q = $('shSearch'); if(q && !matchMedia('(pointer:coarse)').matches) setTimeout(() => q.focus(), 30);
+  const q = $('shSearch'); if(q && !matchMedia('(pointer:coarse)').matches) setTimeout(() => { q.focus(); q.select(); }, 30);   // typing replaces the last search
 }
 (function wireSitesHome(){
   const body = $('sitesHomeBody'); if(!body) return;
