@@ -955,22 +955,33 @@ function highlightParcel(f, latlng){
     selectedMarker.setOpacity(0);
   }
 }
+/* Parcel outline under a point. The statewide Colorado composite answers in ~20 s, so where a county
+   publishes its own fast, CORS-open parcel layer we ask that first (~1 s) and fall back to the composite.
+   The tiles carry no acreage for Arapahoe at all, nor for Douglas tax-exempt parcels (land a county,
+   metro district or foundation owns), so those clicks depend on this outline for their acreage. */
+const COUNTY_SHAPE = {
+  'Douglas':  'https://services.arcgis.com/seTexOicoRXDvRsJ/arcgis/rest/services/Parcels_A_view/FeatureServer/0',
+  'Arapahoe': 'https://gis.arapahoegov.com/arcgis/rest/services/OpenDataService/MapServer/0',
+};
+async function queryShapeAt(latlng, county){
+  const m = mkt();
+  const params = { geometry: JSON.stringify({x:latlng.lng, y:latlng.lat, spatialReference:{wkid:4326}}), geometryType:'esriGeometryPoint',
+    inSR:4326, outSR:4326, spatialRel:'esriSpatialRelIntersects', outFields:'', returnGeometry:true, resultRecordCount:1 };
+  const q = svc => arcgisQuery(svc, params).then(gj => { const f = gj && gj.features && gj.features[0]; if(f && f.geometry) return f; throw new Error('none'); });
+  const fast = county && COUNTY_SHAPE[county] ? [COUNTY_SHAPE[county]]
+    : (m.counties || []).filter(c => COUNTY_SHAPE[c.name] && c.bounds && latlng.lat >= c.bounds[0][0] && latlng.lat <= c.bounds[1][0] && latlng.lng >= c.bounds[0][1] && latlng.lng <= c.bounds[1][1]).map(c => COUNTY_SHAPE[c.name]);
+  if(fast.length){ try{ return await Promise.any(fast.map(q)); }catch(e){} }
+  const svc = m.fallbackSvc || m.parcelSvc;
+  return svc ? q(svc).catch(() => null) : null;
+}
 // One-parcel geometry fetch for the highlight fill (does not touch the panel data).
 async function fetchParcelShape(latlng, apn){
-  // Use the market's known-working geometry source. (County detail endpoints are unverified and
-  // were failing silently, breaking the acreage backfill — reliability matters more than speed here.)
-  const svc = mkt().fallbackSvc || mkt().parcelSvc || null;
-  if(!svc) return;
+  if(!(mkt().fallbackSvc || mkt().parcelSvc || mkt().counties)) return;
   const seq = ++fetchParcelShape._seq;
   try{
-    const pt = {x:latlng.lng, y:latlng.lat, spatialReference:{wkid:4326}};
-    const gj = await arcgisQuery(svc, {
-      geometry: JSON.stringify(pt), geometryType:'esriGeometryPoint',
-      inSR:4326, outSR:4326, spatialRel:'esriSpatialRelIntersects',
-      outFields:'', returnGeometry:true, resultRecordCount:1,
-    }).catch(()=>null);
+    const county = currentFeature && currentFeature.properties && currentFeature.properties._county;
+    const feat = await queryShapeAt(latlng, county);
     if(seq !== fetchParcelShape._seq) return;       // a newer click superseded this
-    const feat = gj && gj.features && gj.features[0];
     if(feat && feat.geometry){
       _selSet(feat);
       // The tile had no geometry, so acreage may be blank. Derive it from the real polygon and
@@ -1918,12 +1929,7 @@ async function ensureParcelGeometry(site, parcel){
   try{
     let feat = null;
     if(parcel._lat != null && parcel._lng != null){
-      const pt = {x:parcel._lng, y:parcel._lat, spatialReference:{wkid:4326}};
-      const gj = await arcgisQuery(svc, {
-        geometry: JSON.stringify(pt), geometryType:'esriGeometryPoint', inSR:4326,
-        spatialRel:'esriSpatialRelIntersects', outFields:'', returnGeometry:true, outSR:4326, resultRecordCount:1,
-      }).catch(e=>{ console.warn('[geom] point query error', e); return null; });
-      feat = gj && gj.features && gj.features[0];
+      feat = await queryShapeAt(L.latLng(parcel._lat, parcel._lng), parcel.attrs && parcel.attrs._county);
     }
     if(!feat){
       const gj = await arcgisQuery(svc, {
