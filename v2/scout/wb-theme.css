@@ -163,3 +163,10 @@ span.sh-th{cursor:default}
 body.snap-capturing .z-metro .leaflet-tracked-pane,body.snap-capturing .z-metro .leaflet-radarShapes-pane{display:block}
 #legend .lg-foot-mk{transform:none;margin:5px 8px 0 1px;width:11px;height:11px;border-width:2.5px}
 #legend .lg-foot-mk .mk-n{min-width:12px;height:12px;line-height:10px;font-size:8px}
+/* our deals in the bright violet with a white ring and soft halo (like the orange selection marker) */
+.mk-active{width:16px;height:16px;background:#6C47FF;border:2.5px solid #fff;box-shadow:0 0 0 4px rgba(108,71,255,.35),0 1px 5px rgba(10,6,30,.45)}
+.mk-watching{width:14px;height:14px;background:#fff;border:3.5px solid #6C47FF;box-shadow:0 0 0 1.5px #fff,0 1px 5px rgba(10,6,30,.45)}
+.z-metro .mk-active{width:13px;height:13px;border-width:2px;box-shadow:0 0 0 3px rgba(108,71,255,.35),0 1px 4px rgba(10,6,30,.4)}
+.z-metro .mk-watching{width:12px;height:12px;border-width:3px}
+#legend .lg-sym .mk-active{box-shadow:0 0 0 2.5px rgba(108,71,255,.3)}
+.mk-n{border-color:#6C47FF;color:#4A2FD0}

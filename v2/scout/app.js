@@ -251,9 +251,10 @@ const statusById = Object.fromEntries(STATUSES.map(s=>[s.id,s]));
    Filled = confirmed; hollow = unconfirmed or stalled. Each key row can be clicked to hide or show that group. */
 const KEY = {
   ink:'#1D1247',
+  ours:'#6C47FF',   // bright Willow Bridge violet for our deals: reads on aerial the way the orange selection does
   deal: {
-    active:   { label:'Active',   sub:'Underwriting · Contacted · LOI', hex:'#1D1247' },
-    watching: { label:'Watching', sub:'Prospect · Monitor',             hex:'#1D1247' },
+    active:   { label:'Active',   sub:'Underwriting · Contacted · LOI', hex:'#6C47FF' },
+    watching: { label:'Watching', sub:'Prospect · Monitor',             hex:'#6C47FF' },
     past:     { label:'Past pursuit',                                    hex:'#A8A3B8' },
   },
   radar: {
@@ -3742,8 +3743,8 @@ function renderTracked(fromStacks){
     if(_snapSiteFilter && !_snapSiteFilter.has(site.id)) continue;   // snapshot: only chosen sites
     if(!dealShown(site)) continue;                                     // hidden from the map key
     const st = statusById[site.status] || STATUSES[0], tier = dealTier(site);
-    const pstyle = tier === 'active'   ? { color:KEY.ink, weight:2.5, opacity:1, fillColor:KEY.ink, fillOpacity:.2 }
-                 : tier === 'watching' ? { color:KEY.ink, weight:2, opacity:.95, fillColor:KEY.ink, fillOpacity:.08 }
+    const pstyle = tier === 'active'   ? { color:KEY.ours, weight:2.75, opacity:1, fillColor:KEY.ours, fillOpacity:.24 }
+                 : tier === 'watching' ? { color:KEY.ours, weight:2.25, opacity:1, fillColor:KEY.ours, fillOpacity:.1 }
                  :                       { color:'#8E8A9C', weight:1.5, opacity:.9, fillColor:'#8E8A9C', fillOpacity:.06, dashArray:'5 4' };
     const cnt = (site.parcels||[]).length;
     // parcel polygons (visible when zoomed in)
