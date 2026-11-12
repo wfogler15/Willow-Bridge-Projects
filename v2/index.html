@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Overview · Willow Bridge Canopy</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611121949">
+<link rel="stylesheet" href="shared/wb.css?v=202611121955">
 <style>
   .ov{max-width:1180px}
   .kick{margin:0 0 12px;font-size:14px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
@@ -38,6 +38,17 @@
   .rq{padding:13px 0;border-bottom:1px solid var(--rule-2);font-size:14px}
   .rq .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
   .rq .btn{height:28px;font-size:13px;padding:0 8px;margin-left:-8px}
+  /* Thursday meeting agenda: numbered run-of-show at the top */
+  .mtg{margin-top:44px}
+  .mtg .hd span{display:flex;gap:16px}
+  .ag{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:4px 14px;align-items:baseline;padding:13px 0;border-bottom:1px solid var(--rule-2);color:var(--ink);text-decoration:none}
+  a.ag:hover{background:var(--hover)}
+  .ag .no{font:500 13px var(--font-display);color:var(--faint);font-variant-numeric:tabular-nums}
+  .ag b{font-weight:600;font-size:15px}
+  .ag .what{display:block;font-size:13px;color:var(--ink-2);margin-top:3px;line-height:1.45}
+  .ag .what em{font-style:normal;color:var(--muted)}
+  .ag .c{font-size:13px;color:var(--muted);white-space:nowrap}
+  .ag .uwn{color:var(--ink);font-weight:600}
   @media (max-width:900px){.cols{grid-template-columns:minmax(0,1fr);column-gap:0}}
   @media (max-width:700px){.ov h1{font-size:28px}.rw{grid-template-columns:minmax(0,1fr) 80px 72px}.rw .t{display:none}}
 </style>
@@ -46,6 +57,10 @@
 <main class="page ov">
   <div class="kick"><span id="date"></span><span id="mkt"></span></div>
   <h1 id="headline"><span class="skel" style="display:block;height:38px;width:70%"></span></h1>
+  <section class="mtg">
+    <div class="hd"><h2 id="mtgT">Thursday meeting</h2><span><a class="link" href="#" id="mtgCopy">Copy agenda</a><a class="link" href="development/?track=stalled">Plan the check-in in Radar</a></span></div>
+    <div id="mtg"></div>
+  </section>
   <!-- two columns on one grid, so each row's headers sit on the same line:
        row 1 In underwriting | Sale comps + Coming up; row 2 Screening | Needs attention -->
   <div class="cols">
@@ -74,7 +89,7 @@
   </div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611121949"></script>
+<script src="shared/wb.js?v=202611121955"></script>
 <script>
 (async () => {
   const { sb, user } = await WB.ready('home');
@@ -92,6 +107,13 @@
     sb.schema('comps').from('sale_comps').select('id', { count: 'exact', head: true }).is('lat', null).then((r) => r.count || 0, () => 0),
     WB.fetchAll('market', 'dev_projects', 'id,market_id,track', (q) => q.eq('review', 'new')).catch(() => []),
   ]);
+  // the meeting: next Thursday on or after today. Market check-in items come from Radar's agenda (pipeline.meeting_agenda).
+  const MEET = (() => { const t = new Date(); t.setDate(t.getDate() + ((4 - t.getDay() + 7) % 7)); return iso(new Date(t.getTime() - t.getTimezoneOffset() * 6e4)); })();
+  const [agenda, hl] = await Promise.all([
+    WB.fetchAll('pipeline', 'meeting_agenda', '*', (q) => q.eq('meeting_on', MEET)).catch(() => []),
+    WB.fetchAll('market', 'weekly_highlights', 'market_id,rank,hidden', (q) => q.eq('week_of', MEET)).catch(() => []),
+  ]);
+  const agProj = agenda.some((a) => a.project_id) ? await WB.fetchAll('market', 'dev_projects', 'id,name,units,hearing_date', (q) => q.in('id', agenda.filter((a) => a.project_id).map((a) => a.project_id))).catch(() => []) : [];
 
   const MK = Object.fromEntries(WB.markets.map((m) => [m.id, m.short]));
   const UWS = ['underwriting', 'loi', 'under_contract'], ACTIVE = ['screening', ...UWS];
@@ -145,6 +167,32 @@
     });
   };
 
+  let agendaText = '';
+  function renderMeeting(uw, sc, up) {
+    const mkt = WB.getMarket(), ag = agenda.filter((a) => a.status !== 'dropped' && inMkt(a.market_id))
+      .sort((a, b) => (a.role === 'underwrite' ? 0 : 1) - (b.role === 'underwrite' ? 0 : 1) || (a.rank || 0) - (b.rank || 0));
+    const agName = (a) => a.project_id ? ((agProj.find((p) => p.id === a.project_id) || {}).name || 'Stalled site') : ((deals.find((d) => d.id === a.deal_id) || {}).name || 'Old deal');
+    const agKind = (a) => a.item_type === 'stalled' ? 'stalled site' : 'old deal';
+    const uwItem = ag.find((a) => a.role === 'underwrite'), disc = ag.filter((a) => a !== uwItem);
+    const hlN = hl.filter((r) => r.rank != null && !r.hidden && inMkt(r.market_id)).length;
+    const names = (xs, n = 4) => xs.length ? esc(xs.slice(0, n).map((d) => d.name).join(', ')) + (xs.length > n ? ` <em>+${xs.length - n} more</em>` : '') : '';
+    const rows = [
+      { t: 'Underwriting', href: 'pipeline/', what: uw.length ? names(uw) : '<em>Nothing in underwriting.</em>', c: `${uw.length} ${uw.length === 1 ? 'deal' : 'deals'}`,
+        txt: uw.map((d) => d.name) },
+      { t: 'New on market', href: 'pipeline/', what: sc.length ? names(sc) : '<em>Nothing new in screening.</em>', c: `${sc.length} ${sc.length === 1 ? 'deal' : 'deals'}`, txt: sc.map((d) => d.name) },
+      { t: 'Market check-in', href: 'development/?track=stalled',
+        what: uwItem || disc.length ? (uwItem ? `<span class="uwn">Underwrite: ${esc(agName(uwItem))}</span> <em>(${agKind(uwItem)})</em>${uwItem.note ? ` · ${esc(uwItem.note)}` : ''}` : '<em>No underwrite picked yet.</em>')
+          + (disc.length ? `<br>Discuss: ${esc(disc.map(agName).join(', '))}` : '') : '<em>Nothing picked yet. Add an old deal or a stalled site in Radar.</em>',
+        c: ag.length ? `${ag.length} ${ag.length === 1 ? 'item' : 'items'}` : '', txt: (uwItem ? ['Underwrite: ' + agName(uwItem) + (uwItem.note ? ' (' + uwItem.note + ')' : '')] : []).concat(disc.map((a) => 'Discuss: ' + agName(a) + (a.note ? ' (' + a.note + ')' : ''))) },
+      { t: 'Radar this week', href: 'development/?track=week', what: hlN ? `${hlN} highlights picked for the slides.` : '<em>Not curated yet; Radar shows the top eight automatically.</em>', c: '', txt: [] },
+      { t: 'Coming up', href: '#upcoming', what: up.length ? esc(up.slice(0, 4).map(({ d, when, what }) => `${d.name} ${what.toLowerCase()} ${mon(when)}`).join(' · ')) : '<em>No offer dates or check-backs in the next 30 days.</em>', c: '', txt: up.map(({ d, when, what }) => `${d.name}: ${what.toLowerCase()} ${mon(when)}`) },
+    ];
+    $('#mtgT').textContent = `Thursday meeting · ${new Date(MEET + 'T12:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}${MEET === todayIso ? ' (today)' : ''}`;
+    $('#mtg').innerHTML = rows.map((r, i) => `<a class="ag" href="${r.href}"><span class="no">${i + 1}</span><span><b>${r.t}</b><span class="what">${r.what}</span></span><span class="c">${r.c}</span></a>`).join('');
+    agendaText = `Thursday pipeline meeting · ${MEET}${mkt !== 'all' ? ' · ' + (MK[mkt] || mkt) : ''}\n\n` + rows.map((r, i) => `${i + 1}. ${r.t}` + (r.txt.length ? '\n' + r.txt.map((x) => '   - ' + x).join('\n') : '')).join('\n');
+  }
+  $('#mtgCopy').onclick = (e) => { e.preventDefault(); (navigator.clipboard ? navigator.clipboard.writeText(agendaText) : Promise.reject()).then(() => WB.toast('Agenda copied'), () => WB.toast("Couldn't copy")); };
+
   function render() {
     const act = deals.filter((d) => ACTIVE.includes(d.stage) && inMkt(d.market_id));
     const uw = act.filter((d) => UWS.includes(d.stage)), sc = act.filter((d) => d.stage === 'screening');
@@ -176,6 +224,7 @@
       .sort((a, b) => a.when.localeCompare(b.when));
     $('#upcoming').innerHTML = up.length ? up.slice(0, 6).map(({ d, when, what }) => `<a class="li" href="pipeline/?deal=${d.id}"><span>${esc(d.name)} <span style="color:var(--muted)">${what.toLowerCase()}</span></span><span class="c ${when <= todayIso ? 'due' : ''}">${mon(when)}</span></a>`).join('')
       : '<div class="none">No offer dates or check-backs in the next 30 days.</div>';
+    renderMeeting(uw, sc, up);
 
     // needs attention: counts that link to where you fix them, then any open review items
     const actM = deals.filter((d) => inMkt(d.market_id) && ACTIVE.includes(d.stage));

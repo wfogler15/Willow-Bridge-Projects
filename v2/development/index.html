@@ -109,6 +109,47 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 .figs3 span{font-size:12px;color:var(--muted)}
 .lead{margin:0;font-size:13px;line-height:1.5;color:var(--ink2)}
 .lnk{border:0;background:none;padding:0;font:500 13px var(--font);color:var(--purple);cursor:pointer}
+/* period toggle (text toggles, minimal) */
+.per{display:flex;flex-wrap:wrap;gap:2px 14px;margin:-2px 0 14px}
+.per button{border:0;background:none;padding:2px 0;border-bottom:1.5px solid transparent;font:500 12.5px var(--font);color:var(--muted);cursor:pointer}
+.per button:hover{color:var(--ink)}
+.per button.on{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.per button i{font-style:normal;color:var(--faint);font-weight:400}
+/* stalled list with an agenda column */
+.ag4{grid-template-columns:minmax(0,1fr) 46px 74px 74px}
+.ag4.ag-head span:last-child{text-align:right}
+.ag-go{border:0;background:none;padding:0;text-align:left;cursor:pointer;font:600 13px var(--font);color:var(--ink)}
+.ag-go:hover{color:var(--purple)}
+.ag-add{border:0;background:none;padding:0;justify-self:end;font:500 12px var(--font);color:var(--purple);cursor:pointer;white-space:nowrap}
+.ag-add.on{color:var(--ink);font-weight:600}
+.ag-add:hover{text-decoration:underline}
+.tacts{display:flex;gap:14px;align-items:baseline}
+/* Thursday agenda */
+.agd{margin:0 0 18px;padding:12px 0 10px;border-top:1px solid var(--ink);border-bottom:1px solid var(--rule)}
+.agd-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+.agd-h h3{margin:0;font:600 13px var(--font);color:var(--ink)}
+.agd-h span{display:flex;gap:10px}
+.agd-tip{margin:2px 0 8px}
+.agi{display:grid;grid-template-columns:76px minmax(0,1fr) auto 18px;gap:4px 10px;align-items:start;padding:8px 0;border-top:1px solid var(--hair)}
+.agi:first-of-type{border-top:0}
+.agi.off{opacity:.45}
+.agi-uw{border:0;background:none;padding:2px 0;text-align:left;font:500 12px var(--font);color:var(--faint);cursor:pointer}
+.agi-uw.on{color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:3px}
+.agi-uw:not(.on):hover{color:var(--purple)}
+.agi-main{min-width:0;display:flex;flex-direction:column;gap:2px}
+.agi-name{border:0;background:none;padding:0;text-align:left;font:600 13px var(--font);color:var(--ink);cursor:pointer;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agi-name:hover{color:var(--purple)}
+.agi-sub{font-size:11.5px;color:var(--muted)}
+.agi-note{margin-top:3px;border:0;border-bottom:1px solid transparent;padding:2px 0;font:400 12.5px var(--font);color:var(--ink2);background:none;outline:none;width:100%}
+.agi-note:hover{border-bottom-color:var(--hair)} .agi-note:focus{border-bottom-color:var(--ink)}
+.agi-note::placeholder{color:var(--faint)}
+.agi-st{border:0;background:none;font:500 12px var(--font);color:var(--ink2);padding:1px 0;cursor:pointer}
+.agi-x{border:0;background:none;padding:0;font-size:16px;line-height:1;color:var(--faint);cursor:pointer}
+.agi-x:hover{color:#9E3B36}
+.agd-add{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:8px}
+.agd-add input{flex:1 1 180px;min-width:0;height:30px;border:1px solid var(--rule);border-radius:6px;padding:0 10px;font:400 12.5px var(--font);color:var(--ink);outline:none}
+.agd-add input:focus{border-color:var(--ink)}
+.agd-add .lnk{font-size:12px}
 .lnk:hover{text-decoration:underline}
 /* this week: the Thursday highlights */
 .hl-list{display:flex;flex-direction:column}
@@ -263,7 +304,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202611121949"></script>
+<script src="../shared/wb.js?v=202611121955"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -301,7 +342,15 @@ async function load(){
   evs.forEach(e => (EV.get(e.project_id) || EV.set(e.project_id, []).get(e.project_id)).push(e));
   afterLoad();
 }
-await load();
+/* Thursday agenda (pipeline.meeting_agenda) and the deal list it can pull old deals from */
+let AG = [], DEALS = [];
+async function loadAG(){
+  try { AG = await WB.fetchAll("pipeline", "meeting_agenda", "*"); } catch(e){ AG = []; console.warn("meeting_agenda", e); }
+}
+async function loadDeals(){
+  try { DEALS = await WB.fetchAll("pipeline", "deals", "id,name,kind,stage,market_id,address,acres,units,updated_at", q => q.is("merged_into", null)); } catch(e){ DEALS = []; console.warn("deals", e); }
+}
+await Promise.all([load(), loadAG(), loadDeals()]);
 
 /* ---------- formatting ---------- */
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -470,6 +519,98 @@ async function delManual(k){
 }
 afterLoad = buildCands; buildCands();
 
+/* ---------- period filter (All / Under construction / Entitlements / Stalled): only projects with activity in the window ----------
+   Activity = any dated step on the project: a logged event, a hearing, approval, verification, construction start, or the day it was found.
+   This week is the meeting week (Thursday to Wednesday, same as This week); month and year are calendar. */
+const PERIODS = {all: "All time", year: "This year", month: "This month", week: "This week"};
+let per = qs.get("per") || store.get("per") || "all"; if(!PERIODS[per]) per = "all";
+const perRange = k => {
+  if(k === "week") return [addDays(curWeek, -7), addDays(curWeek, -1)];
+  if(k === "month"){ const m = today.slice(0, 7), [y, mo] = m.split("-").map(Number); return [m + "-01", new Date(Date.UTC(y, mo, 0)).toISOString().slice(0, 10)]; }
+  if(k === "year") return [today.slice(0, 4) + "-01-01", today.slice(0, 4) + "-12-31"];
+  return null;
+};
+const actDates = p => [p.hearing_date, p.approved_on, p.verified_on, p.construction_start, p.first_seen]
+  .concat((EV.get(p.id) || []).map(e => newsDate(e.on_date, e.created_at))).filter(Boolean).map(d => String(d).slice(0, 10));
+const inPerK = (p, k) => { const r = perRange(k); return !r || actDates(p).some(d => d >= r[0] && d <= r[1]); };
+const inPer = p => inPerK(p, per);
+function setPer(k){ per = k; store.set("per", k); try { const u = new URL(location.href); if(k === "all") u.searchParams.delete("per"); else u.searchParams.set("per", k); history.replaceState(null, "", u); } catch(e){} rebuild(); }
+/* the toggle row on a cover; counts are for this list and market */
+const perRow = m => {
+  const base = P.filter(p => inTrack(p) && inMkt(p) && (!m || p.market_id === m) && (track === "all" ? live(p) && p.lat != null && p.lng != null : onMap(p)));
+  return '<p class="per" role="group" aria-label="Period">' + Object.entries(PERIODS).map(([k, l]) => '<button type="button" data-per="' + k + '"' + (k === per ? ' class="on"' : "")
+    + ">" + l + " <i>" + base.filter(p => inPerK(p, k)).length + "</i></button>").join("") + "</p>";
+};
+
+/* ---------- Thursday agenda: stalled sites and old deals to run through with the manager; one is the week's underwrite ---------- */
+let agWeek = curWeek;
+const PDB = () => sb.schema("pipeline");
+const AG_STATUS = {planned: "Planned", underwritten: "Underwritten", discussed: "Discussed", dropped: "Dropped"};
+const agFor = (w, m) => AG.filter(a => a.meeting_on === w && (!m || a.market_id === m)).sort((a, b) => (a.role === "underwrite" ? 0 : 1) - (b.role === "underwrite" ? 0 : 1) || (a.rank || 0) - (b.rank || 0) || String(a.created_at).localeCompare(String(b.created_at)));
+const agHas = (w, pid) => AG.some(a => a.meeting_on === w && a.project_id === pid);
+const agName = a => a.item_type === "stalled" ? ((P.find(p => p.id === a.project_id) || {}).name || "Radar project") : ((DEALS.find(d => d.id === a.deal_id) || {}).name || "Deal");
+const agSub = a => {
+  if(a.item_type === "stalled"){ const p = P.find(x => x.id === a.project_id) || {}; return ["Stalled", p.units ? fNum(p.units) + " units" : "", p.hearing_date ? "last action " + fMonth(p.hearing_date) : ""].filter(Boolean).join(" · "); }
+  const d = DEALS.find(x => x.id === a.deal_id) || {};
+  return ["Old deal", d.kind === "asset" ? "Investment" : "Development", d.units ? fNum(d.units) + " units" : d.acres ? fNum(d.acres) + " ac" : "", d.stage ? d.stage.charAt(0).toUpperCase() + d.stage.slice(1) : ""].filter(Boolean).join(" · ");
+};
+async function agWrite(fn, okMsg){
+  const { error } = await fn(PDB().from("meeting_agenda"));
+  if(error){ WB.toast("Couldn't save: " + error.message, 5000); return false; }
+  await loadAG(); rerender(); if(okMsg) WB.toast(okMsg); return true;
+}
+const rerender = () => { if(extra){ const el = $("#slide"); el.innerHTML = renderCase(extra.p); } else if(SLIDES[idx]){ const s = SLIDES[idx], el = $("#slide");
+  el.innerHTML = s.t === "cover" ? renderCover(s.m) : s.t === "sale" ? renderSale(s) : s.t === "note" ? renderNote(s) : renderCase(s.p, s.h ? hlBlock(s.h) : ""); } };
+function agAddProject(pid){
+  const p = P.find(x => x.id === pid); if(!p) return;
+  if(agHas(agWeek, pid)) return agWrite(t => t.delete().eq("meeting_on", agWeek).eq("project_id", pid), "Removed from the " + fShort(agWeek) + " agenda.");
+  return agWrite(t => t.insert({meeting_on: agWeek, market_id: p.market_id, item_type: "stalled", project_id: pid, rank: agFor(agWeek).length + 1}), "Added to the " + fShort(agWeek) + " agenda.");
+}
+function agAddDeal(did){
+  const d = DEALS.find(x => x.id === did); if(!d) return;
+  if(AG.some(a => a.meeting_on === agWeek && a.deal_id === did)){ WB.toast("Already on this agenda."); return; }
+  return agWrite(t => t.insert({meeting_on: agWeek, market_id: d.market_id, item_type: "deal", deal_id: did, rank: agFor(agWeek).length + 1}), "Added " + d.name + ".");
+}
+async function agUnderwrite(id){
+  const a = AG.find(x => x.id === id); if(!a) return;
+  if(a.role === "underwrite") return agWrite(t => t.update({role: "discuss"}).eq("id", id));
+  const others = agFor(a.meeting_on, a.market_id).filter(x => x.role === "underwrite" && x.id !== id).map(x => x.id);   /* one underwrite per meeting and market */
+  if(others.length){ const { error } = await PDB().from("meeting_agenda").update({role: "discuss"}).in("id", others); if(error){ WB.toast("Couldn't save: " + error.message, 5000); return; } }
+  return agWrite(t => t.update({role: "underwrite"}).eq("id", id));
+}
+/* open items from the previous meeting that weren't discussed */
+const agCarry = m => agFor(addDays(agWeek, -7), m).filter(a => a.status === "planned" || a.status === "underwritten").filter(a => !AG.some(b => b.meeting_on === agWeek && ((a.project_id && b.project_id === a.project_id) || (a.deal_id && b.deal_id === a.deal_id))));
+function agCarryForward(m){
+  const rows = agCarry(m).map((a, n) => ({meeting_on: agWeek, market_id: a.market_id, item_type: a.item_type, project_id: a.project_id, deal_id: a.deal_id, role: a.role, status: a.status, note: a.note, rank: agFor(agWeek).length + n + 1}));
+  if(rows.length) agWrite(t => t.insert(rows), "Brought forward " + plural(rows.length, "item") + ".");
+}
+function agText(m){
+  const items = agFor(agWeek, m).filter(a => a.status !== "dropped");
+  return "Thursday pipeline meeting · " + fDate(agWeek) + (m ? " · " + MKT[m] : "") + "\n\n" + (items.length ? items.map((a, n) => (n + 1) + ". " + agName(a) + (a.role === "underwrite" ? " (underwrite)" : "") + " — " + agSub(a) + (a.note ? "\n   " + a.note : "")).join("\n") : "Nothing on the agenda yet.");
+}
+const oldDeals = m => DEALS.filter(d => (!m || d.market_id === m) && ["passed", "lost", "dead", "closed", "monitor"].includes(d.stage)).sort((a, b) => a.name.localeCompare(b.name));
+function agendaHtml(m){
+  const items = agFor(agWeek, m), carry = agCarry(m), uw = items.find(a => a.role === "underwrite");
+  const nav = '<button type="button" class="lnk" data-agwk="-7">‹</button><button type="button" class="lnk" data-agwk="7">›</button>' + (agWeek !== curWeek ? '<button type="button" class="lnk" data-agwk="0">This week</button>' : "");
+  const row = a => {
+    const open = a.item_type === "stalled" ? '<button type="button" class="agi-name" data-open="' + a.project_id + '">' + esc(agName(a)) + "</button>"
+      : '<a class="agi-name" href="../pipeline/?deal=' + encodeURIComponent(a.deal_id) + '&edit=1" target="_blank" rel="noopener">' + esc(agName(a)) + "</a>";
+    return '<div class="agi' + (a.status === "dropped" ? " off" : "") + '">'
+      + '<button type="button" class="agi-uw' + (a.role === "underwrite" ? " on" : "") + '" data-aguw="' + a.id + '" title="' + (a.role === "underwrite" ? "This week's underwrite" : "Make this the week's underwrite") + '">' + (a.role === "underwrite" ? "Underwrite" : "Discuss") + "</button>"
+      + '<div class="agi-main">' + open + '<span class="agi-sub">' + esc(agSub(a)) + "</span>"
+      + '<input class="agi-note" data-agnote="' + a.id + '" value="' + esc(a.note || "") + '" placeholder="What do we want to answer?"></div>'
+      + '<select class="agi-st" data-agst="' + a.id + '" aria-label="Status">' + Object.entries(AG_STATUS).map(([k, l]) => '<option value="' + k + '"' + (k === a.status ? " selected" : "") + ">" + l + "</option>").join("") + "</select>"
+      + '<button type="button" class="agi-x" data-agdel="' + a.id + '" title="Remove from the agenda">×</button></div>';
+  };
+  return '<section class="agd"><div class="agd-h"><h3>Thursday agenda · ' + esc(fShort(agWeek)) + "</h3><span>" + nav + "</span></div>"
+    + (items.length ? (uw ? "" : '<p class="meta agd-tip">Pick one item as the week\'s underwrite.</p>') + items.map(row).join("")
+      : '<p class="meta agd-tip">Nothing on this meeting\'s agenda yet. Add stalled sites with “+ Agenda” below, or an old deal here. Aim for one underwrite a week, an old deal or a stalled site.</p>')
+    + '<div class="agd-add"><input list="agDeals" id="agDealIn" placeholder="Add an old deal…" autocomplete="off"><datalist id="agDeals">'
+    + oldDeals(m).map(d => '<option value="' + esc(d.name) + '" data-id="' + d.id + '">' + esc((d.kind === "asset" ? "Investment" : "Development") + " · " + d.stage) + "</option>").join("") + "</datalist>"
+    + (carry.length ? '<button type="button" class="lnk" data-agcarry>Bring forward ' + plural(carry.length, "open item") + " from " + esc(fShort(addDays(agWeek, -7))) + "</button>" : "")
+    + (items.length ? '<button type="button" class="lnk" data-agcopy>Copy agenda</button>' : "") + "</div></section>";
+}
+
 /* ---------- shell: band with Map / Data log, the track toggle and the market toggle ---------- */
 const band = WB.band({title: "Radar", tabs: '<button type="button" class="on" data-t="map" role="tab">Map</button><button type="button" data-t="list" role="tab">Data log</button>'});
 const trk = document.createElement("div"); trk.className = "trk"; trk.setAttribute("role", "group"); trk.setAttribute("aria-label", "Report");
@@ -571,7 +712,7 @@ function rebuildWeek(){
 }
 function rebuildTrack(){
   /* All: every list at once, including CoStar construction rows not yet verified (drawn faded) */
-  vis = P.filter(p => inTrack(p) && inMkt(p) && (track === "all" ? live(p) && p.lat != null && p.lng != null : onMap(p)));
+  vis = P.filter(p => inTrack(p) && inMkt(p) && (track === "all" ? live(p) && p.lat != null && p.lng != null : onMap(p)) && inPer(p));
   /* markets never mix: projects are grouped by market (in core.markets order), and with All each market gets its own cover */
   const within = track === "entitlement" ? (a, b) => ENT_ORDER(a).localeCompare(ENT_ORDER(b))
     : track === "stalled" ? (a, b) => String(a.hearing_date || "9999").localeCompare(String(b.hearing_date || "9999")) || a.name.localeCompare(b.name)   /* longest-stalled first */
@@ -632,11 +773,12 @@ function renderCover(m){
   const vm = visAll().filter(inM);
   const nav = mkt === "all" ? (() => { const ms = SLIDES.map((s, i) => [s, i]).filter(([s]) => s.t === "cover" && s.m); return ms.length > 1 ? '<p class="meta mkts">' + ms.map(([s, i]) => s.m === m ? "<b>" + esc(MKT[s.m]) + "</b>" : '<button type="button" class="lnk" data-go="' + i + '">' + esc(MKT[s.m]) + "</button>").join(" · ") + "</p>" : ""; })() : "";
   if(track === "week") return renderWeekCover(m, nav);
+  const pr = perRow(m), perNote = per === "all" ? "" : '<p class="meta">Showing projects with activity ' + PERIODS[per].toLowerCase() + ": a hearing, approval, verification, start, logged update, or first found.</p>";
   if(track === "all"){
     const n = k => vm.filter(p => p.track === k), u = l => l.reduce((t, p) => t + (p.units || 0), 0);
     const ent = n("entitlement"), uc = n("construction"), stl = n("stalled"), pend = uc.filter(p => p.verification === "unverified");
     const block = (t, list, c3, f) => list.length ? agHead(t + " (" + list.length + ")", "Units", c3) + list.map(p => agRow(p, p.units ? fNum(p.units) : "–", f(p))).join("") + "</div>" : "";
-    return eyebrow(null, m) + nav + '<div class="hd"><h1>Everything</h1><h2>Every project on Radar in one view: stalled sites, entitlement cases and value drivers, and construction.</h2></div>'
+    return eyebrow(null, m) + nav + pr + perNote + '<div class="hd"><h1>Everything</h1><h2>Every project on Radar in one view: stalled sites, entitlement cases and value drivers, and construction.</h2></div>'
       + '<div class="figs3"><div><b>' + stl.length + "</b><span>Stalled · " + fNum(u(stl)) + " units</span></div><div><b>" + ent.length + "</b><span>Entitlements · " + fNum(u(ent)) + " units</span></div><div><b>" + uc.length + "</b><span>Under construction · " + fNum(u(uc)) + " units</span></div></div>"
       + (pend.length ? '<p class="lead">' + plural(pend.length, "construction project") + " listed by CoStar but not verified " + (pend.length === 1 ? "is" : "are") + " included and drawn faded.</p>" : "")
       + block("Stalled", stl, "Last action", p => p.hearing_date ? fMonth(p.hearing_date) : "–")
@@ -652,7 +794,7 @@ function renderCover(m){
     const juris = new Set(vis.map(p => (p.place || "").split(" · ")[0]).filter(Boolean));
     const nNew = P.filter(p => p.track === "entitlement" && inMkt(p) && inM(p) && p.review === "new").length;
     const block = (t, list, c3) => list.length ? agHead(t + " (" + list.length + ")", "Units", c3) + list.map(p => agRow(p, p.units ? fNum(p.units) : "–", c3 === "Hearing" ? (p.hearing_date ? fShort(p.hearing_date) : "–") : esc(p.product_type || ""))).join("") + "</div>" : "";
-    return eyebrow(null, m) + nav + '<div class="hd"><h1>Entitlement activity</h1><h2>' + plural(vis.length, "case") + " across " + plural(juris.size, "jurisdiction") + ": residential applications at planning and council, plus the projects that move apartment values.</h2></div>"
+    return eyebrow(null, m) + nav + pr + perNote + '<div class="hd"><h1>Entitlement activity</h1><h2>' + plural(vis.length, "case") + " across " + plural(juris.size, "jurisdiction") + ": residential applications at planning and council, plus the projects that move apartment values.</h2></div>"
       + (nNew ? '<p class="lead">' + plural(nNew, "new finding") + ' from the weekly search ' + (nNew === 1 ? "needs" : "need") + ' review. <button type="button" class="lnk" data-review>Review in the data log</button></p>' : "")
       + block("Upcoming hearings", up, "Hearing") + block("Recently heard", rec, "Hearing") + block("Value drivers and watch list", wat, "Type")
       + (vis.length ? "" : '<p class="lead">Nothing on the map for this market yet.</p>')
@@ -662,14 +804,17 @@ function renderCover(m){
     const vis = vm, units = vis.reduce((t, p) => t + (p.units || 0), 0);
     const ages = vis.map(p => p.hearing_date ? -monthsTo(p.hearing_date) : null).filter(v => v != null && v >= 0);
     const avgYrs = ages.length ? (ages.reduce((t, v) => t + v, 0) / ages.length / 12) : null;
-    const list = vis.length ? agHead("Stalled sites (" + vis.length + ")", "Units", "Last action") + vis.map(p => agRow(p, p.units ? fNum(p.units) : "–", p.hearing_date ? fMonth(p.hearing_date) : "–")).join("") + "</div>" : "";
-    return eyebrow(null, m) + nav + '<div class="hd"><h1>Stalled</h1><h2>Sites that were entitled or started and then went quiet: approvals aging out, paused construction, owners who may sell. Possible acquisitions, and supply that may never show up.</h2></div>'
+    const stRow = p => { const on = agHas(agWeek, p.id); return '<div class="ag-row ag4"><button type="button" class="ag-name ag-go" data-go="' + SLIDES.findIndex(s => s.p === p) + '">' + esc(p.name) + (p.review === "new" ? "<em>New</em>" : "") + "</button>"
+      + '<span class="ag-num">' + (p.units ? fNum(p.units) : "–") + '</span><span class="ag-num">' + (p.hearing_date ? fMonth(p.hearing_date) : "–") + "</span>"
+      + '<button type="button" class="ag-add' + (on ? " on" : "") + '" data-agadd="' + p.id + '" title="' + (on ? "On the " + fShort(agWeek) + " agenda; click to remove" : "Add to the " + fShort(agWeek) + " agenda") + '">' + (on ? "On agenda" : "+ Agenda") + "</button></div>"; };
+    const list = vis.length ? '<div class="agenda"><div class="ag-row ag4 ag-head"><span>Stalled sites (' + vis.length + ")</span><span>Units</span><span>Last action</span><span></span></div>" + vis.map(stRow).join("") + "</div>" : "";
+    return eyebrow(null, m) + nav + pr + agendaHtml(m) + '<div class="hd"><h1>Stalled</h1><h2>Sites that were entitled or started and then went quiet: approvals aging out, paused construction, owners who may sell. Possible acquisitions, and supply that may never show up.</h2></div>'
       + '<div class="figs3"><div><b>' + vis.length + "</b><span>Stalled sites</span></div><div><b>" + fNum(units) + "</b><span>Approved units</span></div><div><b>" + (avgYrs == null ? "–" : avgYrs.toFixed(1)) + "</b><span>Years since last action, on average</span></div></div>"
-      + list + (vis.length ? "" : '<p class="lead">No stalled sites in this market yet.</p>')
+      + perNote + list + (vis.length ? "" : '<p class="lead">' + (per === "all" ? "No stalled sites in this market yet." : "No stalled sites with activity " + PERIODS[per].toLowerCase() + ".") + "</p>")
       + '<p class="meta">Sand points with a red ring are stalled sites. Choose a row or a point to open it.</p>';
   }
   const vis = vm;
-  const all = P.filter(p => p.track === "construction" && inMkt(p) && inM(p) && live(p));
+  const all = P.filter(p => p.track === "construction" && inMkt(p) && inM(p) && live(p) && inPer(p));
   const pend = all.filter(p => p.verification === "unverified");
   const units = vis.reduce((t, p) => t + (p.units || 0), 0);
   const soon = vis.filter(p => { const m = monthsTo(p.delivery_date); return m != null && m >= 0 && m <= 12; });
@@ -677,7 +822,7 @@ function renderCover(m){
     const list = vis.filter(p => p.market_id === m);
     return list.length ? agHead("Verified (" + list.length + ")", "Units", "Delivers") + list.map(p => agRow(p, p.units ? fNum(p.units) : "–", p.delivery_date ? fMonth(p.delivery_date) : "–")).join("") + "</div>" : "";
   }).join("");
-  return eyebrow(null, m) + nav + '<div class="hd"><h1>Under construction</h1><h2>Projects with evidence they are actually moving: a permit, groundbreaking or topping-out coverage, pre-leasing, or construction financing. CoStar listing alone does not count.</h2></div>'
+  return eyebrow(null, m) + nav + pr + perNote + '<div class="hd"><h1>Under construction</h1><h2>Projects with evidence they are actually moving: a permit, groundbreaking or topping-out coverage, pre-leasing, or construction financing. CoStar listing alone does not count.</h2></div>'
     + '<div class="figs3"><div><b>' + vis.length + "</b><span>Verified projects</span></div><div><b>" + fNum(units) + "</b><span>Units</span></div><div><b>" + soon.length + "</b><span>Deliver in 12 months</span></div></div>"
     + (pend.length ? '<p class="lead">' + plural(pend.length, "CoStar project") + " listed as under construction " + (pend.length === 1 ? "is" : "are") + ' not verified yet, so they stay off the map. <button type="button" class="lnk" data-unverified>See them in the data log</button></p>' : "")
     + groups + (vis.length ? "" : '<p class="lead">No verified projects for this market yet. The weekly search verifies the largest CoStar projects first.</p>');
@@ -736,7 +881,8 @@ function renderCase(p, top){
     if(p.affordable) tags.push("<span>" + esc(p.affordable) + "</span>");
   }
   if(p.review === "new") tags.push('<span class="t-new">New</span>');
-  const head = eyebrow(p) + '<div class="hd"><div class="top"><h1>' + esc(p.name) + '</h1><a data-edit="' + p.id + '">Edit</a></div><h2>' + esc([p.place, p.address && p.address !== p.name ? p.address : ""].filter(Boolean).join(" · ")) + '</h2><div class="tags">' + tags.join("") + "</div></div>";
+  const agl = p.track === "stalled" ? '<a data-agadd="' + p.id + '">' + (agHas(agWeek, p.id) ? "On the " + esc(fShort(agWeek)) + " agenda ✓" : "+ Thursday agenda") + "</a>" : "";
+  const head = eyebrow(p) + '<div class="hd"><div class="top"><h1>' + esc(p.name) + '</h1><span class="tacts">' + agl + '<a data-edit="' + p.id + '">Edit</a></span></div><h2>' + esc([p.place, p.address && p.address !== p.name ? p.address : ""].filter(Boolean).join(" · ")) + '</h2><div class="tags">' + tags.join("") + "</div></div>";
   const srcs = (p.sources || []).filter(s => s && s.url).map(s => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.label || "Source") + "</a>").join(" · ");
   if(p.track !== "construction"){
     const dens = p.units && p.acres ? fNum(p.units / p.acres) + " / acre" : "";
@@ -912,6 +1058,13 @@ addEventListener("keydown", e => {
   if(e.key === "ArrowRight"){ extra = null; go(idx + 1); } else if(e.key === "ArrowLeft"){ extra = null; go(idx - 1); }
 });
 $("#slide").addEventListener("click", e => {
+  const pb = e.target.closest("[data-per]"); if(pb){ setPer(pb.dataset.per); return; }
+  const aa = e.target.closest("[data-agadd]"); if(aa){ e.stopPropagation(); agAddProject(aa.dataset.agadd); return; }
+  const uw = e.target.closest("[data-aguw]"); if(uw){ agUnderwrite(uw.dataset.aguw); return; }
+  const ad = e.target.closest("[data-agdel]"); if(ad){ agWrite(t => t.delete().eq("id", ad.dataset.agdel)); return; }
+  const aw = e.target.closest("[data-agwk]"); if(aw){ agWeek = +aw.dataset.agwk ? addDays(agWeek, +aw.dataset.agwk) : curWeek; rerender(); return; }
+  if(e.target.closest("[data-agcarry]")){ const s = curSlide(); agCarryForward(s && s.m); return; }
+  if(e.target.closest("[data-agcopy]")){ const s = curSlide(), txt = agText(s && s.m); (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => WB.toast("Agenda copied."), () => WB.toast("Couldn't copy.")); return; }
   const wk = e.target.closest("[data-wk]"); if(wk){ setWeek(+wk.dataset.wk ? addDays(week, +wk.dataset.wk) : curWeek); return; }
   if(e.target.closest("[data-curate]")){ setList(true); return; }
   const op = e.target.closest("[data-open]"); if(op){ const p = P.find(x => x.id === op.dataset.open); if(p) openCase(p); return; }
@@ -920,6 +1073,12 @@ $("#slide").addEventListener("click", e => {
   if(e.target.closest("[data-review]")){ lstat = "review"; setList(true); return; }
   if(e.target.closest("[data-unverified]")){ lstat = "unverified"; setList(true); }
 });
+$("#slide").addEventListener("change", e => {
+  const st = e.target.closest("[data-agst]"); if(st){ agWrite(t => t.update({status: st.value}).eq("id", st.dataset.agst)); return; }
+  const nt = e.target.closest("[data-agnote]"); if(nt){ const a = AG.find(x => x.id === nt.dataset.agnote); if(a && (a.note || "") !== nt.value.trim()) agWrite(t => t.update({note: nt.value.trim() || null}).eq("id", a.id)); return; }
+  if(e.target.id === "agDealIn"){ const v = e.target.value.trim(), s = curSlide(), d = oldDeals(s && s.m).find(x => x.name === v) || DEALS.find(x => x.name === v); if(d){ e.target.value = ""; agAddDeal(d.id); } }
+});
+$("#slide").addEventListener("keydown", e => { if(e.key === "Enter" && e.target.closest("[data-agnote]")) e.target.blur(); });
 addEventListener("resize", () => { if(ready) camera(curSlide()); });
 
 /* ---------- fix parcel: click county parcels to set the outline; saved on the project ---------- */
