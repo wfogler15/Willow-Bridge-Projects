@@ -244,6 +244,40 @@ const STATUSES = [
   {id:'past',        label:'Past Pursuit',   color:'var(--st-past)',        hex:'#9E3B36', pipeline:false},
 ];
 const statusById = Object.fromEntries(STATUSES.map(s=>[s.id,s]));
+/* ---- Map key: one visual language for every layer ----
+   Shape says what it is: circle = our deal, square = Radar project, small dot = CoStar property.
+   Colour says where it stands, and means the same thing on every layer:
+   midnight = ours, ochre = planned / entitling, teal = under construction, slate = existing, grey = inactive.
+   Filled = confirmed; hollow = unconfirmed or stalled. Each key row can be clicked to hide or show that group. */
+const KEY = {
+  ink:'#1D1247',
+  deal: {
+    active:   { label:'Active',   sub:'Underwriting · Contacted · LOI', hex:'#1D1247' },
+    watching: { label:'Watching', sub:'Prospect · Monitor',             hex:'#1D1247' },
+    past:     { label:'Past pursuit',                                    hex:'#A8A3B8' },
+  },
+  radar: {
+    entitlement: { label:'Entitling',          hex:'#B7791F' },
+    construction:{ label:'Under construction', hex:'#2C7A7B' },
+    unverified:  { label:'Construction, unverified', hex:'#2C7A7B', hollow:true },
+    stalled:     { label:'Stalled',            hex:'#8E8A9C', hollow:true },
+    driver:      { label:'Value driver',       hex:'#5B6475', driver:true },
+  },
+  comp: {
+    existing:    { label:'Existing',           hex:'#8C96AD' },
+    construction:{ label:'Under construction', hex:'#2C7A7B' },
+    proposed:    { label:'Proposed',           hex:'#B7791F', hollow:true },
+  },
+};
+const dealTier = s => ['underwriting','contacted','loi'].includes(s.status) ? 'active' : s.status === 'past' ? 'past' : 'watching';
+const radarCat = p => p.kind === 'driver' ? 'driver' : p.track === 'stalled' ? 'stalled'
+  : p.track === 'construction' ? (p.verification === 'unverified' ? 'unverified' : 'construction') : 'entitlement';
+const compCat = c => { const t = String((c && c.s) || '').toLowerCase(); return /under construction/.test(t) ? 'construction' : /propos|planning/.test(t) ? 'proposed' : 'existing'; };
+const KEY_HIDE_K = 'wb_scout_keyhide_v1';
+const keyHidden = (function(){ try{ return new Set(JSON.parse(localStorage.getItem(KEY_HIDE_K) || '[]')); }catch(e){ return new Set(); } })();
+const dealShown  = s => !keyHidden.has('deal:' + dealTier(s));
+const radarShown = p => !keyHidden.has('radar:' + radarCat(p));
+const compShown  = c => !keyHidden.has('comp:' + compCat(c));
 // Pipeline list filters (see renderSitesHome)
 const HOME_KEY = 'wb_sitehome_v2';
 const HOME_STATUS = {
@@ -2241,7 +2275,7 @@ const compsPane = map.createPane('comps'); compsPane.style.zIndex = 620;
 const compsRenderer = L.canvas({ pane:'comps', padding:0.5 });
 // quiet glass chips instead of the default green/yellow bubbles; wider grouping when zoomed out
 function quietClusterIcon(cl){
-  const n = cl.getChildCount(), d = n < 10 ? 22 : n < 50 ? 27 : n < 200 ? 32 : 38;
+  const n = cl.getChildCount(), d = n < 10 ? 18 : n < 50 ? 22 : n < 200 ? 26 : 30;
   return L.divIcon({ className:'cc-wrap', iconSize:[d, d], html:`<div class="cc" style="width:${d}px;height:${d}px">${n}</div>` });
 }
 const clusterRadius = z => z <= 10 ? 90 : z <= 12 ? 70 : 48;
@@ -2309,7 +2343,9 @@ function compCard(c0){
   };
   return { html, wire, color };
 }
-const compDotStyle = color => isMetro() ? { radius:4, color:'#1D1247', weight:1.5, fillColor:'#fff' } : { radius:4, color:'#fff', weight:1.25, fillColor:color };
+// CoStar dots: small and quiet so our deals and Radar read first. Proposed = hollow ochre ring.
+const compDotStyle = color => { const r = isMetro() ? 3 : 3.75;
+  return color === KEY.comp.proposed.hex ? { radius:r, color, weight:1.5, fillColor:'#fff', fillOpacity:1 } : { radius:r, color:'#fff', weight:1, fillColor:color, fillOpacity:1 }; };
 function styleCompDots(){ const metro = isMetro(); compsCluster.eachLayer(l => { if(l._wbColor){ l.setStyle(compDotStyle(l._wbColor)); l._wbMetro = metro; } }); }
 // One marker per comp, built once and reused across redraws. The popup card is built when it opens, not up front
 // (building ~3,000 cards on every redraw was the main stall when switching markets or toggling layers).
@@ -2344,7 +2380,7 @@ function drawComps(){
   const want = new Set();
   for(const c of _compsData){
     if(c.m !== currentMarket) continue;
-    const k = compKey(c); if(_compHidden.has(k) || STACKS.compTaken.has(k)) continue;
+    const k = compKey(c); if(_compHidden.has(k) || STACKS.compTaken.has(k) || !compShown(c)) continue;
     want.add(compMarker(c));
   }
   const drop = [], add = [];
@@ -2353,11 +2389,12 @@ function drawComps(){
   if(drop.length) compsCluster.removeLayers(drop);
   if(add.length) compsCluster.addLayers(add);
   if(!map.hasLayer(compsCluster)) map.addLayer(compsCluster);
+  renderLegend();
 }
 
 // ---- Radar: other developers' projects, tracked (not sites). Read-only here; edited on the Radar tab. ----
 let radarOn = true, _radarData = null, _radarLoading = null;
-const RADAR_TRACK = { entitlement:{label:'Entitlements', hex:'#432890'}, construction:{label:'Under construction', hex:'#1D1247'}, stalled:{label:'Stalled', hex:'#A89C90'} };
+const RADAR_TRACK = { entitlement:{label:'Entitlements', hex:KEY.radar.entitlement.hex}, construction:{label:'Under construction', hex:KEY.radar.construction.hex}, stalled:{label:'Stalled', hex:KEY.radar.stalled.hex} };
 /* Own pane above the comps canvas (620): Leaflet's canvas renderer covers the whole map and
    swallows clicks, so markers left in the default markerPane (600) couldn't be clicked. */
 const radarPane = map.createPane('radar'); radarPane.style.zIndex = 640;
@@ -2406,23 +2443,25 @@ const radarShapeRenderer = L.svg({ pane:'radarShapes' });
 function drawRadar(){
   if(!radarOn || !_radarData) return;
   radarLayer.clearLayers();
-  _radarData.filter(p => p.market_id === currentMarket && radarInScope(p) && !STACKS.radarTaken.has(p.id)).forEach(p => {
+  _radarData.filter(p => p.market_id === currentMarket && radarInScope(p) && radarShown(p) && !STACKS.radarTaken.has(p.id)).forEach(p => {
     const card = radarCard(p), a = radarAnchor(p), items = [{type:'radar', p}].concat(STACKS.byRadar.get(p.id) || []);
+    const k = KEY.radar[radarCat(p)];
     radarGeoms(p).forEach(g => {
       const lyr = L.geoJSON({type:'Feature', geometry:g, properties:{}}, { pane:'radarShapes', renderer:radarShapeRenderer,
-        style:{ color:card.color, weight:2.25, opacity:.95, fillColor:card.color, fillOpacity:.16, dashArray: p.track==='stalled' ? '6 4' : null } });
+        style:{ color:k.hex, weight:1.75, opacity:.9, fillColor:k.hex, fillOpacity: k.hollow ? .05 : .12, dashArray: k.hollow ? '5 4' : null } });
       lyr.on('click', ev => { L.DomEvent.stopPropagation(ev); openStack(ev.latlng, items); });
       radarLayer.addLayer(lyr);
     });
     const n = items.length;
-    const icon = L.divIcon({ className:'radar-pin', iconSize:[14,14], iconAnchor:[7,7],
-      html:`<span style="display:block;width:9px;height:9px;margin:2.5px;background:${card.color};border:1.5px solid #fff;box-shadow:0 0 0 1px ${card.color};transform:rotate(45deg);${card.driver?'border-radius:50%;transform:none;':''}${card.quiet?'opacity:.45;':''}"></span>${n>1?`<span class="stk-badge">${n}</span>`:''}` });
+    const icon = L.divIcon({ className:'mk-wrap', iconSize:[14,14], iconAnchor:[7,7],
+      html: keySymbol('radar', radarCat(p), n) });
     const m = L.marker(a, { icon, pane:'radar', zIndexOffset:300, title:p.name||'' })
       .bindTooltip(`<b>${esc(p.name||'')}</b><br>${esc(card.pill)}${p.units?` · ${Number(p.units).toLocaleString()} units`:''}${n>1?` · ${n} records`:''}`, {className:'parcel-tip', direction:'top', offset:[0,-6]});
     m.on('click', () => openStack(a, items));
     radarLayer.addLayer(m);
   });
   if(!map.hasLayer(radarLayer)) map.addLayer(radarLayer);
+  renderLegend();
 }
 
 // ---- Stacks: one highlight per parcel. A deal, a Radar project and CoStar records on the same parcel share one
@@ -2456,13 +2495,13 @@ function radarAnchor(p){
 function computeStacks(){
   const S = { bySite:new Map(), byRadar:new Map(), compTaken:new Set(), radarTaken:new Set() };
   const add = (m, k, it) => (m.get(k) || m.set(k, []).get(k)).push(it);
-  const sites = (pipelineOn ? marketSites() : []).map(s => {
+  const sites = (pipelineOn ? marketSites().filter(dealShown) : []).map(s => {
     const geoms = (s.parcels||[]).map(p => p.geometry).filter(Boolean);
     const b = geomsBounds(geoms);
     return { s, geoms, b, c: b ? b.getCenter() : null };
   }).filter(o => o.b);
   const inSite = (lat, lng) => sites.find(o => o.b.contains([lat, lng]) && o.geoms.some(g => ptInGeom(lat, lng, g)));
-  const radar = (radarOn && _radarData) ? _radarData.filter(p => p.market_id === currentMarket && radarInScope(p) && p.lat != null) : [];
+  const radar = (radarOn && _radarData) ? _radarData.filter(p => p.market_id === currentMarket && radarInScope(p) && radarShown(p) && p.lat != null) : [];
   for(const p of radar){
     const a = radarAnchor(p), gs = radarGeoms(p);
     const o = inSite(a[0], a[1]) || inSite(p.lat, p.lng) || sites.find(x => gs.some(g => ptInGeom(x.c.lat, x.c.lng, g)));
@@ -2470,7 +2509,7 @@ function computeStacks(){
   }
   const gBox = gs => { let w=180, so=90, e=-180, n=-90; const walk = c => { if(typeof c[0] === 'number'){ if(c[0]<w) w=c[0]; if(c[0]>e) e=c[0]; if(c[1]<so) so=c[1]; if(c[1]>n) n=c[1]; } else c.forEach(walk); }; gs.forEach(g => walk(g.coordinates)); return [w, so, e, n]; };
   const rFree = radar.filter(p => !S.radarTaken.has(p.id)).map(p => { const gs = radarGeoms(p); return { p, a:radarAnchor(p), gs, bx: gs.length ? gBox(gs) : null }; });
-  const comps = (compsOn && _compsData) ? _compsData.filter(c => c.m === currentMarket && !_compHidden.has(compKey(c))) : [];
+  const comps = (compsOn && _compsData) ? _compsData.filter(c => c.m === currentMarket && !_compHidden.has(compKey(c)) && compShown(c)) : [];
   for(const c of comps){
     const ll = compLL(c); if(ll[0] == null || ll[1] == null) continue;
     const o = inSite(ll[0], ll[1]);
@@ -2490,6 +2529,7 @@ function scheduleStacks(){
       const sig = [...S.bySite].map(([k, v]) => k + ':' + v.length).join(',') + '|' + [...S.byRadar].map(([k, v]) => k + ':' + v.length).join(',') + '|' + S.compTaken.size + '|' + S.radarTaken.size;
       STACKS = S;
       if(sig !== _stackSig){ _stackSig = sig; renderTracked(true); drawRadar(); drawComps(); }
+      renderLegend();   // layer toggles change the key even when nothing regroups
     }catch(e){ console.warn('[stacks]', e); }
   }, 150);
 }
@@ -2814,7 +2854,7 @@ let _compOv={}; try{ _compOv=JSON.parse(localStorage.getItem(COMP_OV_KEY)||'{}')
 function compView(c){ const o=_compOv[compKey(c)]; return o?Object.assign({},c,o):c; }
 function compLL(c){ const o=_compOv[compKey(c)]; return [ (o&&o.la!=null)?o.la:c.la, (o&&o.lo!=null)?o.lo:c.lo ]; }
 function saveCompOv(key,patch){ _compOv[key]=Object.assign({},_compOv[key]||{},patch); try{localStorage.setItem(COMP_OV_KEY,JSON.stringify(_compOv));}catch(e){} }
-function compStatusColor(s){ s=(s||'').toLowerCase(); if(/under construction/.test(s)) return '#D3913F'; if(/propos|planning/.test(s)) return '#9583CF'; return '#6F84B4'; }
+function compStatusColor(s){ return KEY.comp[compCat({ s })].hex; }
 function compStatusLabel(s){ s=(s||'').toLowerCase(); if(/under construction/.test(s)) return 'Under construction'; if(/propos|planning/.test(s)) return 'Proposed / planning'; return 'Existing'; }
 function snapDir(latlng){ const pt=map.latLngToContainerPoint(latlng), sz=map.getSize(); return (pt.x>sz.x*0.5?'l':'r')+(pt.y>sz.y*0.5?'t':'b'); }
 function addSnapCard(latlng,color,name,meta,key){
@@ -3700,14 +3740,18 @@ function renderTracked(fromStacks){
   if(typeof updateReadout === "function") updateReadout();
   if(pipelineOn) for(const site of marketSites()){
     if(_snapSiteFilter && !_snapSiteFilter.has(site.id)) continue;   // snapshot: only chosen sites
-    const st = statusById[site.status] || STATUSES[0];
+    if(!dealShown(site)) continue;                                     // hidden from the map key
+    const st = statusById[site.status] || STATUSES[0], tier = dealTier(site);
+    const pstyle = tier === 'active'   ? { color:KEY.ink, weight:2.5, opacity:1, fillColor:KEY.ink, fillOpacity:.2 }
+                 : tier === 'watching' ? { color:KEY.ink, weight:2, opacity:.95, fillColor:KEY.ink, fillOpacity:.08 }
+                 :                       { color:'#8E8A9C', weight:1.5, opacity:.9, fillColor:'#8E8A9C', fillOpacity:.06, dashArray:'5 4' };
     const cnt = (site.parcels||[]).length;
     // parcel polygons (visible when zoomed in)
     for(const parcel of (site.parcels||[])){
       if(!parcel.geometry){ ensureParcelGeometry(site, parcel); continue; }
       const lyr = L.geoJSON({type:'Feature', geometry:parcel.geometry, properties:{}}, {
         pane:'tracked', renderer:trackedRenderer,
-        style:{color:st.hex, weight:2.5, opacity:1, fillColor:st.hex, fillOpacity:0.28}
+        style:pstyle
       });
       lyr.bindTooltip(`<b>${esc(siteName(site))}</b><br>${st.label}${cnt>1?` · ${cnt} parcels`:''}`, {sticky:false, className:'parcel-tip'});
       lyr.on('click', ev => {
@@ -3725,9 +3769,8 @@ function renderTracked(fromStacks){
     const calloutShown = _snapComposed && $('snapSiteCallout') && $('snapSiteCallout').checked;
     if(c && !calloutShown){
       const extra = STACKS.bySite.get(site.id) || [];
-      const icon = L.divIcon({className:'', iconSize:[0,0],
-        html:`<div class="opp-marker ${st.pipeline?'live':'quiet'}" style="--c:${st.hex}"><div class="opp-pulse"></div><div class="opp-core"></div>${extra.length?`<span class="stk-badge">+${extra.length}</span>`:''}</div>`});
-      const m = L.marker(c, {icon, pane:'siteMarkers', riseOnHover:true});
+      const icon = L.divIcon({className:'mk-wrap', iconSize:[18,18], iconAnchor:[9,9], html: keySymbol('deal', tier, 1 + extra.length)});
+      const m = L.marker(c, {icon, pane:'siteMarkers', riseOnHover:true, zIndexOffset: tier === 'active' ? 400 : tier === 'watching' ? 200 : 0});
       const also = extra.length ? ' · also ' + [['radar','Radar'],['comp','CoStar']].map(([t, l]) => { const k = extra.filter(x => x.type === t).length; return k ? (k > 1 ? k + ' ' : '') + l : ''; }).filter(Boolean).join(', ') : '';
       m.bindTooltip(`<b>${esc(siteName(site))}</b><br>${st.label} · ${siteAcres(site).toFixed(2)} ac${cnt>1?` · ${cnt} parcels`:''}${esc(also)}`,
         {className:'parcel-tip', direction:'top', offset:[0,-12]});
@@ -3761,14 +3804,48 @@ function openSite(id){
   const p0 = (s.parcels||[])[0];
   if(p0) openParcel({type:'Feature', geometry:p0.geometry, properties:{...(p0.attrs||{APN:p0.apn, APN_DASH:p0.apnDash})}});
 }
+// The symbol for one key entry (used on the map and in the key, so they always match). n > 1 adds the stack count.
+function keySymbol(layer, cat, n){
+  const k = KEY[layer][cat], cnt = n > 1 ? `<i class="mk-n">${n}</i>` : '';
+  if(layer === 'deal') return `<span class="mk mk-deal mk-${cat}">${cnt}</span>`;
+  if(layer === 'radar') return `<span class="mk mk-sq${k.hollow ? ' mk-hollow' : ''}${k.driver ? ' mk-driver' : ''}" style="--c:${k.hex}">${cnt}</span>`;
+  return `<span class="mk mk-dot${k.hollow ? ' mk-hollow' : ''}" style="--c:${k.hex}"></span>`;
+}
+let _legendCollapsed = (function(){ try{ return localStorage.getItem('wb_scout_key_min') === '1'; }catch(e){ return false; } })();
 function renderLegend(){
-  const used = new Set(Store.all().map(s=>s.status));
-  const lg = $('legend');
-  if(!used.size){ lg.classList.remove('show'); return; }
-  lg.innerHTML = STATUSES.filter(s=>used.has(s.id))
-    .map(s=>`<div class="lg-row"><span class="dot" style="background:${s.hex}"></span>${s.label}</div>`).join('');
+  const lg = $('legend'); if(!lg) return;
+  if(_snapComposed){ lg.classList.remove('show'); return; }
+  const secs = [];
+  const sec = (title, layer, rows) => {
+    const body = rows.filter(r => r.n > 0 || keyHidden.has(layer + ':' + r.cat)).map(r => {
+      const id = layer + ':' + r.cat, off = keyHidden.has(id), k = KEY[layer][r.cat];
+      return `<button type="button" class="lg-row${off ? ' off' : ''}" data-key="${id}" title="${off ? 'Show' : 'Hide'} ${esc(k.label)}${k.sub ? ' (' + esc(k.sub) + ')' : ''}">
+        <span class="lg-sym">${keySymbol(layer, r.cat, 1)}</span><span class="lg-l">${esc(k.label)}</span><span class="lg-n">${r.n.toLocaleString('en-US')}</span></button>`;
+    }).join('');
+    if(body) secs.push(`<div class="lg-sec"><div class="lg-t">${title}</div>${body}</div>`);
+  };
+  const tally = (arr, f) => { const m = {}; arr.forEach(x => { const c = f(x); m[c] = (m[c] || 0) + 1; }); return m; };
+  if(pipelineOn){ const t = tally(marketSites(), dealTier); sec('Willow Bridge', 'deal', ['active','watching','past'].map(cat => ({ cat, n:t[cat] || 0 }))); }
+  if(radarOn && _radarData){ const t = tally(_radarData.filter(p => p.market_id === currentMarket && radarInScope(p)), radarCat);
+    sec('Radar', 'radar', ['entitlement','construction','unverified','stalled','driver'].map(cat => ({ cat, n:t[cat] || 0 }))); }
+  if(compsOn && _compsData){ const t = tally(_compsData.filter(c => c.m === currentMarket && !_compHidden.has(compKey(c))), compCat);
+    sec('CoStar', 'comp', ['existing','construction','proposed'].map(cat => ({ cat, n:t[cat] || 0 }))); }
+  if(!secs.length){ lg.classList.remove('show'); return; }
+  lg.innerHTML = `<button type="button" class="lg-head" data-min="1"><span>Map key</span><span class="lg-car">${_legendCollapsed ? '+' : '–'}</span></button>`
+    + (_legendCollapsed ? '' : secs.join('') + `<div class="lg-foot"><span class="mk mk-deal mk-watching lg-foot-mk"><i class="mk-n">2</i></span>Number = records on the same parcel. Click a row to hide it.</div>`);
   lg.classList.add('show');
 }
+(function wireLegend(){
+  const lg = $('legend'); if(!lg) return;
+  lg.addEventListener('click', ev => {
+    if(ev.target.closest('[data-min]')){ _legendCollapsed = !_legendCollapsed; try{ localStorage.setItem('wb_scout_key_min', _legendCollapsed ? '1' : '0'); }catch(e){} renderLegend(); return; }
+    const b = ev.target.closest('[data-key]'); if(!b) return;
+    const id = b.dataset.key; keyHidden.has(id) ? keyHidden.delete(id) : keyHidden.add(id);
+    try{ localStorage.setItem(KEY_HIDE_K, JSON.stringify([...keyHidden])); }catch(e){}
+    _stackSig = ''; renderTracked(true); drawRadar(); drawComps(); scheduleStacks();
+  });
+  L.DomEvent.disableClickPropagation(lg); L.DomEvent.disableScrollPropagation(lg);
+})();
 /* ---- Pipeline list (the "Pipeline" button): search, status / type filters, sortable columns ---- */
 let _homeDirty = false;
 // per-site derived fields + search text, rebuilt only when the site changes
@@ -3835,7 +3912,7 @@ function renderSitesHome(){
       <div class="sh-tr sh-head" role="row">${col('name','Site')}${col('status','Status')}<span class="sh-th">Type</span>${col('acres','Acres')}${col('units','Units')}<span class="sh-th">Entitlement</span><span class="sh-th">Owner</span>${col('updated','Updated')}<span></span></div>
       ${rows.map(r => `<div class="sh-tr" role="row" tabindex="0" data-open="${esc(r.s.id)}">
         <span class="sh-site"><b>${esc(r.name)}</b>${r.sub ? `<em>${esc(r.sub)}</em>` : ''}</span>
-        <span class="sh-st"><i style="background:${r.stObj.hex}"></i>${esc(r.stObj.label)}</span>
+        <span class="sh-st">${keySymbol('deal', dealTier(r.s), 1)}${esc(r.stObj.label)}</span>
         <span class="sh-dim">${HOME_KIND[r.kind]}</span>
         <span class="num">${r.acres ? r.acres.toFixed(2) : '—'}</span>
         <span class="num sh-dim">${r.units ? Number(r.units).toLocaleString('en-US') : '—'}</span>

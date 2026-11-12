@@ -107,3 +107,59 @@ span.sh-th{cursor:default}
 }
 #homeNewSite{background:#1D1247 !important;border-color:#1D1247 !important;color:#fff !important;box-shadow:none !important;background-image:none !important}
 #homeNewSite:hover{background:#2B1D63 !important}
+
+/* ---------- Map key symbols (one language across layers; see KEY in app.js) ---------- */
+.mk-wrap{background:none!important;border:0!important}
+.mk-wrap{display:flex!important;align-items:center;justify-content:center}
+.mk{position:relative;display:inline-block;box-sizing:border-box;flex:none}
+/* our deals: circles in midnight */
+.mk-deal{border-radius:50%;cursor:pointer}
+.mk-active{width:15px;height:15px;background:#1D1247;border:2px solid #fff;box-shadow:0 0 0 1.5px #1D1247,0 1px 5px rgba(10,6,30,.45)}
+.mk-watching{width:13px;height:13px;background:#fff;border:3px solid #1D1247;box-shadow:0 1px 4px rgba(10,6,30,.4)}
+.mk-past{width:10px;height:10px;background:#A8A3B8;border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(29,18,71,.35),0 1px 2px rgba(10,6,30,.25)}
+/* Radar: squares in the track colour; hollow = stalled or unverified; value drivers get a centre dot */
+.mk-sq{width:11px;height:11px;border-radius:2.5px;background:var(--c);border:1.5px solid #fff;box-shadow:0 0 0 1px rgba(20,16,40,.28),0 1px 3px rgba(10,6,30,.3);cursor:pointer}
+.mk-sq.mk-hollow{background:#fff;border:2px solid var(--c);box-shadow:0 1px 3px rgba(10,6,30,.3)}
+.mk-sq.mk-driver::after{content:'';position:absolute;left:50%;top:50%;width:3px;height:3px;margin:-1.5px 0 0 -1.5px;border-radius:50%;background:#fff}
+/* CoStar (the key's copy of the canvas dots) */
+.mk-dot{width:8px;height:8px;border-radius:50%;background:var(--c);border:1px solid #fff;box-shadow:0 0 0 .5px rgba(20,16,40,.25)}
+.mk-dot.mk-hollow{background:#fff;border:1.5px solid var(--c);box-shadow:none}
+/* stack count: several records on one parcel */
+.mk-n{position:absolute;left:calc(100% - 3px);bottom:calc(100% - 5px);min-width:13px;height:13px;padding:0 3px;border-radius:7px;box-sizing:border-box;
+  background:#fff;color:#1D1247;border:1px solid #1D1247;font:600 8.5px/11px 'Inter Tight',Inter,sans-serif;font-style:normal;text-align:center;pointer-events:none}
+.leaflet-marker-icon.mk-wrap:hover .mk{transform:scale(1.15)}
+.mk{transition:transform .12s ease}
+/* zoomed out: same shapes and colours, a touch smaller, no counts */
+.z-metro .mk-active{width:12px;height:12px;border-width:1.5px}
+.z-metro .mk-watching{width:11px;height:11px;border-width:2.5px}
+.z-metro .mk-past{width:8px;height:8px}
+.z-metro .mk-sq{width:9px;height:9px}
+.z-metro .mk-n{display:none}
+/* quieter CoStar cluster chips */
+.cc{background:rgba(255,255,255,.86)!important;border:1px solid rgba(91,100,117,.55)!important;color:#4A5168!important;font:600 9.5px/1 'Inter Tight',Inter,sans-serif!important;box-shadow:0 1px 3px rgba(10,6,30,.18)!important}
+/* Pipeline list status column uses the deal symbol */
+.sh-st .mk{transform:scale(.8);margin-right:-1px}
+
+/* the key */
+#legend{right:14px!important;bottom:26px!important;width:212px;padding:0!important;border-radius:10px!important;background:rgba(255,255,255,.96)!important;
+  border:1px solid #E6E4EC!important;box-shadow:0 4px 18px rgba(10,6,30,.16)!important;font-family:Inter,'Inter Tight',sans-serif;overflow:hidden}
+#legend .lg-head{all:unset;box-sizing:border-box;display:flex;width:100%;align-items:center;justify-content:space-between;padding:8px 12px;cursor:pointer;
+  font-size:11.5px;font-weight:600;color:#1D1247}
+#legend .lg-car{color:#77728C;font-weight:400;font-size:13px;line-height:1}
+#legend .lg-sec{padding:6px 12px 7px;border-top:1px solid #EFEEF3}
+#legend .lg-t{font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#9A96AC;margin:2px 0 3px}
+#legend .lg-row{all:unset;box-sizing:border-box;display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:7px;width:100%;padding:3px 0;cursor:pointer;
+  font-size:11.5px;color:#1D1247}
+#legend .lg-row:hover .lg-l{text-decoration:underline;text-decoration-color:#C9C5D6}
+#legend .lg-sym{display:flex;align-items:center;justify-content:center}
+#legend .lg-sym .mk{transform:none;cursor:pointer}
+#legend .lg-n{font-variant-numeric:tabular-nums;color:#9A96AC;font-size:10.5px}
+#legend .lg-row.off{opacity:.38}
+#legend .lg-row.off .lg-l{text-decoration:line-through}
+#legend .lg-foot{display:flex;align-items:center;gap:8px;padding:7px 12px 9px;border-top:1px solid #EFEEF3;font-size:10.5px;line-height:1.35;color:#77728C}
+#legend .lg-foot-mk{transform:scale(.85);margin:4px 6px 0 2px}
+/* zoomed out: parcel outlines are smaller than their markers and just add boxes; markers alone (snapshots keep them) */
+.z-metro:not(.snap-editing) .leaflet-tracked-pane,.z-metro:not(.snap-editing) .leaflet-radarShapes-pane{display:none}
+body.snap-capturing .z-metro .leaflet-tracked-pane,body.snap-capturing .z-metro .leaflet-radarShapes-pane{display:block}
+#legend .lg-foot-mk{transform:none;margin:5px 8px 0 1px;width:11px;height:11px;border-width:2.5px}
+#legend .lg-foot-mk .mk-n{min-width:12px;height:12px;line-height:10px;font-size:8px}
