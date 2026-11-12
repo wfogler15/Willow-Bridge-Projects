@@ -1803,7 +1803,7 @@ const Store = {
   all(){ return Object.values(this.data.sites); },
   upsert(site){ site.updated = Date.now(); this.data.sites[site.id] = site; this.save(); sbPushSite(site); },
   remove(id){ delete this.data.sites[id]; this.save(); sbDeleteSite(id); },
-  siteForApn(apn){ return this.all().find(s => (s.parcels||[]).some(p=>p.apn===apn)) || null; },
+  siteForApn(apn){ if(!apn) return null; return this.all().find(s => (s.parcels||[]).some(p=>p.apn===apn)) || null; },   // no APN must never match a site's APN-less parcel
   async syncFromCloud(prefetched){
     const rows = prefetched || await sbFetchAll();
     if(!rows) return false;
@@ -3759,7 +3759,7 @@ function renderTracked(fromStacks){
         if(_boundEdit){ return; }             // drawing a boundary — ignore
         L.DomEvent.stopPropagation(ev);
         window._lastParcelClick = ev.latlng || (parcel._lat!=null ? {lat:parcel._lat, lng:parcel._lng} : null);
-        openParcel({type:'Feature', geometry:parcel.geometry, properties:{...(parcel.attrs||{APN:parcel.apn, APN_DASH:parcel.apnDash})}});
+        openParcel({type:'Feature', geometry:parcel.geometry, properties:{APN:parcel.apn, APN_DASH:parcel.apnDash, ...(parcel.attrs||{})}});
       });
       lyr.addTo(trackedLayer);
     }
@@ -3803,7 +3803,7 @@ function openSite(id){
   const s = Store.get(id); if(!s) return;
   const b = siteBounds(s); if(b) map.fitBounds(b.pad(0.5));
   const p0 = (s.parcels||[])[0];
-  if(p0) openParcel({type:'Feature', geometry:p0.geometry, properties:{...(p0.attrs||{APN:p0.apn, APN_DASH:p0.apnDash})}});
+  if(p0) openParcel({type:'Feature', geometry:p0.geometry, properties:{APN:p0.apn, APN_DASH:p0.apnDash, ...(p0.attrs||{})}});
 }
 // The symbol for one key entry (used on the map and in the key, so they always match). n > 1 adds the stack count.
 function keySymbol(layer, cat, n){
