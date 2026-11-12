@@ -5072,7 +5072,14 @@ function renderSiteDetailBody(s){
   const city = s.parcels.map(p=>pv(p,'PHYSICAL_CITY')).filter(Boolean)[0];
   const mkLabel = MARKETS[siteMarket(s)] ? MARKETS[siteMarket(s)].name.replace(/&amp;/g,'&') : '';
   const sub = [city || mkLabel, siteAcres(s)?siteAcres(s).toFixed(2)+' ac':null, s.parcels.length+' parcel'+(s.parcels.length!==1?'s':'')].filter(Boolean).join('  ·  ');
-  { const h=$('sdHeadSub'); if(h) h.textContent = sub; }
+  { const h=$('sdHeadSub');
+    if(h){
+      // jump-off links: the deal in Opportunities, and any Radar project on the same parcel
+      const rad = (STACKS.bySite.get(s.id) || []).filter(x => x.type === 'radar').map(x => x.p);
+      const links = (s._dealId ? [`<a class="sd-jump" href="../pipeline/?deal=${encodeURIComponent(s._dealId)}&edit=1" target="_blank" rel="noopener">Opportunities ↗</a>`] : [])
+        .concat(rad.slice(0, 2).map(p => `<a class="sd-jump" href="../development/?id=${encodeURIComponent(p.id)}" target="_blank" rel="noopener" title="${esc(p.name || '')}">Radar${rad.length > 1 ? ': ' + esc((p.name || '').slice(0, 22)) : ''} ↗</a>`));
+      h.innerHTML = esc(sub) + (links.length ? '<span class="sd-jumps">' + links.join('') + '</span>' : '');
+    } }
 
   const activity = (s.notes||[]).slice().reverse().map(n=>
     '<div class="act-item"><div class="act-date">'+new Date(n.t).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})+'</div><div class="act-text">'+esc(n.text)+'</div></div>'

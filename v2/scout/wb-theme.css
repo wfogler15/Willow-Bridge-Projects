@@ -170,3 +170,7 @@ body.snap-capturing .z-metro .leaflet-tracked-pane,body.snap-capturing .z-metro 
 .z-metro .mk-watching{width:12px;height:12px;border-width:3px}
 #legend .lg-sym .mk-active{box-shadow:0 0 0 2.5px rgba(108,71,255,.3)}
 .mk-n{border-color:#6C47FF;color:#4A2FD0}
+/* site card: links out to Opportunities / Radar */
+#sdHeadSub .sd-jumps{display:inline-flex;gap:12px;margin-left:12px}
+#sdHeadSub .sd-jump{color:#6C47FF;font-weight:600;text-decoration:none;white-space:nowrap}
+#sdHeadSub .sd-jump:hover{text-decoration:underline}
