@@ -8969,7 +8969,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611112320">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611121709">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9197,6 +9197,8 @@ body { background:#fff; color:var(--ink-1); }
 .wbi-sum { margin:0 !important; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .wbi-acts { padding-top:0 !important; }
 .wbi-fpanel { top:56px !important; }
+/* above Leaflet maps on the page (panes 400, controls 1000), below the nav (5000) — the comp set map was covering the panel */
+.wbi-fpanel { z-index:1100 !important; }
 /* contrast pass: hard colors so theme variables can't wash these out */
 .wbi-rail-h { color:#1D1247 !important; font-weight:600 !important; font-size:12px !important; letter-spacing:.02em; }
 .wbi-rail .tab { color:#3A3456 !important; }
@@ -9222,10 +9224,10 @@ body { background:#fff; color:var(--ink-1); }
 .wb-life-link { color:#432890; text-decoration:none; font-weight:600; }
 .wb-life-link:hover { text-decoration:underline; }
 </style>
-<script src="../shared/wb.js?v=202611112320"></script>
-<script src="../shared/legacy-db.js?v=202611112320"></script>
-<script>window.WB_BUILD = '202611112320';</script>
-<script src="loader.js?v=202611112320"></script>
+<script src="../shared/wb.js?v=202611121709"></script>
+<script src="../shared/legacy-db.js?v=202611121709"></script>
+<script>window.WB_BUILD = '202611121709';</script>
+<script src="loader.js?v=202611121709"></script>
 
 
 
