@@ -565,6 +565,9 @@ html,body{background:#fff !important}
 .ag-row.ag5 .ag-name{min-width:0;display:flex;align-items:baseline;gap:6px}
 .ag-row.ag5 .ag-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ag-row.ag5 .ag-name em.agnew{flex:none}
+.ag-row.ag5 .ag-grip{flex:none;width:0;overflow:hidden;color:#A9A5B8;font-size:11px;letter-spacing:-2px;cursor:grab;transition:width .12s}
+.ag-row.ag5:hover .ag-grip{width:10px}
+.ag-row.ag5.dragging{opacity:.45;background:rgba(67,40,144,.08)}
 .ag-row.ag5 .ag-num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ag-row.ag5.ag-head span{font-size:12px;color:#77728C;font-weight:400}
 .ag-row.ag5.ag-head span:first-child{color:#1D1247;font-weight:600;font-size:12px}
@@ -640,7 +643,7 @@ html,body{background:#fff !important}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202611122029"></script>
+<script src="../shared/wb.js?v=202611121503"></script>
 <script>
 (async () => {
 const { sb, user } = await WB.ready("pipeline");
@@ -712,7 +715,7 @@ function toDeal(r, logs, parcels){
     parcelNote: u.parcel_note || null, src: Array.isArray(u.sources) ? u.sources : null,
     log: (logs || []).map(l => [l.logged_on, l.body]),
     _parcels: parcels || [], checkBack: r.check_back_on, outcome,
-    inScout: !!r.in_scout, firstSeen: r.first_seen, isNew: !!r.first_seen && r.first_seen >= LAST_MEETING, folder: r.folder_path || null,
+    inScout: !!r.in_scout, rank: r.meeting_rank ?? null, firstSeen: r.first_seen, isNew: !!r.first_seen && r.first_seen >= LAST_MEETING, folder: r.folder_path || null,
   };
 }
 async function loadReport(){
@@ -1090,7 +1093,9 @@ const byBid = (a, b) => (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || (a.bidDate 
 const active = deals.filter(d => !archived(d) && !watching(d));
 const arch = deals.filter(d => archived(d) || watching(d));
 const UWS = new Set(["underwriting","bidding","loi","contract"]);
-const byMeeting = (a, b) => (UWS.has(b.stage) - UWS.has(a.stage)) || ((b.isNew ? 1 : 0) - (a.isNew ? 1 : 0)) || byBid(a, b);
+/* a manual order (dragged on the list, saved as meeting_rank) wins; unranked deals follow in the default order */
+const byDefault = (a, b) => (UWS.has(b.stage) - UWS.has(a.stage)) || ((b.isNew ? 1 : 0) - (a.isNew ? 1 : 0)) || byBid(a, b);
+const byMeeting = (a, b) => ((a.rank ?? 1e9) - (b.rank ?? 1e9)) || byDefault(a, b);
 /* trades since the last meeting; if fewer than three, the last 30 days */
 function salesFor(m){
   const all = (REPORT.trades || []).filter(c => c.market === m);
@@ -1106,14 +1111,20 @@ function renderSales(m){
     + '<div class="meta">From Sale Comps. Dots on the map are these trades.</div>';
 }
 /* Meeting order: cover, then each market (market board slide, its development deals, then its acquisitions). */
-let SLIDES = [{t:"cover", ms:9000}];
-REPORT.markets.forEach(m => {
-  const list = active.filter(d => d.market === m).sort(byMeeting);
-  if(!list.length) return;
-  SLIDES.push({t:"market", m, ms:11000});
-  list.forEach(d => SLIDES.push({t:"deal", d, ms:15000}));
-});
-arch.forEach(d => SLIDES.push({t:"deal", d, ms:15000, skip:true}));
+let SLIDES = [];
+/* rebuilt in place after a reorder: same slides, new order, so the progress bar's indexes stay valid */
+function buildSlides(){
+  SLIDES.length = 0;
+  SLIDES.push({t:"cover", ms:9000});
+  REPORT.markets.forEach(m => {
+    const list = active.filter(d => d.market === m).sort(byMeeting);
+    if(!list.length) return;
+    SLIDES.push({t:"market", m, ms:11000});
+    list.forEach(d => SLIDES.push({t:"deal", d, ms:15000}));
+  });
+  arch.forEach(d => SLIDES.push({t:"deal", d, ms:15000, skip:true}));
+}
+buildSlides();
 { const uw = active.filter(d => UWS.has(d.stage)).length, nw = active.filter(d => d.isNew).length, el = document.querySelector(".wb-band .lede");
   if(el) el.textContent = plural(uw, "deal") + " in underwriting or later, " + nw + " new since " + fmtDate(LAST_MEETING) + ". Past pursuits stay on the map for context."; }
 const START = (() => { const id = new URLSearchParams(location.search).get("deal"); const i = id ? SLIDES.findIndex(x => x.d && x.d.id === id) : -1; return i > 0 ? i : 0; })();   /* archived: reachable from the list, skipped by the player */
@@ -1128,7 +1139,7 @@ function plural(n, w){ return n + " " + w + (n === 1 ? "" : "s"); }
 const agUnits = d => d.kind === "land" ? (d.doors || d.units) : d.units;
 const agPu = d => (d.guidance && agUnits(d)) ? d.guidance / agUnits(d) : null;
 const agHead = title => '<div class="agenda"><div class="ag-row ag5 ag-head"><span>' + title + '</span><span>Acres</span><span>Units</span><span>Guidance</span><span>$ / unit</span></div>';
-const agRow = d => '<button type="button" class="ag-row ag5" data-go="' + SLIDES.findIndex(x => x.d === d) + '"><span class="ag-name"><span class="ag-t">' + esc(d.name) + "</span>" + (d.isNew ? ' <em class="agnew">New</em>' : "") + "</span>"
+const agRow = d => '<button type="button" class="ag-row ag5" draggable="true" data-id="' + esc(d.id) + '" data-mkt="' + esc(d.market) + '" data-go="' + SLIDES.findIndex(x => x.d === d) + '" title="Drag to reorder"><span class="ag-name"><span class="ag-grip" aria-hidden="true">⋮⋮</span><span class="ag-t">' + esc(d.name) + "</span>" + (d.isNew ? ' <em class="agnew">New</em>' : "") + "</span>"
   + '<span class="ag-num">' + (d.acres ? fmtNum(d.acres) : "–") + "</span>"
   + '<span class="ag-num">' + (agUnits(d) ? fmtNum(agUnits(d)) : "–") + "</span>"
   + '<span class="ag-num ag-px">' + esc(priceLine(d)) + "</span>"
@@ -1491,6 +1502,37 @@ async function onMapClick(e){
 }
 $("#pick").addEventListener("click", () => setPick(!picking));
 $("#slide").addEventListener("click", e => { const r = e.target.closest("[data-go]"); if(r) go(+r.dataset.go); });
+/* drag a row on the Opportunities list (cover or market board) to set the meeting order; saved per market as meeting_rank */
+let dragRow = null;
+$("#slide").addEventListener("dragstart", e => { const r = e.target.closest(".ag-row[data-id]"); if(!r) return; dragRow = r; r.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", r.dataset.id); } catch(_){} });
+$("#slide").addEventListener("dragover", e => {
+  if(!dragRow) return; const over = e.target.closest(".ag-row[data-id]");
+  if(!over || over === dragRow || over.parentNode !== dragRow.parentNode) return;
+  e.preventDefault(); const b = over.getBoundingClientRect();
+  over.parentNode.insertBefore(dragRow, e.clientY > b.top + b.height / 2 ? over.nextSibling : over);
+});
+$("#slide").addEventListener("drop", e => { if(dragRow) e.preventDefault(); });
+$("#slide").addEventListener("dragend", () => { if(!dragRow) return; const r = dragRow; dragRow = null; r.classList.remove("dragging"); saveOrder(r.dataset.mkt, r.parentNode); });
+async function saveOrder(m, box){
+  /* the dragged block's order, then the market's other active deals in their current order */
+  const ids = [...box.querySelectorAll(".ag-row[data-id]")].map(x => x.dataset.id);
+  const rest = active.filter(d => d.market === m && !ids.includes(d.id)).sort(byMeeting).map(d => d.id);
+  const cur = active.filter(d => d.market === m).sort(byMeeting).map(d => d.id);
+  let order = ids.concat(rest);
+  /* on a market board the list is split in two blocks; keep each block's slots and only reorder inside the dragged one */
+  if(rest.length && box.closest("#slide") && SLIDES[idx] && SLIDES[idx].t === "market"){
+    const set = new Set(ids), slots = cur.map(id => set.has(id)); let k = 0;
+    order = cur.map((id, i) => slots[i] ? ids[k++] : id);
+  }
+  if(order.join() === cur.join()) return;
+  const changed = order.map((id, i) => ({id, rank: i + 1})).filter(x => { const d = active.find(y => y.id === x.id); return d && d.rank !== x.rank; });
+  const res = await Promise.all(changed.map(x => sb.schema("pipeline").from("deals").update({meeting_rank: x.rank}).eq("id", x.id)));
+  const err = res.find(r => r.error);
+  if(err){ WB.toast("Couldn't save the order: " + err.error.message, 5000); go(idx); return; }
+  changed.forEach(x => { const d = active.find(y => y.id === x.id); if(d) d.rank = x.rank; });
+  const cur0 = SLIDES[idx]; buildSlides(); idx = Math.max(0, SLIDES.indexOf(cur0));
+  WB.toast("Order saved.");
+}
 if(false) $("#copy").addEventListener("click", async () => {
   const txt = JSON.stringify(OV);
   hint.hidden = false;
