@@ -9815,7 +9815,7 @@ function exportCompSetPdf() {
   const subline = [meta.submarkets.length === 1 ? meta.submarkets[0] : meta.submarkets.length + ' submarkets', props.length + ' properties', n0(meta.units) + ' units',
     meta.vintageMin ? (meta.vintageMin === meta.vintageMax ? meta.vintageMin : meta.vintageMin + '–' + meta.vintageMax) : null].filter(Boolean).join('  ·  ');
   const source = 'Source: CoStar' + (asOf ? ', ' + asOf : '') + '. Averages weighted by units. Concessions shown as weeks free.';
-  const head = (kicker) => `<header><div><p class="k">${E(kicker)}</p><h1>${E(cs.name)}</h1><p class="sub">${E(subline)}${deal ? '  ·  Subject: ' + E(deal.name) : ''}</p></div><img src="../shared/wb-mark.png" alt=""></header>`;
+  const head = (kicker, compact) => `<header${compact ? ' class="cmp"' : ''}><div><p class="k">${E(kicker)}</p><h1>${E(cs.name)}</h1><p class="sub">${E(subline)}${deal ? '  ·  Subject: ' + E(deal.name) : ''}</p></div><img src="../shared/wb-mark.png" alt=""></header>`;
   const foot = (n) => `<footer><span>${E(source)}</span><span>Willow Bridge · ${E(today)} · ${n}</span></footer>`;
 
   const kpi = (l, v, s) => `<div class="kpi"><p class="l">${l}</p><p class="v">${v}</p>${s ? `<p class="s">${s}</p>` : ''}</div>`;
@@ -9833,11 +9833,11 @@ function exportCompSetPdf() {
   const tr = r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${E([r.p.address, r.p.submarket].filter(Boolean).join(' · '))}</span></td><td>${r.p.yearBuilt || '–'}</td><td>${n0(r.p.units)}</td><td>${n0(r.p.avgUnitSF)}</td><td>${r.occ == null ? '–' : r.occ.toFixed(1) + '%'}</td><td class="pr">${psf(r.askSF)}</td><td class="mo">${usd(r.askU)}</td><td class="pr">${psf(r.effSF)}</td><td class="mo">${usd(r.effU)}</td><td>${wks(r.weeks)}</td>${subj ? `<td>${r.mi == null ? '–' : r.mi.toFixed(1)}</td>` : ''}</tr>`;
   const avgRow = `<tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units</span></td><td>${avg.yr ? Math.round(avg.yr) : '–'}</td><td>${n0(meta.units)}</td><td>${n0(avg.sf)}</td><td>${avg.occ == null ? '–' : avg.occ.toFixed(1) + '%'}</td><td class="pr">${psf(avg.askSF)}</td><td class="mo">${usd(avg.askU)}</td><td class="pr">${psf(avg.effSF)}</td><td class="mo">${usd(avg.effU)}</td><td>${wks(avg.weeks)}</td>${subj ? '<td></td>' : ''}</tr>`;
   // A 16:9 page holds about 13 two-line rows plus the average, so longer sets continue on another page.
-  const dense = rows.length > 7 ? ' dense' : '', PER = 13;
+  const dense = rows.length > 7 ? ' dense' : '', PER = 12;
   const parts = []; for (let k = 0; k < rows.length; k += PER) parts.push(rows.slice(k, k + PER));
   let pno = 1;
   const cont = (k) => parts.length > 1 ? ` (${k + 1} of ${parts.length})` : '';
-  const page2 = parts.map((part, k) => `<section class="pg">${head('Comp set · Property detail' + cont(k))}<table class="t${dense}"><thead>${th}</thead><tbody>${part.map(tr).join('')}${k === parts.length - 1 ? avgRow : ''}</tbody></table>${foot(++pno)}</section>`).join('');
+  const page2 = parts.map((part, k) => `<section class="pg">${head('Comp set · Property detail' + cont(k), true)}<table class="t${dense}"><thead>${th}</thead><tbody>${part.map(tr).join('')}${k === parts.length - 1 ? avgRow : ''}</tbody></table>${foot(++pno)}</section>`).join('');
 
   // rents by unit type: asking $/SF first, $/mo and SF under it
   const types = [['Studio', 'studioRent', 'studioSF', 'unitsStudio'], ['1 BR', 'oneRent', 'oneSF', 'units1Bed'], ['2 BR', 'twoRent', 'twoSF', 'units2Bed'], ['3 BR', 'threeRent', 'threeSF', 'units3Bed']]
@@ -9848,7 +9848,7 @@ function exportCompSetPdf() {
     const den = xs.reduce((a, p) => a + w(p), 0); if (!den) return '<td class="mx">–</td>';
     const r = xs.reduce((a, p) => a + p[t[1]] * w(p), 0) / den, sf = xs.reduce((a, p) => a + p[t[2]] * w(p), 0) / den;
     return `<td class="mx"><b>${psf(r / sf)}</b><span>${usd(r)} · ${n0(sf)} SF</span></td>`; };
-  const page3 = !types.length ? '' : parts.map((part, k) => `<section class="pg">${head('Comp set · Asking rent by unit type' + cont(k))}<table class="t mix${dense}"><thead><tr><th class="no">#</th><th class="nm">Property</th>${types.map(t => `<th class="mx">${t[0]}</th>`).join('')}</tr></thead>
+  const page3 = !types.length ? '' : parts.map((part, k) => `<section class="pg">${head('Comp set · Asking rent by unit type' + cont(k), true)}<table class="t mix${dense}"><thead><tr><th class="no">#</th><th class="nm">Property</th>${types.map(t => `<th class="mx">${t[0]}</th>`).join('')}</tr></thead>
     <tbody>${part.map(r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${r.p.yearBuilt || ''}${r.p.units ? ' · ' + n0(r.p.units) + ' units' : ''}</span></td>${types.map(t => cell(r.p, t)).join('')}</tr>`).join('')}
     ${k === parts.length - 1 ? `<tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units of each type</span></td>${types.map(tAvg).join('')}</tr>` : ''}</tbody></table>${foot(++pno)}</section>`).join('');
 
@@ -9860,7 +9860,7 @@ function exportCompSetPdf() {
       body > *:not(#cs-print) { display:none !important; }
       #cs-print { display:block !important; }
     }
-    #cs-print { font-family: Aptos, 'Aptos Display', Inter, 'Segoe UI', sans-serif; color:#1D1247; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    #cs-print { line-height:1.25; font-family: Aptos, 'Aptos Display', Inter, 'Segoe UI', sans-serif; color:#1D1247; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
     #cs-print .pg { width:13.333in; height:7.5in; box-sizing:border-box; padding:0.55in 0.6in 0.45in; display:flex; flex-direction:column; page-break-after:always; break-after:page; overflow:hidden; background:#fff; }
     #cs-print .pg:last-child { page-break-after:auto; break-after:auto; }
     #cs-print header { display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:0.16in; border-bottom:1.5px solid #1D1247; margin-bottom:0.26in; }
@@ -9868,6 +9868,11 @@ function exportCompSetPdf() {
     #cs-print header h1 { margin:0; font-size:26pt; font-weight:600; letter-spacing:-.01em; line-height:1.1; }
     #cs-print header .sub { margin:6px 0 0; font-size:11pt; color:#5B5675; }
     #cs-print header img { width:34px; height:34px; opacity:.9; }
+    #cs-print header.cmp { padding-bottom:0.1in; margin-bottom:0.16in; }
+    #cs-print header.cmp h1 { font-size:18pt; }
+    #cs-print header.cmp .sub { font-size:9.5pt; margin-top:3px; }
+    #cs-print header.cmp .k { font-size:9pt; margin-bottom:2px; }
+    #cs-print header.cmp img { width:26px; height:26px; }
     #cs-print footer { margin-top:auto; padding-top:0.12in; border-top:1px solid #E3E1EA; display:flex; justify-content:space-between; font-size:8.5pt; color:#8A86A0; }
     #cs-print .p1 { flex:1; display:grid; grid-template-columns:minmax(0,1fr) 3.1in; gap:0.42in; min-height:0; margin-bottom:0.2in; }
     #cs-print #csp-map { width:100%; height:100%; border:1px solid #E3E1EA; border-radius:4px; overflow:hidden; background:#F4F3F7; }
