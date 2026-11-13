@@ -7269,7 +7269,10 @@ function renderCompSetIntel() {
       <span style="font-size:13px;line-height:1;">✎</span> EDIT SET
     </button>
     <button class="sc-export-btn" id="cs-intel-export" title="Download the full comp set workbook as CSV">
-      <span style="font-size:13px;line-height:1;">↓</span> EXPORT
+      <span style="font-size:13px;line-height:1;">↓</span> CSV
+    </button>
+    <button class="sc-export-btn" id="cs-intel-pdf" title="Deck-ready PDF: map and summary, comp table, rents by unit type (16:9 pages)">
+      <span style="font-size:13px;line-height:1;">↓</span> PDF
     </button>`;
 
   if (props.length === 0) {
@@ -9636,6 +9639,8 @@ function wireCsIntel() {
 
   const exportBtn = document.getElementById('cs-intel-export');
   if (exportBtn) exportBtn.addEventListener('click', exportCompSetCsv);
+  const pdfBtn = document.getElementById('cs-intel-pdf');
+  if (pdfBtn) pdfBtn.addEventListener('click', exportCompSetPdf);
 
   // Rent basis toggle on the position chart.
   host.querySelectorAll('[data-cs-basis]').forEach(b => {
@@ -9773,6 +9778,158 @@ function exportCompSetCsv() {
   const stamp = new Date().toISOString().slice(0, 10);
   const safeName = (cs && cs.name ? cs.name : 'Comp_Set').replace(/[^A-Za-z0-9]+/g, '_');
   downloadCsv(`WB_CompSet_${safeName}_${stamp}.csv`, headers, rows);
+}
+
+/* =================================================================
+   COMP SET PDF — deck-ready 16:9 pages, printed from this page so the map
+   uses the same Leaflet + tiles. Page 1 map + summary, page 2 the comp table,
+   page 3 rents by unit type. Rent per SF first, monthly rent second;
+   concessions in weeks free. Save as PDF from the print dialog.
+   ================================================================= */
+function exportCompSetPdf() {
+  const props = compSetProperties();
+  const cs = compSets[state.activeCompSetId];
+  if (!props.length || !cs) return;
+  const deal = cmDealOpp(cs.dealId);
+  const subj = deal && deal.lat != null && deal.lng != null ? L.latLng(deal.lat, deal.lng) : null;
+  const E = escapeHTML;
+  const n0 = v => v == null || isNaN(v) ? '–' : Math.round(v).toLocaleString('en-US');
+  const usd = v => v == null || isNaN(v) ? '–' : '$' + Math.round(v).toLocaleString('en-US');
+  const psf = v => v == null || isNaN(v) ? '–' : '$' + (+v).toFixed(2);
+  const wks = v => v == null || isNaN(v) ? '–' : (+v).toFixed(1);
+
+  const rows = props.map((p, i) => {
+    const cx = concessionStats(p);
+    const effUnit = cx.source === 'entered' ? cx.eff : p.avgEffectiveUnit;
+    const effSF = cx.source === 'entered' ? (cx.eff != null && p.avgUnitSF ? cx.eff / p.avgUnitSF : null) : p.avgEffectiveSF;
+    const mi = subj && p.lat != null && p.lng != null ? subj.distanceTo([p.lat, p.lng]) / 1609.34 : null;
+    return { p, i: i + 1, occ: p.vacancy == null ? null : 100 - p.vacancy, askSF: p.avgAskingSF, askU: p.avgAskingUnit, effSF, effU: effUnit, weeks: cx.weeksFree, mi, u: p.units || 0 };
+  });
+  const W = (k) => wtdAvg(rows.filter(r => r[k] != null && !isNaN(r[k])), k, 'u');
+  const meta = csSetMeta(props);
+  const avg = { occ: W('occ'), askSF: W('askSF'), askU: W('askU'), effSF: W('effSF'), effU: W('effU'), weeks: W('weeks'),
+    sf: wtdAvg(props.filter(p => p.avgUnitSF), 'avgUnitSF', 'units'), yr: wtdAvg(props.filter(p => p.yearBuilt), 'yearBuilt', 'units') };
+  const offering = rows.filter(r => r.weeks > 0.25).length;
+  const asOf = (() => { const d = props.map(p => p.costarAsOf).filter(Boolean).sort().pop(); return d ? new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null; })();
+  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const subline = [meta.submarkets.length === 1 ? meta.submarkets[0] : meta.submarkets.length + ' submarkets', props.length + ' properties', n0(meta.units) + ' units',
+    meta.vintageMin ? (meta.vintageMin === meta.vintageMax ? meta.vintageMin : meta.vintageMin + '–' + meta.vintageMax) : null].filter(Boolean).join('  ·  ');
+  const source = 'Source: CoStar' + (asOf ? ', ' + asOf : '') + '. Averages weighted by units. Concessions shown as weeks free.';
+  const head = (kicker) => `<header><div><p class="k">${E(kicker)}</p><h1>${E(cs.name)}</h1><p class="sub">${E(subline)}${deal ? '  ·  Subject: ' + E(deal.name) : ''}</p></div><img src="../shared/wb-mark.png" alt=""></header>`;
+  const foot = (n) => `<footer><span>${E(source)}</span><span>Willow Bridge · ${E(today)} · ${n}</span></footer>`;
+
+  const kpi = (l, v, s) => `<div class="kpi"><p class="l">${l}</p><p class="v">${v}</p>${s ? `<p class="s">${s}</p>` : ''}</div>`;
+  const page1 = `<section class="pg">${head('Comp set')}
+    <div class="p1"><div id="csp-map"></div>
+      <div class="kpis">
+        ${kpi('Asking rent', psf(avg.askSF) + '<small>/SF</small>', usd(avg.askU) + '/mo')}
+        ${kpi('Effective rent', psf(avg.effSF) + '<small>/SF</small>', usd(avg.effU) + '/mo, net of concessions')}
+        ${kpi('Concessions', wks(avg.weeks) + '<small> wks free</small>', offering + ' of ' + rows.length + ' offering')}
+        ${kpi('Occupancy', avg.occ == null ? '–' : avg.occ.toFixed(1) + '<small>%</small>', '')}
+        ${kpi('Avg unit size', n0(avg.sf) + '<small> SF</small>', avg.yr ? 'Avg vintage ' + Math.round(avg.yr) : '')}
+      </div></div>${foot(1)}</section>`;
+
+  const th = `<tr><th class="no">#</th><th class="nm">Property</th><th>Built</th><th>Units</th><th>Avg SF</th><th>Occ.</th><th>Asking $/SF</th><th class="mo">$/mo</th><th>Effective $/SF</th><th class="mo">$/mo</th><th>Wks free</th>${subj ? '<th>Miles</th>' : ''}</tr>`;
+  const tr = r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${E([r.p.address, r.p.submarket].filter(Boolean).join(' · '))}</span></td><td>${r.p.yearBuilt || '–'}</td><td>${n0(r.p.units)}</td><td>${n0(r.p.avgUnitSF)}</td><td>${r.occ == null ? '–' : r.occ.toFixed(1) + '%'}</td><td class="pr">${psf(r.askSF)}</td><td class="mo">${usd(r.askU)}</td><td class="pr">${psf(r.effSF)}</td><td class="mo">${usd(r.effU)}</td><td>${wks(r.weeks)}</td>${subj ? `<td>${r.mi == null ? '–' : r.mi.toFixed(1)}</td>` : ''}</tr>`;
+  const avgRow = `<tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units</span></td><td>${avg.yr ? Math.round(avg.yr) : '–'}</td><td>${n0(meta.units)}</td><td>${n0(avg.sf)}</td><td>${avg.occ == null ? '–' : avg.occ.toFixed(1) + '%'}</td><td class="pr">${psf(avg.askSF)}</td><td class="mo">${usd(avg.askU)}</td><td class="pr">${psf(avg.effSF)}</td><td class="mo">${usd(avg.effU)}</td><td>${wks(avg.weeks)}</td>${subj ? '<td></td>' : ''}</tr>`;
+  const dense = rows.length > 12 ? ' dense' : '';
+  const page2 = `<section class="pg">${head('Comp set · Property detail')}<table class="t${dense}"><thead>${th}</thead><tbody>${rows.map(tr).join('')}${avgRow}</tbody></table>${foot(2)}</section>`;
+
+  // rents by unit type: asking $/SF first, $/mo and SF under it
+  const types = [['Studio', 'studioRent', 'studioSF', 'unitsStudio'], ['1 BR', 'oneRent', 'oneSF', 'units1Bed'], ['2 BR', 'twoRent', 'twoSF', 'units2Bed'], ['3 BR', 'threeRent', 'threeSF', 'units3Bed']]
+    .filter(t => props.some(p => p[t[1]] != null));
+  const cell = (p, t) => { const r = p[t[1]], sf = p[t[2]]; if (r == null) return '<td class="mx">–</td>'; const per = sf ? r / sf : null;
+    return `<td class="mx"><b>${psf(per)}</b><span>${usd(r)} · ${n0(sf)} SF</span></td>`; };
+  const tAvg = t => { const xs = props.filter(p => p[t[1]] != null && p[t[2]]); const w = p => p[t[3]] || p.units || 1;
+    const den = xs.reduce((a, p) => a + w(p), 0); if (!den) return '<td class="mx">–</td>';
+    const r = xs.reduce((a, p) => a + p[t[1]] * w(p), 0) / den, sf = xs.reduce((a, p) => a + p[t[2]] * w(p), 0) / den;
+    return `<td class="mx"><b>${psf(r / sf)}</b><span>${usd(r)} · ${n0(sf)} SF</span></td>`; };
+  const page3 = types.length ? `<section class="pg">${head('Comp set · Asking rent by unit type')}<table class="t mix${dense}"><thead><tr><th class="no">#</th><th class="nm">Property</th>${types.map(t => `<th class="mx">${t[0]}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${r.p.yearBuilt || ''}${r.p.units ? ' · ' + n0(r.p.units) + ' units' : ''}</span></td>${types.map(t => cell(r.p, t)).join('')}</tr>`).join('')}
+    <tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units of each type</span></td>${types.map(tAvg).join('')}</tr></tbody></table>${foot(3)}</section>` : '';
+
+  const css = `
+    @page { size: 13.333in 7.5in; margin: 0; }
+    #cs-print { display:none; }
+    @media print {
+      html, body { background:#fff !important; }
+      body > *:not(#cs-print) { display:none !important; }
+      #cs-print { display:block !important; }
+    }
+    #cs-print { font-family: Aptos, 'Aptos Display', Inter, 'Segoe UI', sans-serif; color:#1D1247; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    #cs-print .pg { width:13.333in; height:7.5in; box-sizing:border-box; padding:0.55in 0.6in 0.45in; display:flex; flex-direction:column; page-break-after:always; break-after:page; overflow:hidden; background:#fff; }
+    #cs-print .pg:last-child { page-break-after:auto; break-after:auto; }
+    #cs-print header { display:flex; justify-content:space-between; align-items:flex-start; padding-bottom:0.16in; border-bottom:1.5px solid #1D1247; margin-bottom:0.26in; }
+    #cs-print header .k { margin:0 0 4px; font-size:10.5pt; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#432890; }
+    #cs-print header h1 { margin:0; font-size:26pt; font-weight:600; letter-spacing:-.01em; line-height:1.1; }
+    #cs-print header .sub { margin:6px 0 0; font-size:11pt; color:#5B5675; }
+    #cs-print header img { width:34px; height:34px; opacity:.9; }
+    #cs-print footer { margin-top:auto; padding-top:0.12in; border-top:1px solid #E3E1EA; display:flex; justify-content:space-between; font-size:8.5pt; color:#8A86A0; }
+    #cs-print .p1 { flex:1; display:grid; grid-template-columns:minmax(0,1fr) 3.1in; gap:0.42in; min-height:0; margin-bottom:0.2in; }
+    #cs-print #csp-map { width:100%; height:100%; border:1px solid #E3E1EA; border-radius:4px; overflow:hidden; background:#F4F3F7; }
+    #cs-print .kpis { display:flex; flex-direction:column; justify-content:space-between; }
+    #cs-print .kpi { padding:0.06in 0 0.12in; border-bottom:1px solid #E3E1EA; }
+    #cs-print .kpi:last-child { border-bottom:0; }
+    #cs-print .kpi .l { margin:0; font-size:10pt; color:#5B5675; }
+    #cs-print .kpi .v { margin:3px 0 0; font-size:28pt; font-weight:600; line-height:1.05; letter-spacing:-.01em; font-variant-numeric:tabular-nums; }
+    #cs-print .kpi .v small { font-size:13pt; font-weight:500; color:#5B5675; margin-left:2px; }
+    #cs-print .kpi .s { margin:3px 0 0; font-size:10pt; color:#1D1247; opacity:.75; }
+    #cs-print .t { width:100%; border-collapse:collapse; font-size:10.5pt; font-variant-numeric:tabular-nums; margin-bottom:0.15in; }
+    #cs-print .t.dense { font-size:9pt; }
+    #cs-print .t th { text-align:left; font-size:9pt; font-weight:600; color:#5B5675; padding:0 8px 7px; border-bottom:1px solid #1D1247; white-space:nowrap; }
+    #cs-print .t td { text-align:left; padding:6px 8px; border-bottom:1px solid #ECEAF1; vertical-align:middle; white-space:nowrap; }
+    #cs-print .t.dense td { padding:4px 8px; }
+    #cs-print .t .no { width:22px; color:#8A86A0; padding-left:0; }
+    #cs-print .t td.no { font-weight:600; }
+    #cs-print .t .nm { white-space:normal; }
+    #cs-print .t .nm b { display:block; font-weight:600; }
+    #cs-print .t .nm span { display:block; font-size:8.5pt; color:#8A86A0; margin-top:1px; }
+    #cs-print .t td.pr { font-weight:600; }
+    #cs-print .t .mo { color:#8A86A0; }
+    #cs-print .t tr.avg td { border-top:1.5px solid #1D1247; border-bottom:0; background:#F6F5FA; }
+    #cs-print .t.mix td.mx b { display:block; font-weight:600; }
+    #cs-print .t.mix td.mx span { display:block; font-size:8.5pt; color:#8A86A0; }
+    #cs-print .csp-pin span { display:flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:#1D1247; color:#fff; font:600 10.5px Aptos, Inter, sans-serif; box-shadow:0 0 0 2px #fff, 0 1px 3px rgba(0,0,0,.35); }
+    #cs-print .csp-subj span { display:block; width:14px; height:14px; border-radius:50%; background:#6C47FF; box-shadow:0 0 0 3px #fff, 0 0 0 7px rgba(108,71,255,.3); }
+    #cs-print .csp-lab { background:#fff; border:0; box-shadow:0 1px 3px rgba(0,0,0,.25); color:#1D1247; font:600 10px Aptos, Inter, sans-serif; padding:2px 6px; border-radius:3px; }
+    #cs-print .csp-lab::before { display:none; }`;
+
+  let el = document.getElementById('cs-print'); if (el) el.remove();
+  let st = document.getElementById('cs-print-css'); if (st) st.remove();
+  st = document.createElement('style'); st.id = 'cs-print-css'; st.textContent = css; document.head.appendChild(st);
+  el = document.createElement('div'); el.id = 'cs-print'; el.innerHTML = page1 + page2 + page3; document.body.appendChild(el);
+  // The map has to be laid out at print size to frame correctly, so show the container off-screen while tiles load.
+  el.style.cssText = 'display:block;position:fixed;left:-20000px;top:0;';
+  const map = L.map('csp-map', { zoomControl: false, attributionControl: false, fadeAnimation: false, zoomAnimation: false, preferCanvas: false });
+  const tiles = wbStreetLayer().addTo(map);
+  const pts = [];
+  rows.forEach(r => {
+    if (r.p.lat == null || r.p.lng == null) return;
+    pts.push([r.p.lat, r.p.lng]);
+    if (subj) L.polyline([subj, [r.p.lat, r.p.lng]], { color: '#432890', weight: 1, opacity: .35, dashArray: '3 4', interactive: false }).addTo(map);
+    L.marker([r.p.lat, r.p.lng], { icon: L.divIcon({ className: 'csp-pin', html: `<span>${r.i}</span>`, iconSize: [20, 20], iconAnchor: [10, 10] }) }).addTo(map);
+  });
+  if (subj) {
+    pts.push([subj.lat, subj.lng]);
+    L.marker(subj, { icon: L.divIcon({ className: 'csp-subj', html: '<span></span>', iconSize: [14, 14], iconAnchor: [7, 7] }), zIndexOffset: 1000 })
+      .bindTooltip(E(deal.name), { permanent: true, direction: 'right', offset: [10, 0], className: 'csp-lab' }).addTo(map);
+  }
+  map.invalidateSize();
+  if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(0.12), { maxZoom: 15, animate: false });
+  else if (pts.length) map.setView(pts[0], 14, { animate: false });
+
+  let done = false;
+  const go = () => {
+    if (done) return; done = true;
+    el.style.cssText = '';
+    const cleanup = () => { try { map.remove(); } catch (e) {} el.remove(); st.remove(); window.removeEventListener('afterprint', cleanup); };
+    window.addEventListener('afterprint', cleanup);
+    const t = document.title; document.title = 'WB Comp Set - ' + cs.name;
+    setTimeout(() => { window.print(); document.title = t; }, 150);
+  };
+  let pending = 0;
+  tiles.eachLayer(l => { pending++; l.once('load', () => { if (--pending <= 0) setTimeout(go, 250); }); });
+  setTimeout(go, 6000);   // don't wait forever on a slow tile
 }
 
 /* =================================================================
