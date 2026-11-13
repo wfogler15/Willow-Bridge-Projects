@@ -14250,24 +14250,43 @@ function renderSubmarkets() {
     ? data.map(p => ({
         name: p.name || '(unnamed)', units: p.units || 0, existing: p.status === 'Existing',
         psf: p.avgEffectiveSF != null ? p.avgEffectiveSF : p.avgAskingSF,
+        rent: p.avgEffectiveUnit != null ? p.avgEffectiveUnit : p.avgAskingUnit,
         vacancy: p.vacancy
       }))
     : stats;
+  // $/SF or $/mo for the rent chart (remembered per browser); each bar is labelled with its value
+  let basis = 'psf'; try { basis = localStorage.getItem('wb_top_rent_basis') === 'mo' ? 'mo' : 'psf'; } catch (e) {}
+  const rk = basis === 'mo' ? 'rent' : 'psf';
+  const fmtRent = v => basis === 'mo' ? '$' + Math.round(v).toLocaleString('en-US') : '$' + v.toFixed(2);
+  document.querySelectorAll('#top-rent-basis button').forEach(b => {
+    b.classList.toggle('on', b.dataset.basis === basis);
+    b.onclick = () => { try { localStorage.setItem('wb_top_rent_basis', b.dataset.basis); } catch (e) {} renderSubmarkets(); };
+  });
+  const tt = document.getElementById('top-psf-title');
+  if (tt) tt.innerHTML = basis === 'mo' ? 'Highest <em>Rent / Month</em>' : 'Highest <em>Rent / SF</em>';
+  // draws the value just past the end of each horizontal bar
+  const barLabels = (fmtV) => ({ id: 'barEndLabels', afterDatasetsDraw(chart) {
+    const { ctx } = chart, meta = chart.getDatasetMeta(0), ds = chart.data.datasets[0];
+    ctx.save(); ctx.font = "600 11.5px 'Inter Tight', Inter, sans-serif"; ctx.fillStyle = '#1D1247'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    meta.data.forEach((bar, i) => { const v = ds.data[i]; if (v == null) return; ctx.fillText(fmtV(v), bar.x + 6, bar.y); });
+    ctx.restore();
+  } });
   const sp = document.getElementById('top-psf-sub'), so = document.getElementById('top-occ-sub');
-  if (sp) sp.textContent = byProp ? 'Top 15 Properties · By Effective PSF' : 'Top 15 Submarkets · By Effective PSF';
+  if (sp) sp.textContent = (byProp ? 'Top 15 Properties' : 'Top 15 Submarkets') + (basis === 'mo' ? ' · By Effective Rent' : ' · By Effective PSF');
   if (so) so.textContent = byProp ? '15 Tightest Stabilized Properties' : '15 Tightest Submarkets';
 
   // Top PSF chart
-  const topPsf = [...rankRows].filter(s => s.psf != null).sort((a,b) => b.psf - a.psf).slice(0, 15);
+  const topPsf = [...rankRows].filter(s => s[rk] != null).sort((a,b) => b[rk] - a[rk]).slice(0, 15);
   destroyChart('top-psf');
   if (topPsf.length) {
     charts['top-psf'] = new Chart(document.getElementById('chart-top-psf'), {
       type: 'bar',
+      plugins: [barLabels(fmtRent)],
       data: {
         labels: topPsf.map(s => s.name),
         datasets: [{
-          label: 'Rent / SF',
-          data: topPsf.map(s => +s.psf.toFixed(2)),
+          label: basis === 'mo' ? 'Rent / Month' : 'Rent / SF',
+          data: topPsf.map(s => basis === 'mo' ? Math.round(s.rent) : +s.psf.toFixed(2)),
           backgroundColor: 'rgba(67,40,144,0.85)',
           borderColor: 'rgba(67,40,144,1)',
           borderWidth: 1,
@@ -14277,9 +14296,10 @@ function renderSubmarkets() {
       options: {
         indexAxis: 'y',
         responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `$${ctx.parsed.x.toFixed(2)} / SF` } } },
+        layout: { padding: { right: 8 } },
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => basis === 'mo' ? `${fmtRent(ctx.parsed.x)} / month` : `${fmtRent(ctx.parsed.x)} / SF` } } },
         scales: {
-          x: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, callback: v => '$' + v.toFixed(2) } },
+          x: { ...AXIS_COMMON, grace: '10%', ticks: { ...AXIS_COMMON.ticks, callback: v => basis === 'mo' ? '$' + Math.round(v).toLocaleString('en-US') : '$' + v.toFixed(2) } },
           y: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' } } }
         }
       }
@@ -14293,6 +14313,7 @@ function renderSubmarkets() {
   if (lowVac.length) {
     charts['top-occ'] = new Chart(document.getElementById('chart-top-occ'), {
       type: 'bar',
+      plugins: [barLabels(v => (+v).toFixed(1) + '%')],
       data: {
         labels: lowVac.map(s => s.name),
         datasets: [{
@@ -14309,7 +14330,7 @@ function renderSubmarkets() {
         responsive: true, maintainAspectRatio: false,
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.parsed.x.toFixed(1)}% Vacancy` } } },
         scales: {
-          x: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, callback: v => v.toFixed(1) + '%' } },
+          x: { ...AXIS_COMMON, grace: '12%', ticks: { ...AXIS_COMMON.ticks, callback: v => v.toFixed(1) + '%' } },
           y: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' } } }
         }
       }
