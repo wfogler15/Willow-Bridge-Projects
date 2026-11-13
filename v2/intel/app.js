@@ -9900,7 +9900,7 @@ function exportCompSetPdf() {
   el = document.createElement('div'); el.id = 'cs-print'; el.innerHTML = page1 + page2 + page3; document.body.appendChild(el);
   // The map has to be laid out at print size to frame correctly, so show the container off-screen while tiles load.
   el.style.cssText = 'display:block;position:fixed;left:-20000px;top:0;';
-  const map = L.map('csp-map', { zoomControl: false, attributionControl: false, fadeAnimation: false, zoomAnimation: false, preferCanvas: false });
+  const map = L.map('csp-map', { zoomControl: false, attributionControl: false, fadeAnimation: false, zoomAnimation: false, preferCanvas: false, zoomSnap: 0.25 });   // fractional zoom so the comps fill the frame
   const tiles = wbStreetLayer().addTo(map);
   const pts = [];
   rows.forEach(r => {
@@ -9915,7 +9915,7 @@ function exportCompSetPdf() {
       .bindTooltip(E(deal.name), { permanent: true, direction: 'right', offset: [10, 0], className: 'csp-lab' }).addTo(map);
   }
   map.invalidateSize();
-  if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(0.12), { maxZoom: 15, animate: false });
+  if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15, animate: false });
   else if (pts.length) map.setView(pts[0], 14, { animate: false });
 
   let done = false;
