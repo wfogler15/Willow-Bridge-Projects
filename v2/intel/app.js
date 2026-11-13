@@ -9832,8 +9832,12 @@ function exportCompSetPdf() {
   const th = `<tr><th class="no">#</th><th class="nm">Property</th><th>Built</th><th>Units</th><th>Avg SF</th><th>Occ.</th><th>Asking $/SF</th><th class="mo">$/mo</th><th>Effective $/SF</th><th class="mo">$/mo</th><th>Wks free</th>${subj ? '<th>Miles</th>' : ''}</tr>`;
   const tr = r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${E([r.p.address, r.p.submarket].filter(Boolean).join(' · '))}</span></td><td>${r.p.yearBuilt || '–'}</td><td>${n0(r.p.units)}</td><td>${n0(r.p.avgUnitSF)}</td><td>${r.occ == null ? '–' : r.occ.toFixed(1) + '%'}</td><td class="pr">${psf(r.askSF)}</td><td class="mo">${usd(r.askU)}</td><td class="pr">${psf(r.effSF)}</td><td class="mo">${usd(r.effU)}</td><td>${wks(r.weeks)}</td>${subj ? `<td>${r.mi == null ? '–' : r.mi.toFixed(1)}</td>` : ''}</tr>`;
   const avgRow = `<tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units</span></td><td>${avg.yr ? Math.round(avg.yr) : '–'}</td><td>${n0(meta.units)}</td><td>${n0(avg.sf)}</td><td>${avg.occ == null ? '–' : avg.occ.toFixed(1) + '%'}</td><td class="pr">${psf(avg.askSF)}</td><td class="mo">${usd(avg.askU)}</td><td class="pr">${psf(avg.effSF)}</td><td class="mo">${usd(avg.effU)}</td><td>${wks(avg.weeks)}</td>${subj ? '<td></td>' : ''}</tr>`;
-  const dense = rows.length > 12 ? ' dense' : '';
-  const page2 = `<section class="pg">${head('Comp set · Property detail')}<table class="t${dense}"><thead>${th}</thead><tbody>${rows.map(tr).join('')}${avgRow}</tbody></table>${foot(2)}</section>`;
+  // A 16:9 page holds about 13 two-line rows plus the average, so longer sets continue on another page.
+  const dense = rows.length > 7 ? ' dense' : '', PER = 13;
+  const parts = []; for (let k = 0; k < rows.length; k += PER) parts.push(rows.slice(k, k + PER));
+  let pno = 1;
+  const cont = (k) => parts.length > 1 ? ` (${k + 1} of ${parts.length})` : '';
+  const page2 = parts.map((part, k) => `<section class="pg">${head('Comp set · Property detail' + cont(k))}<table class="t${dense}"><thead>${th}</thead><tbody>${part.map(tr).join('')}${k === parts.length - 1 ? avgRow : ''}</tbody></table>${foot(++pno)}</section>`).join('');
 
   // rents by unit type: asking $/SF first, $/mo and SF under it
   const types = [['Studio', 'studioRent', 'studioSF', 'unitsStudio'], ['1 BR', 'oneRent', 'oneSF', 'units1Bed'], ['2 BR', 'twoRent', 'twoSF', 'units2Bed'], ['3 BR', 'threeRent', 'threeSF', 'units3Bed']]
@@ -9844,9 +9848,9 @@ function exportCompSetPdf() {
     const den = xs.reduce((a, p) => a + w(p), 0); if (!den) return '<td class="mx">–</td>';
     const r = xs.reduce((a, p) => a + p[t[1]] * w(p), 0) / den, sf = xs.reduce((a, p) => a + p[t[2]] * w(p), 0) / den;
     return `<td class="mx"><b>${psf(r / sf)}</b><span>${usd(r)} · ${n0(sf)} SF</span></td>`; };
-  const page3 = types.length ? `<section class="pg">${head('Comp set · Asking rent by unit type')}<table class="t mix${dense}"><thead><tr><th class="no">#</th><th class="nm">Property</th>${types.map(t => `<th class="mx">${t[0]}</th>`).join('')}</tr></thead>
-    <tbody>${rows.map(r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${r.p.yearBuilt || ''}${r.p.units ? ' · ' + n0(r.p.units) + ' units' : ''}</span></td>${types.map(t => cell(r.p, t)).join('')}</tr>`).join('')}
-    <tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units of each type</span></td>${types.map(tAvg).join('')}</tr></tbody></table>${foot(3)}</section>` : '';
+  const page3 = !types.length ? '' : parts.map((part, k) => `<section class="pg">${head('Comp set · Asking rent by unit type' + cont(k))}<table class="t mix${dense}"><thead><tr><th class="no">#</th><th class="nm">Property</th>${types.map(t => `<th class="mx">${t[0]}</th>`).join('')}</tr></thead>
+    <tbody>${part.map(r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${r.p.yearBuilt || ''}${r.p.units ? ' · ' + n0(r.p.units) + ' units' : ''}</span></td>${types.map(t => cell(r.p, t)).join('')}</tr>`).join('')}
+    ${k === parts.length - 1 ? `<tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units of each type</span></td>${types.map(tAvg).join('')}</tr>` : ''}</tbody></table>${foot(++pno)}</section>`).join('');
 
   const css = `
     @page { size: 13.333in 7.5in; margin: 0; }
@@ -9878,7 +9882,8 @@ function exportCompSetPdf() {
     #cs-print .t.dense { font-size:9pt; }
     #cs-print .t th { text-align:left; font-size:9pt; font-weight:600; color:#5B5675; padding:0 8px 7px; border-bottom:1px solid #1D1247; white-space:nowrap; }
     #cs-print .t td { text-align:left; padding:6px 8px; border-bottom:1px solid #ECEAF1; vertical-align:middle; white-space:nowrap; }
-    #cs-print .t.dense td { padding:4px 8px; }
+    #cs-print .t.dense td { padding:3px 8px; }
+    #cs-print .t.dense .nm span, #cs-print .t.dense.mix td.mx span { font-size:7.5pt; }
     #cs-print .t .no { width:22px; color:#8A86A0; padding-left:0; }
     #cs-print .t td.no { font-weight:600; }
     #cs-print .t .nm { white-space:normal; }
