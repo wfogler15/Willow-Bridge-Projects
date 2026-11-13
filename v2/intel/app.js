@@ -14243,8 +14243,22 @@ function renderSubmarkets() {
   // Render Leaflet map
   renderPropertyMap(data);
 
+  // Rank submarkets across the market; once the view is narrowed to a submarket or city (or only a couple of
+  // submarkets are left) rank the properties inside it instead, since one bar per submarket says nothing.
+  const byProp = state.submarkets.size > 0 || state.cities.size > 0 || Object.keys(bySub).length < 3;
+  const rankRows = byProp
+    ? data.map(p => ({
+        name: p.name || '(unnamed)', units: p.units || 0, existing: p.status === 'Existing',
+        psf: p.avgEffectiveSF != null ? p.avgEffectiveSF : p.avgAskingSF,
+        vacancy: p.vacancy
+      }))
+    : stats;
+  const sp = document.getElementById('top-psf-sub'), so = document.getElementById('top-occ-sub');
+  if (sp) sp.textContent = byProp ? 'Top 15 Properties · By Effective PSF' : 'Top 15 Submarkets · By Effective PSF';
+  if (so) so.textContent = byProp ? '15 Tightest Stabilized Properties' : '15 Tightest Submarkets';
+
   // Top PSF chart
-  const topPsf = [...stats].filter(s => s.psf != null).sort((a,b) => b.psf - a.psf).slice(0, 15);
+  const topPsf = [...rankRows].filter(s => s.psf != null).sort((a,b) => b.psf - a.psf).slice(0, 15);
   destroyChart('top-psf');
   if (topPsf.length) {
     charts['top-psf'] = new Chart(document.getElementById('chart-top-psf'), {
@@ -14273,7 +14287,8 @@ function renderSubmarkets() {
   }
 
   // Lowest vacancy chart
-  const lowVac = [...stats].filter(s => s.vacancy != null && s.units >= 100).sort((a,b) => a.vacancy - b.vacancy).slice(0, 15);
+  // properties: existing only (lease-ups would read as vacant); submarkets: 100+ units so a tiny one can't top the list
+  const lowVac = [...rankRows].filter(s => s.vacancy != null && (byProp ? s.existing && s.units >= 50 : s.units >= 100)).sort((a,b) => a.vacancy - b.vacancy).slice(0, 15);
   destroyChart('top-occ');
   if (lowVac.length) {
     charts['top-occ'] = new Chart(document.getElementById('chart-top-occ'), {
