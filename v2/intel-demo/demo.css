@@ -451,3 +451,5 @@
 .tx-spark { width: 42%; max-width: 170px; min-width: 90px; height: 42px; flex: none; margin-bottom: 4px; }
 .tx-canvas { height: 300px; }
 .tx-kpi { padding: 16px 18px 14px; }
+.tx-ks, .tx-kn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-kbody > div { flex: 1; }
