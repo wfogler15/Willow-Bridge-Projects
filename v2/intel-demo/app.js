@@ -16490,7 +16490,7 @@ function renderYoc() {
     // Still render the threshold panel — it shows an empty-state message rather than
     // disappearing, so the layout stays stable when filters knock out all data.
     renderYocThresholdPanel({}, []);
-    window.__yocLast = { grouped: {}, compCount: sourceData.length };
+    window.__yocLast = { grouped: {}, compCount: 0 };
     renderYxVerdict();
     return;
   }
@@ -16665,7 +16665,7 @@ function renderYoc() {
   // and light-green bands relative to the target). Helps the user quickly spot
   // which submarkets meet their underwriting hurdle without scanning the matrix.
   renderYocThresholdPanel(grouped, groupKeys);
-  window.__yocLast = { grouped, compCount: sourceData.length };
+  window.__yocLast = { grouped, compCount: Object.values(grouped).reduce((n, g) => n + YOC_PRODUCT_COLUMNS.reduce((m, pr) => m + (g[pr] || []).length, 0), 0) };
   renderYxVerdict();
 }
 
