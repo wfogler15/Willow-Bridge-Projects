@@ -22354,3 +22354,223 @@ document.querySelectorAll('#filter-product-type .product-chip').forEach(c => {
 updateAccordionSummaries();
 
 renderAll();
+
+/* =================================================================
+   TRENDS · FORECAST (Demo rebuild)
+   One page: what rents, occupancy and supply have done, where RealPage
+   says they're going, and how every submarket stacks up. Property History
+   stays available via the toggle (legacy pane).
+   ================================================================= */
+const TX = { geo: null, window: 10, mode: 'market', charts: {} };
+const TX_COL = { a: '#6A4FC0', b: '#2A9D8F', ink: '#16131f', ink3: '#57526b', grid: '#efedf5' };
+function txGeos() {
+  const all = Object.keys(RP_FORECAST || {}).filter(k => k !== 'Market');
+  const isMsa = k => /,\s*[A-Z]{2}$/.test(k);
+  const lastEu = k => { const d = RP_FORECAST[k] || {}; const y = Object.keys(d).sort().pop(); return (d[y] && d[y].eu) || 0; };
+  const msas = all.filter(isMsa).sort((a, b) => lastEu(b) - lastEu(a));
+  const subs = all.filter(k => !isMsa(k)).sort((a, b) => a.localeCompare(b));
+  return { msas, subs, primary: msas[0] || all[0] };
+}
+// Rows for a geography with a derived $/SF where RealPage only gives unit rent (forecast years)
+function txRows(geo) {
+  const d = RP_FORECAST[geo] || {};
+  const years = Object.keys(d).map(Number).sort((a, b) => a - b);
+  let sf = null;
+  for (const y of years) { const r = d[y]; if (r && r.eR && r.eS) sf = r.eR / r.eS; }
+  return years.map(y => {
+    const r = d[y] || {};
+    const psf = r.eS != null ? r.eS : (r.eR != null && sf ? r.eR / sf : null);
+    return { y, fc: y >= RP_FORECAST_START_YEAR, eR: r.eR, psf, psfDerived: r.eS == null && psf != null, oc: r.oc, yR: r.yR, sp: r.sp, dm: r.dm, eu: r.eu, cR: r.cR, eP: r.eP };
+  });
+}
+function txCagr(rows, y0, y1, key) {
+  const a = rows.find(r => r.y === y0), b = rows.find(r => r.y === y1);
+  if (!a || !b || !a[key] || !b[key] || y1 <= y0) return null;
+  return Math.pow(b[key] / a[key], 1 / (y1 - y0)) - 1;
+}
+const txPct = (v, d = 1) => v == null ? '—' : (v * 100).toFixed(d) + '%';
+const txSigned = (v, d = 1) => v == null ? '—' : (v >= 0 ? '+' : '−') + Math.abs(v * 100).toFixed(d) + '%';
+function txLastWith(rows, key, maxY) { for (let i = rows.length - 1; i >= 0; i--) { const r = rows[i]; if (r.y <= maxY && r[key] != null) return r; } return null; }
+
+function txBuild() {
+  const view = document.getElementById('view-trends');
+  if (!view || document.getElementById('tx')) return;
+  const host = document.createElement('div'); host.id = 'tx'; host.className = 'tx';
+  const g = txGeos();
+  TX.geo = TX.geo || g.primary;
+  const label = k => /,\s*[A-Z]{2}$/.test(k) ? k.replace(/,\s*[A-Z]{2}$/, '') + ' MSA' : k;
+  host.innerHTML = `
+    <div class="yx-card tx-head">
+      <div class="tx-head-l">
+        <div class="yx-h tx-title">Rent trends <span class="yx-dot">·</span>
+          <select id="tx-geo" class="tx-geo" aria-label="Geography">
+            <optgroup label="Market">${g.msas.map(k => `<option value="${escapeHTML(k)}">${escapeHTML(label(k))}</option>`).join('')}</optgroup>
+            <optgroup label="RealPage submarkets">${g.subs.map(k => `<option value="${escapeHTML(k)}">${escapeHTML(k)}</option>`).join('')}</optgroup>
+          </select>
+        </div>
+        <div class="yx-sub" id="tx-sub"></div>
+      </div>
+      <div class="tx-head-r">
+        <div class="yx-seg" id="tx-window" role="group" aria-label="History window"><button type="button" data-v="5">5Y</button><button type="button" data-v="10">10Y</button><button type="button" data-v="20">20Y</button><button type="button" data-v="all">All</button></div>
+        <div class="yx-seg" id="tx-mode" role="group" aria-label="View"><button type="button" data-v="market">Market</button><button type="button" data-v="property">Property history</button></div>
+      </div>
+    </div>
+    <div id="tx-market">
+      <div class="tx-kpis" id="tx-kpis"></div>
+      <div class="tx-grid">
+        <div class="yx-card tx-chart tx-wide"><div class="tx-ch"><div><div class="tx-ct">Effective rent per SF</div><div class="tx-cs" id="tx-rent-sub"></div></div><div class="tx-key"><span><i class="ln"></i>Actual</span><span><i class="ln dash"></i>RealPage forecast</span></div></div><div class="tx-canvas"><canvas id="tx-c-rent"></canvas></div></div>
+        <div class="yx-card tx-chart"><div class="tx-ch"><div><div class="tx-ct">Rent growth, year over year</div><div class="tx-cs">Effective rent · forecast years shaded lighter</div></div></div><div class="tx-canvas"><canvas id="tx-c-yoy"></canvas></div></div>
+        <div class="yx-card tx-chart tx-wide"><div class="tx-ch"><div><div class="tx-ct">Supply vs. demand</div><div class="tx-cs">Units delivered vs. units absorbed per year</div></div><div class="tx-key"><span><i class="sq" style="background:${TX_COL.a}"></i>Supply</span><span><i class="sq" style="background:${TX_COL.b}"></i>Demand</span></div></div><div class="tx-canvas"><canvas id="tx-c-sd"></canvas></div></div>
+        <div class="yx-card tx-chart"><div class="tx-ch"><div><div class="tx-ct">Occupancy</div><div class="tx-cs">Annual average</div></div></div><div class="tx-canvas"><canvas id="tx-c-occ"></canvas></div></div>
+      </div>
+      <div class="yx-card tx-board">
+        <div class="tx-ch tx-board-h"><div><div class="tx-ct">Submarket scoreboard</div><div class="tx-cs" id="tx-board-sub">RealPage submarkets ranked by forecast rent growth. Click a row to chart it.</div></div></div>
+        <div class="tx-board-scroll"><table class="tx-table" id="tx-table"></table></div>
+      </div>
+    </div>`;
+  view.prepend(host);
+  const sel = host.querySelector('#tx-geo'); sel.value = TX.geo;
+  sel.addEventListener('change', e => { TX.geo = e.target.value; txRender(); });
+  host.querySelector('#tx-window').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; TX.window = b.dataset.v === 'all' ? 'all' : +b.dataset.v; txRender(); });
+  host.querySelector('#tx-mode').addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; TX.mode = b.dataset.v; txRender(); });
+  host.querySelector('#tx-table').addEventListener('click', e => {
+    const th = e.target.closest('th[data-k]'); if (th) { TX.sort = TX.sort === th.dataset.k ? th.dataset.k + ':asc' : th.dataset.k; txRenderBoard(); return; }
+    const tr = e.target.closest('tr[data-geo]'); if (!tr) return;
+    TX.geo = tr.dataset.geo; sel.value = TX.geo; txRender(); host.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
+
+function txChart(id, cfg) {
+  if (TX.charts[id]) TX.charts[id].destroy();
+  const el = document.getElementById(id); if (!el || typeof Chart === 'undefined') return;
+  TX.charts[id] = new Chart(el, cfg);
+}
+function txBaseOpts(yFmt, extra) {
+  return Object.assign({
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#16131f', titleFont: { family: 'Aptos', weight: '600' }, bodyFont: { family: 'Aptos' }, padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
+      callbacks: { label: c => ` ${c.dataset.label}: ${yFmt(c.parsed.y)}` } } },
+    scales: {
+      x: { grid: { display: false }, border: { color: '#d9d6e4' }, ticks: { color: TX_COL.ink3, font: { family: 'Aptos', size: 11 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+      y: { grid: { color: TX_COL.grid }, border: { display: false }, ticks: { color: TX_COL.ink3, font: { family: 'Aptos', size: 11 }, callback: v => yFmt(v), maxTicksLimit: 6 } }
+    }
+  }, extra || {});
+}
+
+function txRender() {
+  txBuild();
+  const host = document.getElementById('tx'); if (!host) return;
+  const legacySub = document.getElementById('trends-submarket-pane'), legacyProp = document.getElementById('trends-property-pane');
+  if (legacySub) legacySub.style.display = 'none';
+  host.querySelectorAll('#tx-mode button').forEach(b => b.classList.toggle('active', b.dataset.v === TX.mode));
+  host.querySelectorAll('#tx-window button').forEach(b => b.classList.toggle('active', String(b.dataset.v) === String(TX.window)));
+  const isProp = TX.mode === 'property';
+  document.getElementById('tx-market').style.display = isProp ? 'none' : '';
+  host.querySelector('#tx-window').style.display = isProp ? 'none' : '';
+  host.querySelector('.tx-title').style.display = isProp ? 'none' : '';
+  if (legacyProp) legacyProp.style.display = isProp ? '' : 'none';
+  if (isProp) { document.getElementById('tx-sub').textContent = 'Rent history for a single RealPage property'; trendsState.subtab = 'property'; renderTrendsProperty(); return; }
+
+  const rows = txRows(TX.geo);
+  if (!rows.length) return;
+  const curY = RP_FORECAST_START_YEAR - 1;
+  const lastY = rows[rows.length - 1].y;
+  const firstY = TX.window === 'all' ? rows[0].y : Math.max(rows[0].y, curY - TX.window);
+  const vis = rows.filter(r => r.y >= firstY);
+  const cur = rows.find(r => r.y === curY) || txLastWith(rows, 'eR', curY);
+  const prev = rows.find(r => r.y === curY - 1);
+  const conc = txLastWith(rows, 'cR', curY);
+  const trailN = Math.min(5, curY - rows[0].y);
+  const cagrTrail = txCagr(rows, curY - trailN, curY, 'eR');
+  const cagrFc = txCagr(rows, curY, lastY, 'eR');
+  const peak = rows.filter(r => r.y <= curY && r.eR).reduce((a, r) => (!a || r.eR > a.eR ? r : a), null);
+  const label = /,\s*[A-Z]{2}$/.test(TX.geo) ? TX.geo.replace(/,\s*[A-Z]{2}$/, '') + ' MSA' : TX.geo;
+  document.getElementById('tx-sub').textContent = `RealPage annual data · ${curY} is the current-year estimate, ${RP_FORECAST_START_YEAR}–${lastY} forecast`;
+
+  // KPI tiles
+  const supPct = cur && cur.sp && cur.eu ? cur.sp / cur.eu : null;
+  const offPeak = peak && cur && cur.eR ? cur.eR / peak.eR - 1 : null;
+  const tile = (lab, big, sub, note, tone) => `<div class="yx-card tx-kpi"><div class="tx-kl">${lab}</div><div class="tx-kv">${big}</div><div class="tx-ks">${sub}</div>${note ? `<div class="tx-kn ${tone || ''}">${note}</div>` : ''}</div>`;
+  document.getElementById('tx-kpis').innerHTML = [
+    tile(`Effective rent · ${curY}`, cur && cur.psf ? '$' + cur.psf.toFixed(2) + '<small>/SF</small>' : '—', cur && cur.eR ? '$' + Math.round(cur.eR).toLocaleString() + '/mo per unit' : '', cur && cur.yR != null ? txSigned(cur.yR) + ' vs. ' + (curY - 1) : '', cur && cur.yR < 0 ? 'dn' : 'up'),
+    tile('Occupancy', cur && cur.oc ? (cur.oc * 100).toFixed(1) + '<small>%</small>' : '—', prev && prev.oc && cur && cur.oc ? (cur.oc >= prev.oc ? '+' : '−') + Math.abs(Math.round((cur.oc - prev.oc) * 10000)) + ' bps vs. ' + (curY - 1) : '', '', ''),
+    tile(`Concessions · ${conc ? conc.y : ''}`, conc ? (conc.cR * 52).toFixed(1) + '<small> wks free</small>' : '—', conc && conc.eR ? '≈ $' + Math.round(conc.cR * conc.eR).toLocaleString() + '/mo per unit' : '', '', ''),
+    tile(`Supply · ${curY}`, cur && cur.sp ? Math.round(cur.sp).toLocaleString() + '<small> units</small>' : '—', supPct != null ? txPct(supPct) + ' of inventory · demand ' + Math.round(cur.dm || 0).toLocaleString() : '', '', ''),
+    tile('Rent growth (CAGR)', `<span class="${cagrFc != null && cagrFc < 0 ? 'dn' : 'up'}">${txSigned(cagrFc)}</span><small> fcst</small>`, `${curY}–${lastY} forecast · trailing ${trailN}-yr ${txSigned(cagrTrail)}`, offPeak != null && offPeak < -0.005 ? `${txSigned(offPeak)} below the ${peak.y} peak` : (peak ? 'At or near the ' + peak.y + ' peak' : ''), offPeak != null && offPeak < -0.005 ? 'dn' : 'up')
+  ].join('');
+
+  // Charts
+  const labels = vis.map(r => String(r.y));
+  const lastActual = vis.filter(r => !r.fc).pop();
+  const actualPsf = vis.map(r => r.fc ? null : r.psf);
+  const fcPsf = vis.map(r => (r.fc || r === lastActual) ? r.psf : null);
+  document.getElementById('tx-rent-sub').textContent = `${label} · ${firstY}–${lastY}` + (rows.some(r => r.psfDerived && r.y >= firstY) ? ' · $/SF after ' + (curY - 1) + ' derived from unit rent' : '');
+  const money = v => v == null ? '—' : '$' + Number(v).toFixed(2);
+  const fcStart = labels.indexOf(String(RP_FORECAST_START_YEAR));
+  const shade = { id: 'txShade', beforeDraw(c) { if (fcStart < 0) return; const { ctx, chartArea: a, scales: { x } } = c; const x0 = x.getPixelForValue(fcStart) - (x.getPixelForValue(1) - x.getPixelForValue(0)) / 2; ctx.save(); ctx.fillStyle = 'rgba(106,79,192,0.06)'; ctx.fillRect(Math.max(x0, a.left), a.top, a.right - Math.max(x0, a.left), a.bottom - a.top); ctx.fillStyle = '#6c6782'; ctx.font = '600 10.5px Aptos, sans-serif'; ctx.fillText('FORECAST', Math.max(x0, a.left) + 8, a.top + 14); ctx.restore(); } };
+  txChart('tx-c-rent', { type: 'line', plugins: [shade], data: { labels, datasets: [
+    { label: 'Actual', data: actualPsf, borderColor: '#432890', backgroundColor: '#432890', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, tension: 0.25, spanGaps: false },
+    { label: 'Forecast', data: fcPsf, borderColor: '#6A4FC0', backgroundColor: '#6A4FC0', borderWidth: 2.5, borderDash: [6, 5], pointRadius: 0, pointHoverRadius: 5, tension: 0.25 }
+  ] }, options: txBaseOpts(money, { plugins: { legend: { display: false }, tooltip: { backgroundColor: '#16131f', padding: 10, cornerRadius: 8, filter: (it, i, arr) => it.parsed.y != null && !(it.datasetIndex === 1 && arr.some(o => o.datasetIndex === 0 && o.parsed.y != null)), callbacks: { label: c => ` ${c.dataset.label}: ${money(c.parsed.y)}/SF` } } } }) });
+
+  txChart('tx-c-yoy', { type: 'bar', plugins: [shade], data: { labels, datasets: [{ label: 'Rent growth', data: vis.map(r => r.yR), borderRadius: 4, borderSkipped: false, maxBarThickness: 18,
+    backgroundColor: vis.map(r => (r.yR || 0) < 0 ? (r.fc ? 'rgba(201,71,60,.45)' : '#C9473C') : (r.fc ? 'rgba(31,122,76,.45)' : '#1F7A4C')) }] },
+    options: txBaseOpts(v => v == null ? '—' : (v * 100).toFixed(0) + '%', {}) });
+  TX.charts['tx-c-yoy'].options.plugins.tooltip.callbacks.label = c => ' ' + txSigned(c.parsed.y);
+  TX.charts['tx-c-yoy'].update();
+
+  txChart('tx-c-sd', { type: 'bar', plugins: [shade], data: { labels, datasets: [
+    { label: 'Supply', data: vis.map(r => r.sp), backgroundColor: vis.map(r => r.fc ? 'rgba(106,79,192,.5)' : TX_COL.a), borderRadius: 4, borderSkipped: false, maxBarThickness: 16 },
+    { label: 'Demand', data: vis.map(r => r.dm), backgroundColor: vis.map(r => r.fc ? 'rgba(42,157,143,.5)' : TX_COL.b), borderRadius: 4, borderSkipped: false, maxBarThickness: 16 }
+  ] }, options: txBaseOpts(v => v == null ? '—' : Math.round(v).toLocaleString(), { datasets: { bar: { categoryPercentage: 0.7, barPercentage: 0.85 } } }) });
+  TX.charts['tx-c-sd'].options.plugins.tooltip.callbacks.label = c => ` ${c.dataset.label}: ${Math.round(c.parsed.y).toLocaleString()} units`;
+  TX.charts['tx-c-sd'].update();
+
+  txChart('tx-c-occ', { type: 'line', plugins: [shade], data: { labels, datasets: [{ label: 'Occupancy', data: vis.map(r => r.oc), borderColor: '#432890', backgroundColor: 'rgba(106,79,192,.08)', fill: true, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: 0.25,
+    segment: { borderDash: ctx => vis[ctx.p1DataIndex] && vis[ctx.p1DataIndex].fc ? [6, 5] : undefined } }] },
+    options: txBaseOpts(v => v == null ? '—' : (v * 100).toFixed(1) + '%', {}) });
+
+  txRenderBoard();
+}
+
+function txRenderBoard() {
+  const curY = RP_FORECAST_START_YEAR - 1;
+  const g = txGeos();
+  const data = g.subs.map(k => {
+    const rows = txRows(k); const last = rows[rows.length - 1]; const cur = rows.find(r => r.y === curY) || {};
+    const conc = txLastWith(rows, 'cR', curY);
+    return { k, psf: cur.psf, eR: cur.eR, yR: cur.yR, oc: cur.oc, wks: conc ? conc.cR * 52 : null, sup: cur.sp && cur.eu ? cur.sp / cur.eu : null,
+      fc: last ? txCagr(rows, curY, last.y, 'eR') : null, trail: txCagr(rows, curY - 5, curY, 'eR') };
+  });
+  const sortKey = TX.sort || 'fc';
+  const [k, dir] = sortKey.split(':');
+  data.sort((a, b) => { const va = a[k], vb = b[k]; if (va == null) return 1; if (vb == null) return -1; return typeof va === 'string' ? va.localeCompare(vb) * (dir ? -1 : 1) : (dir ? va - vb : vb - va); });
+  const ext = key => { const v = data.map(d => d[key]).filter(x => x != null); return [Math.min(...v), Math.max(...v)]; };
+  const tint = (v, key, good) => { if (v == null) return ''; const [lo, hi] = ext(key); const t = hi > lo ? (v - lo) / (hi - lo) : 0.5; const s = good === 'high' ? t : 1 - t; return `background:rgba(31,122,76,${(s * 0.22).toFixed(3)})`; };
+  const cols = [['k', 'Submarket'], ['psf', 'Rent / SF'], ['yR', `YoY ${curY}`], ['oc', 'Occupancy'], ['wks', 'Concessions'], ['sup', `${curY} supply`], ['trail', 'Trailing 5-yr'], ['fc', 'Forecast CAGR']];
+  const arrow = c => (k === c ? (dir ? ' ↑' : ' ↓') : '');
+  document.getElementById('tx-table').innerHTML = `<thead><tr>${cols.map(([c, l]) => `<th data-k="${c}" class="${c === 'k' ? '' : 'num'}${k === c ? ' on' : ''}">${l}${arrow(c)}</th>`).join('')}</tr></thead>
+    <tbody>${data.map(d => `<tr data-geo="${escapeHTML(d.k)}" class="${d.k === TX.geo ? 'sel' : ''}">
+      <td class="nm">${escapeHTML(d.k)}</td>
+      <td class="num"><b>${d.psf ? '$' + d.psf.toFixed(2) : '—'}</b><span class="mo">${d.eR ? '$' + Math.round(d.eR).toLocaleString() + '/mo' : ''}</span></td>
+      <td class="num ${d.yR != null && d.yR < 0 ? 'dn' : 'up'}">${txSigned(d.yR)}</td>
+      <td class="num" style="${tint(d.oc, 'oc', 'high')}">${txPct(d.oc)}</td>
+      <td class="num" style="${tint(d.wks, 'wks', 'low')}">${d.wks != null ? d.wks.toFixed(1) + ' wks' : '—'}</td>
+      <td class="num" style="${tint(d.sup, 'sup', 'low')}">${txPct(d.sup)}</td>
+      <td class="num ${d.trail != null && d.trail < 0 ? 'dn' : 'up'}">${txSigned(d.trail)}</td>
+      <td class="num fc" style="${tint(d.fc, 'fc', 'high')}"><b>${txSigned(d.fc)}</b></td></tr>`).join('')}</tbody>`;
+  document.getElementById('tx-board-sub').textContent = `${data.length} RealPage submarkets · green = better for development (higher occupancy and rent growth, fewer concessions, less new supply). Click a column to sort, a row to chart it.`;
+}
+
+// Route the Trends tab through the rebuild; keep the hero free of the old KPI strip.
+(function () {
+  const old = document.querySelector('#view-trends .trends2-kpirow');
+  if (old) old.classList.remove('trends2-kpirow');
+  const legacyRender = renderTrends;
+  renderTrends = function () {
+    populateTrendsSubmarketPicker(); attachTrendsHandlers();
+    txRender();
+  };
+  window.__txLegacyRenderTrends = legacyRender;
+})();
