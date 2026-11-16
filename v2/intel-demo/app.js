@@ -16419,7 +16419,7 @@ function renderYoc() {
   const legend = yocColorBands().map(b => {
     return `<span class="yoc-legend-cell" style="background:${b.color};color:${b.ink};">${b.label}</span>`;
   }).join('');
-  document.getElementById('yoc-legend-row').innerHTML = legend + `<span class="yoc-legend-cell yoc-legend-thin">Fewer than ${yocState.minCompsForColor} comps</span><span class="yoc-legend-note">(n) = comps in the cell · click a cell for the comps</span>`;
+  document.getElementById('yoc-legend-row').innerHTML = legend + `<span class="yoc-legend-cell yoc-legend-thin">&lt; ${yocState.minCompsForColor} comps</span>`;
 
   // 3. Source data — Existing only; honor sidebar Class/City/Submarket filters.
   // Apply user edits first so any manual corrections to status/class/submarket/rent flow through.
@@ -16463,6 +16463,22 @@ function renderYoc() {
   // the MAX avg PSF across any product per submarket so a row with a strong
   // Garden but missing Mid-Rise still sorts high. For single-product mode we
   // sort directly by that product's weighted-avg PSF.
+  const yxRowAvg = (sm, prod) => {
+    const props = ((grouped[sm] && grouped[sm][prod]) || []).filter(p => p.avgAskingSF != null && !isNaN(p.avgAskingSF));
+    if (!props.length) return null;
+    const w = props.filter(p => p.units != null);
+    return w.length ? weightedAvg(w, 'avgAskingSF', 'units') : props.reduce((t, p) => t + p.avgAskingSF, 0) / props.length;
+  };
+  if (yocState.matrixSort && yocState.matrixSort.startsWith('prod:')) {
+    const sp = yocState.matrixSort.slice(5);
+    groupKeys.sort((a, b) => {
+      const va = yxRowAvg(a, sp), vb = yxRowAvg(b, sp);
+      if (va == null && vb == null) return a.localeCompare(b);
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      return vb - va;
+    });
+  }
   if (yocState.matrixSort === 'avgDesc') {
     const avgForRow = (sm) => {
       const productsToScan = yocState.productFilter === 'all'
@@ -16498,40 +16514,35 @@ function renderYoc() {
     return;
   }
 
-  // 5. Header — first column is a dropdown to switch grouping
-  const showAvg = yocState.rentComp === 'both' || yocState.rentComp === 'average';
-  const showBest = yocState.rentComp === 'both' || yocState.rentComp === 'best';
-  const colsPerProduct = (showAvg ? 1 : 0) + (showBest ? 1 : 0);
-
-  const groupHeaderHtml = `<th class="product-header yx-gh"><span class="yx-ph-name">${yocState.groupBy === 'city' ? 'City' : 'Submarket'}</span><span class="yx-ph-req yx-gh-count">${groupKeys.length} ${yocState.groupBy === 'city' ? 'cities' : 'submarkets'}</span></th>`;
-  let theadHtml = '<tr>' + groupHeaderHtml;
+  // 5. Header — one row. First cell: group-by dropdown + A–Z sort. Product headers sort by that product.
+  const showAvg = true;
+  const showBest = false;
+  const colsPerProduct = 1;
+  const sortKey = yocState.matrixSort || 'avgDesc';
+  const arrow = on => on ? '<i class="yx-sort-ind">↓</i>' : '';
+  let theadHtml = `<tr><th class="product-header yx-gh">
+      <span class="yx-gh-row"><select class="yx-gh-select" aria-label="Group by"><option value="submarket"${yocState.groupBy !== 'city' ? ' selected' : ''}>Submarket</option><option value="city"${yocState.groupBy === 'city' ? ' selected' : ''}>City</option></select>
+      <button type="button" class="yx-gh-sort${sortKey === 'alpha' ? ' on' : ''}" data-sort="alpha" title="Sort A–Z">A–Z${sortKey === 'alpha' ? ' ↓' : ''}</button></span>
+      <span class="yx-ph-req yx-gh-count">${groupKeys.length} ${yocState.groupBy === 'city' ? 'cities' : 'submarkets'}</span></th>`;
   for (const prod of activeProducts) {
     const reqH = requiredPsfRent(prod, yocState.unitSize);
-    theadHtml += `<th class="product-header" colspan="${colsPerProduct}"><span class="yx-ph-name">${prod}</span><span class="yx-ph-req">Needs $${reqH == null ? '—' : reqH.toFixed(2)}/SF</span></th>`;
-  }
-  theadHtml += '</tr><tr><th class="metric-header yx-gh2"></th>';
-  for (let i = 0; i < activeProducts.length; i++) {
-    if (showAvg) theadHtml += `<th class="metric-header${i > 0 ? ' divider-left' : ''}">Average</th>`;
-    if (showBest) theadHtml += `<th class="metric-header${!showAvg && i > 0 ? ' divider-left' : ''}">Best comp</th>`;
+    const on = sortKey === 'prod:' + prod;
+    theadHtml += `<th class="product-header yx-sortable${on ? ' on' : ''}" data-sort="prod:${escapeHTML(prod)}" title="Sort by ${escapeHTML(prod)} rent, high to low"><span class="yx-ph-name">${prod}${arrow(on)}</span><span class="yx-ph-req">Needs $${reqH == null ? '—' : reqH.toFixed(2)}/SF</span></th>`;
   }
   theadHtml += '</tr>';
-  document.querySelector('#yoc-table thead').innerHTML = theadHtml;
-
-  // Wire the groupby + sort dropdowns (header is re-created on every render)
-  const gbSel = document.getElementById('yoc-groupby');
-  if (gbSel) {
-    gbSel.addEventListener('change', e => {
-      yocState.groupBy = e.target.value;
-      renderYoc();
-    });
-  }
-  const sortSel = document.getElementById('yoc-matrix-sort');
-  if (sortSel) {
-    sortSel.addEventListener('change', e => {
-      yocState.matrixSort = e.target.value;
-      renderYoc();
-    });
-  }
+  const thead = document.querySelector('#yoc-table thead');
+  thead.innerHTML = theadHtml;
+  thead.onclick = e => {
+    const t = e.target.closest('[data-sort]');
+    if (!t) return;
+    yocState.matrixSort = (yocState.matrixSort === t.dataset.sort && t.dataset.sort !== 'alpha') ? 'avgDesc' : t.dataset.sort;
+    renderYoc();
+  };
+  thead.onchange = e => {
+    if (!e.target.classList.contains('yx-gh-select')) return;
+    yocState.groupBy = e.target.value;
+    renderYoc();
+  };
 
   // 6. Rows
   const rows = groupKeys.map(sm => {
@@ -16599,8 +16610,8 @@ function renderYoc() {
         const compCount = validForWeight.length || validPsf.length;
         const tooltip = isNoData
           ? 'No data'
-          : `${(rocAvg*100).toFixed(2)}% ROC${trendNote} · ${compCount} comp(s) · unit-weighted · click to view all`;
-        const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span><span class="yoc-n">(' + (validForWeight.length || validPsf.length) + ')</span>';
+          : `${(rocAvg*100).toFixed(2)}% ROC${trendNote} · ${compCount} comp(s) · unit-weighted${bestProp ? ' · best: ' + escapeHTML(bestProp.name) + ' $' + best.toFixed(2) : ''} · click to view all`;
+        const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span>' + (best != null && propsWithPsf.length > 1 ? '<span class="yx-best">Best $' + best.toFixed(2) + '</span>' : '') + '<span class="yoc-n">(' + (validForWeight.length || validPsf.length) + ')</span>';
         const dataAttr = isClickable
           ? ` data-avg-group="${escapeHTML(sm)}" data-avg-product="${escapeHTML(prod)}"`
           : '';
@@ -16674,7 +16685,8 @@ function renderYxVerdict() {
     const c = yocState.costs[prod];
     const tpc = c ? c.land + c.hc * yocState.unitSize + (c.otherHc || 0) + c.soft : null;
     const counts = Object.fromEntries(bands.map(b => [b.key, 0]));
-    let thin = 0, total = 0, top = null;
+    let total = 0; const clears = [];
+    const threshold = yocState.targetYoc - 0.0015;
     for (const sm of Object.keys(grouped)) {
       const props = (grouped[sm][prod] || []).filter(p => p.avgAskingSF != null && !isNaN(p.avgAskingSF));
       if (!props.length) continue;
@@ -16682,14 +16694,14 @@ function renderYxVerdict() {
       const w = props.filter(p => p.units != null);
       const psf = w.length ? weightedAvg(w, 'avgAskingSF', 'units') : props.reduce((s, p) => s + p.avgAskingSF, 0) / props.length;
       const roc = rocFromPsf(psf, prod, yocState.unitSize, sm);
-      if (props.length < yocState.minCompsForColor) { thin++; continue; }
       const b = yocBandFor(roc);
       if (b) counts[b.key]++;
-      if (roc != null && (!top || roc > top.roc)) top = { sm, psf, roc };
+      if (roc != null && roc >= threshold) clears.push({ sm, roc, n: props.length });
     }
-    const clear = counts.clear + counts.near;
-    const seg = bands.map(b => counts[b.key] ? `<i style="flex:${counts[b.key]};background:${b.color}" title="${counts[b.key]} ${groupWord} · ${b.label}"></i>` : '').join('')
-      + (thin ? `<i class="thin" style="flex:${thin}" title="${thin} ${groupWord} with fewer than ${yocState.minCompsForColor} comps"></i>` : '');
+    clears.sort((x, y) => y.roc - x.roc);
+    const seg = bands.map(b => counts[b.key] ? `<i style="flex:${counts[b.key]};background:${b.color}" title="${counts[b.key]} ${groupWord} · ${b.label}"></i>` : '').join('');
+    const names = clears.slice(0, 4).map(c => `${escapeHTML(c.sm)}${c.n < yocState.minCompsForColor ? ` <em title="${c.n} comp${c.n === 1 ? '' : 's'}">(${c.n})</em>` : ''}`).join(' · ')
+      + (clears.length > 4 ? ` · +${clears.length - 4} more` : '');
     const active = yocState.productFilter === prod;
     const dim = yocState.productFilter !== 'all' && !active;
     const monthly = req == null ? null : req * yocState.unitSize;
@@ -16699,13 +16711,13 @@ function renderYxVerdict() {
       <span class="yx-v-req">$${req == null ? '—' : req.toFixed(2)}<small>/SF</small></span>
       <span class="yx-v-mo">$${monthly == null ? '—' : Math.round(monthly).toLocaleString()}/mo on ${yocState.unitSize} SF · ${opexLabel(prod)} OpEx</span>
       <span class="yx-v-bar">${seg || '<i class="thin" style="flex:1"></i>'}</span>
-      <span class="yx-v-foot"><b>${clear}</b> of ${total} ${groupWord} within 15 bps of target${thin ? ` · ${thin} with under ${yocState.minCompsForColor} comps` : ''}</span>
-      <span class="yx-v-best">${top ? `Strongest: ${escapeHTML(top.sm)} · $${top.psf.toFixed(2)} · ${(top.roc * 100).toFixed(2)}%` : 'No submarket with 3+ comps'}</span>
+      <span class="yx-v-foot"><b>${clears.length}</b> of ${total} ${groupWord} pencil</span>
+      <span class="yx-v-best">${clears.length ? names : 'None at today\'s rents'}</span>
     </button>`;
   }).join('');
   host.innerHTML = cards;
   const sub = document.getElementById('yx-sub');
-  if (sub) sub.textContent = `Average asking rent per SF in each submarket vs. the rent needed above. Green = today's rents support new development at a ${(yocState.targetYoc*100).toFixed(2)}% YOC. ${(last.compCount || 0).toLocaleString()} comps · ${yocCompLabel()} · avg unit ${yocState.minAvgUnitSf}+ SF.`;
+  if (sub) sub.textContent = `Average asking rent per SF vs. the rent needed above; green supports new development at ${(yocState.targetYoc*100).toFixed(2)}% YOC. ${(last.compCount || 0).toLocaleString()} comps, avg unit ${yocState.minAvgUnitSf}+ SF. Click a column to sort, a cell for its comps.`;
   [['yx-group', 'groupBy', 'submarket'], ['yx-sort', 'matrixSort', 'alpha']].forEach(([id, key, dflt]) => {
     const el = document.getElementById(id);
     if (!el) return;

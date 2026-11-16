@@ -211,3 +211,45 @@
 #view-yoc .yoc-table thead th.metric-header.yx-gh2 { left: 0; z-index: 6 !important; }
 #view-yoc .yoc-table thead th.yx-gh span.yx-ph-name { font: 700 14px/1.2 var(--x-font); color: var(--x-ink); margin: 0; }
 #view-yoc .yoc-table thead th.yx-gh span.yx-gh-count { font: 500 12px/1.3 var(--x-font); color: var(--x-ink-3); margin-top: 2px; }
+
+/* ===== v3 layout: inputs on top, one full-width matrix with its controls inside ===== */
+#view-yoc .yx-hidden { display: none !important; }
+#view-yoc .yx-grid { align-items: stretch; }
+#view-yoc .yx-main { display: flex; }
+#view-yoc .yx-verdict { flex: 1; align-items: stretch; }
+#view-yoc .yx-vcard { justify-content: flex-start; }
+#view-yoc .yx-v-bar { margin-top: auto; }
+#view-yoc .yx-v-req { margin-bottom: 2px; }
+#view-yoc .yx-vcard .yx-v-mo { margin-bottom: 18px; }
+#view-yoc .yx-v-best { white-space: normal; color: var(--x-ink-2); font-weight: 500; line-height: 1.45; }
+#view-yoc .yx-v-best em { font-style: normal; font-weight: 700; color: #A15C00; }
+
+#view-yoc .yx-matrix .yx-card-head { align-items: flex-end; padding: 18px 20px 14px; border-bottom: 1px solid var(--x-line); }
+#view-yoc .yx-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+#view-yoc .yx-dot { color: var(--x-ink-3); font-weight: 400; }
+#view-yoc .yx-compset-inline select { height: 30px; padding: 0 26px 0 10px !important; border: 1px solid transparent !important; border-radius: 8px !important; -webkit-appearance: none; appearance: none;
+  background: #f1eff8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23432890' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 9px center !important;
+  font: 600 15px/1 var(--x-font) !important; color: var(--x-purple) !important; box-shadow: none !important; text-transform: none !important; letter-spacing: 0 !important; cursor: pointer; }
+#view-yoc .yx-compset-inline select:hover { border-color: #d6d2e6 !important; }
+#view-yoc .yx-compset-inline select:focus { outline: none; border-color: var(--x-purple) !important; }
+#view-yoc .yx-matrix .yoc-legend { padding: 0; flex-wrap: wrap; justify-content: flex-end; }
+#view-yoc .yx-matrix .yoc-legend-cell { padding: 4px 8px; font-size: 11.5px; }
+
+#view-yoc .yoc-table-scroll { padding: 6px 14px 14px; max-height: calc(100vh - 220px); }
+#view-yoc .yoc-table thead tr:first-child th { top: 0; }
+#view-yoc .yoc-table thead th.product-header { height: 56px !important; }
+#view-yoc .yoc-table thead th.yx-sortable { cursor: pointer; user-select: none; }
+#view-yoc .yoc-table thead th.yx-sortable:hover .yx-ph-name { color: var(--x-purple); }
+#view-yoc .yoc-table thead th.yx-sortable.on { background-image: linear-gradient(var(--x-purple), var(--x-purple)) !important; }
+#view-yoc .yx-sort-ind { font-style: normal; margin-left: 5px; color: var(--x-purple); }
+#view-yoc .yx-gh-row { display: flex; align-items: center; gap: 8px; }
+#view-yoc .yoc-table thead th.yx-gh select.yx-gh-select { height: 28px; padding: 0 24px 0 8px !important; border: 1px solid #dedbe8 !important; border-radius: 7px !important; -webkit-appearance: none; appearance: none;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2357526b' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 8px center !important;
+  font: 700 14px/1 var(--x-font) !important; color: var(--x-ink) !important; box-shadow: none !important; text-transform: none !important; letter-spacing: 0 !important; cursor: pointer; }
+#view-yoc .yx-gh-sort { border: 1px solid #dedbe8; background: #fff; border-radius: 7px; height: 28px; padding: 0 9px; font: 600 12px/1 var(--x-font); color: var(--x-ink-3); cursor: pointer; }
+#view-yoc .yx-gh-sort:hover { color: var(--x-ink); border-color: #b9b4cc; }
+#view-yoc .yx-gh-sort.on { color: var(--x-purple); border-color: var(--x-purple); }
+#view-yoc .yoc-table thead th.yx-gh span.yx-gh-count { margin-top: 5px; }
+
+#view-yoc .yoc-table tbody td.yoc-cell { height: 58px; min-width: 150px; }
+#view-yoc .yx-best { display: block; font: 600 11.5px/1.2 var(--x-font); opacity: .85; margin-top: 3px; font-variant-numeric: tabular-nums; }
