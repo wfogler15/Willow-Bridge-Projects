@@ -7397,9 +7397,9 @@ tbody tr,
       </div>
       <div class="view" id="view-yoc">
         <div class="yx">
-          <section class="yx-verdict" id="yx-verdict" aria-label="Required rent by product"></section>
           <div class="yx-grid">
             <div class="yx-main">
+              <section class="yx-verdict" id="yx-verdict" aria-label="Required rent by product"></section>
               <div class="yx-card yx-matrix">
                 <div class="yx-card-head">
                   <div>
@@ -7407,6 +7407,8 @@ tbody tr,
                     <div class="yx-sub" id="yx-sub">Asking rent per SF from today's comps, shaded by the return on cost it supports</div>
                   </div>
                   <div class="yx-tools">
+                    <div class="yx-seg" id="yx-group" role="group" aria-label="Group by"><button type="button" data-v="submarket">Submarket</button><button type="button" data-v="city">City</button></div>
+                    <div class="yx-seg" id="yx-sort" role="group" aria-label="Sort"><button type="button" data-v="alpha">A–Z</button><button type="button" data-v="avgDesc">Highest rent</button></div>
                     <div class="yx-seg" id="yx-show" role="group" aria-label="Rent shown">
                       <button type="button" data-v="both">Avg + best</button><button type="button" data-v="average">Average</button><button type="button" data-v="best">Best comp</button>
                     </div>
@@ -8902,7 +8904,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161229">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161417">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9162,11 +9164,11 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="../shared/wb.js?v=202611161229"></script>
-<script src="../shared/legacy-db.js?v=202611161229"></script>
-<script>window.WB_BUILD = '202611161229';</script>
-<link rel="stylesheet" href="demo.css?v=202611161229">
-<script src="loader.js?v=202611161229"></script>
+<script src="../shared/wb.js?v=202611161417"></script>
+<script src="../shared/legacy-db.js?v=202611161417"></script>
+<script>window.WB_BUILD = '202611161417';</script>
+<link rel="stylesheet" href="demo.css?v=202611161417">
+<script src="loader.js?v=202611161417"></script>
 
 
 

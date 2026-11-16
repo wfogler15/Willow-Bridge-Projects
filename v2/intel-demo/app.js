@@ -16500,20 +16500,7 @@ function renderYoc() {
   const showBest = yocState.rentComp === 'both' || yocState.rentComp === 'best';
   const colsPerProduct = (showAvg ? 1 : 0) + (showBest ? 1 : 0);
 
-  const groupHeaderHtml = `
-    <th rowspan="2" style="background:var(--accent);text-align:left;padding:8px 14px;border-right:1px solid var(--accent-deep);border-bottom:1px solid var(--accent-deep);position:sticky;left:0;top:0;z-index:4;height:62px;vertical-align:middle;color:#ffffff;">
-      <div style="display:flex;flex-direction:column;gap:5px;">
-        <select id="yoc-groupby" class="yoc-group-select">
-          <option value="submarket"${yocState.groupBy==='submarket'?' selected':''}>Submarket</option>
-          <option value="city"${yocState.groupBy==='city'?' selected':''}>City</option>
-        </select>
-        <select id="yoc-matrix-sort" class="yoc-group-select" style="font-size:12.5px;">
-          <option value="alpha"${(yocState.matrixSort||'alpha')==='alpha'?' selected':''}>Sort: A–Z</option>
-          <option value="avgDesc"${yocState.matrixSort==='avgDesc'?' selected':''}>Sort: Avg ↓</option>
-        </select>
-      </div>
-    </th>
-  `;
+  const groupHeaderHtml = `<th rowspan="2" class="yx-gh">${yocState.groupBy === 'city' ? 'City' : 'Submarket'}<span>${groupKeys.length} ${yocState.groupBy === 'city' ? 'cities' : 'submarkets'}</span></th>`;
   let theadHtml = '<tr>' + groupHeaderHtml;
   for (const prod of activeProducts) {
     const reqH = requiredPsfRent(prod, yocState.unitSize);
@@ -16621,7 +16608,7 @@ function renderYoc() {
         const fg = textColorForRoc(rocBest);
         const isNoData = best == null;
         const isClickable = !isNoData && bestProp;
-        const cls = `yoc-cell${isNoData ? ' no-data' : ''}${firstInGroup && !showAvg ? ' divider-left' : ''}${isClickable ? ' yoc-cell-clickable' : ''}${(!isNoData && propsWithPsf.length < yocState.minCompsForColor) ? ' yoc-thin' : ''}`;
+        const cls = `yoc-cell${isNoData ? ' no-data' : ''}${firstInGroup && !showAvg ? ' divider-left' : ''}${isClickable ? ' yoc-cell-clickable' : ''}`;
         const effRateB = effectiveGrowthRate(sm);
         const srcLabelB = yocState.trendSource === 'rp' ? ' · RP forecast' : '';
         const trendNote = yocState.trendEnabled
@@ -16709,18 +16696,22 @@ function renderYxVerdict() {
       <span class="yx-v-req">$${req == null ? '—' : req.toFixed(2)}<small>/SF</small></span>
       <span class="yx-v-mo">$${monthly == null ? '—' : Math.round(monthly).toLocaleString()}/mo on ${yocState.unitSize} SF · ${opexLabel(prod)} OpEx</span>
       <span class="yx-v-bar">${seg || '<i class="thin" style="flex:1"></i>'}</span>
-      <span class="yx-v-foot"><b>${clear}</b> of ${total} ${groupWord} within 15 bps of target${thin ? ` · ${thin} thin` : ''}</span>
+      <span class="yx-v-foot"><b>${clear}</b> of ${total} ${groupWord} within 15 bps of target${thin ? ` · ${thin} with under ${yocState.minCompsForColor} comps` : ''}</span>
       <span class="yx-v-best">${top ? `Strongest: ${escapeHTML(top.sm)} · $${top.psf.toFixed(2)} · ${(top.roc * 100).toFixed(2)}%` : 'No submarket with 3+ comps'}</span>
     </button>`;
   }).join('');
-  const comp = `<div class="yx-vmeta">
-      <span class="yx-v-label">Comp set</span>
-      <span class="yx-vm-big">${(last.compCount || 0).toLocaleString()}</span>
-      <span class="yx-v-mo">existing properties with asking rent</span>
-      <span class="yx-vm-line">${escapeHTML(yocCompLabel())}</span>
-      <span class="yx-vm-line">Avg unit ${yocState.minAvgUnitSf}+ SF · ${(yocState.vacancy * 100).toFixed(0)}% vacancy · $${yocState.otherIncomePerUnit.toLocaleString()} other income</span>
-    </div>`;
-  host.innerHTML = cards + comp;
+  host.innerHTML = cards;
+  const sub = document.getElementById('yx-sub');
+  if (sub) sub.textContent = `${(last.compCount || 0).toLocaleString()} comps · ${yocCompLabel()} · avg unit ${yocState.minAvgUnitSf}+ SF. Asking rent per SF, shaded by the return on cost it supports.`;
+  [['yx-group', 'groupBy', 'submarket'], ['yx-sort', 'matrixSort', 'alpha']].forEach(([id, key, dflt]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === (yocState[key] || dflt)));
+    if (!el.dataset.wired) {
+      el.dataset.wired = '1';
+      el.addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; yocState[key] = b.dataset.v; renderYoc(); });
+    }
+  });
   host.querySelectorAll('.yx-vcard').forEach(btn => btn.addEventListener('click', () => {
     const prod = btn.dataset.prod;
     yocState.productFilter = yocState.productFilter === prod ? 'all' : prod;
@@ -16867,7 +16858,7 @@ function renderYocThresholdPanel(grouped, groupKeys) {
       ? `<div class="prop-name" title="${escapeHTML(r.bestName)}">${escapeHTML(r.bestName)}</div>`
       : '';
     return `
-      <div class="yoc-threshold-row${mode === 'best' ? ' best-mode' : ''}${r.n < yocState.minCompsForColor ? ' yoc-thin-row' : ''}"${dataAttrs}>
+      <div class="yoc-threshold-row${mode === 'best' ? ' best-mode' : ''}${mode !== 'best' && r.n < yocState.minCompsForColor ? ' yoc-thin-row' : ''}"${dataAttrs}>
         <div class="submarket" title="${escapeHTML(r.sm)}">
           <div class="sm-line">
             <span class="sm-name">${escapeHTML(r.sm)}</span>
