@@ -298,3 +298,19 @@
 #view-yoc .yoc-trend-controls .yoc-control-label-sm { width: 110px; flex: none; margin: 0 !important; font: 500 12px/1 var(--x-font) !important; color: var(--x-ink-3) !important; }
 #view-yoc .yoc-trend-controls .toggle-group { gap: 12px !important; }
 #view-yoc .yoc-trend-controls .toggle-btn { font-size: 12.5px !important; }
+
+/* trended rents: one cell in the grid, settings in a hover popover */
+#view-yoc .yx-form .yoc-trend-group { position: relative; align-self: end; padding: 0 !important; border: 0 !important; margin: 0 !important; }
+#view-yoc .yx-form .yoc-trend-toggle { height: 34px; padding: 0 10px; border: 1px solid #dedbe8; border-radius: 8px; background: #fff; display: flex; align-items: center; gap: 8px; font: 500 13px/1 var(--x-font); color: var(--x-ink); }
+#view-yoc .yx-trend-sum { margin-left: auto; font: 600 12px/1 var(--x-font); color: var(--x-ink-3); white-space: nowrap; }
+#view-yoc .yoc-trend-group:has(input:checked) .yx-trend-sum { color: var(--x-purple); }
+#view-yoc .yx-form .yoc-trend-controls { display: none !important; position: absolute; right: 0; top: calc(100% + 8px); width: 320px; z-index: 40; flex-direction: column; gap: 10px;
+  padding: 14px 16px; margin: 0; background: #fff; border-radius: 12px; box-shadow: 0 2px 6px rgba(29,18,71,.08), 0 14px 34px rgba(29,18,71,.18); }
+#view-yoc .yx-form .yoc-trend-controls::before { content: ''; position: absolute; left: 0; right: 0; top: -10px; height: 10px; }
+#view-yoc .yx-form .yoc-trend-group:has(input:checked):hover .yoc-trend-controls,
+#view-yoc .yx-form .yoc-trend-group:has(input:checked):focus-within .yoc-trend-controls { display: flex !important; }
+#view-yoc .yoc-trend-controls .yoc-control-sub { justify-content: flex-start !important; text-align: left !important; }
+#view-yoc .yoc-trend-controls .toggle-group { justify-content: flex-start !important; }
+#view-yoc .yx-assump .yx-card-head { padding: 16px 20px 6px; }
+#view-yoc .yx-form { gap: 8px 12px; padding: 4px 20px 14px; }
+#view-yoc .yx-assump .yx-actions { padding: 12px 20px 16px; }

@@ -16718,6 +16718,10 @@ function renderYxVerdict() {
     f('best').innerHTML = clears.length ? names : 'None at today\'s rents';
   });
 
+  const ts = document.getElementById('yx-trend-sum');
+  if (ts) ts.textContent = yocState.trendEnabled
+    ? (yocState.trendSource === 'rp' ? 'RP forecast' : (yocState.growth * 100).toFixed(0) + '%/yr') + ' · ' + yocState.years + ' yr'
+    : 'Off';
   const sub = document.getElementById('yx-sub');
   if (sub) sub.textContent = `Average asking rent per SF vs. the rent needed above; green supports new development at ${(yocState.targetYoc*100).toFixed(2)}% YOC. ${(last.compCount || 0).toLocaleString()} comps, avg unit ${yocState.minAvgUnitSf}+ SF. Click a column to sort, a cell for its comps.`;
   [['yx-group', 'groupBy', 'submarket'], ['yx-sort', 'matrixSort', 'alpha']].forEach(([id, key, dflt]) => {

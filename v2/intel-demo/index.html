@@ -7488,11 +7488,10 @@ tbody tr,
                 <option value="400">400</option>
                 <option value="500">500</option>
               </select></label>
-                </div>
-                <div class="yoc-control-group yoc-trend-group">
+                  <div class="yoc-control-group yoc-trend-group">
               <label class="yoc-trend-toggle">
                 <input type="checkbox" id="yoc-trend-enable">
-                <span>Apply trended rents</span>
+                <span>Trended rents</span><span class="yx-trend-sum" id="yx-trend-sum">Off</span>
               </label>
               <div class="yoc-trend-controls" id="yoc-trend-controls" style="display:none;">
                 <!-- Growth source toggle: flat assumption vs RealPage submarket forecast -->
@@ -7523,6 +7522,8 @@ tbody tr,
                 </div>
               </div>
             </div>
+                </div>
+                
                 <div class="yx-actions">
                 <button type="button" class="yx-btn yx-btn-primary" id="yoc-proforma-btn" title="Open the development proforma">Development proforma</button>
                 <button type="button" class="yx-btn" id="yoc-export-pdf-btn" title="Export the matrix and assumptions as a PDF">Export PDF</button>
@@ -8926,7 +8927,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161609">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161612">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9186,11 +9187,11 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="../shared/wb.js?v=202611161609"></script>
-<script src="../shared/legacy-db.js?v=202611161609"></script>
-<script>window.WB_BUILD = '202611161609';</script>
-<link rel="stylesheet" href="demo.css?v=202611161609">
-<script src="loader.js?v=202611161609"></script>
+<script src="../shared/wb.js?v=202611161612"></script>
+<script src="../shared/legacy-db.js?v=202611161612"></script>
+<script>window.WB_BUILD = '202611161612';</script>
+<link rel="stylesheet" href="demo.css?v=202611161612">
+<script src="loader.js?v=202611161612"></script>
 
 
 
