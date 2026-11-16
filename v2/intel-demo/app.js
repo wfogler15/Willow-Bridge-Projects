@@ -22364,14 +22364,20 @@ renderAll();
 const TX = { geo: null, window: 10, mode: 'market', charts: {} };
 const TX_COL = { a: '#6A4FC0', b: '#2A9D8F', ink: '#16131f', ink3: '#57526b', grid: '#efedf5' };
 function txGeos() {
-  const all = Object.keys(RP_FORECAST || {}).filter(k => k !== 'Market');
-  const isMsa = k => /,\s*[A-Z]{2}$/.test(k);
+  const keys = Object.keys(RP_FORECAST || {});
+  const isMsa = k => /,\s*[A-Z]{2}$/.test(k) || k === 'Market';
+  // 'Market' duplicates the named MSA in some feeds (Denver); keep it only when no named MSA exists (Phoenix)
+  const all = keys.some(k => /,\s*[A-Z]{2}$/.test(k)) ? keys.filter(k => k !== 'Market') : keys;
   const lastEu = k => { const d = RP_FORECAST[k] || {}; const y = Object.keys(d).sort().pop(); return (d[y] && d[y].eu) || 0; };
   const msas = all.filter(isMsa).sort((a, b) => lastEu(b) - lastEu(a));
   const subs = all.filter(k => !isMsa(k)).sort((a, b) => a.localeCompare(b));
   return { msas, subs, primary: msas[0] || all[0] };
 }
 // Rows for a geography with a derived $/SF where RealPage only gives unit rent (forecast years)
+function txGeoLabel(k) {
+  if (k === 'Market') return (window.__WBD && window.__WBD.title) || 'Market';
+  return /,\s*[A-Z]{2}$/.test(k) ? k.replace(/,\s*[A-Z]{2}$/, '') + ' MSA' : k;
+}
 function txRows(geo) {
   const d = RP_FORECAST[geo] || {};
   const years = Object.keys(d).map(Number).sort((a, b) => a - b);
@@ -22398,7 +22404,7 @@ function txBuild() {
   const host = document.createElement('div'); host.id = 'tx'; host.className = 'tx';
   const g = txGeos();
   TX.geo = TX.geo || g.primary;
-  const label = k => /,\s*[A-Z]{2}$/.test(k) ? k.replace(/,\s*[A-Z]{2}$/, '') + ' MSA' : k;
+  const label = txGeoLabel;
   host.innerHTML = `
     <div class="yx-card tx-head">
       <div class="tx-head-l">
@@ -22485,7 +22491,7 @@ function txRender() {
   const cagrTrail = txCagr(rows, curY - trailN, curY, 'eR');
   const cagrFc = txCagr(rows, curY, lastY, 'eR');
   const peak = rows.filter(r => r.y <= curY && r.eR).reduce((a, r) => (!a || r.eR > a.eR ? r : a), null);
-  const label = /,\s*[A-Z]{2}$/.test(TX.geo) ? TX.geo.replace(/,\s*[A-Z]{2}$/, '') + ' MSA' : TX.geo;
+  const label = txGeoLabel(TX.geo);
   document.getElementById('tx-sub').textContent = `RealPage annual data · ${curY} is the current-year estimate, ${RP_FORECAST_START_YEAR}–${lastY} forecast`;
 
   // KPI tiles
