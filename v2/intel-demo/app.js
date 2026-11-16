@@ -16318,48 +16318,43 @@ function yocColorBands() {
       label: `≥ ${pct(t)}`,
       min: t,
       max: Infinity,
-      color: '#a9d7b4'   // clears target (soft green; minimal palette, dark text)
+      color: '#1F7A4C', ink: '#ffffff', key: 'clear'
     },
     {
       label: `${pct(t - 0.0001)} – ${pct(t - 0.0015)}`,
       min: t - 0.0015,
       max: t - 0.0001,
-      color: '#d9eedd'   // just under target
+      color: '#86C59C', ink: '#0F2A1C', key: 'near'
     },
     {
       label: `${pct(t - 0.0016)} – ${pct(t - 0.0030)}`,
       min: t - 0.0030,
       max: t - 0.0016,
-      color: '#f7edc6'   // watch
+      color: '#F2CD66', ink: '#3A2C05', key: 'watch'
     },
     {
       label: `${pct(t - 0.0031)} – ${pct(t - 0.0060)}`,
       min: t - 0.0060,
       max: t - 0.0031,
-      color: '#f6d6d1'   // short
+      color: '#EE9C7C', ink: '#3D1608', key: 'short'
     },
     {
       label: `< ${pct(t - 0.0060)}`,
       min: -Infinity,
       max: t - 0.0061,
-      color: '#eeb0a8'   // well short
+      color: '#C9473C', ink: '#ffffff', key: 'miss'
     }
   ];
 }
 
-function colorForRoc(roc) {
-  if (roc == null) return '#f6f6f8';
+function yocBandFor(roc) {
+  if (roc == null) return null;
   const bands = yocColorBands();
-  for (const band of bands) {
-    if (roc >= band.min) return band.color;
-  }
-  return '#eeb0a8';
+  for (const band of bands) { if (roc >= band.min) return band; }
+  return bands[bands.length - 1];
 }
-
-function textColorForRoc(roc) {
-  // soft cell tints carry dark text throughout; no-data stays muted
-  return roc == null ? '#8f8aa3' : '#1D1247';
-}
+function colorForRoc(roc) { const b = yocBandFor(roc); return b ? b.color : '#f6f6f8'; }
+function textColorForRoc(roc) { const b = yocBandFor(roc); return b ? b.ink : '#8f8aa3'; }
 
 function renderYoc() {
   // Active product columns — honor the Product Type filter dropdown.
@@ -16419,10 +16414,9 @@ function renderYoc() {
 
   // 2. Legend
   const legend = yocColorBands().map(b => {
-    const textColor = '#1D1247';
-    return `<span class="yoc-legend-cell" style="background:${b.color};color:${textColor};">${b.label}</span>`;
+    return `<span class="yoc-legend-cell" style="background:${b.color};color:${b.ink};">${b.label}</span>`;
   }).join('');
-  document.getElementById('yoc-legend-row').innerHTML = legend + `<span class="yoc-legend-note">Small number = comps in the cell · grey = fewer than ${yocState.minCompsForColor} comps</span>`;
+  document.getElementById('yoc-legend-row').innerHTML = legend + `<span class="yoc-legend-cell yoc-legend-thin">Fewer than ${yocState.minCompsForColor} comps</span><span class="yoc-legend-note">Corner number = comps in the cell · click a cell for the comps</span>`;
 
   // 3. Source data — Existing only; honor sidebar Class/City/Submarket filters.
   // Apply user edits first so any manual corrections to status/class/submarket/rent flow through.
@@ -16496,6 +16490,8 @@ function renderYoc() {
     // Still render the threshold panel — it shows an empty-state message rather than
     // disappearing, so the layout stays stable when filters knock out all data.
     renderYocThresholdPanel({}, []);
+    window.__yocLast = { grouped: {}, compCount: sourceData.length };
+    renderYxVerdict();
     return;
   }
 
@@ -16520,12 +16516,13 @@ function renderYoc() {
   `;
   let theadHtml = '<tr>' + groupHeaderHtml;
   for (const prod of activeProducts) {
-    theadHtml += `<th class="product-header" colspan="${colsPerProduct}">${prod}</th>`;
+    const reqH = requiredPsfRent(prod, yocState.unitSize);
+    theadHtml += `<th class="product-header" colspan="${colsPerProduct}"><span class="yx-ph-name">${prod}</span><span class="yx-ph-req">Needs $${reqH == null ? '—' : reqH.toFixed(2)}/SF</span></th>`;
   }
   theadHtml += '</tr><tr>';
   for (let i = 0; i < activeProducts.length; i++) {
     if (showAvg) theadHtml += `<th class="metric-header${i > 0 ? ' divider-left' : ''}">Average</th>`;
-    if (showBest) theadHtml += `<th class="metric-header${!showAvg && i > 0 ? ' divider-left' : ''}">Best Comp</th>`;
+    if (showBest) theadHtml += `<th class="metric-header${!showAvg && i > 0 ? ' divider-left' : ''}">Best comp</th>`;
   }
   theadHtml += '</tr>';
   document.querySelector('#yoc-table thead').innerHTML = theadHtml;
@@ -16613,7 +16610,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${(rocAvg*100).toFixed(2)}% ROC${trendNote} · ${compCount} comp(s) · unit-weighted · click to view all`;
-        const label = isNoData ? '—' : '$' + avg.toFixed(2) + '<span class="yoc-n">' + (validForWeight.length || validPsf.length) + '</span>';
+        const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span><span class="yx-roc">' + (rocAvg*100).toFixed(2) + '%</span><span class="yoc-n">' + (validForWeight.length || validPsf.length) + '</span>';
         const dataAttr = isClickable
           ? ` data-avg-group="${escapeHTML(sm)}" data-avg-product="${escapeHTML(prod)}"`
           : '';
@@ -16633,7 +16630,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${(rocBest*100).toFixed(2)}% ROC${trendNote} · ${escapeHTML(bestProp.name)} · click to view detail`;
-        const label = isNoData ? '—' : '$' + best.toFixed(2) + '<span class="yoc-n">' + propsWithPsf.length + '</span>';
+        const label = isNoData ? '—' : '<span class="yx-psf">$' + best.toFixed(2) + '</span><span class="yx-roc">' + (rocBest*100).toFixed(2) + '%</span><span class="yoc-n">' + propsWithPsf.length + '</span>';
         const dataAttr = isClickable ? ` data-best-pid="${escapeHTML(bestProp.id)}"` : '';
         row += `<td class="${cls}"${dataAttr} style="${isNoData ? '' : `background:${bg};color:${fg};`}" title="${tooltip}">${label}</td>`;
       }
@@ -16668,6 +16665,82 @@ function renderYoc() {
   // and light-green bands relative to the target). Helps the user quickly spot
   // which submarkets meet their underwriting hurdle without scanning the matrix.
   renderYocThresholdPanel(grouped, groupKeys);
+  window.__yocLast = { grouped, compCount: sourceData.length };
+  renderYxVerdict();
+}
+
+// Verdict band: one card per product with the required rent, cost basis and
+// how many submarkets (average comp) clear each ROC band. Clicking a card
+// focuses the matrix on that product; clicking the active card shows all.
+function renderYxVerdict() {
+  const host = document.getElementById('yx-verdict');
+  if (!host) return;
+  const last = window.__yocLast || { grouped: {}, compCount: 0 };
+  const grouped = last.grouped;
+  const bands = yocColorBands();
+  const groupWord = yocState.groupBy === 'city' ? 'cities' : 'submarkets';
+  const cards = YOC_PRODUCT_COLUMNS.map(prod => {
+    const req = requiredPsfRent(prod, yocState.unitSize);
+    const c = yocState.costs[prod];
+    const tpc = c ? c.land + c.hc * yocState.unitSize + (c.otherHc || 0) + c.soft : null;
+    const counts = Object.fromEntries(bands.map(b => [b.key, 0]));
+    let thin = 0, total = 0, top = null;
+    for (const sm of Object.keys(grouped)) {
+      const props = (grouped[sm][prod] || []).filter(p => p.avgAskingSF != null && !isNaN(p.avgAskingSF));
+      if (!props.length) continue;
+      total++;
+      const w = props.filter(p => p.units != null);
+      const psf = w.length ? weightedAvg(w, 'avgAskingSF', 'units') : props.reduce((s, p) => s + p.avgAskingSF, 0) / props.length;
+      const roc = rocFromPsf(psf, prod, yocState.unitSize, sm);
+      if (props.length < yocState.minCompsForColor) { thin++; continue; }
+      const b = yocBandFor(roc);
+      if (b) counts[b.key]++;
+      if (roc != null && (!top || roc > top.roc)) top = { sm, psf, roc };
+    }
+    const clear = counts.clear + counts.near;
+    const seg = bands.map(b => counts[b.key] ? `<i style="flex:${counts[b.key]};background:${b.color}" title="${counts[b.key]} ${groupWord} · ${b.label}"></i>` : '').join('')
+      + (thin ? `<i class="thin" style="flex:${thin}" title="${thin} ${groupWord} with fewer than ${yocState.minCompsForColor} comps"></i>` : '');
+    const active = yocState.productFilter === prod;
+    const dim = yocState.productFilter !== 'all' && !active;
+    const monthly = req == null ? null : req * yocState.unitSize;
+    return `<button type="button" class="yx-vcard${active ? ' active' : ''}${dim ? ' dim' : ''}" data-prod="${escapeHTML(prod)}">
+      <span class="yx-v-top"><span class="yx-v-prod">${escapeHTML(prod)}</span><span class="yx-v-tpc">$${tpc == null ? '—' : Math.round(tpc / 1000)}K / unit all-in</span></span>
+      <span class="yx-v-label">Rent needed for ${(yocState.targetYoc * 100).toFixed(2)}% YOC</span>
+      <span class="yx-v-req">$${req == null ? '—' : req.toFixed(2)}<small>/SF</small></span>
+      <span class="yx-v-mo">$${monthly == null ? '—' : Math.round(monthly).toLocaleString()}/mo on ${yocState.unitSize} SF · ${opexLabel(prod)} OpEx</span>
+      <span class="yx-v-bar">${seg || '<i class="thin" style="flex:1"></i>'}</span>
+      <span class="yx-v-foot"><b>${clear}</b> of ${total} ${groupWord} within 15 bps of target${thin ? ` · ${thin} thin` : ''}</span>
+      <span class="yx-v-best">${top ? `Strongest: ${escapeHTML(top.sm)} · $${top.psf.toFixed(2)} · ${(top.roc * 100).toFixed(2)}%` : 'No submarket with 3+ comps'}</span>
+    </button>`;
+  }).join('');
+  const comp = `<div class="yx-vmeta">
+      <span class="yx-v-label">Comp set</span>
+      <span class="yx-vm-big">${(last.compCount || 0).toLocaleString()}</span>
+      <span class="yx-v-mo">existing properties with asking rent</span>
+      <span class="yx-vm-line">${escapeHTML(yocCompLabel())}</span>
+      <span class="yx-vm-line">Avg unit ${yocState.minAvgUnitSf}+ SF · ${(yocState.vacancy * 100).toFixed(0)}% vacancy · $${yocState.otherIncomePerUnit.toLocaleString()} other income</span>
+    </div>`;
+  host.innerHTML = cards + comp;
+  host.querySelectorAll('.yx-vcard').forEach(btn => btn.addEventListener('click', () => {
+    const prod = btn.dataset.prod;
+    yocState.productFilter = yocState.productFilter === prod ? 'all' : prod;
+    const sel = document.getElementById('yoc-product-filter');
+    if (sel) sel.value = yocState.productFilter;
+    renderYoc();
+  }));
+  const seg = document.getElementById('yx-show');
+  if (seg) {
+    seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === yocState.rentComp));
+    if (!seg.dataset.wired) {
+      seg.dataset.wired = '1';
+      seg.addEventListener('click', e => {
+        const b = e.target.closest('button[data-v]');
+        if (!b) return;
+        yocState.rentComp = b.dataset.v;
+        renderYoc();
+      });
+    }
+  }
 }
 
 function renderYocThresholdPanel(grouped, groupKeys) {
@@ -16742,7 +16815,7 @@ function renderYocThresholdPanel(grouped, groupKeys) {
 
   const header = `
     <div class="yoc-threshold-header">
-      <div class="yoc-threshold-title">${escapeHTML(scopeLabel)} · ${groupLabel} ≥ ${(threshold*100).toFixed(2)}% ROC</div>
+      <div class="yoc-threshold-title">Where it pencils<span class="yx-th-sub">${escapeHTML(scopeLabel)} · ${groupLabel.toLowerCase()} at ${(threshold*100).toFixed(2)}%+ ROC</span></div>
       <div class="yoc-threshold-toolbar">
         <div class="yoc-threshold-toggle" id="yoc-threshold-toggle">
           <button class="yoc-threshold-toggle-btn${mode === 'avg' ? ' active' : ''}" data-mode="avg">Average</button>
@@ -16762,8 +16835,8 @@ function renderYocThresholdPanel(grouped, groupKeys) {
   // Color rules match the matrix cell shading so the panel reads as the same data:
   //   ≥ target (e.g. 6.50%) → full green
   //   target − 15bps to target − 1bp → light green
-  const fullGreen = '#1f8a3a';
-  const lightGreen = '#7bc473';
+  const fullGreen = '#1F7A4C';
+  const lightGreen = '#86C59C';
   // Tag color per product so the all-products view is scannable
   const productTagColor = {
     'Garden':    'rgba(67,40,144,0.12)',
@@ -16778,7 +16851,7 @@ function renderYocThresholdPanel(grouped, groupKeys) {
   const showProductTag = yocState.productFilter === 'all';
   const list = rows.map(r => {
     const bg = r.roc >= target ? fullGreen : lightGreen;
-    const fg = '#ffffff';
+    const fg = r.roc >= target ? '#ffffff' : '#0F2A1C';
     const tag = showProductTag
       ? `<span class="yoc-threshold-tag" style="background:${productTagColor[r.prod] || 'var(--bg-2)'};color:${productTagText[r.prod] || 'var(--ink-3)'};">${escapeHTML(r.prod)}</span>`
       : '';

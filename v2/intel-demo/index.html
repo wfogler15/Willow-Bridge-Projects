@@ -7396,52 +7396,51 @@ tbody tr,
         </div>
       </div>
       <div class="view" id="view-yoc">
-        <div class="panel">
-          <div class="panel-header" style="flex-wrap:wrap;gap:14px;">
-            <div>
-              <div class="panel-title">Yield-on-Cost <em>Matrix</em></div>
-              <div class="panel-sub">Color-coded by Return on Cost · Compare market rents to required rent for target YOC</div>
+        <div class="yx">
+          <section class="yx-verdict" id="yx-verdict" aria-label="Required rent by product"></section>
+          <div class="yx-grid">
+            <div class="yx-main">
+              <div class="yx-card yx-matrix">
+                <div class="yx-card-head">
+                  <div>
+                    <div class="yx-h">Submarket feasibility</div>
+                    <div class="yx-sub" id="yx-sub">Asking rent per SF from today's comps, shaded by the return on cost it supports</div>
+                  </div>
+                  <div class="yx-tools">
+                    <div class="yx-seg" id="yx-show" role="group" aria-label="Rent shown">
+                      <button type="button" data-v="both">Avg + best</button><button type="button" data-v="average">Average</button><button type="button" data-v="best">Best comp</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="yoc-legend"><div class="yoc-legend-title">Return on cost</div><div class="yoc-legend-row" id="yoc-legend-row"></div></div>
+                <div class="table-scroll yoc-table-scroll">
+                  <table id="yoc-table" class="yoc-table">
+                    <thead></thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-              <button class="sc-export-btn" id="yoc-proforma-btn" title="Open the development proforma — run quick deal numbers" style="background:var(--accent);color:#fff;border-color:var(--accent-text);">
-                <span style="font-size:13px;line-height:1;">▣</span> DEVELOPMENT PROFORMA
-              </button>
-              <button class="sc-export-btn" id="yoc-reset-btn" title="Restore all YOC dropdowns to their default values">
-                <span style="font-size:13px;line-height:1;">↺</span> RESET DEFAULTS
-              </button>
-              <button class="sc-export-btn" id="yoc-export-pdf-btn" title="Export the matrix, threshold panel, and current assumptions as a PDF">
-                <span style="font-size:13px;line-height:1;">↓</span> EXPORT PDF
-              </button>
-            </div>
-          </div>
-          <div class="yoc-controls">
-            <!-- Product type filter — narrows the heat map to a single product column -->
-            <div class="yoc-control-group">
-              <div class="yoc-control-label">Product Type</div>
-              <select id="yoc-product-filter" class="yoc-select">
+            <aside class="yx-side">
+              <div class="yx-card yx-assump">
+                <div class="yx-card-head">
+                  <div class="yx-h">Assumptions</div>
+                  <button type="button" class="yx-link" id="yoc-reset-btn" title="Restore every assumption to its default">Reset</button>
+                </div>
+                <div class="yx-form">
+                  <label class="yx-field"><span>Product</span><select id="yoc-product-filter" class="yoc-select">
                 <option value="all" selected="">All Products</option>
                 <option value="Garden">Garden Only</option>
                 <option value="Mid-Rise">Mid-Rise Only</option>
                 <option value="High-Rise">High-Rise Only</option>
-              </select>
-            </div>
-            <!-- Comp set: which existing comps feed Average / Best Comp (options filled by attachYocControls) -->
-            <div class="yoc-control-group">
-              <div class="yoc-control-label">Comp Set</div>
-              <select id="yoc-compset" class="yoc-select"></select>
-            </div>
-            <!-- Assumptions row 1: Underwriting -->
-            <div class="yoc-control-group">
-              <div class="yoc-control-label">Target YOC</div>
-              <select id="yoc-target" class="yoc-select">
+              </select></label>
+                  <label class="yx-field"><span>Comp set</span><select id="yoc-compset" class="yoc-select"></select></label>
+                  <label class="yx-field"><span>Target YOC</span><select id="yoc-target" class="yoc-select">
                 <option value="0.0600">6.00%</option>
                 <option value="0.0625">6.25%</option>
                 <option value="0.0650" selected="">6.50%</option>
-              </select>
-            </div>
-            <div class="yoc-control-group">
-              <div class="yoc-control-label">OpEx Ratio</div>
-              <select id="yoc-opex" class="yoc-select">
+              </select></label>
+                  <label class="yx-field"><span>OpEx</span><select id="yoc-opex" class="yoc-select">
                 <option value="product" selected="">Per Product</option>
                 <option value="0.15">15% (all)</option>
                 <option value="0.20">20% (all)</option>
@@ -7450,11 +7449,8 @@ tbody tr,
                 <option value="0.30">30% (all)</option>
                 <option value="0.35">35% (all)</option>
                 <option value="0.40">40% (all)</option>
-              </select>
-            </div>
-            <div class="yoc-control-group">
-              <div class="yoc-control-label">Other Income ($/Unit/Yr)</div>
-              <select id="yoc-otherincome" class="yoc-select">
+              </select></label>
+                  <label class="yx-field"><span>Other income / unit / yr</span><select id="yoc-otherincome" class="yoc-select">
                 <option value="0">$0</option>
                 <option value="1500">$1,500</option>
                 <option value="2000">$2,000</option>
@@ -7462,22 +7458,11 @@ tbody tr,
                 <option value="3000">$3,000</option>
                 <option value="3500">$3,500</option>
                 <option value="4000">$4,000</option>
-              </select>
-            </div>
-
-            <!-- Assumptions row 2: Sizing -->
-            <div class="yoc-control-group">
-              <div class="yoc-control-label">Avg Unit Size (SF)</div>
-              <select id="yoc-unitsize" class="yoc-select">
+              </select></label>
+                  <label class="yx-field"><span>Avg unit size</span><select id="yoc-unitsize" class="yoc-select">
                 <!-- populated by JS -->
-              </select>
-            </div>
-            <!-- Deal Size — drives the "Based on X units" label under each TPC/Unit
-                 tile. Doesn't change the per-unit math (which is already per-unit);
-                 lets the team frame TPC against their typical deal size. -->
-            <div class="yoc-control-group">
-              <div class="yoc-control-label">Deal Size (Units)</div>
-              <select id="yoc-dealsize" class="yoc-select">
+              </select></label>
+                  <label class="yx-field"><span>Deal size (units)</span><select id="yoc-dealsize" class="yoc-select">
                 <option value="150">150</option>
                 <option value="200">200</option>
                 <option value="250">250</option>
@@ -7485,74 +7470,17 @@ tbody tr,
                 <option value="350">350</option>
                 <option value="400">400</option>
                 <option value="500">500</option>
-              </select>
-            </div>
-            <!-- Cost assumptions per product type — all dropdowns -->
-            <div class="yoc-cost-grid">
-              <div class="yoc-cost-col">
-                <div class="yoc-cost-header">Garden</div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">Land / Unit</span>
-                  <select id="garden-land" class="yoc-cost-select" data-default="40000"></select>
+              </select></label>
                 </div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">HC / NRSF</span>
-                  <select id="garden-hc" class="yoc-cost-select-hc" data-default="225"></select>
+                <div class="yx-costs-wrap">
+                  <div class="yx-mini-h">Development cost</div>
+                  <table class="yx-costs">
+                    <thead><tr><th></th><th>Garden</th><th>Mid-Rise</th><th>High-Rise</th></tr></thead>
+                    <tbody><tr><th>Land / unit</th><td><select id="garden-land" class="yoc-cost-select" data-default="40000"></select></td><td><select id="midrise-land" class="yoc-cost-select" data-default="55000"></select></td><td><select id="highrise-land" class="yoc-cost-select" data-default="60000"></select></td></tr><tr><th>Hard cost / NRSF</th><td><select id="garden-hc" class="yoc-cost-select-hc" data-default="225"></select></td><td><select id="midrise-hc" class="yoc-cost-select-hc" data-default="300"></select></td><td><select id="highrise-hc" class="yoc-cost-select-hc" data-default="500"></select></td></tr><tr><th>Other hard / unit</th><td><select id="garden-otherhc" class="yoc-cost-select" data-default="20000"></select></td><td><select id="midrise-otherhc" class="yoc-cost-select" data-default="25000"></select></td><td><select id="highrise-otherhc" class="yoc-cost-select" data-default="30000"></select></td></tr><tr><th>Soft / unit</th><td><select id="garden-soft" class="yoc-cost-select-soft" data-default="55000"></select></td><td><select id="midrise-soft" class="yoc-cost-select-soft" data-default="65000"></select></td><td><select id="highrise-soft" class="yoc-cost-select-soft" data-default="75000"></select></td></tr></tbody>
+                    <tfoot><tr><th>Total / unit</th><td id="garden-tpc" class="yoc-cost-tpc"></td><td id="midrise-tpc" class="yoc-cost-tpc"></td><td id="highrise-tpc" class="yoc-cost-tpc"></td></tr></tfoot>
+                  </table>
                 </div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">Other HC / Unit</span>
-                  <select id="garden-otherhc" class="yoc-cost-select" data-default="20000"></select>
-                </div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">Soft / Unit</span>
-                  <select id="garden-soft" class="yoc-cost-select-soft" data-default="55000"></select>
-                </div>
-                <div class="yoc-cost-tpc" id="garden-tpc"></div>
-              </div>
-              <div class="yoc-cost-col">
-                <div class="yoc-cost-header">Mid-Rise</div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">Land / Unit</span>
-                  <select id="midrise-land" class="yoc-cost-select" data-default="55000"></select>
-                </div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">HC / NRSF</span>
-                  <select id="midrise-hc" class="yoc-cost-select-hc" data-default="300"></select>
-                </div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">Other HC / Unit</span>
-                  <select id="midrise-otherhc" class="yoc-cost-select" data-default="25000"></select>
-                </div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">Soft / Unit</span>
-                  <select id="midrise-soft" class="yoc-cost-select-soft" data-default="65000"></select>
-                </div>
-                <div class="yoc-cost-tpc" id="midrise-tpc"></div>
-              </div>
-              <div class="yoc-cost-col">
-                <div class="yoc-cost-header">High-Rise</div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">Land / Unit</span>
-                  <select id="highrise-land" class="yoc-cost-select" data-default="60000"></select>
-                </div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">HC / NRSF</span>
-                  <select id="highrise-hc" class="yoc-cost-select-hc" data-default="500"></select>
-                </div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">Other HC / Unit</span>
-                  <select id="highrise-otherhc" class="yoc-cost-select" data-default="30000"></select>
-                </div>
-                <div class="yoc-cost-row">
-                  <span class="yoc-cost-lbl">Soft / Unit</span>
-                  <select id="highrise-soft" class="yoc-cost-select-soft" data-default="75000"></select>
-                </div>
-                <div class="yoc-cost-tpc" id="highrise-tpc"></div>
-              </div>
-            </div>
-
-            <!-- Trended rents -->
-            <div class="yoc-control-group yoc-trend-group">
+                <div class="yoc-control-group yoc-trend-group">
               <label class="yoc-trend-toggle">
                 <input type="checkbox" id="yoc-trend-enable">
                 <span>Apply trended rents</span>
@@ -7586,30 +7514,17 @@ tbody tr,
                 </div>
               </div>
             </div>
+              </div>
+              <div class="yx-card yx-clears">
+                <div class="yoc-threshold-panel" id="yoc-threshold-panel"></div>
+              </div>
+              <div class="yx-actions">
+                <button type="button" class="yx-btn yx-btn-primary" id="yoc-proforma-btn" title="Open the development proforma">Development proforma</button>
+                <button type="button" class="yx-btn" id="yoc-export-pdf-btn" title="Export the matrix and assumptions as a PDF">Export PDF</button>
+              </div>
+            </aside>
           </div>
-
-          <div class="panel-body tight">
-            <!-- Required PSF summary strip + (when a single product is selected)
-                 a sibling threshold panel that lists submarkets clearing the hurdle -->
-            <div class="yoc-strip-row">
-              <div class="yoc-required-strip" id="yoc-required-strip"></div>
-              <div class="yoc-threshold-panel" id="yoc-threshold-panel"></div>
-            </div>
-
-            <!-- Color legend -->
-            <div class="yoc-legend">
-              <div class="yoc-legend-title">ROC Color Scale</div>
-              <div class="yoc-legend-row" id="yoc-legend-row"></div>
-            </div>
-
-            <!-- The matrix table -->
-            <div class="table-scroll yoc-table-scroll">
-              <table id="yoc-table" class="yoc-table">
-                <thead></thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
+          <div class="yoc-required-strip" id="yoc-required-strip"></div>
         </div>
       </div>
 
@@ -8987,7 +8902,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161211">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161227">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9247,10 +9162,11 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="../shared/wb.js?v=202611161211"></script>
-<script src="../shared/legacy-db.js?v=202611161211"></script>
-<script>window.WB_BUILD = '202611161211';</script>
-<script src="loader.js?v=202611161211"></script>
+<script src="../shared/wb.js?v=202611161227"></script>
+<script src="../shared/legacy-db.js?v=202611161227"></script>
+<script>window.WB_BUILD = '202611161227';</script>
+<link rel="stylesheet" href="demo.css?v=202611161227">
+<script src="loader.js?v=202611161227"></script>
 
 
 
