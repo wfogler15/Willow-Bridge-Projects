@@ -22524,7 +22524,7 @@ function txRender() {
     tile('Occupancy', cur && cur.oc ? (cur.oc * 100).toFixed(1) + '<small>%</small>' : '—', prev && prev.oc && cur && cur.oc ? (cur.oc >= prev.oc ? '+' : '−') + Math.abs(Math.round((cur.oc - prev.oc) * 10000)) + ' bps vs. ' + (curY - 1) : '', '', ''),
     tile(`Concessions · ${conc ? conc.y : ''}`, conc ? (conc.cR * 52).toFixed(1) + '<small> wks free</small>' : '—', conc && conc.eR ? '≈ $' + Math.round(conc.cR * conc.eR).toLocaleString() + '/mo per unit' : '', '', ''),
     tile(`Supply · ${curY}`, cur && cur.sp ? Math.round(cur.sp).toLocaleString() + '<small> units</small>' : '—', supPct != null ? txPct(supPct) + ' of inventory · demand ' + Math.round(cur.dm || 0).toLocaleString() : '', '', ''),
-    tile('Rent growth (CAGR)', `<span class="${cagrFc != null && cagrFc < 0 ? 'dn' : 'up'}">${txSigned(cagrFc)}</span><small> fcst</small>`, `${curY}–${lastY} forecast · trailing ${trailN}-yr ${txSigned(cagrTrail)}`, offPeak != null && offPeak < -0.005 ? `${txSigned(offPeak)} below the ${peak.y} peak` : (peak ? 'At or near the ' + peak.y + ' peak' : ''), offPeak != null && offPeak < -0.005 ? 'dn' : 'up')
+    tile('Rent growth / yr', `<span class="${cagrFc != null && cagrFc < 0 ? 'dn' : 'up'}">${txSigned(cagrFc)}</span><small> fcst</small>`, `${curY}–${lastY} forecast, per year`, offPeak != null && offPeak < -0.005 ? `${txSigned(offPeak)} below the ${peak.y} peak` : (peak ? 'At or near the ' + peak.y + ' peak' : ''), offPeak != null && offPeak < -0.005 ? 'dn' : 'up')
   ].join('');
 
   // Charts
@@ -22584,14 +22584,16 @@ function txRenderBoard() {
     const rows = txRows(k); const last = rows[rows.length - 1]; const cur = rows.find(r => r.y === curY) || {};
     const conc = txLastWith(rows, 'cR', curY);
     return { k, psf: cur.psf, eR: cur.eR, yR: cur.yR, oc: cur.oc, wks: conc ? conc.cR * 52 : null, sup: cur.sp && cur.eu ? cur.sp / cur.eu : null,
-      fc: last ? txCagr(rows, curY, last.y, 'eR') : null, trail: txCagr(rows, curY - 5, curY, 'eR') };
+      fc: last ? txCagr(rows, curY, last.y, 'eR') : null, trail: txCagr(rows, curY - 5, curY, 'eR'),
+      ...(() => { const pk = rows.filter(r => r.y <= curY && r.eR).reduce((a, r) => (!a || r.eR > a.eR ? r : a), null);
+        return { off: pk && cur.eR ? cur.eR / pk.eR - 1 : null, pkY: pk ? pk.y : null }; })() };
   });
   const sortKey = TX.sort || 'fc';
   const [k, dir] = sortKey.split(':');
   data.sort((a, b) => { const va = a[k], vb = b[k]; if (va == null) return 1; if (vb == null) return -1; return typeof va === 'string' ? va.localeCompare(vb) * (dir ? -1 : 1) : (dir ? va - vb : vb - va); });
   const ext = key => { const v = data.map(d => d[key]).filter(x => x != null); return [Math.min(...v), Math.max(...v)]; };
   const tint = (v, key, good) => { if (v == null) return ''; const [lo, hi] = ext(key); const t = hi > lo ? (v - lo) / (hi - lo) : 0.5; const s = good === 'high' ? t : 1 - t; return `background:rgba(31,122,76,${(s * 0.22).toFixed(3)})`; };
-  const cols = [['k', 'Submarket'], ['psf', 'Rent / SF'], ['yR', `YoY ${curY}`], ['oc', 'Occupancy'], ['wks', 'Concessions'], ['sup', `${curY} supply`], ['trail', 'Trailing 5-yr'], ['fc', 'Forecast CAGR']];
+  const cols = [['k', 'Submarket'], ['psf', 'Rent / SF'], ['yR', `YoY ${curY}`], ['oc', 'Occupancy'], ['wks', 'Concessions'], ['sup', `${curY} supply`], ['off', 'Off peak'], ['fc', `Forecast / yr to ${(txRows(txGeos().primary).slice(-1)[0] || {}).y || ''}`]];
   const arrow = c => (k === c ? (dir ? ' ↑' : ' ↓') : '');
   document.getElementById('tx-table').innerHTML = `<thead><tr>${cols.map(([c, l]) => `<th data-k="${c}" class="${c === 'k' ? '' : 'num'}${k === c ? ' on' : ''}">${l}${arrow(c)}</th>`).join('')}</tr></thead>
     <tbody>${data.map(d => `<tr data-geo="${escapeHTML(d.k)}" class="${d.k === TX.geo ? 'sel' : ''}">
@@ -22601,7 +22603,7 @@ function txRenderBoard() {
       <td class="num" style="${tint(d.oc, 'oc', 'high')}">${txPct(d.oc)}</td>
       <td class="num" style="${tint(d.wks, 'wks', 'low')}">${d.wks != null ? d.wks.toFixed(1) + ' wks' : '—'}</td>
       <td class="num" style="${tint(d.sup, 'sup', 'low')}">${txPct(d.sup)}</td>
-      <td class="num ${d.trail != null && d.trail < 0 ? 'dn' : 'up'}">${txSigned(d.trail)}</td>
+      <td class="num" title="${d.trail != null ? 'Trailing 5-yr: ' + txSigned(d.trail) + '/yr' : ''}"><span class="${d.off != null && d.off < -0.005 ? 'dn' : 'up'}">${d.off != null && d.off > -0.005 ? 'At peak' : txSigned(d.off)}</span><span class="mo">${d.pkY && d.off != null && d.off <= -0.005 ? 'from ' + d.pkY + ' peak' : ''}</span></td>
       <td class="num fc" style="${tint(d.fc, 'fc', 'high')}"><b>${txSigned(d.fc)}</b></td></tr>`).join('')}</tbody>`;
   document.getElementById('tx-board-sub').textContent = `${data.length} RealPage submarkets · green = better for development (higher occupancy and rent growth, fewer concessions, less new supply). Click a column to sort, a row to chart it.`;
 }
