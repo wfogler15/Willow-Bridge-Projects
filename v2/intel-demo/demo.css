@@ -394,3 +394,8 @@
 .yx-prop b { color: #16131f; }
 .yx-prop-h { border-top: 0; background: #faf9fd; font-size: 11.5px; font-weight: 600; color: #6c6782; cursor: default; }
 .yx-prop-h:hover { background: #faf9fd; }
+.yx-modal td, .yx-modal th { text-align: left; }
+.yx-modal td.num, .yx-modal th.num { text-align: right; }
+.yx-modal td.rk, .yx-modal th.rk { text-align: center; }
+.yx-props, .yx-prop { text-align: left; }
+.yx-prop .r { text-align: right; }
