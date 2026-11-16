@@ -271,3 +271,5 @@
 #view-yoc .yx-c-row select:focus { outline: none; border-color: var(--x-purple) !important; box-shadow: 0 0 0 3px rgba(67,40,144,.14) !important; }
 #view-yoc .yx-vcard .yx-v-mo { margin-bottom: 14px; }
 #view-yoc .yx-vcard.dim { opacity: .6; }
+#view-yoc .yoc-table thead th.yx-gh { width: 250px; }
+#view-yoc .yoc-table tbody td.yoc-submarket { width: 250px; }
