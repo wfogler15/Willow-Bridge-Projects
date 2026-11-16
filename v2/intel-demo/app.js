@@ -16673,7 +16673,8 @@ function renderYoc() {
 // Verdict band: one card per product with the required rent, cost basis and
 // how many submarkets (average comp) clear each ROC band. Clicking a card
 // focuses the matrix on that product; clicking the active card shows all.
-// Modal: every submarket that pencils for one product, ranked by return on cost
+// Modal: every submarket that pencils for one product, ranked by return on cost.
+// Click a submarket to expand its comps; click a comp for the property detail.
 function openYxPencilsModal(prod) {
   const data = (window.__yxClears || {})[prod];
   if (!data) return;
@@ -16684,35 +16685,70 @@ function openYxPencilsModal(prod) {
     document.body.appendChild(ov);
     ov.addEventListener('click', e => {
       if (e.target === ov || e.target.closest('.yx-modal-x')) { ov.hidden = true; return; }
-      const row = e.target.closest('tr[data-sm]');
-      if (row) { ov.hidden = true; openYocGroupDetail(row.dataset.sm, row.dataset.prod); }
+      const prop = e.target.closest('[data-pid]');
+      if (prop) { ov.hidden = true; openDetail(prop.dataset.pid); return; }
+      const row = e.target.closest('tr.yx-sm-row');
+      if (row) {
+        const open = row.classList.toggle('open');
+        const sub = row.nextElementSibling;
+        if (sub && sub.classList.contains('yx-props-row')) sub.hidden = !open;
+      }
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') ov.hidden = true; });
   }
-  const rows = data.list.map(c => {
+  const maxSpread = Math.max(0.01, ...data.list.map(c => Math.abs(c.psf - (data.req || 0))));
+  const fmt$ = v => '$' + v.toFixed(2);
+  const rows = data.list.map((c, i) => {
     const b = yocBandFor(c.roc);
-    const spread = data.req == null ? null : c.psf - data.req;
+    const spread = data.req == null ? 0 : c.psf - data.req;
     const thin = c.n < yocState.minCompsForColor;
-    return `<tr data-sm="${escapeHTML(c.sm)}" data-prod="${escapeHTML(prod)}">
-      <td class="sm">${escapeHTML(c.sm)}</td>
-      <td class="num">$${c.psf.toFixed(2)}</td>
-      <td class="num pos">${spread == null ? '—' : (spread >= 0 ? '+' : '−') + '$' + Math.abs(spread).toFixed(2)}</td>
-      <td class="num">$${c.best.toFixed(2)}</td>
-      <td class="num${thin ? ' thin' : ''}">${c.n}${thin ? ' <span>thin</span>' : ''}</td>
+    const w = Math.round(Math.abs(spread) / maxSpread * 100);
+    const props = c.props.slice().sort((x, y) => (y.avgAskingSF || 0) - (x.avgAskingSF || 0));
+    const plist = props.map(p => {
+      const sf = p.avgUnitSF || (p.avgAskingUnit && p.avgAskingSF ? p.avgAskingUnit / p.avgAskingSF : null);
+      const mo = p.avgAskingUnit || (sf && p.avgAskingSF ? p.avgAskingSF * sf : null);
+      const vs = data.req == null || p.avgAskingSF == null ? null : p.avgAskingSF - data.req;
+      return `<div class="yx-prop" data-pid="${escapeHTML(p.id)}">
+        <span class="nm">${escapeHTML(p.name || 'Unnamed')}${typeof affTag === 'function' ? affTag(p) : ''}</span>
+        <span>${p.yearBuilt || '—'}</span><span>${p.units ? p.units.toLocaleString() + ' units' : '—'}</span>
+        <span>${sf ? Math.round(sf).toLocaleString() + ' SF' : '—'}</span>
+        <span class="r"><b>${p.avgAskingSF != null ? fmt$(p.avgAskingSF) : '—'}</b> / SF</span>
+        <span class="r">${mo ? '$' + Math.round(mo).toLocaleString() + ' / mo' : '—'}</span>
+        <span class="r ${vs != null && vs >= 0 ? 'up' : 'dn'}">${vs == null ? '' : (vs >= 0 ? '+' : '−') + fmt$(Math.abs(vs))}</span>
+      </div>`;
+    }).join('');
+    return `<tr class="yx-sm-row" title="Show the comps">
+      <td class="rk">${i + 1}</td>
+      <td class="sm"><span class="chev">›</span>${escapeHTML(c.sm)}</td>
+      <td class="num"><b>${fmt$(c.psf)}</b></td>
+      <td class="spread"><span class="v ${spread >= 0 ? 'up' : 'dn'}">${(spread >= 0 ? '+' : '−') + fmt$(Math.abs(spread))}</span><span class="bar"><i class="${spread >= 0 ? 'up' : 'dn'}" style="width:${w}%"></i></span></td>
+      <td class="num">${fmt$(c.best)}</td>
+      <td class="num">${thin ? `<span class="thin">${c.n} · thin</span>` : c.n}</td>
       <td class="num">${c.units.toLocaleString()}</td>
       <td class="num"><span class="pill" style="background:${b ? b.color : '#eee'};color:${b ? b.ink : '#333'}">${(c.roc * 100).toFixed(2)}%</span></td>
-    </tr>`;
+    </tr>
+    <tr class="yx-props-row" hidden><td></td><td colspan="7"><div class="yx-props">
+      <div class="yx-prop yx-prop-h"><span>Property</span><span>Built</span><span>Units</span><span>Avg unit</span><span class="r">Rent / SF</span><span class="r">Rent / mo</span><span class="r">vs. needed</span></div>
+      ${plist}</div></td></tr>`;
   }).join('');
+  const top = data.list[0];
   ov.innerHTML = `<div class="yx-modal-card" role="dialog" aria-modal="true" aria-label="${escapeHTML(prod)} submarkets that pencil">
     <div class="yx-modal-head">
-      <div><div class="yx-modal-title">${escapeHTML(prod)} · where it pencils</div>
-      <div class="yx-modal-sub">${data.list.length} of ${data.total} ${groupWord.toLowerCase()}s at today's rents · needs $${data.req == null ? '—' : data.req.toFixed(2)}/SF for ${(yocState.targetYoc * 100).toFixed(2)}% YOC · ${escapeHTML(yocCompLabel())}</div></div>
+      <div>
+        <div class="yx-modal-eyebrow">${escapeHTML(prod)} · ${escapeHTML(yocCompLabel())}</div>
+        <div class="yx-modal-title">Where ${escapeHTML(prod.toLowerCase())} pencils today</div>
+      </div>
       <button type="button" class="yx-modal-x" aria-label="Close">×</button>
     </div>
+    <div class="yx-modal-stats">
+      <div><span>Rent needed</span><b>$${data.req == null ? '—' : data.req.toFixed(2)}<small>/SF</small></b><em>${(yocState.targetYoc * 100).toFixed(2)}% YOC</em></div>
+      <div><span>${groupWord}s that pencil</span><b>${data.list.length}<small> of ${data.total}</small></b><em>within 15 bps of target</em></div>
+      <div><span>Strongest</span><b class="sm">${top ? escapeHTML(top.sm) : '—'}</b><em>${top ? fmt$(top.psf) + '/SF · ' + (top.roc * 100).toFixed(2) + '%' : ''}</em></div>
+    </div>
     <div class="yx-modal-body"><table>
-      <thead><tr><th>${groupWord}</th><th class="num">Avg rent / SF</th><th class="num">vs. needed</th><th class="num">Best comp</th><th class="num">Comps</th><th class="num">Units</th><th class="num">Return on cost</th></tr></thead>
+      <thead><tr><th class="rk">#</th><th>${groupWord}</th><th class="num">Avg rent / SF</th><th>vs. needed</th><th class="num">Best comp</th><th class="num">Comps</th><th class="num">Units</th><th class="num">Return on cost</th></tr></thead>
       <tbody>${rows}</tbody></table></div>
-    <div class="yx-modal-foot">Click a row to see its comps. "Thin" = fewer than ${yocState.minCompsForColor} comps behind the average.</div>
+    <div class="yx-modal-foot">Click a ${groupWord.toLowerCase()} to see its comps, then a comp for the full property. Thin = fewer than ${yocState.minCompsForColor} comps behind the average.</div>
   </div>`;
   ov.hidden = false;
 }
@@ -16740,7 +16776,7 @@ function renderYxVerdict() {
       const roc = rocFromPsf(psf, prod, yocState.unitSize, sm);
       const b = yocBandFor(roc);
       if (b) counts[b.key]++;
-      if (roc != null && roc >= threshold) clears.push({ sm, roc, n: props.length, psf, best: Math.max(...props.map(p => p.avgAskingSF)), units: props.reduce((t, p) => t + (p.units || 0), 0) });
+      if (roc != null && roc >= threshold) clears.push({ sm, roc, n: props.length, psf, best: Math.max(...props.map(p => p.avgAskingSF)), units: props.reduce((t, p) => t + (p.units || 0), 0), props });
     }
     clears.sort((x, y) => y.roc - x.roc);
     (window.__yxClears = window.__yxClears || {})[prod] = { list: clears, total, req };
