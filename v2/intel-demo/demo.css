@@ -287,3 +287,14 @@
 #view-yoc .yoc-table thead th.metric-header { height: 30px !important; font: 600 11.5px/1 var(--x-font) !important; color: var(--x-ink-3) !important; }
 #view-yoc .yoc-table thead th.yx-gh { vertical-align: bottom; padding-bottom: 10px !important; box-shadow: inset 0 -1px 0 var(--x-line) !important; background-image: none !important; }
 #view-yoc .yoc-table tbody td.yoc-cell { min-width: 120px; height: 52px; }
+
+/* cards keep their own height; trend controls stay compact */
+#view-yoc .yx-grid { align-items: start; }
+#view-yoc .yx-main { display: block; }
+#view-yoc .yx-v-bar { margin-top: 4px; }
+#view-yoc .yx-assump { flex: none; }
+#view-yoc .yoc-trend-controls { margin-top: 10px; gap: 6px; }
+#view-yoc .yoc-trend-controls .yoc-control-sub { display: flex !important; align-items: center; gap: 12px; margin: 0 !important; padding: 0 !important; }
+#view-yoc .yoc-trend-controls .yoc-control-label-sm { width: 110px; flex: none; margin: 0 !important; font: 500 12px/1 var(--x-font) !important; color: var(--x-ink-3) !important; }
+#view-yoc .yoc-trend-controls .toggle-group { gap: 12px !important; }
+#view-yoc .yoc-trend-controls .toggle-btn { font-size: 12.5px !important; }
