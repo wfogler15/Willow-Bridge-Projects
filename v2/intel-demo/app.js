@@ -22398,6 +22398,24 @@ const txPct = (v, d = 1) => v == null ? '—' : (v * 100).toFixed(d) + '%';
 const txSigned = (v, d = 1) => v == null ? '—' : (v >= 0 ? '+' : '−') + Math.abs(v * 100).toFixed(d) + '%';
 function txLastWith(rows, key, maxY) { for (let i = rows.length - 1; i >= 0; i--) { const r = rows[i]; if (r.y <= maxY && r[key] != null) return r; } return null; }
 
+// Tiny inline SVG trend for the KPI tiles: actual solid, forecast dashed, current year dotted
+function txSpark(rows, key, curY) {
+  const pts = rows.filter(r => r[key] != null);
+  if (pts.length < 3) return '';
+  const W = 160, H = 38, P = 3;
+  const xs = pts.map(r => r.y), vs = pts.map(r => r[key]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), v0 = Math.min(...vs), v1 = Math.max(...vs);
+  const X = y => P + (W - 2 * P) * (y - x0) / Math.max(1, x1 - x0);
+  const Y = v => H - P - (H - 2 * P) * (v1 > v0 ? (v - v0) / (v1 - v0) : 0.5);
+  const act = pts.filter(r => r.y <= curY), fc = pts.filter(r => r.y >= curY);
+  const path = a => a.map((r, i) => (i ? 'L' : 'M') + X(r.y).toFixed(1) + ' ' + Y(r[key]).toFixed(1)).join(' ');
+  const c = pts.find(r => r.y === curY) || act[act.length - 1];
+  return `<svg class="tx-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <path d="${path(act)}" fill="none" stroke="#432890" stroke-width="1.8" vector-effect="non-scaling-stroke"/>
+    ${fc.length > 1 ? `<path d="${path(fc)}" fill="none" stroke="#6A4FC0" stroke-width="1.8" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>` : ''}
+    ${c ? `<circle cx="${X(c.y).toFixed(1)}" cy="${Y(c[key]).toFixed(1)}" r="2.6" fill="#432890"/>` : ''}</svg>`;
+}
+
 function txBuild() {
   const view = document.getElementById('view-trends');
   if (!view || document.getElementById('tx')) return;
@@ -22497,7 +22515,10 @@ function txRender() {
   // KPI tiles
   const supPct = cur && cur.sp && cur.eu ? cur.sp / cur.eu : null;
   const offPeak = peak && cur && cur.eR ? cur.eR / peak.eR - 1 : null;
-  const tile = (lab, big, sub, note, tone) => `<div class="yx-card tx-kpi"><div class="tx-kl">${lab}</div><div class="tx-kv">${big}</div><div class="tx-ks">${sub}</div>${note ? `<div class="tx-kn ${tone || ''}">${note}</div>` : ''}</div>`;
+  const sparkRows = rows.filter(r => r.y >= curY - 10).map(r => Object.assign({}, r, { wk: r.cR != null ? r.cR * 52 : null, supPct: r.sp && r.eu ? r.sp / r.eu : null }));
+  const sparks = [txSpark(sparkRows, 'psf', curY), txSpark(sparkRows, 'oc', curY), txSpark(sparkRows, 'wk', curY), txSpark(sparkRows, 'supPct', curY), txSpark(sparkRows, 'eR', curY)];
+  let ti = 0;
+  const tile = (lab, big, sub, note, tone) => `<div class="yx-card tx-kpi"><div class="tx-kl">${lab}</div><div class="tx-kbody"><div><div class="tx-kv">${big}</div><div class="tx-ks">${sub}</div>${note ? `<div class="tx-kn ${tone || ''}">${note}</div>` : ''}</div>${sparks[ti++] || ''}</div></div>`;
   document.getElementById('tx-kpis').innerHTML = [
     tile(`Effective rent · ${curY}`, cur && cur.psf ? '$' + cur.psf.toFixed(2) + '<small>/SF</small>' : '—', cur && cur.eR ? '$' + Math.round(cur.eR).toLocaleString() + '/mo per unit' : '', cur && cur.yR != null ? txSigned(cur.yR) + ' vs. ' + (curY - 1) : '', cur && cur.yR < 0 ? 'dn' : 'up'),
     tile('Occupancy', cur && cur.oc ? (cur.oc * 100).toFixed(1) + '<small>%</small>' : '—', prev && prev.oc && cur && cur.oc ? (cur.oc >= prev.oc ? '+' : '−') + Math.abs(Math.round((cur.oc - prev.oc) * 10000)) + ' bps vs. ' + (curY - 1) : '', '', ''),
@@ -22515,9 +22536,25 @@ function txRender() {
   const money = v => v == null ? '—' : '$' + Number(v).toFixed(2);
   const fcStart = labels.indexOf(String(RP_FORECAST_START_YEAR));
   const shade = { id: 'txShade', beforeDraw(c) { if (fcStart < 0) return; const { ctx, chartArea: a, scales: { x } } = c; const x0 = x.getPixelForValue(fcStart) - (x.getPixelForValue(1) - x.getPixelForValue(0)) / 2; ctx.save(); ctx.fillStyle = 'rgba(106,79,192,0.06)'; ctx.fillRect(Math.max(x0, a.left), a.top, a.right - Math.max(x0, a.left), a.bottom - a.top); ctx.fillStyle = '#6c6782'; ctx.font = '600 10.5px Aptos, sans-serif'; ctx.fillText('FORECAST', Math.max(x0, a.left) + 8, a.top + 14); ctx.restore(); } };
-  txChart('tx-c-rent', { type: 'line', plugins: [shade], data: { labels, datasets: [
-    { label: 'Actual', data: actualPsf, borderColor: '#432890', backgroundColor: '#432890', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, tension: 0.25, spanGaps: false },
-    { label: 'Forecast', data: fcPsf, borderColor: '#6A4FC0', backgroundColor: '#6A4FC0', borderWidth: 2.5, borderDash: [6, 5], pointRadius: 0, pointHoverRadius: 5, tension: 0.25 }
+  // label the peak, the current year and the end of the forecast
+  const pk = vis.filter(r => !r.fc && r.psf).reduce((a, r) => (!a || r.psf > a.psf ? r : a), null);
+  const cu = vis.find(r => r.y === curY), en = vis[vis.length - 1];
+  const marks = [pk && { r: pk, t: `${pk.y} peak` }, cu && cu !== pk && { r: cu, t: 'Today' }, en && en !== cu && { r: en, t: `${en.y} fcst` }].filter(Boolean);
+  const pointLabels = { id: 'txLabels', afterDatasetsDraw(c) {
+    const { ctx, scales: { x, y } } = c; ctx.save();
+    marks.forEach(m => { const i = labels.indexOf(String(m.r.y)); if (i < 0 || m.r.psf == null) return;
+      const px = x.getPixelForValue(i), py = y.getPixelForValue(m.r.psf);
+      ctx.fillStyle = '#fff'; ctx.strokeStyle = '#432890'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.font = '700 12px Aptos, "Segoe UI", sans-serif'; ctx.fillStyle = '#16131f';
+      const txt = '$' + m.r.psf.toFixed(2), sub = m.t; const right = px > c.chartArea.right - 70;
+      ctx.textAlign = right ? 'right' : 'center';
+      ctx.fillText(txt, right ? px - 8 : px, py - 18);
+      ctx.font = '500 10.5px Aptos, "Segoe UI", sans-serif'; ctx.fillStyle = '#6c6782'; ctx.fillText(sub, right ? px - 8 : px, py - 7);
+    }); ctx.restore(); } };
+  txChart('tx-c-rent', { type: 'line', plugins: [shade, pointLabels], data: { labels, datasets: [
+    { label: 'Actual', data: actualPsf, borderColor: '#432890', borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 5, tension: 0.15, spanGaps: false, fill: 'start',
+      backgroundColor: c => { const a = c.chart.chartArea; if (!a) return 'rgba(67,40,144,.10)'; const g = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom); g.addColorStop(0, 'rgba(67,40,144,.20)'); g.addColorStop(1, 'rgba(67,40,144,0)'); return g; } },
+    { label: 'Forecast', data: fcPsf, borderColor: '#6A4FC0', backgroundColor: 'rgba(106,79,192,.06)', fill: 'start', borderWidth: 2.5, borderDash: [6, 5], pointRadius: 0, pointHoverRadius: 5, tension: 0.15 }
   ] }, options: txBaseOpts(money, { plugins: { legend: { display: false }, tooltip: { backgroundColor: '#16131f', padding: 10, cornerRadius: 8, filter: (it, i, arr) => it.parsed.y != null && !(it.datasetIndex === 1 && arr.some(o => o.datasetIndex === 0 && o.parsed.y != null)), callbacks: { label: c => ` ${c.dataset.label}: ${money(c.parsed.y)}/SF` } } } }) });
 
   txChart('tx-c-yoy', { type: 'bar', plugins: [shade], data: { labels, datasets: [{ label: 'Rent growth', data: vis.map(r => r.yR), borderRadius: 4, borderSkipped: false, maxBarThickness: 18,
