@@ -7435,14 +7435,20 @@ tbody tr,
             <aside class="yx-side">
               <div class="yx-card yx-assump">
                 <div class="yx-card-head">
-                  <div>
-                    <div class="yx-h">Assumptions</div>
-                    <div class="yx-default-note" id="yx-default-note"></div>
-                  </div>
-                  <div class="yx-head-links">
-                    <button type="button" class="yx-link" id="yx-save-default" title="Make the current assumptions the default for this market">Save as default</button>
-                    <span aria-hidden="true">·</span>
-                    <button type="button" class="yx-link" id="yoc-reset-btn" title="Go back to the default assumptions">Reset</button>
+                  <div class="yx-h">Assumptions</div>
+                  <div class="yx-menu-wrap">
+                    <button type="button" class="yx-gear" id="yx-gear" aria-label="Settings" aria-haspopup="true" aria-expanded="false" title="Settings"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.3a.5.5 0 0 0-.6-.2l-2.4 1a7.3 7.3 0 0 0-1.7-1L14.5 2.7a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.4-1a.5.5 0 0 0-.6.2L2.7 8.8a.5.5 0 0 0 .1.6l2 1.6a7.6 7.6 0 0 0 0 2l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.3c.1.2.4.3.6.2l2.4-1c.5.4 1.1.7 1.7 1l.4 2.6c0 .2.3.4.5.4h3.8c.2 0 .5-.2.5-.4l.4-2.6c.6-.3 1.2-.6 1.7-1l2.4 1c.2.1.5 0 .6-.2l1.9-3.3a.5.5 0 0 0-.1-.6zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg></button>
+                    <div class="yx-menu" id="yx-menu" role="menu" hidden>
+                      <div class="yx-menu-h">Defaults</div>
+                      <button type="button" role="menuitem" id="yx-save-default">Save current as default</button>
+                      <button type="button" role="menuitem" id="yoc-reset-btn">Reset to default</button>
+                      <button type="button" role="menuitem" id="yx-clear-default" hidden>Restore original defaults</button>
+                      <div class="yx-menu-note" id="yx-default-note"></div>
+                      <div class="yx-menu-sep"></div>
+                      <div class="yx-menu-h">Tools</div>
+                      <button type="button" role="menuitem" id="yoc-proforma-btn">Development proforma</button>
+                      <button type="button" role="menuitem" id="yoc-export-pdf-btn">Export PDF</button>
+                    </div>
                   </div>
                 </div>
                 <div class="yx-form">
@@ -7524,10 +7530,6 @@ tbody tr,
             </div>
                 </div>
                 
-                <div class="yx-actions">
-                <button type="button" class="yx-btn yx-btn-primary" id="yoc-proforma-btn" title="Open the development proforma">Development proforma</button>
-                <button type="button" class="yx-btn" id="yoc-export-pdf-btn" title="Export the matrix and assumptions as a PDF">Export PDF</button>
-                </div>
               </div>
             </aside>
           </div>
@@ -8927,7 +8929,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161612">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161618">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9187,11 +9189,11 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="../shared/wb.js?v=202611161612"></script>
-<script src="../shared/legacy-db.js?v=202611161612"></script>
-<script>window.WB_BUILD = '202611161612';</script>
-<link rel="stylesheet" href="demo.css?v=202611161612">
-<script src="loader.js?v=202611161612"></script>
+<script src="../shared/wb.js?v=202611161618"></script>
+<script src="../shared/legacy-db.js?v=202611161618"></script>
+<script>window.WB_BUILD = '202611161618';</script>
+<link rel="stylesheet" href="demo.css?v=202611161618">
+<script src="loader.js?v=202611161618"></script>
 
 
 

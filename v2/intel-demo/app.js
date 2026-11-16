@@ -18812,25 +18812,42 @@ function applyYocSavedDefaults() {
 }
 function updateYxDefaultNote() {
   const el = document.getElementById('yx-default-note');
-  if (!el) return;
+  const clr = document.getElementById('yx-clear-default');
   const d = loadYocSavedDefaults();
-  if (d) {
-    const when = new Date(d.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    el.innerHTML = `Using your saved defaults (${when}) · <button type="button" class="yx-link" id="yx-clear-default">Restore original</button>`;
-    document.getElementById('yx-clear-default').onclick = () => { clearYocSavedDefaults(); resetYocDefaults(); updateYxDefaultNote(); };
-  } else {
-    el.textContent = 'Using original defaults';
+  if (el) el.textContent = d
+    ? 'Using your defaults, saved ' + new Date(d.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : 'Using original defaults';
+  if (clr) {
+    clr.hidden = !d;
+    clr.onclick = () => { clearYocSavedDefaults(); resetYocDefaults(); updateYxDefaultNote(); };
   }
 }
 function wireYxDefaults() {
   const btn = document.getElementById('yx-save-default');
+  const gear = document.getElementById('yx-gear');
+  const menu = document.getElementById('yx-menu');
   if (!btn || btn.dataset.wired) return;
   btn.dataset.wired = '1';
+  const close = () => { if (menu) menu.hidden = true; if (gear) gear.setAttribute('aria-expanded', 'false'); };
+  if (gear && menu) {
+    gear.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = menu.hidden;
+      menu.hidden = !open;
+      gear.setAttribute('aria-expanded', String(open));
+    });
+    document.addEventListener('click', e => { if (!menu.hidden && !e.target.closest('.yx-menu-wrap')) close(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+    menu.addEventListener('click', e => {
+      const item = e.target.closest('button[role="menuitem"]');
+      if (item && item !== btn) setTimeout(close, 0);
+    });
+  }
   btn.addEventListener('click', () => {
     if (saveYocDefaults()) {
       btn.textContent = 'Saved';
-      setTimeout(() => { btn.textContent = 'Save as default'; }, 1500);
       updateYxDefaultNote();
+      setTimeout(() => { btn.textContent = 'Save current as default'; close(); }, 900);
     }
   });
   updateYxDefaultNote();
