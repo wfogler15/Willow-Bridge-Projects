@@ -51,7 +51,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202611161148');
+    add(ROOT + 'shared/wb-chrome.css?v=202611161155');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
@@ -93,7 +93,7 @@
     const local = (user.email || '?').split('@')[0], parts = local.split(/[._-]/).filter(Boolean);
     const initials = (parts.length > 1 ? parts[0][0] + parts[1][0] : local.slice(0, 2)).toUpperCase();
     nav.innerHTML = `
-      <a class="brand" href="${ROOT}"><img src="${ROOT}shared/wb-mark.png" alt=""><span>Willow Bridge Canopy</span></a>
+      <a class="brand" href="${ROOT}"><img src="${ROOT}shared/wb-mark.png" alt=""><span>${esc(opts.brand || 'Willow Bridge Canopy')}</span></a>
       <nav>${PAGES.map((p) => `<a href="${ROOT}${p.href}" class="${p.id === active ? 'on' : ''}">${p.label}</a>`).join('')}</nav>
       <div class="right">
 
@@ -102,7 +102,7 @@
           <div class="menu"><div class="who">Signed in as<br>${esc(user.email)}</div><button type="button" data-signout>Sign out</button></div></div>
       </div>`;
     // ?present=1 (demo mode): no links to the other tabs, no account chip, brand not clickable
-    if (new URLSearchParams(location.search).get('present') === '1') nav.classList.add('present');
+    if (opts.present || new URLSearchParams(location.search).get('present') === '1') nav.classList.add('present');
     document.body.prepend(nav);
     const me = $('.me', nav), menu = $('.menu', me);
     $('button', me).onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };

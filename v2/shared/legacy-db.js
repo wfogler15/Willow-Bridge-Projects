@@ -166,7 +166,9 @@
     },
 
     async custom_comps_select() {
-      const rows = await WB.fetchAll('comps', 'sale_comps', '*', (q) => q.eq('market_id', ctx().market));
+      let rows = await WB.fetchAll('comps', 'sale_comps', '*', (q) => q.eq('market_id', ctx().market));
+      // Demo copy: same scope as the Sale Comps page (not excluded; investment sales 100+ units, built 1970 or later; unknown stays in)
+      if (window.__WB_SALE_SCOPE) rows = rows.filter((c) => !c.excluded && (c.comp_type !== 'investment' || ((c.units == null || +c.units >= 100) && (c.year_built == null || +c.year_built >= 1970))));
       return rows.map(compRowToLegacy);
     },
     async custom_comps_upsert(row) {
