@@ -192,3 +192,20 @@
 #view-yoc .yx-head-links { display: flex; align-items: center; gap: 8px; color: var(--x-ink-3); white-space: nowrap; }
 #view-yoc .yx-default-note { font: 500 12px/1.4 var(--x-font); color: var(--x-ink-3); margin-top: 3px; }
 #view-yoc .yx-default-note .yx-link { font-size: 12px; padding: 0; }
+
+/* matrix filter bar: labeled controls on one row */
+#view-yoc .yx-matrix .yx-card-head { padding-bottom: 8px; }
+#view-yoc .yx-filterbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 22px; margin: 0 20px 14px; padding: 12px 14px; background: #f7f6fa; border-radius: 10px; }
+#view-yoc .yx-fb { display: flex; flex-direction: column; gap: 6px; }
+#view-yoc .yx-fb > span { font: 600 11px/1 var(--x-font); letter-spacing: .06em; text-transform: uppercase; color: var(--x-ink-3); }
+#view-yoc .yx-filterbar .yx-seg { background: #e9e6f1; }
+#view-yoc .yx-filterbar select { height: 34px; min-width: 230px; padding: 0 30px 0 12px !important; border: 1px solid #dedbe8 !important; border-radius: 8px !important; -webkit-appearance: none; appearance: none;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2357526b' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center !important;
+  font: 600 13px/1 var(--x-font) !important; color: var(--x-ink) !important; box-shadow: none !important; text-transform: none !important; letter-spacing: 0 !important; cursor: pointer; }
+#view-yoc .yx-filterbar select:focus { outline: none; border-color: var(--x-purple) !important; box-shadow: 0 0 0 3px rgba(67,40,144,.14) !important; }
+#view-yoc .yx-filterbar .yx-seg button { padding: 8px 12px; }
+/* submarket header sits on the product row, same weight as the products */
+#view-yoc .yoc-table thead th.product-header.yx-gh { text-align: left !important; left: 0; z-index: 6 !important; padding: 8px 12px 8px 6px !important; background-size: calc(100% - 12px) 2px !important; background-position: 0 100% !important; }
+#view-yoc .yx-gh .yx-ph-name { font-size: 14px; }
+#view-yoc .yx-gh .yx-gh-count { color: var(--x-ink-3); font-weight: 500; }
+#view-yoc .yoc-table thead th.metric-header.yx-gh2 { left: 0; z-index: 6 !important; }

@@ -16503,13 +16503,13 @@ function renderYoc() {
   const showBest = yocState.rentComp === 'both' || yocState.rentComp === 'best';
   const colsPerProduct = (showAvg ? 1 : 0) + (showBest ? 1 : 0);
 
-  const groupHeaderHtml = `<th rowspan="2" class="yx-gh">${yocState.groupBy === 'city' ? 'City' : 'Submarket'}<span>${groupKeys.length} ${yocState.groupBy === 'city' ? 'cities' : 'submarkets'}</span></th>`;
+  const groupHeaderHtml = `<th class="product-header yx-gh"><span class="yx-ph-name">${yocState.groupBy === 'city' ? 'City' : 'Submarket'}</span><span class="yx-ph-req yx-gh-count">${groupKeys.length} ${yocState.groupBy === 'city' ? 'cities' : 'submarkets'}</span></th>`;
   let theadHtml = '<tr>' + groupHeaderHtml;
   for (const prod of activeProducts) {
     const reqH = requiredPsfRent(prod, yocState.unitSize);
     theadHtml += `<th class="product-header" colspan="${colsPerProduct}"><span class="yx-ph-name">${prod}</span><span class="yx-ph-req">Needs $${reqH == null ? '—' : reqH.toFixed(2)}/SF</span></th>`;
   }
-  theadHtml += '</tr><tr>';
+  theadHtml += '</tr><tr><th class="metric-header yx-gh2"></th>';
   for (let i = 0; i < activeProducts.length; i++) {
     if (showAvg) theadHtml += `<th class="metric-header${i > 0 ? ' divider-left' : ''}">Average</th>`;
     if (showBest) theadHtml += `<th class="metric-header${!showAvg && i > 0 ? ' divider-left' : ''}">Best comp</th>`;
