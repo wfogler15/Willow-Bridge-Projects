@@ -22449,11 +22449,11 @@ function txBaseOpts(yFmt, extra) {
   return Object.assign({
     responsive: true, maintainAspectRatio: false, animation: false,
     interaction: { mode: 'index', intersect: false },
-    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#16131f', titleFont: { family: 'Aptos', weight: '600' }, bodyFont: { family: 'Aptos' }, padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: '#16131f', titleFont: { family: 'Aptos, "Segoe UI", Inter, system-ui, sans-serif', weight: '600' }, bodyFont: { family: 'Aptos, "Segoe UI", Inter, system-ui, sans-serif' }, padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
       callbacks: { label: c => ` ${c.dataset.label}: ${yFmt(c.parsed.y)}` } } },
     scales: {
-      x: { grid: { display: false }, border: { color: '#d9d6e4' }, ticks: { color: TX_COL.ink3, font: { family: 'Aptos', size: 11 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
-      y: { grid: { color: TX_COL.grid }, border: { display: false }, ticks: { color: TX_COL.ink3, font: { family: 'Aptos', size: 11 }, callback: v => yFmt(v), maxTicksLimit: 6 } }
+      x: { grid: { display: false }, border: { color: '#d9d6e4' }, ticks: { color: TX_COL.ink3, font: { family: 'Aptos, "Segoe UI", Inter, system-ui, sans-serif', size: 11 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
+      y: { grid: { color: TX_COL.grid }, border: { display: false }, ticks: { color: TX_COL.ink3, font: { family: 'Aptos, "Segoe UI", Inter, system-ui, sans-serif', size: 11 }, callback: v => yFmt(v), maxTicksLimit: 6 } }
     }
   }, extra || {});
 }
