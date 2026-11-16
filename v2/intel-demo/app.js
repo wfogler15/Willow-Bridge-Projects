@@ -15707,14 +15707,17 @@ function opexLabel(prod) {
 function yocCompInScope(p) {
   const sf = p.avgUnitSF || ((p.avgAskingUnit && p.avgAskingSF) ? p.avgAskingUnit / p.avgAskingSF : null);
   if (sf != null && sf < yocState.minAvgUnitSf) return false;
-  if (yocState.compSet === 'classA10') {
+  if (yocState.compSet === 'classA10' || yocState.compSet === 'classA5') {
+    const yrs = yocState.compSet === 'classA5' ? 5 : 10;
     if (p.class !== 'A') return false;
-    if (!p.yearBuilt || p.yearBuilt < CURRENT_YEAR - 10) return false;
+    if (!p.yearBuilt || p.yearBuilt < CURRENT_YEAR - yrs) return false;
   }
   return true;
 }
 function yocCompLabel() {
-  return yocState.compSet === 'classA10' ? 'Class A, built ' + (CURRENT_YEAR - 10) + '+' : 'All classes and vintages';
+  if (yocState.compSet === 'classA5') return 'Institutional, built ' + (CURRENT_YEAR - 5) + '+';
+  if (yocState.compSet === 'classA10') return 'Institutional, built ' + (CURRENT_YEAR - 10) + '+';
+  return 'All properties';
 }
 
 // Required PSF rent to hit target YOC, given assumptions.
@@ -16597,7 +16600,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${(rocAvg*100).toFixed(2)}% ROC${trendNote} · ${compCount} comp(s) · unit-weighted · click to view all`;
-        const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span><span class="yx-roc">' + (rocAvg*100).toFixed(2) + '%</span><span class="yoc-n">(' + (validForWeight.length || validPsf.length) + ')</span>';
+        const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span><span class="yoc-n">(' + (validForWeight.length || validPsf.length) + ')</span>';
         const dataAttr = isClickable
           ? ` data-avg-group="${escapeHTML(sm)}" data-avg-product="${escapeHTML(prod)}"`
           : '';
@@ -16617,7 +16620,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${(rocBest*100).toFixed(2)}% ROC${trendNote} · ${escapeHTML(bestProp.name)} · click to view detail`;
-        const label = isNoData ? '—' : '<span class="yx-psf">$' + best.toFixed(2) + '</span><span class="yx-roc">' + (rocBest*100).toFixed(2) + '%</span><span class="yoc-n">(' + propsWithPsf.length + ')</span>';
+        const label = isNoData ? '—' : '<span class="yx-psf">$' + best.toFixed(2) + '</span><span class="yoc-n">(' + propsWithPsf.length + ')</span>';
         const dataAttr = isClickable ? ` data-best-pid="${escapeHTML(bestProp.id)}"` : '';
         row += `<td class="${cls}"${dataAttr} style="${isNoData ? '' : `background:${bg};color:${fg};`}" title="${tooltip}">${label}</td>`;
       }
@@ -16702,7 +16705,7 @@ function renderYxVerdict() {
   }).join('');
   host.innerHTML = cards;
   const sub = document.getElementById('yx-sub');
-  if (sub) sub.textContent = `${(last.compCount || 0).toLocaleString()} comps · ${yocCompLabel()} · avg unit ${yocState.minAvgUnitSf}+ SF. Asking rent per SF, shaded by the return on cost it supports.`;
+  if (sub) sub.textContent = `Average asking rent per SF in each submarket vs. the rent needed above. Green = today's rents support new development at a ${(yocState.targetYoc*100).toFixed(2)}% YOC. ${(last.compCount || 0).toLocaleString()} comps · ${yocCompLabel()} · avg unit ${yocState.minAvgUnitSf}+ SF.`;
   [['yx-group', 'groupBy', 'submarket'], ['yx-sort', 'matrixSort', 'alpha']].forEach(([id, key, dflt]) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -18558,7 +18561,7 @@ function attachYocControls() {
   // Comp set toggle: Class A built in the last 10 years vs every existing comp
   const compSel = document.getElementById('yoc-compset');
   if (compSel) {
-    compSel.innerHTML = `<option value="classA10">Class A · built ${CURRENT_YEAR - 10}+</option><option value="all">All comps</option>`;
+    compSel.innerHTML = `<option value="classA5">Institutional · last 5 years</option><option value="classA10">Institutional · last 10 years</option><option value="all">All properties</option>`;
     compSel.value = yocState.compSet;
     compSel.addEventListener('change', e => {
       yocState.compSet = e.target.value;

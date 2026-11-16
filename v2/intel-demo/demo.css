@@ -178,3 +178,13 @@
 #view-yoc .yoc-threshold-row .yoc-n { display: inline-block; margin-left: 6px; font: 700 12px/1 var(--x-font) !important; color: var(--x-ink-2); opacity: 1 !important; vertical-align: 0; }
 #view-yoc .yoc-threshold-row .yoc-n.low { color: #A15C00; }
 #view-yoc .yoc-threshold-row.yoc-thin-row { opacity: 1 !important; }
+
+/* comp set lives on the matrix toolbar */
+#view-yoc .yx-compset { display: inline-flex; align-items: center; gap: 8px; margin-right: 6px; }
+#view-yoc .yx-compset span { font: 600 12px/1 var(--x-font); color: var(--x-ink-2); }
+#view-yoc .yx-compset select { height: 32px; padding: 0 28px 0 10px !important; border: 1px solid #dedbe8 !important; border-radius: 8px !important; -webkit-appearance: none; appearance: none;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2357526b' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center !important;
+  font: 600 12.5px/1 var(--x-font) !important; color: var(--x-ink) !important; box-shadow: none !important; text-transform: none !important; letter-spacing: 0 !important; cursor: pointer; }
+#view-yoc .yx-compset select:focus { outline: none; border-color: var(--x-purple) !important; box-shadow: 0 0 0 3px rgba(67,40,144,.14) !important; }
+#view-yoc .yoc-table tbody td.yoc-cell { height: 50px; }
+#view-yoc .yx-psf { font-size: 15.5px; }
