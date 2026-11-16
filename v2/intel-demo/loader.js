@@ -222,10 +222,17 @@
       rq = requestAnimationFrame(() => {
         const on = items.map(([n, g]) => [n, valueOf(g)]).filter(([n, v]) => n === 'Taxonomy' ? v !== 'Willow Bridge' : !['All', 'None'].includes(v));
         $('.n', fbtn).textContent = on.length ? String(on.length) : '';
-        sumEl.textContent = on.length ? on.map(([n, v]) => n === 'Taxonomy' ? v + ' taxonomy' : n === 'Unit size' ? 'Units ' + v : n + ' ' + v).join(' · ') : 'All properties';
+        const base = on.length ? on.map(([n, v]) => n === 'Taxonomy' ? v + ' taxonomy' : n === 'Unit size' ? 'Units ' + v : n + ' ' + v).join(' · ') : 'All properties';
+        const act = $('.tab.active', rail);
+        // YOC matrix: say which comps feed it (Class A built in the last 10 years, or all), plus the 600 SF floor
+        sumEl.textContent = act && act.dataset.view === 'yoc' && typeof yocCompLabel === 'function'
+          ? 'Comps: ' + yocCompLabel() + ' · min ' + yocState.minAvgUnitSf + ' SF avg unit' + (on.length ? ' · ' + base : '')
+          : base;
       });
     };
     new MutationObserver(refresh).observe(fgrid, { subtree: true, attributes: true, childList: true, characterData: true });
+    new MutationObserver(refresh).observe(rail, { subtree: true, attributes: true, attributeFilter: ['class'] });   // view changed
+    document.addEventListener('change', (e) => { if (e.target && e.target.id === 'yoc-compset') refresh(); });
     fgrid.addEventListener('change', refresh); refresh();
     const setOpen = (open) => { panel.hidden = !open; fbtn.setAttribute('aria-expanded', String(open)); };
     fbtn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(panel.hidden); });

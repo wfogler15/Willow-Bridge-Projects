@@ -1480,7 +1480,7 @@ const state = {
   propYear: 'all',          // property index vintage filter — 'all' or year string
   scMode: 'investment',     // sale comps: 'investment' or 'land'
   scSearch: '',             // sale comps unified search text
-  scYear: 'all',            // sale comps year filter: 'all' or '2026', '2025', etc.
+  scYear: String(CURRENT_YEAR),   // sale comps year filter: 'all' or '2026', '2025', etc. (Demo: defaults to this year)
   rentMode: 'asking',
   scatterMode: 'perUnit',  // 'perUnit' = Asking Rent $/Unit · 'perSF' = Asking Rent $/SF
   pipelineTimelineMode: 'quarter',  // 'quarter' (default), 'month', or 'year' — bucket size for Delivery Timeline chart
@@ -2503,6 +2503,7 @@ const yocState = {
   groupBy: 'submarket',  // 'submarket' or 'city'
   productFilter: 'all',  // 'all' or one of YOC_PRODUCT_COLUMNS — hides other product columns
   compSet: 'classA10',   // 'classA10' = Class A built in the last 10 years (default); 'all' = every existing comp
+  minCompsForColor: 3,   // matrix cells with fewer comps than this are greyed out (low sample)
   minAvgUnitSf: 600,     // comps averaging under this many SF per unit are left out of the matrix (micro-unit / bad-data guard)
   thresholdMode: 'avg',  // threshold panel: 'avg' (weighted-avg ROC) or 'best' (top property ROC)
   matrixSort: 'avgDesc',  // matrix row sort: 'avgDesc' (highest avg comp first, default) or 'alpha' (A-Z)
@@ -10280,7 +10281,7 @@ function renderProperties() {
       <tr data-pid="${p.id}" class="${selected ? 'cs-selected' : ''}">
         ${checkboxCell}
         <td>
-          <div class="prop-name">${escapeHTML(p.name)}${p._wbOnly ? ' <span class="wb-deal-pill">WB Deal</span>' : ''}${wbLifecycleTag(p)}${
+          <div class="prop-name">${escapeHTML(p.name)}${affTag(p)}${p._wbOnly ? ' <span class="wb-deal-pill">WB Deal</span>' : ''}${wbLifecycleTag(p)}${
             state.propStatus === 'all'
               ? ` <span class="cs-mini-badge cs-chip-${csStatusOf(p).toLowerCase()}">${csStatusOf(p) === 'UC' ? 'UC' : (csStatusOf(p) === 'Proposed' ? 'Proposed' : 'Existing')}</span>`
               : ''}</div>
@@ -15684,6 +15685,12 @@ function opexFor(productType) {
   return yocState.opex;
 }
 
+// "AFF" tag for properties CoStar flags as affordable / rent restricted / subsidized. They stay in the comp
+// set; the tag calls them out wherever properties are listed.
+function affTag(p) {
+  return p && p.affordable ? ` <span class="aff-tag" title="${escapeHTML(String(p.affordable))}">AFF</span>` : '';
+}
+
 // Display string for the opex assumption. In per-product mode the three products
 // run different ratios (Garden / Mid-Rise / High-Rise), so a single flat number would
 // misstate two of them. `prod` limits it to one product; omit it for all three.
@@ -16415,7 +16422,7 @@ function renderYoc() {
     const textColor = '#1D1247';
     return `<span class="yoc-legend-cell" style="background:${b.color};color:${textColor};">${b.label}</span>`;
   }).join('');
-  document.getElementById('yoc-legend-row').innerHTML = legend;
+  document.getElementById('yoc-legend-row').innerHTML = legend + `<span class="yoc-legend-note">Small number = comps in the cell · grey = fewer than ${yocState.minCompsForColor} comps</span>`;
 
   // 3. Source data — Existing only; honor sidebar Class/City/Submarket filters.
   // Apply user edits first so any manual corrections to status/class/submarket/rent flow through.
@@ -16594,7 +16601,7 @@ function renderYoc() {
         const fg = textColorForRoc(rocAvg);
         const isNoData = avg == null;
         const isClickable = !isNoData && propsWithPsf.length > 0;
-        const cls = `yoc-cell${isNoData ? ' no-data' : ''}${firstInGroup ? ' divider-left' : ''}${isClickable ? ' yoc-cell-clickable' : ''}`;
+        const cls = `yoc-cell${isNoData ? ' no-data' : ''}${firstInGroup ? ' divider-left' : ''}${isClickable ? ' yoc-cell-clickable' : ''}${(!isNoData && (validForWeight.length || validPsf.length) < yocState.minCompsForColor) ? ' yoc-thin' : ''}`;
         // Use the actual rate the matrix is applying (flat OR RP-forecast-derived)
         // so the tooltip honestly reflects the math behind the colored ROC.
         const effRate = effectiveGrowthRate(sm);
@@ -16606,7 +16613,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${(rocAvg*100).toFixed(2)}% ROC${trendNote} · ${compCount} comp(s) · unit-weighted · click to view all`;
-        const label = isNoData ? '—' : '$' + avg.toFixed(2);
+        const label = isNoData ? '—' : '$' + avg.toFixed(2) + '<span class="yoc-n">' + (validForWeight.length || validPsf.length) + '</span>';
         const dataAttr = isClickable
           ? ` data-avg-group="${escapeHTML(sm)}" data-avg-product="${escapeHTML(prod)}"`
           : '';
@@ -16617,7 +16624,7 @@ function renderYoc() {
         const fg = textColorForRoc(rocBest);
         const isNoData = best == null;
         const isClickable = !isNoData && bestProp;
-        const cls = `yoc-cell${isNoData ? ' no-data' : ''}${firstInGroup && !showAvg ? ' divider-left' : ''}${isClickable ? ' yoc-cell-clickable' : ''}`;
+        const cls = `yoc-cell${isNoData ? ' no-data' : ''}${firstInGroup && !showAvg ? ' divider-left' : ''}${isClickable ? ' yoc-cell-clickable' : ''}${(!isNoData && propsWithPsf.length < yocState.minCompsForColor) ? ' yoc-thin' : ''}`;
         const effRateB = effectiveGrowthRate(sm);
         const srcLabelB = yocState.trendSource === 'rp' ? ' · RP forecast' : '';
         const trendNote = yocState.trendEnabled
@@ -16626,7 +16633,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${(rocBest*100).toFixed(2)}% ROC${trendNote} · ${escapeHTML(bestProp.name)} · click to view detail`;
-        const label = isNoData ? '—' : '$' + best.toFixed(2);
+        const label = isNoData ? '—' : '$' + best.toFixed(2) + '<span class="yoc-n">' + propsWithPsf.length + '</span>';
         const dataAttr = isClickable ? ` data-best-pid="${escapeHTML(bestProp.id)}"` : '';
         row += `<td class="${cls}"${dataAttr} style="${isNoData ? '' : `background:${bg};color:${fg};`}" title="${tooltip}">${label}</td>`;
       }
@@ -16722,7 +16729,7 @@ function renderYocThresholdPanel(grouped, groupKeys) {
       const roc = rocFromPsf(psf, prod, yocState.unitSize, sm);
       if (roc == null) continue;
       if (roc < threshold) continue;
-      rows.push({ sm, prod, psf, roc, bestPid, bestName });
+      rows.push({ sm, prod, psf, roc, bestPid, bestName, n: props.filter(p => p.avgAskingSF != null && !isNaN(p.avgAskingSF)).length });
     }
   }
   rows.sort((a, b) => b.roc - a.roc);
@@ -16787,7 +16794,7 @@ function renderYocThresholdPanel(grouped, groupKeys) {
       ? `<div class="prop-name" title="${escapeHTML(r.bestName)}">${escapeHTML(r.bestName)}</div>`
       : '';
     return `
-      <div class="yoc-threshold-row${mode === 'best' ? ' best-mode' : ''}"${dataAttrs}>
+      <div class="yoc-threshold-row${mode === 'best' ? ' best-mode' : ''}${r.n < yocState.minCompsForColor ? ' yoc-thin-row' : ''}"${dataAttrs}>
         <div class="submarket" title="${escapeHTML(r.sm)}">
           <div class="sm-line">
             <span class="sm-name">${escapeHTML(r.sm)}</span>
@@ -16795,7 +16802,7 @@ function renderYocThresholdPanel(grouped, groupKeys) {
           </div>
           ${propLine}
         </div>
-        <div class="psf">$${r.psf.toFixed(2)}</div>
+        <div class="psf">$${r.psf.toFixed(2)}<span class="yoc-n" title="comps in this cell">${r.n}</span></div>
         <div class="roc" style="background:${bg};color:${fg};">${(r.roc*100).toFixed(2)}%</div>
       </div>
     `;
@@ -16890,7 +16897,7 @@ function openYocGroupDetail(groupName, productType) {
   // Compose the modal body
   const rowsHtml = sourceData.map(p => `
     <tr data-pid="${escapeHTML(p.id)}" style="cursor:pointer;" class="yoc-group-row">
-      <td>${escapeHTML(p.name)}</td>
+      <td>${escapeHTML(p.name)}${affTag(p)}</td>
       <td>${escapeHTML(p.submarket || '—')}</td>
       <td>${escapeHTML(p.style || '—')}</td>
       <td class="num">${fmt.int(p.units)}</td>
