@@ -51,7 +51,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202611132038');
+    add(ROOT + 'shared/wb-chrome.css?v=202611161148');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
@@ -101,6 +101,8 @@
         <div class="me"><button type="button" aria-haspopup="true" title="${esc(user.email)}">${esc(initials)}</button>
           <div class="menu"><div class="who">Signed in as<br>${esc(user.email)}</div><button type="button" data-signout>Sign out</button></div></div>
       </div>`;
+    // ?present=1 (demo mode): no links to the other tabs, no account chip, brand not clickable
+    if (new URLSearchParams(location.search).get('present') === '1') nav.classList.add('present');
     document.body.prepend(nav);
     const me = $('.me', nav), menu = $('.menu', me);
     $('button', me).onclick = (e) => { e.stopPropagation(); menu.classList.toggle('open'); };

@@ -261,3 +261,6 @@ main.page{animation:wb-in .35s ease backwards}
   main.page,.wb-login .card,.wb-hist:not([hidden]) .wb-hist-veil,.wb-hist:not([hidden]) .wb-hist-panel{animation:none}
   .wb-nav nav a::after,.wb-toast{transition:none}
 }
+/* demo mode (?present=1): hide the other tabs and the account chip */
+.wb-nav.present nav,.wb-nav.present .me{display:none}
+.wb-nav.present .brand{pointer-events:none}

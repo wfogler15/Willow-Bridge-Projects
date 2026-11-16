@@ -2502,6 +2502,8 @@ const yocState = {
   rentComp: 'both',      // 'both' (default — Avg + Best), 'average', or 'best'
   groupBy: 'submarket',  // 'submarket' or 'city'
   productFilter: 'all',  // 'all' or one of YOC_PRODUCT_COLUMNS — hides other product columns
+  compSet: 'classA10',   // 'classA10' = Class A built in the last 10 years (default); 'all' = every existing comp
+  minAvgUnitSf: 600,     // comps averaging under this many SF per unit are left out of the matrix (micro-unit / bad-data guard)
   thresholdMode: 'avg',  // threshold panel: 'avg' (weighted-avg ROC) or 'best' (top property ROC)
   matrixSort: 'avgDesc',  // matrix row sort: 'avgDesc' (highest avg comp first, default) or 'alpha' (A-Z)
   trendEnabled: false,
@@ -15682,6 +15684,32 @@ function opexFor(productType) {
   return yocState.opex;
 }
 
+// Display string for the opex assumption. In per-product mode the three products
+// run different ratios (Garden / Mid-Rise / High-Rise), so a single flat number would
+// misstate two of them. `prod` limits it to one product; omit it for all three.
+function opexLabel(prod) {
+  if (yocState.opexMode !== 'product') return (yocState.opex * 100).toFixed(0) + '%';
+  if (prod) return (opexFor(prod) * 100).toFixed(0) + '%';
+  return YOC_PRODUCT_COLUMNS.map(pr => (opexFor(pr) * 100).toFixed(0) + '%').join(' / ') + ' (Garden / Mid-Rise / High-Rise)';
+}
+
+// Which existing comps the YOC matrix may use. Two rules (Will, Nov 16 2026):
+//  1) never below minAvgUnitSf (600 SF) average unit size; there is no upper cap (large units are
+//     usually build-to-rent and stay in). Unknown size stays in.
+//  2) compSet 'classA10' keeps Class A built in the last 10 years; 'all' keeps every class and vintage.
+function yocCompInScope(p) {
+  const sf = p.avgUnitSF || ((p.avgAskingUnit && p.avgAskingSF) ? p.avgAskingUnit / p.avgAskingSF : null);
+  if (sf != null && sf < yocState.minAvgUnitSf) return false;
+  if (yocState.compSet === 'classA10') {
+    if (p.class !== 'A') return false;
+    if (!p.yearBuilt || p.yearBuilt < CURRENT_YEAR - 10) return false;
+  }
+  return true;
+}
+function yocCompLabel() {
+  return yocState.compSet === 'classA10' ? 'Class A, built ' + (CURRENT_YEAR - 10) + '+' : 'All classes and vintages';
+}
+
 // Required PSF rent to hit target YOC, given assumptions.
 // If trended rents are enabled, this returns the rent needed TODAY assuming the
 // rent will grow at the specified rate by delivery — i.e. the at-delivery required rent
@@ -16350,7 +16378,7 @@ function renderYoc() {
         <div class="yoc-req-label">Required PSF · ${prod}${yocState.trendEnabled ? ' · Today' : ''}</div>
         <div class="yoc-req-val">$${req == null ? '—' : req.toFixed(2)}<span class="unit">/SF</span></div>
         <div class="yoc-req-monthly">${fmtMonthly(reqMonthly)}<span class="unit">/mo</span> · ${yocState.unitSize} SF</div>
-        <div class="yoc-req-detail">Target ${(yocState.targetYoc*100).toFixed(2)}% YOC · ${(yocState.opex*100).toFixed(0)}% OpEx · ${(yocState.vacancy*100).toFixed(0)}% VL${trendDetail}</div>
+        <div class="yoc-req-detail">Target ${(yocState.targetYoc*100).toFixed(2)}% YOC · ${opexLabel(prod)} OpEx · ${(yocState.vacancy*100).toFixed(0)}% VL${trendDetail}</div>
       </div>
     `;
   }).join('');
@@ -16402,6 +16430,7 @@ function renderYoc() {
     if (!matchesClass(p)) return false;
     if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
     if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
+    if (!yocCompInScope(p)) return false;
     return true;
   });
 
@@ -16815,6 +16844,7 @@ function openYocGroupDetail(groupName, productType) {
     if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
     if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
     if (p[groupKey] !== groupName) return false;
+    if (!(state.compSetMode === 'viewing' && state.activeCompSetId && compSets[state.activeCompSetId]) && !yocCompInScope(p)) return false;
     const bucket = PRODUCT_TYPE_MAP[p.style];
     if (bucket !== productType) return false;
     return p.avgAskingSF != null;
@@ -18454,6 +18484,16 @@ function attachYocControls() {
       renderYoc();
     });
   }
+  // Comp set toggle: Class A built in the last 10 years vs every existing comp
+  const compSel = document.getElementById('yoc-compset');
+  if (compSel) {
+    compSel.innerHTML = `<option value="classA10">Class A · built ${CURRENT_YEAR - 10}+</option><option value="all">All comps</option>`;
+    compSel.value = yocState.compSet;
+    compSel.addEventListener('change', e => {
+      yocState.compSet = e.target.value;
+      renderYoc();
+    });
+  }
   // Target YOC dropdown
   const targetSel = document.getElementById('yoc-target');
   targetSel.value = yocState.targetYoc.toFixed(4);
@@ -18634,6 +18674,7 @@ function resetYocDefaults() {
   yocState.unitSize = 925;
   yocState.dealSize = 300;
   yocState.productFilter = 'all';
+  yocState.compSet = 'classA10';
   yocState.thresholdMode = 'avg';
   yocState.matrixSort = 'avgDesc';
   yocState.groupBy = 'submarket';
@@ -18681,6 +18722,8 @@ function resetYocDefaults() {
   if (dealSel) dealSel.value = String(yocState.dealSize);
   const prodSel = document.getElementById('yoc-product-filter');
   if (prodSel) prodSel.value = yocState.productFilter;
+  const compSel2 = document.getElementById('yoc-compset');
+  if (compSel2) compSel2.value = yocState.compSet;
 
   // 4. Sync trended-rent UI — checkbox off, hide the growth/years controls
   const trendCb = document.getElementById('yoc-trend-enable');
@@ -18931,10 +18974,11 @@ function exportYocMatrixPdf() {
         </div>
         <div class="pdf-footer-list">
           <strong>Target YOC:</strong> ${fmtPct(yocState.targetYoc)}<br>
-          <strong>OpEx Ratio:</strong> ${fmtPct(yocState.opex, 0)}<br>
+          <strong>OpEx Ratio:</strong> ${opexLabel()}<br>
           <strong>Vacancy:</strong> ${fmtPct(yocState.vacancy, 0)}<br>
           <strong>Avg Unit Size:</strong> ${yocState.unitSize} SF<br>
           <strong>Product Filter:</strong> ${productFilterLabel}<br>
+          <strong>Comp Set:</strong> ${yocCompLabel()} (min ${yocState.minAvgUnitSf} SF avg unit)<br>
           <strong>Grouped By:</strong> ${groupByLabel}<br>
           <strong>Matrix Sort:</strong> ${sortLabel}<br>
           <strong>Threshold Panel Mode:</strong> ${thresholdModeLabel}<br>
@@ -20635,7 +20679,7 @@ async function exportMarketReportPdf(reportOptions) {
   <!-- SECTION 4: YOC MATRIX -->
   ${sections.yoc ? `<div class="report-section section-break">
     <h2>Yield-on-Cost <em>Matrix</em></h2>
-    <div class="section-sub">Target ${(yocState.targetYoc*100).toFixed(2)}% YOC · ${(yocState.opex*100).toFixed(0)}% OpEx · ${(yocState.vacancy*100).toFixed(0)}% VL · ${yocState.unitSize} SF avg unit</div>
+    <div class="section-sub">Target ${(yocState.targetYoc*100).toFixed(2)}% YOC · ${opexLabel()} OpEx · ${(yocState.vacancy*100).toFixed(0)}% VL · ${yocState.unitSize} SF avg unit · Comps: ${yocCompLabel()}</div>
     <!-- The Required PSF strip and threshold panel both come back as standalone -->
     <div class="yoc-print-strip-wrap">
       ${yocStripHtml}
