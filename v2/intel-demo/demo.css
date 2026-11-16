@@ -209,3 +209,5 @@
 #view-yoc .yx-gh .yx-ph-name { font-size: 14px; }
 #view-yoc .yx-gh .yx-gh-count { color: var(--x-ink-3); font-weight: 500; }
 #view-yoc .yoc-table thead th.metric-header.yx-gh2 { left: 0; z-index: 6 !important; }
+#view-yoc .yoc-table thead th.yx-gh span.yx-ph-name { font: 700 14px/1.2 var(--x-font); color: var(--x-ink); margin: 0; }
+#view-yoc .yoc-table thead th.yx-gh span.yx-gh-count { font: 500 12px/1.3 var(--x-font); color: var(--x-ink-3); margin-top: 2px; }
