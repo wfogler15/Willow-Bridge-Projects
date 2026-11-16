@@ -16680,7 +16680,7 @@ function renderYxVerdict() {
   const grouped = last.grouped;
   const bands = yocColorBands();
   const groupWord = yocState.groupBy === 'city' ? 'cities' : 'submarkets';
-  const cards = YOC_PRODUCT_COLUMNS.map(prod => {
+  YOC_PRODUCT_COLUMNS.forEach(prod => {
     const req = requiredPsfRent(prod, yocState.unitSize);
     const c = yocState.costs[prod];
     const tpc = c ? c.land + c.hc * yocState.unitSize + (c.otherHc || 0) + c.soft : null;
@@ -16705,17 +16705,19 @@ function renderYxVerdict() {
     const active = yocState.productFilter === prod;
     const dim = yocState.productFilter !== 'all' && !active;
     const monthly = req == null ? null : req * yocState.unitSize;
-    return `<button type="button" class="yx-vcard${active ? ' active' : ''}${dim ? ' dim' : ''}" data-prod="${escapeHTML(prod)}">
-      <span class="yx-v-top"><span class="yx-v-prod">${escapeHTML(prod)}</span><span class="yx-v-tpc">$${tpc == null ? '—' : Math.round(tpc / 1000)}K / unit all-in</span></span>
-      <span class="yx-v-label">Rent needed for ${(yocState.targetYoc * 100).toFixed(2)}% YOC</span>
-      <span class="yx-v-req">$${req == null ? '—' : req.toFixed(2)}<small>/SF</small></span>
-      <span class="yx-v-mo">$${monthly == null ? '—' : Math.round(monthly).toLocaleString()}/mo on ${yocState.unitSize} SF · ${opexLabel(prod)} OpEx</span>
-      <span class="yx-v-bar">${seg || '<i class="thin" style="flex:1"></i>'}</span>
-      <span class="yx-v-foot"><b>${clears.length}</b> of ${total} ${groupWord} pencil</span>
-      <span class="yx-v-best">${clears.length ? names : 'None at today\'s rents'}</span>
-    </button>`;
-  }).join('');
-  host.innerHTML = cards;
+    const card = host.querySelector(`.yx-vcard[data-prod="${prod}"]`);
+    if (!card) return;
+    card.classList.toggle('active', active);
+    card.classList.toggle('dim', dim);
+    const f = k => card.querySelector(`[data-f="${k}"]`);
+    f('label').textContent = `Rent needed for ${(yocState.targetYoc * 100).toFixed(2)}% YOC`;
+    f('req').innerHTML = `$${req == null ? '—' : req.toFixed(2)}<small>/SF</small>`;
+    f('mo').textContent = `$${monthly == null ? '—' : Math.round(monthly).toLocaleString()}/mo on ${yocState.unitSize} SF · ${opexLabel(prod)} OpEx`;
+    f('bar').innerHTML = seg || '<i class="thin" style="flex:1"></i>';
+    f('foot').innerHTML = `<b>${clears.length}</b> of ${total} ${groupWord} pencil`;
+    f('best').innerHTML = clears.length ? names : 'None at today\'s rents';
+  });
+
   const sub = document.getElementById('yx-sub');
   if (sub) sub.textContent = `Average asking rent per SF vs. the rent needed above; green supports new development at ${(yocState.targetYoc*100).toFixed(2)}% YOC. ${(last.compCount || 0).toLocaleString()} comps, avg unit ${yocState.minAvgUnitSf}+ SF. Click a column to sort, a cell for its comps.`;
   [['yx-group', 'groupBy', 'submarket'], ['yx-sort', 'matrixSort', 'alpha']].forEach(([id, key, dflt]) => {
@@ -16727,13 +16729,19 @@ function renderYxVerdict() {
       el.addEventListener('click', e => { const b = e.target.closest('button[data-v]'); if (!b) return; yocState[key] = b.dataset.v; renderYoc(); });
     }
   });
-  host.querySelectorAll('.yx-vcard').forEach(btn => btn.addEventListener('click', () => {
-    const prod = btn.dataset.prod;
-    yocState.productFilter = yocState.productFilter === prod ? 'all' : prod;
-    const sel = document.getElementById('yoc-product-filter');
-    if (sel) sel.value = yocState.productFilter;
-    renderYoc();
-  }));
+  if (!host.dataset.wired) {
+    host.dataset.wired = '1';
+    host.addEventListener('click', e => {
+      if (e.target.closest('select, .yx-v-costs')) return;
+      const card = e.target.closest('.yx-vcard');
+      if (!card) return;
+      const prod = card.dataset.prod;
+      yocState.productFilter = yocState.productFilter === prod ? 'all' : prod;
+      const sel = document.getElementById('yoc-product-filter');
+      if (sel) sel.value = yocState.productFilter;
+      renderYoc();
+    });
+  }
   const seg = document.getElementById('yx-show');
   if (seg) {
     seg.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === yocState.rentComp));

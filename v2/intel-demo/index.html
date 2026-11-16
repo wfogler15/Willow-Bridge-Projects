@@ -7399,7 +7399,38 @@ tbody tr,
         <div class="yx">
           <div class="yx-grid">
             <div class="yx-main">
-              <section class="yx-verdict" id="yx-verdict" aria-label="Required rent by product"></section>
+              <section class="yx-verdict" id="yx-verdict" aria-label="Required rent by product">
+                <div class="yx-vcard" data-prod="Garden">
+                  <div class="yx-v-top"><button type="button" class="yx-v-prod" title="Focus the matrix on Garden">Garden</button><span class="yx-v-tpc"><span id="garden-tpc" class="yoc-cost-tpc"></span> / unit all-in</span></div>
+                  <div class="yx-v-costs"><label class="yx-c-row"><span>Land / unit</span><select id="garden-land" class="yoc-cost-select" data-default="40000"></select></label><label class="yx-c-row"><span>Hard cost / SF</span><select id="garden-hc" class="yoc-cost-select-hc" data-default="225"></select></label><label class="yx-c-row"><span>Other hard / unit</span><select id="garden-otherhc" class="yoc-cost-select" data-default="20000"></select></label><label class="yx-c-row"><span>Soft / unit</span><select id="garden-soft" class="yoc-cost-select-soft" data-default="55000"></select></label></div>
+                  <div class="yx-v-label" data-f="label"></div>
+                  <div class="yx-v-req" data-f="req"></div>
+                  <div class="yx-v-mo" data-f="mo"></div>
+                  <div class="yx-v-bar" data-f="bar"></div>
+                  <div class="yx-v-foot" data-f="foot"></div>
+                  <div class="yx-v-best" data-f="best"></div>
+                </div>
+                <div class="yx-vcard" data-prod="Mid-Rise">
+                  <div class="yx-v-top"><button type="button" class="yx-v-prod" title="Focus the matrix on Mid-Rise">Mid-Rise</button><span class="yx-v-tpc"><span id="midrise-tpc" class="yoc-cost-tpc"></span> / unit all-in</span></div>
+                  <div class="yx-v-costs"><label class="yx-c-row"><span>Land / unit</span><select id="midrise-land" class="yoc-cost-select" data-default="55000"></select></label><label class="yx-c-row"><span>Hard cost / SF</span><select id="midrise-hc" class="yoc-cost-select-hc" data-default="300"></select></label><label class="yx-c-row"><span>Other hard / unit</span><select id="midrise-otherhc" class="yoc-cost-select" data-default="25000"></select></label><label class="yx-c-row"><span>Soft / unit</span><select id="midrise-soft" class="yoc-cost-select-soft" data-default="65000"></select></label></div>
+                  <div class="yx-v-label" data-f="label"></div>
+                  <div class="yx-v-req" data-f="req"></div>
+                  <div class="yx-v-mo" data-f="mo"></div>
+                  <div class="yx-v-bar" data-f="bar"></div>
+                  <div class="yx-v-foot" data-f="foot"></div>
+                  <div class="yx-v-best" data-f="best"></div>
+                </div>
+                <div class="yx-vcard" data-prod="High-Rise">
+                  <div class="yx-v-top"><button type="button" class="yx-v-prod" title="Focus the matrix on High-Rise">High-Rise</button><span class="yx-v-tpc"><span id="highrise-tpc" class="yoc-cost-tpc"></span> / unit all-in</span></div>
+                  <div class="yx-v-costs"><label class="yx-c-row"><span>Land / unit</span><select id="highrise-land" class="yoc-cost-select" data-default="60000"></select></label><label class="yx-c-row"><span>Hard cost / SF</span><select id="highrise-hc" class="yoc-cost-select-hc" data-default="500"></select></label><label class="yx-c-row"><span>Other hard / unit</span><select id="highrise-otherhc" class="yoc-cost-select" data-default="30000"></select></label><label class="yx-c-row"><span>Soft / unit</span><select id="highrise-soft" class="yoc-cost-select-soft" data-default="75000"></select></label></div>
+                  <div class="yx-v-label" data-f="label"></div>
+                  <div class="yx-v-req" data-f="req"></div>
+                  <div class="yx-v-mo" data-f="mo"></div>
+                  <div class="yx-v-bar" data-f="bar"></div>
+                  <div class="yx-v-foot" data-f="foot"></div>
+                  <div class="yx-v-best" data-f="best"></div>
+                </div>
+              </section>
             </div>
             <aside class="yx-side">
               <div class="yx-card yx-assump">
@@ -7415,7 +7446,7 @@ tbody tr,
                   </div>
                 </div>
                 <div class="yx-form">
-                  <label class="yx-field"><span>Product</span><select id="yoc-product-filter" class="yoc-select">
+                  <label class="yx-field yx-hidden"><span>Product</span><select id="yoc-product-filter" class="yoc-select">
                 <option value="all" selected="">All Products</option>
                 <option value="Garden">Garden Only</option>
                 <option value="Mid-Rise">Mid-Rise Only</option>
@@ -7457,14 +7488,6 @@ tbody tr,
                 <option value="400">400</option>
                 <option value="500">500</option>
               </select></label>
-                </div>
-                <div class="yx-costs-wrap">
-                  <div class="yx-mini-h">Development cost</div>
-                  <table class="yx-costs">
-                    <thead><tr><th></th><th>Garden</th><th>Mid-Rise</th><th>High-Rise</th></tr></thead>
-                    <tbody><tr><th>Land / unit</th><td><select id="garden-land" class="yoc-cost-select" data-default="40000"></select></td><td><select id="midrise-land" class="yoc-cost-select" data-default="55000"></select></td><td><select id="highrise-land" class="yoc-cost-select" data-default="60000"></select></td></tr><tr><th>Hard cost / NRSF</th><td><select id="garden-hc" class="yoc-cost-select-hc" data-default="225"></select></td><td><select id="midrise-hc" class="yoc-cost-select-hc" data-default="300"></select></td><td><select id="highrise-hc" class="yoc-cost-select-hc" data-default="500"></select></td></tr><tr><th>Other hard / unit</th><td><select id="garden-otherhc" class="yoc-cost-select" data-default="20000"></select></td><td><select id="midrise-otherhc" class="yoc-cost-select" data-default="25000"></select></td><td><select id="highrise-otherhc" class="yoc-cost-select" data-default="30000"></select></td></tr><tr><th>Soft / unit</th><td><select id="garden-soft" class="yoc-cost-select-soft" data-default="55000"></select></td><td><select id="midrise-soft" class="yoc-cost-select-soft" data-default="65000"></select></td><td><select id="highrise-soft" class="yoc-cost-select-soft" data-default="75000"></select></td></tr></tbody>
-                    <tfoot><tr><th>Total / unit</th><td id="garden-tpc" class="yoc-cost-tpc"></td><td id="midrise-tpc" class="yoc-cost-tpc"></td><td id="highrise-tpc" class="yoc-cost-tpc"></td></tr></tfoot>
-                  </table>
                 </div>
                 <div class="yoc-control-group yoc-trend-group">
               <label class="yoc-trend-toggle">
@@ -8903,7 +8926,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161556">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161559">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9163,11 +9186,11 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="../shared/wb.js?v=202611161556"></script>
-<script src="../shared/legacy-db.js?v=202611161556"></script>
-<script>window.WB_BUILD = '202611161556';</script>
-<link rel="stylesheet" href="demo.css?v=202611161556">
-<script src="loader.js?v=202611161556"></script>
+<script src="../shared/wb.js?v=202611161559"></script>
+<script src="../shared/legacy-db.js?v=202611161559"></script>
+<script>window.WB_BUILD = '202611161559';</script>
+<link rel="stylesheet" href="demo.css?v=202611161559">
+<script src="loader.js?v=202611161559"></script>
 
 
 
