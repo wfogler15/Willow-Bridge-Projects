@@ -173,3 +173,8 @@
 #view-yoc .yx-clears .sm-name { max-width: 100%; }
 #view-yoc .yx-clears .yoc-threshold-tag { margin-left: 0; }
 #view-yoc .yx-clears .yoc-threshold-row { grid-template-columns: minmax(0, 1fr) auto 68px; }
+/* comp counts: (n), readable, amber when the average rests on fewer than 3 comps */
+#view-yoc .yoc-cell .yoc-n { top: 5px; right: 7px; font: 700 11px/1 var(--x-font); opacity: .85; }
+#view-yoc .yoc-threshold-row .yoc-n { display: inline-block; margin-left: 6px; font: 700 12px/1 var(--x-font) !important; color: var(--x-ink-2); opacity: 1 !important; vertical-align: 0; }
+#view-yoc .yoc-threshold-row .yoc-n.low { color: #A15C00; }
+#view-yoc .yoc-threshold-row.yoc-thin-row { opacity: 1 !important; }

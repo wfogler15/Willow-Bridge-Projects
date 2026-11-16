@@ -16416,7 +16416,7 @@ function renderYoc() {
   const legend = yocColorBands().map(b => {
     return `<span class="yoc-legend-cell" style="background:${b.color};color:${b.ink};">${b.label}</span>`;
   }).join('');
-  document.getElementById('yoc-legend-row').innerHTML = legend + `<span class="yoc-legend-cell yoc-legend-thin">Fewer than ${yocState.minCompsForColor} comps</span><span class="yoc-legend-note">Corner number = comps in the cell · click a cell for the comps</span>`;
+  document.getElementById('yoc-legend-row').innerHTML = legend + `<span class="yoc-legend-cell yoc-legend-thin">Fewer than ${yocState.minCompsForColor} comps</span><span class="yoc-legend-note">(n) = comps in the cell · click a cell for the comps</span>`;
 
   // 3. Source data — Existing only; honor sidebar Class/City/Submarket filters.
   // Apply user edits first so any manual corrections to status/class/submarket/rent flow through.
@@ -16597,7 +16597,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${(rocAvg*100).toFixed(2)}% ROC${trendNote} · ${compCount} comp(s) · unit-weighted · click to view all`;
-        const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span><span class="yx-roc">' + (rocAvg*100).toFixed(2) + '%</span><span class="yoc-n">' + (validForWeight.length || validPsf.length) + '</span>';
+        const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span><span class="yx-roc">' + (rocAvg*100).toFixed(2) + '%</span><span class="yoc-n">(' + (validForWeight.length || validPsf.length) + ')</span>';
         const dataAttr = isClickable
           ? ` data-avg-group="${escapeHTML(sm)}" data-avg-product="${escapeHTML(prod)}"`
           : '';
@@ -16617,7 +16617,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${(rocBest*100).toFixed(2)}% ROC${trendNote} · ${escapeHTML(bestProp.name)} · click to view detail`;
-        const label = isNoData ? '—' : '<span class="yx-psf">$' + best.toFixed(2) + '</span><span class="yx-roc">' + (rocBest*100).toFixed(2) + '%</span><span class="yoc-n">' + propsWithPsf.length + '</span>';
+        const label = isNoData ? '—' : '<span class="yx-psf">$' + best.toFixed(2) + '</span><span class="yx-roc">' + (rocBest*100).toFixed(2) + '%</span><span class="yoc-n">(' + propsWithPsf.length + ')</span>';
         const dataAttr = isClickable ? ` data-best-pid="${escapeHTML(bestProp.id)}"` : '';
         row += `<td class="${cls}"${dataAttr} style="${isNoData ? '' : `background:${bg};color:${fg};`}" title="${tooltip}">${label}</td>`;
       }
@@ -16858,7 +16858,7 @@ function renderYocThresholdPanel(grouped, groupKeys) {
       ? `<div class="prop-name" title="${escapeHTML(r.bestName)}">${escapeHTML(r.bestName)}</div>`
       : '';
     return `
-      <div class="yoc-threshold-row${mode === 'best' ? ' best-mode' : ''}${mode !== 'best' && r.n < yocState.minCompsForColor ? ' yoc-thin-row' : ''}"${dataAttrs}>
+      <div class="yoc-threshold-row${mode === 'best' ? ' best-mode' : ''}"${dataAttrs}>
         <div class="submarket" title="${escapeHTML(r.sm)}">
           <div class="sm-line">
             <span class="sm-name">${escapeHTML(r.sm)}</span>
@@ -16866,7 +16866,7 @@ function renderYocThresholdPanel(grouped, groupKeys) {
           </div>
           ${propLine}
         </div>
-        <div class="psf">$${r.psf.toFixed(2)}<span class="yoc-n" title="comps in this cell">${r.n}</span></div>
+        <div class="psf">$${r.psf.toFixed(2)}<span class="yoc-n${mode !== 'best' && r.n < yocState.minCompsForColor ? ' low' : ''}" title="${r.n} comp${r.n === 1 ? '' : 's'} in this cell${mode !== 'best' && r.n < yocState.minCompsForColor ? ' · thin sample' : ''}">(${r.n})</span></div>
         <div class="roc" style="background:${bg};color:${fg};">${(r.roc*100).toFixed(2)}%</div>
       </div>
     `;
