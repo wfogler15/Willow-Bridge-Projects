@@ -15709,7 +15709,9 @@ function yocCompInScope(p) {
   if (sf != null && sf < yocState.minAvgUnitSf) return false;
   if (yocState.compSet === 'classA10' || yocState.compSet === 'classA5') {
     const yrs = yocState.compSet === 'classA5' ? 5 : 10;
-    if (p.class !== 'A') return false;
+    // CoStar tags a lot of new institutional product as Class B (e.g. The Col, 2026), so
+    // "institutional" = Class A or B within the vintage window. Class C new builds are rent-restricted.
+    if (p.class !== 'A' && p.class !== 'B') return false;
     if (!p.yearBuilt || p.yearBuilt < CURRENT_YEAR - yrs) return false;
   }
   return true;
