@@ -16673,6 +16673,50 @@ function renderYoc() {
 // Verdict band: one card per product with the required rent, cost basis and
 // how many submarkets (average comp) clear each ROC band. Clicking a card
 // focuses the matrix on that product; clicking the active card shows all.
+// Modal: every submarket that pencils for one product, ranked by return on cost
+function openYxPencilsModal(prod) {
+  const data = (window.__yxClears || {})[prod];
+  if (!data) return;
+  const groupWord = yocState.groupBy === 'city' ? 'City' : 'Submarket';
+  let ov = document.getElementById('yx-modal');
+  if (!ov) {
+    ov = document.createElement('div'); ov.id = 'yx-modal'; ov.className = 'yx-modal';
+    document.body.appendChild(ov);
+    ov.addEventListener('click', e => {
+      if (e.target === ov || e.target.closest('.yx-modal-x')) { ov.hidden = true; return; }
+      const row = e.target.closest('tr[data-sm]');
+      if (row) { ov.hidden = true; openYocGroupDetail(row.dataset.sm, row.dataset.prod); }
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') ov.hidden = true; });
+  }
+  const rows = data.list.map(c => {
+    const b = yocBandFor(c.roc);
+    const spread = data.req == null ? null : c.psf - data.req;
+    const thin = c.n < yocState.minCompsForColor;
+    return `<tr data-sm="${escapeHTML(c.sm)}" data-prod="${escapeHTML(prod)}">
+      <td class="sm">${escapeHTML(c.sm)}</td>
+      <td class="num">$${c.psf.toFixed(2)}</td>
+      <td class="num pos">${spread == null ? '—' : (spread >= 0 ? '+' : '−') + '$' + Math.abs(spread).toFixed(2)}</td>
+      <td class="num">$${c.best.toFixed(2)}</td>
+      <td class="num${thin ? ' thin' : ''}">${c.n}${thin ? ' <span>thin</span>' : ''}</td>
+      <td class="num">${c.units.toLocaleString()}</td>
+      <td class="num"><span class="pill" style="background:${b ? b.color : '#eee'};color:${b ? b.ink : '#333'}">${(c.roc * 100).toFixed(2)}%</span></td>
+    </tr>`;
+  }).join('');
+  ov.innerHTML = `<div class="yx-modal-card" role="dialog" aria-modal="true" aria-label="${escapeHTML(prod)} submarkets that pencil">
+    <div class="yx-modal-head">
+      <div><div class="yx-modal-title">${escapeHTML(prod)} · where it pencils</div>
+      <div class="yx-modal-sub">${data.list.length} of ${data.total} ${groupWord.toLowerCase()}s at today's rents · needs $${data.req == null ? '—' : data.req.toFixed(2)}/SF for ${(yocState.targetYoc * 100).toFixed(2)}% YOC · ${escapeHTML(yocCompLabel())}</div></div>
+      <button type="button" class="yx-modal-x" aria-label="Close">×</button>
+    </div>
+    <div class="yx-modal-body"><table>
+      <thead><tr><th>${groupWord}</th><th class="num">Avg rent / SF</th><th class="num">vs. needed</th><th class="num">Best comp</th><th class="num">Comps</th><th class="num">Units</th><th class="num">Return on cost</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>
+    <div class="yx-modal-foot">Click a row to see its comps. "Thin" = fewer than ${yocState.minCompsForColor} comps behind the average.</div>
+  </div>`;
+  ov.hidden = false;
+}
+
 function renderYxVerdict() {
   const host = document.getElementById('yx-verdict');
   if (!host) return;
@@ -16696,12 +16740,13 @@ function renderYxVerdict() {
       const roc = rocFromPsf(psf, prod, yocState.unitSize, sm);
       const b = yocBandFor(roc);
       if (b) counts[b.key]++;
-      if (roc != null && roc >= threshold) clears.push({ sm, roc, n: props.length });
+      if (roc != null && roc >= threshold) clears.push({ sm, roc, n: props.length, psf, best: Math.max(...props.map(p => p.avgAskingSF)), units: props.reduce((t, p) => t + (p.units || 0), 0) });
     }
     clears.sort((x, y) => y.roc - x.roc);
+    (window.__yxClears = window.__yxClears || {})[prod] = { list: clears, total, req };
     const seg = bands.map(b => counts[b.key] ? `<i style="flex:${counts[b.key]};background:${b.color}" title="${counts[b.key]} ${groupWord} · ${b.label}"></i>` : '').join('');
-    const names = clears.slice(0, 4).map(c => `${escapeHTML(c.sm)}${c.n < yocState.minCompsForColor ? ` <em title="${c.n} comp${c.n === 1 ? '' : 's'}">(${c.n})</em>` : ''}`).join(' · ')
-      + (clears.length > 4 ? ` · +${clears.length - 4} more` : '');
+    const names = clears.slice(0, 3).map(c => `${escapeHTML(c.sm)}${c.n < yocState.minCompsForColor ? ` <em title="${c.n} comp${c.n === 1 ? '' : 's'}">(${c.n})</em>` : ''}`).join(' · ')
+      + ` <button type="button" class="yx-v-all" data-prod="${escapeHTML(prod)}">${clears.length > 3 ? '+' + (clears.length - 3) + ' more' : 'Details'}</button>`;
     const active = yocState.productFilter === prod;
     const dim = yocState.productFilter !== 'all' && !active;
     const monthly = req == null ? null : req * yocState.unitSize;
@@ -16736,6 +16781,8 @@ function renderYxVerdict() {
   if (!host.dataset.wired) {
     host.dataset.wired = '1';
     host.addEventListener('click', e => {
+      const all = e.target.closest('.yx-v-all');
+      if (all) { openYxPencilsModal(all.dataset.prod); return; }
       if (e.target.closest('select, .yx-v-costs')) return;
       const card = e.target.closest('.yx-vcard');
       if (!card) return;
