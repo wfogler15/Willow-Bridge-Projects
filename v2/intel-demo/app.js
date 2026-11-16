@@ -18572,8 +18572,13 @@ function attachYocControls() {
     yocState.targetYoc = parseFloat(e.target.value);
     renderYoc();
   });
-  // OpEx dropdown
+  // OpEx dropdown: per-product default, then 15% to 45% in 1% steps
   const opexSel = document.getElementById('yoc-opex');
+  if (opexSel) {
+    let h = '<option value="product">Per product</option>';
+    for (let p = 15; p <= 45; p++) h += `<option value="${(p / 100).toFixed(2)}">${p}% (all)</option>`;
+    opexSel.innerHTML = h;
+  }
   opexSel.value = yocState.opexMode === 'product' ? 'product' : yocState.opex.toFixed(2);
   opexSel.addEventListener('change', e => {
     if (e.target.value === 'product') {
@@ -18587,6 +18592,9 @@ function attachYocControls() {
   // Other Income dropdown ($/unit/year) — feeds the required-rent + ROC math
   const oiSel = document.getElementById('yoc-otherincome');
   if (oiSel) {
+    let h = '';
+    for (let v = 0; v <= 6000; v += 250) h += `<option value="${v}">$${v.toLocaleString()}</option>`;
+    oiSel.innerHTML = h;
     oiSel.value = String(yocState.otherIncomePerUnit);
     oiSel.addEventListener('change', e => {
       yocState.otherIncomePerUnit = parseFloat(e.target.value);
@@ -18629,7 +18637,7 @@ function attachYocControls() {
     el.innerHTML = html;
   }
 
-  const fmtK = v => '$' + (v / 1000).toFixed(0) + 'K';
+  const fmtK = v => '$' + (v % 1000 === 0 ? (v / 1000).toFixed(0) : (v / 1000).toFixed(1)) + 'K';
   const fmtDollar = v => '$' + v;
 
   // Populate Land / Unit dropdowns ($0 to $150K in $5K increments) - all three product types
@@ -18639,13 +18647,13 @@ function attachYocControls() {
 
   // Populate Soft / Unit dropdowns ($30K to $90K in $5K increments) - all three product types
   ['garden-soft', 'midrise-soft', 'highrise-soft'].forEach(id => {
-    populateCostSelect(id, 30000, 90000, 5000, fmtK);
+    populateCostSelect(id, 20000, 200000, 2500, fmtK);
   });
 
   // Populate Other HC / Unit dropdowns ($0 to $20K in $5K increments) - captures
   // site/infra, CM fees, dev fees, anything outside the GMP contract.
   ['garden-otherhc', 'midrise-otherhc', 'highrise-otherhc'].forEach(id => {
-    populateCostSelect(id, 0, 50000, 5000, fmtK);
+    populateCostSelect(id, 0, 60000, 2500, fmtK);
   });
 
   // Populate HC / NRSF dropdowns - $50/SF increments, a sensible range per product
@@ -18865,7 +18873,7 @@ function exportYocMatrixPdf() {
 
   // Build the assumptions / filters footer
   const fmtPct = (v, places = 2) => (v * 100).toFixed(places) + '%';
-  const fmtK = v => '$' + (v / 1000).toFixed(0) + 'K';
+  const fmtK = v => '$' + (v % 1000 === 0 ? (v / 1000).toFixed(0) : (v / 1000).toFixed(1)) + 'K';
   const fmtDollar = v => '$' + v;
   const fmtTpcPerUnit = v => {
     if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M';
