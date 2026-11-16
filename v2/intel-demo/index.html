@@ -7430,8 +7430,15 @@ tbody tr,
             <aside class="yx-side">
               <div class="yx-card yx-assump">
                 <div class="yx-card-head">
-                  <div class="yx-h">Assumptions</div>
-                  <button type="button" class="yx-link" id="yoc-reset-btn" title="Restore every assumption to its default">Reset</button>
+                  <div>
+                    <div class="yx-h">Assumptions</div>
+                    <div class="yx-default-note" id="yx-default-note"></div>
+                  </div>
+                  <div class="yx-head-links">
+                    <button type="button" class="yx-link" id="yx-save-default" title="Make the current assumptions the default for this market">Save as default</button>
+                    <span aria-hidden="true">·</span>
+                    <button type="button" class="yx-link" id="yoc-reset-btn" title="Go back to the default assumptions">Reset</button>
+                  </div>
                 </div>
                 <div class="yx-form">
                   <label class="yx-field"><span>Product</span><select id="yoc-product-filter" class="yoc-select">
@@ -8904,7 +8911,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161541">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611161546">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9164,11 +9171,11 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="../shared/wb.js?v=202611161541"></script>
-<script src="../shared/legacy-db.js?v=202611161541"></script>
-<script>window.WB_BUILD = '202611161541';</script>
-<link rel="stylesheet" href="demo.css?v=202611161541">
-<script src="loader.js?v=202611161541"></script>
+<script src="../shared/wb.js?v=202611161546"></script>
+<script src="../shared/legacy-db.js?v=202611161546"></script>
+<script>window.WB_BUILD = '202611161546';</script>
+<link rel="stylesheet" href="demo.css?v=202611161546">
+<script src="loader.js?v=202611161546"></script>
 
 
 

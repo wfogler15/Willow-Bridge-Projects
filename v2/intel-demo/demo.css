@@ -188,3 +188,7 @@
 #view-yoc .yx-compset select:focus { outline: none; border-color: var(--x-purple) !important; box-shadow: 0 0 0 3px rgba(67,40,144,.14) !important; }
 #view-yoc .yoc-table tbody td.yoc-cell { height: 50px; }
 #view-yoc .yx-psf { font-size: 15.5px; }
+
+#view-yoc .yx-head-links { display: flex; align-items: center; gap: 8px; color: var(--x-ink-3); white-space: nowrap; }
+#view-yoc .yx-default-note { font: 500 12px/1.4 var(--x-font); color: var(--x-ink-3); margin-top: 3px; }
+#view-yoc .yx-default-note .yx-link { font-size: 12px; padding: 0; }

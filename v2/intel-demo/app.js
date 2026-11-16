@@ -18746,6 +18746,72 @@ function attachYocControls() {
 // Defaults are sourced from the data-default attribute on each cost select (so the
 // source of truth lives in one place — the HTML — and we don't have to keep two
 // copies of the defaults in sync).
+/* Saved YOC defaults: "Save as default" stores the current assumptions in this
+   browser (per market; the loader namespaces localStorage by market). Reset and
+   page load use them in place of the built-in defaults. */
+const YOC_DEFAULTS_KEY = 'yoc_defaults_v1';
+const YOC_DEFAULT_FIELDS = ['targetYoc', 'opexMode', 'opex', 'otherIncomePerUnit', 'unitSize', 'dealSize', 'compSet'];
+const YOC_COST_SELECTS = { Garden: 'garden', 'Mid-Rise': 'midrise', 'High-Rise': 'highrise' };
+function loadYocSavedDefaults() {
+  try { return JSON.parse(localStorage.getItem(YOC_DEFAULTS_KEY) || 'null'); } catch (e) { return null; }
+}
+function saveYocDefaults() {
+  const d = { savedAt: new Date().toISOString(), costs: JSON.parse(JSON.stringify(yocState.costs)) };
+  YOC_DEFAULT_FIELDS.forEach(k => { d[k] = yocState[k]; });
+  try { localStorage.setItem(YOC_DEFAULTS_KEY, JSON.stringify(d)); return true; } catch (e) { return false; }
+}
+function clearYocSavedDefaults() {
+  try { localStorage.removeItem(YOC_DEFAULTS_KEY); } catch (e) {}
+}
+function syncYocSelects() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = String(v); };
+  set('yoc-target', yocState.targetYoc.toFixed(4));
+  set('yoc-opex', yocState.opexMode === 'product' ? 'product' : yocState.opex.toFixed(2));
+  set('yoc-otherincome', yocState.otherIncomePerUnit);
+  set('yoc-unitsize', yocState.unitSize);
+  set('yoc-dealsize', yocState.dealSize);
+  set('yoc-compset', yocState.compSet);
+  for (const [prod, pre] of Object.entries(YOC_COST_SELECTS)) {
+    const c = yocState.costs[prod]; if (!c) continue;
+    set(pre + '-land', c.land); set(pre + '-hc', c.hc); set(pre + '-otherhc', c.otherHc); set(pre + '-soft', c.soft);
+  }
+}
+function applyYocSavedDefaults() {
+  const d = loadYocSavedDefaults();
+  if (!d) return false;
+  YOC_DEFAULT_FIELDS.forEach(k => { if (d[k] != null) yocState[k] = d[k]; });
+  if (d.costs) for (const prod of Object.keys(YOC_COST_SELECTS)) {
+    if (d.costs[prod]) Object.assign(yocState.costs[prod], d.costs[prod]);
+  }
+  syncYocSelects();
+  return true;
+}
+function updateYxDefaultNote() {
+  const el = document.getElementById('yx-default-note');
+  if (!el) return;
+  const d = loadYocSavedDefaults();
+  if (d) {
+    const when = new Date(d.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    el.innerHTML = `Using your saved defaults (${when}) · <button type="button" class="yx-link" id="yx-clear-default">Restore original</button>`;
+    document.getElementById('yx-clear-default').onclick = () => { clearYocSavedDefaults(); resetYocDefaults(); updateYxDefaultNote(); };
+  } else {
+    el.textContent = 'Using original defaults';
+  }
+}
+function wireYxDefaults() {
+  const btn = document.getElementById('yx-save-default');
+  if (!btn || btn.dataset.wired) return;
+  btn.dataset.wired = '1';
+  btn.addEventListener('click', () => {
+    if (saveYocDefaults()) {
+      btn.textContent = 'Saved';
+      setTimeout(() => { btn.textContent = 'Save as default'; }, 1500);
+      updateYxDefaultNote();
+    }
+  });
+  updateYxDefaultNote();
+}
+
 function resetYocDefaults() {
   // 1. Reset top-level assumptions
   yocState.targetYoc = 0.0650;
@@ -18826,6 +18892,9 @@ function resetYocDefaults() {
   document.querySelectorAll('#yoc-years .toggle-btn').forEach(b => {
     b.classList.toggle('active', parseInt(b.dataset.years, 10) === yocState.years);
   });
+
+  // 4b. Saved defaults (Settings) win over the built-in ones
+  applyYocSavedDefaults();
 
   // 5. Re-render the matrix and threshold panel against the restored state
   renderYoc();
@@ -21020,6 +21089,8 @@ attachScatterToggle();
 attachPipelineTimelineToggle();
 attachTableSort();
 attachYocControls();
+applyYocSavedDefaults();
+wireYxDefaults();
 updateProductTypeCount();
 // Ensure inline onclick handlers in modal HTML can find these functions
 window.openDetail = openDetail;
