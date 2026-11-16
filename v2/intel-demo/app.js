@@ -16516,20 +16516,20 @@ function renderYoc() {
 
   // 5. Header — one row. First cell: group-by dropdown + A–Z sort. Product headers sort by that product.
   const showAvg = true;
-  const showBest = false;
-  const colsPerProduct = 1;
+  const showBest = true;
+  const colsPerProduct = 2;
   const sortKey = yocState.matrixSort || 'avgDesc';
   const arrow = on => on ? '<i class="yx-sort-ind">↓</i>' : '';
-  let theadHtml = `<tr><th class="product-header yx-gh">
+  let theadHtml = `<tr><th class="product-header yx-gh" rowspan="2">
       <span class="yx-gh-row"><select class="yx-gh-select" aria-label="Group by"><option value="submarket"${yocState.groupBy !== 'city' ? ' selected' : ''}>Submarket</option><option value="city"${yocState.groupBy === 'city' ? ' selected' : ''}>City</option></select>
       <button type="button" class="yx-gh-sort${sortKey === 'alpha' ? ' on' : ''}" data-sort="alpha" title="Sort A–Z">A–Z${sortKey === 'alpha' ? ' ↓' : ''}</button></span>
       <span class="yx-ph-req yx-gh-count">${groupKeys.length} ${yocState.groupBy === 'city' ? 'cities' : 'submarkets'}</span></th>`;
   for (const prod of activeProducts) {
     const reqH = requiredPsfRent(prod, yocState.unitSize);
     const on = sortKey === 'prod:' + prod;
-    theadHtml += `<th class="product-header yx-sortable${on ? ' on' : ''}" data-sort="prod:${escapeHTML(prod)}" title="Sort by ${escapeHTML(prod)} rent, high to low"><span class="yx-ph-name">${prod}${arrow(on)}</span><span class="yx-ph-req">Needs $${reqH == null ? '—' : reqH.toFixed(2)}/SF</span></th>`;
+    theadHtml += `<th colspan="2" class="product-header yx-sortable${on ? ' on' : ''}" data-sort="prod:${escapeHTML(prod)}" title="Sort by ${escapeHTML(prod)} rent, high to low"><span class="yx-ph-name">${prod}${arrow(on)}</span><span class="yx-ph-req">Needs $${reqH == null ? '—' : reqH.toFixed(2)}/SF</span></th>`;
   }
-  theadHtml += '</tr>';
+  theadHtml += '</tr><tr>' + activeProducts.map(() => '<th class="metric-header">Average</th><th class="metric-header">Best comp</th>').join('') + '</tr>';
   const thead = document.querySelector('#yoc-table thead');
   thead.innerHTML = theadHtml;
   thead.onclick = e => {
@@ -16611,7 +16611,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${(rocAvg*100).toFixed(2)}% ROC${trendNote} · ${compCount} comp(s) · unit-weighted${bestProp ? ' · best: ' + escapeHTML(bestProp.name) + ' $' + best.toFixed(2) : ''} · click to view all`;
-        const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span>' + (best != null && propsWithPsf.length > 1 ? '<span class="yx-best">Best $' + best.toFixed(2) + '</span>' : '') + '<span class="yoc-n">(' + (validForWeight.length || validPsf.length) + ')</span>';
+        const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span><span class="yoc-n">(' + (validForWeight.length || validPsf.length) + ')</span>';
         const dataAttr = isClickable
           ? ` data-avg-group="${escapeHTML(sm)}" data-avg-product="${escapeHTML(prod)}"`
           : '';

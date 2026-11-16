@@ -273,3 +273,17 @@
 #view-yoc .yx-vcard.dim { opacity: .6; }
 #view-yoc .yoc-table thead th.yx-gh { width: 250px; }
 #view-yoc .yoc-table tbody td.yoc-submarket { width: 250px; }
+
+/* v3.1: cost inputs on one row, left-aligned; actions inside the assumptions card; avg + best columns */
+#view-yoc .yx-v-costs { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 10px 12px 12px; background: #f8f7fb; }
+#view-yoc .yx-c-row select { text-align: left !important; text-align-last: left; direction: ltr; padding: 0 22px 0 9px !important; background-position: right 8px center !important; }
+#view-yoc .yx-c-row > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#view-yoc .yx-field select { text-align: left !important; text-align-last: left; }
+#view-yoc .yx-side { display: flex; flex-direction: column; }
+#view-yoc .yx-assump { flex: 1; display: flex; flex-direction: column; }
+#view-yoc .yx-assump .yx-actions { margin-top: auto; padding: 14px 20px 18px; border-top: 1px solid var(--x-line); grid-template-columns: 1fr 1fr; }
+#view-yoc .yx-assump .yx-btn { height: 36px; font-size: 12.5px; }
+#view-yoc .yoc-table thead tr:nth-child(2) th { top: 56px; }
+#view-yoc .yoc-table thead th.metric-header { height: 30px !important; font: 600 11.5px/1 var(--x-font) !important; color: var(--x-ink-3) !important; }
+#view-yoc .yoc-table thead th.yx-gh { vertical-align: bottom; padding-bottom: 10px !important; box-shadow: inset 0 -1px 0 var(--x-line) !important; background-image: none !important; }
+#view-yoc .yoc-table tbody td.yoc-cell { min-width: 120px; height: 52px; }
