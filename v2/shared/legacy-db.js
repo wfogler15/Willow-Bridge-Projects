@@ -336,6 +336,8 @@
           for (const [k, v] of Object.entries(filters)) if (k !== 'market') data = data.filter((r) => String(r[k]) === String(v));
           return ok(data);
         }
+        // demo copy: never write (the old layer re-pushes cached records on every load, and its browser cache is shared across markets)
+        if (op !== 'select' && window.__WB_DEMO_READONLY) { console.info('[legacy-db] demo is read-only; skipped', table, op); return ok(null); }
         if (op === 'upsert') { for (const r of rows) await h(r); return ok(null); }
         await h(filters); return ok(null);
       } catch (e) { console.error('[legacy-db]', table, op, e); return fail({ message: e.message || String(e), code: e.code }); }

@@ -2,11 +2,13 @@
 (function () {
   // 1) Private storage. The old dashboards share this web address and their browser caches;
   //    the dashboard re-pushes cached records on start, so v2 keeps its own namespaced copy.
-  const PREFIX = 'wbv2:intel-demo:';
+  // Demo: read-only for the old sync layer, and one browser-storage namespace PER MARKET (the old cache is not market-aware, so Phoenix used to show Denver's comps)
+  window.__WB_DEMO_READONLY = true;
+  const PFX = () => 'wbv2:intel-demo:' + (new URLSearchParams(location.search).get('market') || 'denver') + ':';
   const proto = Storage.prototype, get = proto.getItem, set = proto.setItem, del = proto.removeItem;
-  proto.getItem = function (k) { return get.call(this, k === 'wb_dashboard_theme' ? k : PREFIX + k); };
-  proto.setItem = function (k, v) { return set.call(this, k === 'wb_dashboard_theme' ? k : PREFIX + k, v); };
-  proto.removeItem = function (k) { return del.call(this, k === 'wb_dashboard_theme' ? k : PREFIX + k); };
+  proto.getItem = function (k) { return get.call(this, k === 'wb_dashboard_theme' ? k : PFX() + k); };
+  proto.setItem = function (k, v) { return set.call(this, k === 'wb_dashboard_theme' ? k : PFX() + k, v); };
+  proto.removeItem = function (k) { return del.call(this, k === 'wb_dashboard_theme' ? k : PFX() + k); };
 
   // 2) The dashboard hooks window 'load' in a couple of places; it starts after load has fired, so replay those.
   const addEv = window.addEventListener.bind(window);
@@ -37,7 +39,7 @@
     MARKETS = Object.fromEntries(markets.map((m) => [m.id, (m.label || m.id).split(',')[0]]));
     const q = new URLSearchParams(location.search);
     const shared = WB.getMarket();
-    let market = q.get('market') || (shared !== 'all' ? shared : null) || localStorage.getItem('market') || 'denver';
+    let market = q.get('market') || 'denver';   // Demo: the URL decides (keeps the per-market storage namespace in step)
     if (!MARKETS[market]) market = markets.length ? markets.find((m) => m.id === 'denver')?.id || markets[0].id : 'denver';
     localStorage.setItem('market', market);
     WB.showMarket(market);
