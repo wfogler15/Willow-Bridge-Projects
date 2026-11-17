@@ -561,3 +561,19 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 .wbi-railtop .wbi-fbtn .n:empty { display: none; }
 .wbi-railtop .wbi-fbtn[aria-expanded="true"] .n { background: #fff; color: #1D1247; }
 .wbi-fpanel.wbi-fpanel-rail { right: auto; width: min(720px, calc(100vw - 260px)); }
+
+/* occupancy triplets: one color per measure (lease-up amber, stabilized purple, all-in teal) */
+.occ-row .stat-pair { border-top: 1px solid #e6e4ee !important; border-radius: 10px !important; background: #fff !important; gap: 0; }
+.occ-row .stat-cell { position: relative; background: #fff !important; padding: 9px 8px 9px !important; }
+.occ-row .stat-cell::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; }
+.occ-row .stat-cell.leaseup { background: #fdf7ea !important; } .occ-row .stat-cell.leaseup::before { background: #C08A1E; }
+.occ-row .stat-cell.stab { background: #f4f1fb !important; } .occ-row .stat-cell.stab::before { background: #432890; }
+.occ-row .stat-cell.allin { background: #ecf7f5 !important; } .occ-row .stat-cell.allin::before { background: #2A9D8F; }
+.occ-row .stat-cell .stat-label { font: 700 10.5px/1.2 Aptos, 'Segoe UI', sans-serif !important; letter-spacing: .06em; }
+.occ-row .stat-cell.leaseup .stat-label { color: #9A6B10 !important; }
+.occ-row .stat-cell.stab .stat-label { color: #432890 !important; }
+.occ-row .stat-cell.allin .stat-label { color: #1E7268 !important; }
+.occ-row .stat-cell .stat-val { font-family: Aptos, 'Segoe UI', sans-serif !important; font-variant-numeric: tabular-nums; }
+.occ-row .stat-cell.leaseup .stat-val { color: #6E4D0B; }
+.occ-row .stat-cell.stab .stat-val { color: #1D1247; }
+.occ-row .stat-cell.allin .stat-val { color: #13514A; }
