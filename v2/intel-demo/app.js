@@ -10635,7 +10635,7 @@ function renderSaleComps() {
   // Filter first so KPIs and table reflect the same scope
   const search = (state.scSearch || '').toLowerCase().trim();
 
-  const filtered = allComps.filter(r => {
+  let filtered = allComps.filter(r => {
     // Year filter — match sale year against the YYYY-prefix of the saleDate
     if (state.scYear !== 'all') {
       if (!r.saleDate) return false;
@@ -10658,6 +10658,7 @@ function renderSaleComps() {
       : [r.name, r.submarket, r.productType, r.buyer, r.seller, r.broker, r.notes];
     return fields.some(v => v && v.toLowerCase().includes(search));
   });
+  if (typeof window.scxApply === 'function') filtered = window.scxApply(filtered, mode);
 
   // Mode-specific KPI strip — computed from the FILTERED dataset so they
   // update live as the user types in the search or toggles sidebar filters.
@@ -22972,4 +22973,223 @@ function txRenderBoard() {
   renderProperties = function () { const r = _rp.apply(this, arguments); try { paintBar(); } catch (e) {} return r; };
   window.renderProperties = renderProperties;
   try { renderProperties(); } catch (e) {}
+})();
+
+
+/* =================================================================
+   DEMO: Sale Comps finder — same editable-sentence system as the
+   Property Index. Mode, type, location (incl. radius), sale date,
+   vintage, size, price and cap rate; inline result line replaces the KPI cards.
+   ================================================================= */
+(function scxFinder() {
+  const view = document.getElementById('view-salecomps');
+  const host = view && view.querySelector('.panel-header');
+  if (!host) return;
+  const E = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const TODAY = new Date();
+  const blank = () => ({ types: new Set(), subs: new Set(), cities: new Set(), near: null, radius: 3, months: null, sy: [null, null],
+    yr: [null, null], units: [null, null], acres: [null, null], ppu: [null, null], psf: [null, null], price: [null, null], cap: [null, null] });
+  const SX = window.SX = { investment: blank(), land: blank(), base: [], mode: 'investment' };
+  const F = () => SX[SX.mode];
+  const isInv = () => SX.mode === 'investment';
+  const typeOf = r => (isInv() ? r.productType : r.constructionType) || '—';
+  const sizeOf = r => isInv() ? r.units : r.proposedUnits;
+  const miles = (a, b) => L.latLng(a.lat, a.lng).distanceTo([b.lat, b.lng]) / 1609.34;
+  const inR = (v, r) => (r[0] == null || (v != null && v >= r[0])) && (r[1] == null || (v != null && v <= r[1]));
+  const has = r => r[0] != null || r[1] != null;
+  const dateOf = r => r.saleDate ? new Date(String(r.saleDate).slice(0, 10) + 'T00:00:00') : null;
+
+  window.scxApply = function (data, mode) {
+    SX.mode = mode; SX.base = data; const f = F();
+    const cutoff = f.months ? new Date(TODAY.getFullYear(), TODAY.getMonth() - f.months, TODAY.getDate()) : null;
+    return data.filter(r => {
+      if (f.types.size && !f.types.has(typeOf(r))) return false;
+      if (f.subs.size && !f.subs.has(r.submarket)) return false;
+      if (f.cities.size && !f.cities.has(r.city)) return false;
+      if (f.near && (r.lat == null || r.lng == null || miles(f.near, r) > f.radius)) return false;
+      const d = dateOf(r);
+      if (cutoff && !(d && d >= cutoff)) return false;
+      if (has(f.sy) && !inR(d ? d.getFullYear() : null, f.sy)) return false;
+      if (isInv() && !inR(r.yearBuilt, f.yr)) return false;
+      if (!inR(sizeOf(r), f.units)) return false;
+      if (!isInv() && !inR(r.acreage, f.acres)) return false;
+      if (!inR(r.pricePerUnit, f.ppu)) return false;
+      if (!inR(r.pricePerSF, f.psf)) return false;
+      if (!inR(r.salePrice != null ? r.salePrice / 1e6 : null, f.price)) return false;
+      if (isInv() && !inR(r.capRate, f.cap)) return false;
+      return true;
+    });
+  };
+
+  // ---------- markup ----------
+  const bar = document.createElement('div');
+  bar.className = 'px-bar scx-bar';
+  bar.innerHTML = `<div class="px-tool"><div class="px-q" aria-label="Sale comp filters"></div><div class="px-search-slot"></div><div class="px-acts2"></div></div><div class="px-sum"></div>`;
+  host.after(bar);
+  host.classList.add('px-host');
+  const srch = document.getElementById('sc-search');
+  if (srch) { srch.removeAttribute('style'); bar.querySelector('.px-search-slot').appendChild(srch); }
+  ['sc-add-btn', 'sc-export-btn'].forEach(id => { const el = document.getElementById(id); if (el) bar.querySelector('.px-acts2').appendChild(el); });
+  const ysel = document.getElementById('sc-year-filter'); if (ysel) { state.scYear = 'all'; ysel.style.display = 'none'; }
+  const mt = document.getElementById('sc-mode-toggle'); if (mt && mt.parentElement) mt.parentElement.style.display = 'none';
+  const kp = document.getElementById('sc-kpis'); if (kp) kp.style.display = 'none';
+  const pop = document.createElement('div'); pop.className = 'px-pop'; pop.hidden = true; document.body.appendChild(pop);
+
+  const rerender = () => { try { renderSaleComps(); } catch (e) { console.error('[scx]', e); } };
+  let tmr = null; const soon = () => { clearTimeout(tmr); tmr = setTimeout(rerender, 160); };
+  const num = v => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[$,%]/g, '')); return isNaN(n) ? null : n; };
+  const countBy = f => { const m = new Map(); SX.base.forEach(r => { const v = f(r); if (v == null || v === '') return; m.set(v, (m.get(v) || 0) + 1); }); return m; };
+  const sorted = m => [...m.entries()].sort((a, b) => b[1] - a[1]);
+  const az = m => [...m.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  const range = (label, key, unit, ph) => `<div class="px-rg"><div class="px-rl">${label}</div><div class="px-ri"><input inputmode="decimal" data-r="${key}" data-i="0" placeholder="${ph ? ph[0] : 'Min'}" value="${F()[key][0] ?? ''}"><span>to</span><input inputmode="decimal" data-r="${key}" data-i="1" placeholder="${ph ? ph[1] : 'Max'}" value="${F()[key][1] ?? ''}">${unit ? `<em>${unit}</em>` : ''}</div></div>`;
+  const checks = (setKey, entries, search) => `${search ? `<input class="px-find" placeholder="Search ${search}…">` : ''}<div class="px-list">${entries.map(([v, n]) => `<label class="px-ck"><input type="checkbox" data-s="${setKey}" value="${E(v)}" ${F()[setKey].has(v) ? 'checked' : ''}><span>${E(v)}</span><b>${n.toLocaleString()}</b></label>`).join('') || '<div class="px-none">Nothing in the current view</div>'}</div>`;
+  const presets = (key, list) => `<div class="px-pre">${list.map(([t, a, b]) => `<button type="button" data-p="${key}" data-a="${a ?? ''}" data-b="${b ?? ''}" class="${F()[key][0] === a && F()[key][1] === b ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const Y = TODAY.getFullYear();
+
+  const BODY = {
+    mode: () => `<div class="px-ph">Comp type</div><div class="px-opts">${[['investment', 'Investment sales'], ['land', 'Land sales']].map(([v, t]) => `<button type="button" data-md="${v}" class="${SX.mode === v ? 'on' : ''}">${t}</button>`).join('')}</div>`,
+    type: () => `<div class="px-ph">${isInv() ? 'Product type' : 'Construction type'}</div>${checks('types', sorted(countBy(typeOf)))}`,
+    loc: () => `<div class="px-ph">Near a property or site</div>
+      <div class="px-near"><div class="px-ta"><input class="px-near-q" placeholder="Search a property, comp or site…" value="${F().near ? E(F().near.name) : ''}"><div class="px-ta-list" hidden></div></div>
+        <select class="px-rad">${[0.5, 1, 2, 3, 5, 10].map(r => `<option value="${r}" ${F().radius === r ? 'selected' : ''}>${r} mi</option>`).join('')}</select>
+        ${F().near ? '<button type="button" class="px-near-x" title="Remove">×</button>' : ''}</div>
+      <div class="px-cols"><div><div class="px-ph">Submarket</div>${checks('subs', az(countBy(r => r.submarket)), 'submarkets')}</div>
+      <div><div class="px-ph">City</div>${checks('cities', az(countBy(r => r.city)), 'cities')}</div></div>`,
+    sold: () => `<div class="px-ph">Sale date</div><div class="px-pre">${[[12, 'Last 12 months'], [24, 'Last 24 months'], [36, 'Last 3 years'], [60, 'Last 5 years']].map(([m, t]) => `<button type="button" data-mo="${m}" class="${F().months === m ? 'on' : ''}">${t}</button>`).join('')}</div>${range('Sale year', 'sy', '', ['From', 'To'])}`,
+    yr: () => `<div class="px-ph">Year built</div>${presets('yr', [['Last 5 yrs', Y - 5, null], ['Last 10 yrs', Y - 10, null], ['2010+', 2010, null], ['2000–2009', 2000, 2009], ['Pre-2000', null, 1999]])}${range('Custom', 'yr', '', ['From', 'To'])}`,
+    size: () => isInv()
+      ? `<div class="px-ph">Size</div>${presets('units', [['100+ units', 100, null], ['200+ units', 200, null], ['300+ units', 300, null]])}${range('Units', 'units', 'units')}`
+      : `<div class="px-ph">Size</div>${range('Acres', 'acres', 'ac')}${range('Proposed units', 'units', 'units')}`,
+    price: () => `<div class="px-ph">Price</div>${range(isInv() ? 'Price per unit' : 'Price per proposed unit', 'ppu', '$/unit', ['$ min', '$ max'])}${range(isInv() ? 'Price per SF' : 'Price per land SF', 'psf', '$/SF', ['$ min', '$ max'])}${range('Sale price', 'price', '$M', ['$M min', '$M max'])}`,
+    cap: () => `<div class="px-ph">Cap rate</div>${presets('cap', [['Under 5%', null, 4.99], ['5–6%', 5, 6], ['6%+', 6, null]])}${range('Custom', 'cap', '%')}<div class="px-note">Only comps with a reported cap rate match.</div>`
+  };
+  const CLEAR = {
+    type: f => f.types.clear(), loc: f => { f.subs.clear(); f.cities.clear(); f.near = null; },
+    sold: f => { f.months = null; f.sy = [null, null]; }, yr: f => { f.yr = [null, null]; },
+    size: f => { f.units = [null, null]; f.acres = [null, null]; }, price: f => { f.ppu = [null, null]; f.psf = [null, null]; f.price = [null, null]; },
+    cap: f => { f.cap = [null, null]; }
+  };
+  let openK = null, openBtn = null;
+  const tok = k => bar.querySelector(`.px-tok[data-k="${k}"]`);
+  function openPop(k, btn) {
+    if (openK === k) return closePop();
+    openK = k; openBtn = btn;
+    pop.innerHTML = BODY[k]() + (k !== 'mode' ? `<div class="px-foot"><button type="button" class="px-reset1">Clear</button><button type="button" class="px-done">Done</button></div>` : '');
+    pop.dataset.k = k === 'mode' ? 'status' : k; pop.hidden = false;
+    bar.querySelectorAll('.px-tok').forEach(b => b.classList.toggle('open', b.dataset.k === k));
+    place(); wire();
+  }
+  function closePop() { openK = null; pop.hidden = true; bar.querySelectorAll('.px-tok').forEach(b => b.classList.remove('open')); }
+  function place() {
+    if (openK) openBtn = tok(openK) || openBtn;
+    if (!openBtn || !openBtn.isConnected || pop.hidden) return;
+    const r = openBtn.getBoundingClientRect();
+    pop.style.top = Math.round(r.bottom + 8) + 'px';
+    pop.style.left = Math.round(Math.max(12, Math.min(r.left, innerWidth - pop.offsetWidth - 16))) + 'px';
+  }
+  window.addEventListener('resize', place); window.addEventListener('scroll', place, true);
+  document.addEventListener('mousedown', e => { if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.scx-bar .px-tok')) closePop(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) closePop(); });
+  const reopen = k => { openK = null; openPop(k, tok(k)); };
+  function syncPre() { pop.querySelectorAll('[data-p]').forEach(b => { const k = b.dataset.p; b.classList.toggle('on', F()[k][0] === num(b.dataset.a) && F()[k][1] === num(b.dataset.b)); }); }
+  function wire() {
+    const f = F();
+    const r1 = pop.querySelector('.px-reset1'); if (r1) r1.addEventListener('click', () => { const k = openK; CLEAR[k](f); rerender(); reopen(k); });
+    const dn = pop.querySelector('.px-done'); if (dn) dn.addEventListener('click', closePop);
+    pop.querySelectorAll('[data-md]').forEach(b => b.addEventListener('click', () => {
+      const t = document.querySelector(`#sc-mode-toggle .toggle-btn[data-mode="${b.dataset.md}"]`); closePop(); if (t) t.click();
+    }));
+    pop.querySelectorAll('input[type=checkbox][data-s]').forEach(c => c.addEventListener('change', () => { const set = f[c.dataset.s]; c.checked ? set.add(c.value) : set.delete(c.value); rerender(); }));
+    pop.querySelectorAll('.px-find').forEach(i => i.addEventListener('input', () => { const q = i.value.toLowerCase(); i.nextElementSibling.querySelectorAll('.px-ck').forEach(l => { l.style.display = l.textContent.toLowerCase().includes(q) ? '' : 'none'; }); }));
+    pop.querySelectorAll('input[data-r]').forEach(i => i.addEventListener('input', () => { f[i.dataset.r][+i.dataset.i] = num(i.value); if (i.dataset.r === 'sy') { f.months = null; pop.querySelectorAll('[data-mo]').forEach(b => b.classList.remove('on')); } syncPre(); soon(); }));
+    pop.querySelectorAll('[data-mo]').forEach(b => b.addEventListener('click', () => { const m = +b.dataset.mo; f.months = f.months === m ? null : m; f.sy = [null, null]; rerender(); reopen('sold'); }));
+    pop.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.p, a = num(b.dataset.a), z = num(b.dataset.b);
+      f[k] = (f[k][0] === a && f[k][1] === z) ? [null, null] : [a, z];
+      pop.querySelectorAll(`input[data-r="${k}"]`).forEach(i => { i.value = f[k][+i.dataset.i] ?? ''; });
+      syncPre(); rerender();
+    }));
+    const q = pop.querySelector('.px-near-q');
+    if (q) {
+      const list = pop.querySelector('.px-ta-list');
+      const pool = RAW_DATA.map(applyUserEdits).filter(p => p.lat != null && p.lng != null && p.name).map(p => ({ id: 'p' + p.id, name: p.name, lat: p.lat, lng: p.lng, sub: [p.submarket, p.yearBuilt].filter(Boolean).join(' · ') }))
+        .concat(getAllComps('investment').concat(getAllComps('land')).filter(r => r.lat != null && r.lng != null && r.name).map(r => ({ id: 'c' + r.id, name: r.name, lat: r.lat, lng: r.lng, sub: 'Sale comp' + (r.saleDate ? ' · ' + String(r.saleDate).slice(0, 4) : '') })));
+      q.addEventListener('input', () => {
+        const t = q.value.trim().toLowerCase();
+        if (t.length < 2) { list.hidden = true; return; }
+        const hits = pool.filter(p => p.name.toLowerCase().includes(t)).slice(0, 8);
+        list.innerHTML = hits.map(p => `<button type="button" data-id="${E(p.id)}"><span>${E(p.name)}</span><em>${E(p.sub)}</em></button>`).join('') || '<div class="px-none">No match</div>';
+        list.hidden = false;
+        list.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { const p = pool.find(x => x.id === b.dataset.id); f.near = { name: p.name, lat: p.lat, lng: p.lng }; rerender(); reopen('loc'); }));
+      });
+      pop.querySelector('.px-rad').addEventListener('change', e => { f.radius = +e.target.value; rerender(); });
+      const x = pop.querySelector('.px-near-x'); if (x) x.addEventListener('click', () => { f.near = null; rerender(); reopen('loc'); });
+    }
+  }
+
+  // ---------- sentence ----------
+  const money = v => '$' + Math.round(v).toLocaleString();
+  const rtxt = (r, fm) => r[0] != null && r[1] != null ? `${fm(r[0])}–${fm(r[1])}` : r[0] != null ? `${fm(r[0])}+` : `≤ ${fm(r[1])}`;
+  const many = (set, n) => set.size === 0 ? null : set.size <= 2 ? [...set].join(' + ') : `${set.size} ${n}`;
+  const parts = l => { l = l.filter(Boolean); return l.length ? l.join(', ') : null; };
+  const TOK = {
+    mode: () => [isInv() ? 'Investment sales' : 'Land sales', false],
+    type: () => { const v = many(F().types, 'types'); return [v || (isInv() ? 'any product type' : 'any construction type'), !!v]; },
+    loc: () => { const f = F(); const v = f.near ? `within ${f.radius} mi of ${f.near.name}` : parts([many(f.subs, 'submarkets'), many(f.cities, 'cities')]); return [v || (window.__WBD && window.__WBD.title) || 'the whole market', !!v]; },
+    sold: () => { const f = F(); const v = f.months ? ({ 12: 'in the last 12 months', 24: 'in the last 24 months', 36: 'in the last 3 years', 60: 'in the last 5 years' })[f.months] : has(f.sy) ? 'in ' + rtxt(f.sy, x => x) : null; return [v || 'any time', !!v]; },
+    yr: () => { const v = has(F().yr) ? rtxt(F().yr, x => x) : null; return [v ? 'built ' + v : 'any vintage', !!v]; },
+    size: () => { const f = F(); const v = parts([has(f.units) && rtxt(f.units, x => x.toLocaleString()) + (isInv() ? ' units' : ' proposed units'), has(f.acres) && rtxt(f.acres, x => x) + ' ac']); return [v || 'any size', !!v]; },
+    price: () => { const f = F(); const v = parts([has(f.ppu) && rtxt(f.ppu, money) + '/unit', has(f.psf) && rtxt(f.psf, x => '$' + x) + '/SF', has(f.price) && rtxt(f.price, x => '$' + x + 'M')]); return [v || 'any price', !!v]; },
+    cap: () => { const v = has(F().cap) ? rtxt(F().cap, x => x + '%') + ' cap' : null; return [v || 'any cap rate', !!v]; }
+  };
+  function sentence() {
+    const S = isInv()
+      ? [['', 'mode'], ['of', 'type'], ['in', 'loc'], ['sold', 'sold'], [',', 'yr'], [',', 'size'], [', at', 'price'], [',', 'cap']]
+      : [['', 'mode'], ['for', 'type'], ['in', 'loc'], ['sold', 'sold'], [',', 'size'], [', at', 'price']];
+    let any = false;
+    const html = S.map(([lead, k], i) => {
+      const [t, on] = TOK[k](); if (on) any = true;
+      const l = lead.startsWith(',') ? `<i>,</i>${lead.length > 1 ? ' <i>' + lead.slice(2) + '</i>' : ''} ` : (lead ? ` <i>${lead}</i> ` : (i ? ' ' : ''));
+      return `${l}<button type="button" class="px-tok${on ? ' on' : ''}${openK === k ? ' open' : ''}" data-k="${k}">${E(t)}</button>`;
+    }).join('');
+    return html + (any ? ` <button type="button" class="px-reset">Reset</button>` : '');
+  }
+  bar.querySelector('.px-q').addEventListener('click', e => {
+    const t = e.target.closest('.px-tok'); if (t) return openPop(t.dataset.k, t);
+    if (e.target.closest('.px-reset')) { Object.keys(CLEAR).forEach(k => CLEAR[k](F())); closePop(); rerender(); }
+  });
+
+  // ---------- result line ----------
+  const fmtM = v => v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B' : '$' + (v / 1e6).toFixed(v >= 1e8 ? 0 : 1) + 'M';
+  function summary(rows) {
+    const wkey = isInv() ? 'units' : 'proposedUnits';
+    const wa = k => { let s = 0, w = 0; rows.forEach(r => { const v = r[k], u = r[wkey]; if (v != null && !isNaN(v) && u) { s += v * u; w += u; } }); return w ? s / w : null; };
+    const vol = rows.reduce((s, r) => s + (r.salePrice || 0), 0);
+    const units = rows.reduce((s, r) => s + (r[wkey] || 0), 0);
+    const cell = (k, v, s) => `<div class="px-s"><span>${k}</span><b>${v}</b>${s ? `<em>${s}</em>` : ''}</div>`;
+    const by = {}; rows.forEach(r => { if (r.buyer) { const b = by[r.buyer] || (by[r.buyer] = { n: 0, v: 0 }); b.n++; b.v += r.salePrice || 0; } });
+    const top = Object.entries(by).sort((a, b) => b[1].n - a[1].n || b[1].v - a[1].v)[0];
+    const ppu = wa('pricePerUnit'), psf = wa('pricePerSF');
+    if (isInv()) {
+      const cap = wa('capRate'); const nc = rows.filter(r => r.capRate != null).length;
+      return `<div class="px-count"><b>${rows.length.toLocaleString()}</b> sales<em>${units.toLocaleString()} units</em></div>` +
+        cell('Volume', vol ? fmtM(vol) : '—') + cell('Per unit', ppu != null ? money(ppu) : '—') + cell('Per SF', psf != null ? '$' + Math.round(psf) : '—') +
+        cell('Cap rate', cap != null ? cap.toFixed(2) + '%' : '—', nc ? `${nc} reported` : '') +
+        cell('Most active buyer', top ? E(top[0]) : '—', top ? `${top[1].n} deal${top[1].n === 1 ? '' : 's'}` : '');
+    }
+    const ac = rows.reduce((s, r) => s + (r.acreage || 0), 0);
+    return `<div class="px-count"><b>${rows.length.toLocaleString()}</b> sales<em>${Math.round(ac).toLocaleString()} ac</em></div>` +
+      cell('Volume', vol ? fmtM(vol) : '—') + cell('Per proposed unit', ppu != null ? money(ppu) : '—', units ? units.toLocaleString() + ' units' : '') +
+      cell('Per land SF', psf != null ? '$' + psf.toFixed(2) : '—') +
+      cell('Most active buyer', top ? E(top[0]) : '—', top ? `${top[1].n} deal${top[1].n === 1 ? '' : 's'}` : '');
+  }
+  function paint() {
+    bar.querySelector('.px-q').innerHTML = sentence();
+    bar.querySelector('.px-sum').innerHTML = summary(window.scxApply(SX.base, SX.mode));
+    if (openK) place();
+  }
+  const _r = renderSaleComps;
+  renderSaleComps = function () { const r = _r.apply(this, arguments); try { paint(); } catch (e) { console.error('[scx]', e); } return r; };
+  window.renderSaleComps = renderSaleComps;
+  try { renderSaleComps(); } catch (e) {}
 })();
