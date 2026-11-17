@@ -1,10 +1,40 @@
-// Street basemap: CARTO's Voyager tiles now answer "API key required", so the street view uses Esri's
-// light gray canvas (no key; same host as the satellite layer) with its reference labels on top.
-function wbStreetLayer() {
+// Basemaps. Vector tiles from OpenFreeMap (no key) rendered with MapLibre GL inside Leaflet:
+// sharp at every zoom and on retina screens. Falls back to Esri raster tiles if MapLibre didn't load.
+const WB_OFM = 'https://tiles.openfreemap.org/styles/';
+const WB_SAT_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const wbHasGL = () => typeof L !== 'undefined' && typeof L.maplibreGL === 'function' && window.maplibregl;
+function wbEsriLightGray() {
   const opts = { attribution: 'Esri, HERE, Garmin, &copy; OpenStreetMap contributors', maxZoom: 19, maxNativeZoom: 16 };
   return L.layerGroup([
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', opts),
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, maxNativeZoom: 16 }),
+  ]);
+}
+const WB_ATTR = '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
+function wbGL(style) { return L.maplibreGL({ style, attribution: WB_ATTR, interactive: false }); }
+// Light: clean gray canvas that lets the property colors carry the map (default)
+function wbStreetLayer() { return wbHasGL() ? wbGL(WB_OFM + 'positron') : wbEsriLightGray(); }
+// Streets: full-color street map with buildings and parks
+function wbStreetsLayer() { return wbHasGL() ? wbGL(WB_OFM + 'liberty') : wbEsriLightGray(); }
+// Satellite: Esri imagery with crisp vector road and place labels on top
+let wbHybridStyle = null;
+if (wbHasGL()) {
+  fetch(WB_OFM + 'liberty').then(r => r.json()).then(st => {
+    const keep = st.layers.filter(l => l.type === 'symbol' && !/poi|housenumber|aeroway|water_name_line/.test(l.id))
+      .map(l => Object.assign({}, l, { paint: Object.assign({}, l.paint, { 'text-color': '#ffffff', 'text-halo-color': 'rgba(10,8,20,0.85)', 'text-halo-width': 1.4 }) }));
+    const roads = st.layers.filter(l => l.type === 'line' && /^(road|highway|bridge|tunnel)_(motorway|trunk|primary)/.test(l.id))
+      .map(l => Object.assign({}, l, { paint: Object.assign({}, l.paint, { 'line-color': 'rgba(255,214,102,0.55)' }) }));
+    wbHybridStyle = Object.assign({}, st, {
+      sources: Object.assign({}, st.sources, { esri: { type: 'raster', tiles: [WB_SAT_URL], tileSize: 256, maxzoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics' } }),
+      layers: [{ id: 'esri-imagery', type: 'raster', source: 'esri' }].concat(roads, keep)
+    });
+  }).catch(() => {});
+}
+function wbSatLayer() {
+  if (wbHasGL() && wbHybridStyle) return wbGL(wbHybridStyle);
+  return L.layerGroup([
+    L.tileLayer(WB_SAT_URL, { attribution: 'Tiles &copy; Esri', maxZoom: 19 }),
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 })
   ]);
 }
 
@@ -10380,38 +10410,13 @@ function renderPropertyMap(data) {
       preferCanvas: true
     });
 
-    // Two base layers — Street (default) and Satellite
+    // Three base layers: Light (default), Streets, Satellite
     const streetLayer = wbStreetLayer();
-
-    const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics, USDA, USGS, AeroGRID, IGN, and the GIS User Community',
-      maxZoom: 19
-    });
-
-    // Streets labels overlay for satellite (gives you a hybrid view with road/place names on top of imagery)
-    const labelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '',
-      maxZoom: 19,
-      pane: 'shadowPane'
-    });
-
-    // Group satellite + labels as a single "Satellite" layer
-    const satelliteWithLabels = L.layerGroup([satelliteLayer, labelsLayer]);
-
-    // Start with street view
     streetLayer.addTo(propertyMap);
-
-    // Layer control in upper-right
     L.control.layers(
-      {
-        'Street': streetLayer,
-        'Satellite': satelliteWithLabels
-      },
+      { 'Light': streetLayer, 'Streets': wbStreetsLayer(), 'Satellite': wbSatLayer() },
       null,
-      {
-        position: 'topright',
-        collapsed: false
-      }
+      { position: 'topright', collapsed: false }
     ).addTo(propertyMap);
   }
 
