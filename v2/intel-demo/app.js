@@ -23349,3 +23349,142 @@ function txRenderBoard() {
   window.renderAbsorption = renderAbsorption;
   try { if (document.getElementById('view-absorption').classList.contains('active')) renderAbsorption(); } catch (e) {}
 })();
+
+
+/* =================================================================
+   DEMO: Market Map "In view" panel. Replaces the two submarket charts
+   under the map with a results line + property list for exactly what
+   is inside the map's current bounds (respecting the Show chips and
+   rail filters). Updates as you pan / zoom. Row hover rings the pin;
+   click opens the property; "Comp set from view" starts a set.
+   ================================================================= */
+(function mmInView() {
+  const view = document.getElementById('view-submarkets');
+  if (!view || typeof renderPropertyMap !== 'function') return;
+  const E = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const charts = view.querySelector(':scope > .grid-2'); if (charts) charts.style.display = 'none';
+
+  const panel = document.createElement('div');
+  panel.className = 'panel mm-panel';
+  panel.innerHTML = `
+    <div class="mm-head">
+      <div><div class="mm-title">In view</div><div class="mm-sub">Everything inside the map right now · pan or zoom to change it</div></div>
+      <div class="mm-acts"><button type="button" class="mm-fit">Zoom to all</button><button type="button" class="mm-build">+ Comp set from view</button></div>
+    </div>
+    <div class="px-sum mm-sum"></div>
+    <div class="mm-tablewrap"><table class="mm-table"><thead></thead><tbody></tbody></table></div>
+    <div class="mm-foot"></div>`;
+  view.appendChild(panel);
+
+  let all = [], inView = [], sortK = 'units', sortDir = -1, showAll = false, ring = null;
+  const occOf = p => p.vacancy == null ? null : 100 - p.vacancy;
+  const wksOf = p => p.concessions == null ? null : p.concessions / 100 * 52;
+  const stat = p => isPlannedProposed(p) ? 'Proposed' : p.status === 'Under Construction' ? 'UC' : 'Existing';
+  const COLS = [
+    ['name', 'Property', p => p.name || '', 'txt'],
+    ['submarket', 'Submarket', p => p.submarket || '', 'txt'],
+    ['class', 'Class', p => p.class || '', 'txt'],
+    ['status', 'Status', stat, 'txt'],
+    ['units', 'Units', p => p.units, 'num'],
+    ['yearBuilt', 'Built', p => p.yearBuilt, 'num'],
+    ['occ', 'Occ.', occOf, 'num'],
+    ['askSF', 'Asking $/SF', p => p.avgAskingSF, 'num'],
+    ['askU', 'Asking $/mo', p => p.avgAskingUnit, 'num'],
+    ['effSF', 'Eff. $/SF', p => p.avgEffectiveSF, 'num'],
+    ['conc', 'Conc.', wksOf, 'num']
+  ];
+  const fmt2 = v => v == null ? '<span class="mm-dim">—</span>' : '$' + v.toFixed(2);
+  const CELL = {
+    name: p => `<div class="mm-nm">${E(p.name || '(Unnamed)')}</div><div class="mm-ad">${E(p.address || '')}</div>`,
+    submarket: p => E(p.submarket || '—'), class: p => E(p.class || '—'),
+    status: p => { const s = stat(p); return s === 'Existing' ? '<span class="mm-dim">Existing</span>' : `<span class="mm-st ${s === 'UC' ? 'uc' : 'pr'}">${s === 'UC' ? 'Under constr.' : 'Proposed'}</span>`; },
+    units: p => p.units ? p.units.toLocaleString() : '—', yearBuilt: p => p.yearBuilt || '—',
+    occ: p => { const o = occOf(p); return o == null ? '<span class="mm-dim">—</span>' : o.toFixed(1) + '%'; },
+    askSF: p => fmt2(p.avgAskingSF), askU: p => p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '<span class="mm-dim">—</span>',
+    effSF: p => fmt2(p.avgEffectiveSF), conc: p => { const w = wksOf(p); return w == null ? '<span class="mm-dim">—</span>' : w.toFixed(1) + ' wks'; }
+  };
+  panel.querySelector('thead').innerHTML = '<tr>' + COLS.map(([k, t, , ty]) => `<th class="${ty}" data-k="${k}">${t}</th>`).join('') + '</tr>';
+
+  function summary(rows) {
+    const ex = rows.filter(p => stat(p) === 'Existing');
+    const wa = f => { let s = 0, w = 0; ex.forEach(p => { const v = f(p); if (v != null && !isNaN(v) && p.units) { s += v * p.units; w += p.units; } }); return w ? s / w : null; };
+    const units = rows.reduce((s, p) => s + (p.units || 0), 0);
+    const pipe = rows.filter(p => stat(p) !== 'Existing'), pipeU = pipe.reduce((s, p) => s + (p.units || 0), 0);
+    const exU = ex.reduce((s, p) => s + (p.units || 0), 0);
+    const yrs = ex.map(p => p.yearBuilt).filter(Boolean).sort((a, b) => a - b), med = yrs.length ? yrs[Math.floor(yrs.length / 2)] : null;
+    const a = wa(p => p.avgAskingSF), au = wa(p => p.avgAskingUnit), e = wa(p => p.avgEffectiveSF), o = wa(occOf), w = wa(wksOf);
+    const cell = (k, v, s) => `<div class="px-s"><span>${k}</span><b>${v}</b>${s ? `<em>${s}</em>` : ''}</div>`;
+    return `<div class="px-count"><b>${rows.length.toLocaleString()}</b> properties<em>${units.toLocaleString()} units</em></div>` +
+      cell('Asking', a != null ? '$' + a.toFixed(2) + '/SF' : '—', au != null ? '$' + Math.round(au).toLocaleString() + '/mo' : '') +
+      cell('Effective', e != null ? '$' + e.toFixed(2) + '/SF' : '—') +
+      cell('Occupancy', o != null ? o.toFixed(1) + '%' : '—') +
+      cell('Concessions', w != null ? w.toFixed(1) + ' wks' : '—') +
+      cell('Median vintage', med || '—') +
+      cell('Pipeline', pipeU ? pipeU.toLocaleString() + ' units' : '—', pipeU && exU ? `${(pipeU / exU * 100).toFixed(1)}% of existing` : '');
+  }
+
+  function paint() {
+    if (!propertyMap) return;
+    const b = propertyMap.getBounds();
+    inView = all.filter(p => b.contains([p.lat, p.lng]));
+    panel.querySelector('.mm-sum').innerHTML = summary(inView);
+    const col = COLS.find(c => c[0] === sortK);
+    const rows = [...inView].sort((x, y) => {
+      const a = col[2](x), c = col[2](y);
+      if (a == null || a === '') return 1; if (c == null || c === '') return -1;
+      return (col[3] === 'txt' ? String(a).localeCompare(String(c)) : a - c) * sortDir;
+    });
+    const LIM = 40, shown = showAll ? rows : rows.slice(0, LIM);
+    panel.querySelector('tbody').innerHTML = shown.map(p => `<tr data-pid="${E(p.id)}">${COLS.map(([k, , , ty]) => `<td class="${ty}">${CELL[k](p)}</td>`).join('')}</tr>`).join('')
+      || `<tr><td colspan="${COLS.length}" class="mm-empty">Nothing in view. Zoom out or turn on more statuses.</td></tr>`;
+    panel.querySelectorAll('th').forEach(th => { th.classList.toggle('on', th.dataset.k === sortK); th.dataset.dir = th.dataset.k === sortK ? (sortDir > 0 ? '↑' : '↓') : ''; });
+    panel.querySelector('.mm-foot').innerHTML = rows.length > LIM
+      ? `<button type="button" class="mm-more">${showAll ? 'Show top ' + LIM : 'Show all ' + rows.length.toLocaleString()}</button>` : '';
+    const bb = panel.querySelector('.mm-build'); bb.disabled = !inView.length;
+    bb.textContent = inView.length ? `+ Comp set from ${inView.length.toLocaleString()} in view` : '+ Comp set from view';
+  }
+  let t = null; const soon = () => { clearTimeout(t); t = setTimeout(paint, 120); };
+
+  // sort, expand, row hover/click
+  panel.querySelector('thead').addEventListener('click', e => {
+    const th = e.target.closest('th'); if (!th) return;
+    const k = th.dataset.k, ty = COLS.find(c => c[0] === k)[3];
+    if (sortK === k) sortDir = -sortDir; else { sortK = k; sortDir = ty === 'txt' ? 1 : -1; }
+    paint();
+  });
+  panel.querySelector('.mm-foot').addEventListener('click', e => { if (e.target.closest('.mm-more')) { showAll = !showAll; paint(); } });
+  const tbody = panel.querySelector('tbody');
+  const byId = id => inView.find(p => String(p.id) === id);
+  tbody.addEventListener('mouseover', e => {
+    const tr = e.target.closest('tr[data-pid]'); if (!tr || !propertyMap) return;
+    const p = byId(tr.dataset.pid); if (!p) return;
+    if (ring) propertyMap.removeLayer(ring);
+    ring = L.circleMarker([p.lat, p.lng], { radius: 16, color: '#1D1247', weight: 2.5, fill: false, interactive: false }).addTo(propertyMap);
+  });
+  tbody.addEventListener('mouseleave', () => { if (ring && propertyMap) { propertyMap.removeLayer(ring); ring = null; } });
+  tbody.addEventListener('click', e => { const tr = e.target.closest('tr[data-pid]'); if (tr) { try { openDetail(tr.dataset.pid); } catch (err) { console.error(err); } } });
+  panel.querySelector('.mm-fit').addEventListener('click', () => {
+    if (!propertyMap || !all.length) return;
+    propertyMap.fitBounds(L.latLngBounds(all.map(p => [p.lat, p.lng])), { padding: [24, 24] });
+  });
+  panel.querySelector('.mm-build').addEventListener('click', () => {
+    if (!inView.length) return;
+    state.compSetMode = 'building'; state.compSetSelection.clear();
+    inView.forEach(p => state.compSetSelection.add(p.id));
+    try { updateCompSetUI(); } catch (e) {}
+    const tab = document.querySelector('[data-view="properties"]'); if (tab) tab.click();
+    try { renderProperties(); } catch (e) {}
+  });
+
+  // hook the map render: keep the plotted set, wire move events once
+  let wired = false;
+  const _r = renderPropertyMap;
+  renderPropertyMap = function (data) {
+    const r = _r.apply(this, arguments);
+    all = (data || []).filter(p => p.lat != null && p.lng != null && !isNaN(p.lat) && !isNaN(p.lng));
+    if (propertyMap && !wired) { propertyMap.on('moveend zoomend resize', soon); wired = true; }
+    setTimeout(paint, 60);
+    return r;
+  };
+  window.renderPropertyMap = renderPropertyMap;
+})();
