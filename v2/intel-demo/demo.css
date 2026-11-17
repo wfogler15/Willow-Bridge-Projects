@@ -461,3 +461,29 @@
 .marker-cluster-large div { background: #1D1247 !important; }
 .marker-cluster div { color: #fff !important; font: 700 11.5px/30px Aptos, 'Segoe UI', sans-serif !important; box-shadow: 0 0 0 2px rgba(255,255,255,.9); }
 .leaflet-control-layers { font-family: Aptos, 'Segoe UI', sans-serif; }
+
+/* ===== top ribbon: market switch + page actions (Demo) ===== */
+.wb-nav { gap: 18px; }
+.wbi-mktseg { display: inline-flex; align-items: center; gap: 2px; margin-left: 10px; padding: 3px 3px 3px 10px; background: #f1eff8; border: 1px solid #e3dff0; border-radius: 10px; }
+.wbi-mktseg svg { width: 14px; height: 14px; color: #432890; margin-right: 6px; flex: none; }
+.wbi-mktseg button { border: 0; background: none; height: 30px; padding: 0 14px; border-radius: 8px; font: 600 13.5px/1 Aptos, 'Segoe UI', sans-serif; color: #57526b; cursor: pointer; }
+.wbi-mktseg button:hover { color: #1D1247; background: rgba(255,255,255,.7); }
+.wbi-mktseg button.on { background: #1D1247; color: #fff; box-shadow: 0 1px 3px rgba(29,18,71,.25); }
+.wbi-mktseg button:focus-visible { outline: 2px solid #432890; outline-offset: 2px; }
+.wb-nav .right { display: flex; align-items: center; gap: 14px; }
+.wbi-navacts .wbi-acts { gap: 6px; padding: 0; }
+.wbi-navacts .topbar-action-btn { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 8px;
+  font: 500 13px/1 Aptos, 'Segoe UI', sans-serif !important; color: #34304a !important; white-space: nowrap; }
+.wbi-navacts .topbar-action-btn:hover { background: #f4f2fa; color: #1D1247 !important; }
+.wbi-navacts .wbi-fbtn { border: 1px solid #dcd8e8; background: #fff; color: #1D1247; font: 600 13px/1 Aptos, 'Segoe UI', sans-serif; }
+.wbi-navacts .wbi-fbtn:hover { background: #f4f2fa; border-color: #c9c3dd; }
+.wbi-navacts .wbi-fbtn[aria-expanded="true"] { background: #1D1247; color: #fff; border-color: #1D1247; }
+.wbi-navacts .wbi-fbtn .n { background: #432890; color: #fff; }
+.wbi-fpanel.wbi-fpanel-fixed { position: fixed; top: 56px; right: 24px; z-index: 9500; box-shadow: 0 2px 6px rgba(29,18,71,.08), 0 18px 40px rgba(29,18,71,.2); border-radius: 12px; }
+.wbi-hero .wbi-head-row { min-height: 0; }
+
+/* ===== left rail: a little flair ===== */
+.wbi-rail-h { margin: 22px 0 6px !important; font: 700 10.5px/1.2 Aptos, 'Segoe UI', sans-serif !important; letter-spacing: .1em; text-transform: uppercase; color: #8a849e !important; }
+.wbi-rail .tab { border-radius: 0 8px 8px 0 !important; padding: 7px 10px 7px 14px !important; margin: 1px 0 1px -14px !important; transition: background .12s ease, color .12s ease; }
+.wbi-rail .tab:hover { background: #f6f4fb !important; }
+.wbi-rail .tab.active { background: #efecf8 !important; color: #1D1247 !important; font-weight: 700 !important; box-shadow: inset 3px 0 0 #432890 !important; }

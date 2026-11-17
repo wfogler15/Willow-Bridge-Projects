@@ -30,7 +30,7 @@
   overlay.style.cssText = 'position:fixed;inset:48px 0 0 0;z-index:9000;display:grid;place-items:center;background:var(--cloud,#FBFBF9);font:15px/1.4 Aptos,Inter,Arial,sans-serif;color:#1D1247';
 
   async function boot() {
-    const { sb, user } = await WB.ready('intel', { marketMode: 'single', navAutoHide: true, present: true, brand: 'Willow Bridge Market Intel · Demo' });
+    const { sb, user } = await WB.ready('intel', { marketMode: 'single', navAutoHide: false, present: true, brand: 'Willow Bridge Market Intel · Demo' });
     window.__WB_SALE_SCOPE = true;   // Sale Comps view uses the same scope as the Canopy Sale Comps page
     // active markets drive the Settings picker; adding a market = a row in core.markets with config.active = true + its data
     const { data: mlist, error: mErr } = await sb.schema('core').from('markets').select('id,label,title,active:config->active').order('id');
@@ -241,6 +241,21 @@
     $('.wbi-fdone', panel).addEventListener('click', () => setOpen(false));
     document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('.wbi-fpanel, .wbi-fbtn')) setOpen(false); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) { setOpen(false); fbtn.focus(); } });
+
+    // Demo: actions + filters live in the top ribbon; the market switch is a segmented control there, visible on every view
+    const navEl = document.querySelector('.wb-nav'), right = navEl && navEl.querySelector('.right');
+    if (navEl && right) {
+      navEl.classList.remove('autohide');
+      const bar = document.createElement('div'); bar.className = 'wbi-navacts'; bar.appendChild(acts); right.prepend(bar);
+      document.body.appendChild(panel); panel.classList.add('wbi-fpanel-fixed');
+      const cur = window.__WBD && window.__WBD.market;
+      const seg = document.createElement('div'); seg.className = 'wbi-mktseg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Market');
+      seg.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 15s5-4.6 5-8.5A5 5 0 0 0 3 6.5C3 10.4 8 15 8 15z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.5" r="1.8" fill="currentColor"/></svg>'
+        + Object.entries(MARKETS).map(([id, l]) => `<button type="button" data-m="${id}" class="${id === cur ? 'on' : ''}" aria-pressed="${id === cur}">${l}</button>`).join('');
+      seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b && b.dataset.m !== cur) { seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); window.wbSwitchMarket(b.dataset.m); } });
+      navEl.insertBefore(seg, navEl.querySelector('nav') || right);
+      mkt.style.display = 'none';
+    }
 
     const st = document.createElement('style'); st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}'; document.head.appendChild(st);
 
