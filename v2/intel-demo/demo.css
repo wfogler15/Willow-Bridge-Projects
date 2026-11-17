@@ -487,3 +487,23 @@
 .wbi-rail .tab { border-radius: 0 8px 8px 0 !important; padding: 7px 10px 7px 14px !important; margin: 1px 0 1px -14px !important; transition: background .12s ease, color .12s ease; }
 .wbi-rail .tab:hover { background: #f6f4fb !important; }
 .wbi-rail .tab.active { background: #efecf8 !important; color: #1D1247 !important; font-weight: 700 !important; box-shadow: inset 3px 0 0 #432890 !important; }
+
+/* ===== v2: market switch + rail ===== */
+.wbi-mktseg { padding: 3px; gap: 2px; background: #efedf4; border: 0; border-radius: 10px; margin-left: 14px; }
+.wbi-mktseg svg { display: none; }
+.wbi-mktseg button { display: inline-flex; align-items: baseline; gap: 6px; height: 32px; padding: 0 14px; border-radius: 8px; color: #6c6782; }
+.wbi-mktseg button b { font: 600 14px/1 Aptos, 'Segoe UI', sans-serif; }
+.wbi-mktseg button small { font: 600 10.5px/1 Aptos, 'Segoe UI', sans-serif; letter-spacing: .06em; color: #9a95ad; }
+.wbi-mktseg button:hover { background: rgba(255,255,255,.6); color: #1D1247; }
+.wbi-mktseg button.on { background: #fff; color: #1D1247; box-shadow: 0 1px 2px rgba(29,18,71,.12), 0 2px 8px rgba(29,18,71,.08); }
+.wbi-mktseg button.on b { font-weight: 700; }
+.wbi-mktseg button.on small { color: #432890; }
+
+.wbi-rail-h { text-transform: uppercase !important; letter-spacing: .1em !important; font: 700 10.5px/1.2 Aptos, 'Segoe UI', sans-serif !important; color: #9a95ad !important; margin: 22px 0 6px 2px !important; }
+.wbi-rail .tab { display: flex !important; align-items: center; gap: 10px; height: 36px !important; padding: 0 10px !important; margin: 1px 8px 1px -4px !important; border-radius: 8px !important;
+  font: 500 13.5px/1 Aptos, 'Segoe UI', sans-serif !important; color: #4a4560 !important; box-shadow: none !important; }
+.wbi-rail .tab .wbi-ic { width: 16px; height: 16px; flex: none; fill: none; stroke: #8a849e; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; transition: stroke .12s ease; }
+.wbi-rail .tab:hover { background: #f4f2f8 !important; color: #1D1247 !important; }
+.wbi-rail .tab:hover .wbi-ic { stroke: #432890; }
+.wbi-rail .tab.active { background: #1D1247 !important; color: #fff !important; font-weight: 600 !important; box-shadow: 0 2px 8px rgba(29,18,71,.18) !important; }
+.wbi-rail .tab.active .wbi-ic { stroke: #C7C9FE; }

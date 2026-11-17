@@ -138,6 +138,19 @@
         ids.forEach((id) => { if (tabBy[id]) { rail.appendChild(tabBy[id]); delete tabBy[id]; } });
       });
     Object.values(tabBy).forEach((t) => rail.appendChild(t));
+    // Demo: a line icon per view
+    const IC = {
+      overview: '<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/>',
+      trends: '<path d="M2.5 12.5l3.5-4 3 2.5 4.5-6"/><path d="M10.5 5h3v3"/>',
+      submarkets: '<path d="M2.5 4l3.5-1.5 4 1.5 3.5-1.5v9.5l-3.5 1.5-4-1.5-3.5 1.5z"/><path d="M6 2.5v9.5M10 4v9.5"/>',
+      properties: '<path d="M3 4h10M3 8h10M3 12h10"/><circle cx="3" cy="4" r=".4"/>',
+      absorption: '<path d="M2.5 13.5h11"/><path d="M4 11V8M7 11V5.5M10 11V7M13 11V3.5"/>',
+      pipeline: '<path d="M3 13.5V6.5l5-3.5 5 3.5v7"/><path d="M6.5 13.5v-4h3v4"/>',
+      yoc: '<rect x="3" y="2.5" width="10" height="11" rx="1.5"/><path d="M5.5 5.5h5M5.5 8.5h1M8 8.5h1M10.5 8.5h0M5.5 11h1M8 11h1"/>',
+      salecomps: '<path d="M8.5 2.5h4.5v4.5l-6 6-4.5-4.5z"/><circle cx="10.6" cy="5" r=".9"/>',
+      opportunities: '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/>'
+    };
+    $$('.tab', rail).forEach((t) => { const p = IC[t.dataset.view]; if (p && !t.querySelector('.wbi-ic')) t.insertAdjacentHTML('afterbegin', `<svg class="wbi-ic" viewBox="0 0 16 16" aria-hidden="true">${p}</svg>`); });
     inner.appendChild(rail);
 
     // 2) hero: one Midnight band per view — eyebrow (market · section), view title, filter summary, actions,
@@ -250,8 +263,8 @@
       document.body.appendChild(panel); panel.classList.add('wbi-fpanel-fixed');
       const cur = window.__WBD && window.__WBD.market;
       const seg = document.createElement('div'); seg.className = 'wbi-mktseg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Market');
-      seg.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 15s5-4.6 5-8.5A5 5 0 0 0 3 6.5C3 10.4 8 15 8 15z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.5" r="1.8" fill="currentColor"/></svg>'
-        + Object.entries(MARKETS).map(([id, l]) => `<button type="button" data-m="${id}" class="${id === cur ? 'on' : ''}" aria-pressed="${id === cur}">${l}</button>`).join('');
+      const ST = { denver: 'CO', phoenix: 'AZ' };
+      seg.innerHTML = Object.entries(MARKETS).map(([id, l]) => `<button type="button" data-m="${id}" class="${id === cur ? 'on' : ''}" aria-pressed="${id === cur}"><b>${l}</b>${ST[id] ? `<small>${ST[id]}</small>` : ''}</button>`).join('');
       seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b && b.dataset.m !== cur) { seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); window.wbSwitchMarket(b.dataset.m); } });
       navEl.insertBefore(seg, navEl.querySelector('nav') || right);
       mkt.style.display = 'none';
