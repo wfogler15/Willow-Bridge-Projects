@@ -764,3 +764,6 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 .mm-foot { display:flex; justify-content:center; padding:10px 0 6px; }
 .mm-foot button { all:unset; cursor:pointer; font:600 12.5px/1 var(--x-font); color:var(--x-purple); padding:6px 4px; }
 .mm-foot button:hover { text-decoration:underline; }
+.mm-table th.txt, .mm-table td.txt { text-align:left !important; }
+.mm-table th.num, .mm-table td.num { text-align:right !important; }
+.mm-table th:first-child, .mm-table td:first-child { padding-left:4px; }
