@@ -507,3 +507,8 @@
 .wbi-rail .tab:hover .wbi-ic { stroke: #432890; }
 .wbi-rail .tab.active { background: #1D1247 !important; color: #fff !important; font-weight: 600 !important; box-shadow: 0 2px 8px rgba(29,18,71,.18) !important; }
 .wbi-rail .tab.active .wbi-ic { stroke: #C7C9FE; }
+html body .app .sidebar .wbi-rail .wbi-rail-h { text-transform: uppercase !important; letter-spacing: .1em !important; }
+html body .app .sidebar .wbi-rail .tab[data-view="opportunities"] { display: none !important; }
+.wbi-rail .tab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px !important; gap: 9px; }
+.wbi-mktseg button { height: 34px; padding: 0 16px; }
+.wbi-mktseg button b { font-size: 14.5px; }
