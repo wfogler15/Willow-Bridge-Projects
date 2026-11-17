@@ -255,20 +255,42 @@
     document.addEventListener('click', (e) => { if (!panel.hidden && !e.target.closest('.wbi-fpanel, .wbi-fbtn')) setOpen(false); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) { setOpen(false); fbtn.focus(); } });
 
-    // Demo: actions + filters live in the top ribbon; the market switch is a segmented control there, visible on every view
+    // Demo: market dropdown + Filters at the top of the left rail; report + settings in the top ribbon
     const navEl = document.querySelector('.wb-nav'), right = navEl && navEl.querySelector('.right');
     if (navEl && right) {
       navEl.classList.remove('autohide');
       const bar = document.createElement('div'); bar.className = 'wbi-navacts'; bar.appendChild(acts); right.prepend(bar);
-      document.body.appendChild(panel); panel.classList.add('wbi-fpanel-fixed');
-      const cur = window.__WBD && window.__WBD.market;
-      const seg = document.createElement('div'); seg.className = 'wbi-mktseg'; seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Market');
-      const ST = { denver: 'CO', phoenix: 'AZ' };
-      seg.innerHTML = Object.entries(MARKETS).map(([id, l]) => `<button type="button" data-m="${id}" class="${id === cur ? 'on' : ''}" aria-pressed="${id === cur}"><b>${l}</b>${ST[id] ? `<small>${ST[id]}</small>` : ''}</button>`).join('');
-      seg.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (b && b.dataset.m !== cur) { seg.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); window.wbSwitchMarket(b.dataset.m); } });
-      navEl.insertBefore(seg, navEl.querySelector('nav') || right);
-      mkt.style.display = 'none';
     }
+    const cur = window.__WBD && window.__WBD.market;
+    const ST = { denver: ['CO', 'Colorado'], phoenix: ['AZ', 'Arizona'] };
+    const top2 = document.createElement('div'); top2.className = 'wbi-railtop';
+    const mlab = (id) => `${MARKETS[id]} MSA`;
+    top2.innerHTML = `<div class="wbi-mktdd">
+        <button type="button" class="wbi-mktdd-btn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="k">Market</span><span class="v">${mlab(cur)}</span>
+          <svg viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="wbi-mktdd-menu" role="listbox" aria-label="Market" hidden>
+          ${Object.keys(MARKETS).map((id) => `<button type="button" role="option" data-m="${id}" aria-selected="${id === cur}" class="${id === cur ? 'on' : ''}">
+            <span class="nm">${mlab(id)}</span><span class="st">${ST[id] ? ST[id][1] : ''}</span>
+            <svg class="ck" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`).join('')}
+        </div>
+      </div>`;
+    top2.appendChild(fbtn);
+    rail.prepend(top2);
+    mkt.style.display = 'none';
+    const ddBtn = top2.querySelector('.wbi-mktdd-btn'), ddMenu = top2.querySelector('.wbi-mktdd-menu');
+    const ddOpen = (o) => { ddMenu.hidden = !o; ddBtn.setAttribute('aria-expanded', String(o)); };
+    ddBtn.addEventListener('click', (e) => { e.stopPropagation(); ddOpen(ddMenu.hidden); });
+    ddMenu.addEventListener('click', (e) => { const b = e.target.closest('button[data-m]'); if (!b) return; ddOpen(false); if (b.dataset.m !== cur) { top2.querySelector('.wbi-mktdd-btn .v').textContent = mlab(b.dataset.m); window.wbSwitchMarket(b.dataset.m); } });
+    document.addEventListener('click', (e) => { if (!ddMenu.hidden && !e.target.closest('.wbi-mktdd')) ddOpen(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !ddMenu.hidden) { ddOpen(false); ddBtn.focus(); } });
+    // the filter panel opens beside the rail, lined up with the Filters button
+    document.body.appendChild(panel); panel.classList.add('wbi-fpanel-fixed', 'wbi-fpanel-rail');
+    const place = () => { const r = fbtn.getBoundingClientRect(); panel.style.left = Math.round(r.right + 14) + 'px'; panel.style.top = Math.max(64, Math.round(r.top)) + 'px'; panel.style.right = 'auto'; };
+    fbtn.addEventListener('click', place);
+    window.addEventListener('resize', () => { if (!panel.hidden) place(); });
+    window.addEventListener('scroll', () => { if (!panel.hidden) place(); }, { passive: true });
 
     const st = document.createElement('style'); st.textContent = 'html,body{overflow-x:clip !important;overflow-y:visible !important}'; document.head.appendChild(st);
 

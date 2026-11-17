@@ -529,3 +529,35 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 .wb-nav .wbi-mktseg button.on b { font-weight: 700; }
 .wb-nav .wbi-mktseg button.on small { color: #432890; }
 .wb-nav .wbi-mktseg button:focus-visible { outline: 2px solid #432890; outline-offset: 1px; }
+
+/* ===== rail top: market dropdown + filters (replaces the ribbon switch) ===== */
+.wbi-mktseg { display: none !important; }
+.wbi-railtop { display: flex; flex-direction: column; gap: 8px; padding: 2px 8px 16px 0; margin-bottom: 4px; border-bottom: 1px solid #ebe8f3; }
+.wbi-mktdd { position: relative; }
+.wbi-mktdd-btn { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+  padding: 9px 12px; border: 1px solid #dcd8e8; border-radius: 10px; background: #fff; cursor: pointer; box-shadow: 0 1px 2px rgba(29,18,71,.05); transition: border-color .12s ease, box-shadow .12s ease; }
+.wbi-mktdd-btn:hover { border-color: #b9b2d3; }
+.wbi-mktdd-btn[aria-expanded="true"] { border-color: #432890; box-shadow: 0 0 0 3px rgba(67,40,144,.12); }
+.wbi-mktdd-btn:focus-visible { outline: 2px solid #432890; outline-offset: 2px; }
+.wbi-mktdd-btn .k { grid-column: 1; font: 700 10px/1 Aptos, 'Segoe UI', sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #9a95ad; }
+.wbi-mktdd-btn .v { grid-column: 1; margin-top: 4px; font: 700 15px/1.15 Aptos, 'Segoe UI', sans-serif; color: #1D1247; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wbi-mktdd-btn svg { grid-column: 2; grid-row: 1 / span 2; width: 12px; height: 8px; color: #6c6782; transition: transform .15s ease; }
+.wbi-mktdd-btn[aria-expanded="true"] svg { transform: rotate(180deg); color: #432890; }
+.wbi-mktdd-menu { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 60; padding: 6px; background: #fff; border-radius: 12px; box-shadow: 0 2px 6px rgba(29,18,71,.08), 0 14px 34px rgba(29,18,71,.18); max-height: 320px; overflow: auto; }
+.wbi-mktdd-menu[hidden] { display: none; }
+.wbi-mktdd-menu button { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.wbi-mktdd-menu button:hover, .wbi-mktdd-menu button:focus-visible { background: #f4f2fa; }
+.wbi-mktdd-menu .nm { grid-column: 1; font: 600 13.5px/1.2 Aptos, 'Segoe UI', sans-serif; color: #16131f; }
+.wbi-mktdd-menu .st { grid-column: 1; font: 500 11.5px/1.3 Aptos, 'Segoe UI', sans-serif; color: #8a849e; }
+.wbi-mktdd-menu .ck { grid-column: 2; grid-row: 1 / span 2; width: 16px; height: 16px; color: #432890; visibility: hidden; }
+.wbi-mktdd-menu button.on .ck { visibility: visible; }
+.wbi-mktdd-menu button.on .nm { color: #432890; }
+.wbi-railtop .wbi-fbtn { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 12px; border: 1px solid #dcd8e8; border-radius: 10px; background: #fff;
+  font: 600 13px/1 Aptos, 'Segoe UI', sans-serif; color: #1D1247; cursor: pointer; }
+.wbi-railtop .wbi-fbtn svg { width: 14px; height: 14px; }
+.wbi-railtop .wbi-fbtn:hover { background: #f6f4fb; border-color: #c9c3dd; }
+.wbi-railtop .wbi-fbtn[aria-expanded="true"] { background: #1D1247; color: #fff; border-color: #1D1247; }
+.wbi-railtop .wbi-fbtn .n { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #432890; color: #fff; font: 700 11px/18px Aptos, sans-serif; text-align: center; }
+.wbi-railtop .wbi-fbtn .n:empty { display: none; }
+.wbi-railtop .wbi-fbtn[aria-expanded="true"] .n { background: #fff; color: #1D1247; }
+.wbi-fpanel.wbi-fpanel-rail { right: auto; width: min(720px, calc(100vw - 260px)); }
