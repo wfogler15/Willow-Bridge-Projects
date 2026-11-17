@@ -23217,9 +23217,13 @@ function txRenderBoard() {
     const g = {};
     Object.values(RP_PROPERTIES || {}).forEach(d => {
       const v = d && d.s && d.s.oc && d.s.oc.v; if (!v || !(+d.un >= 50)) return;
-      for (let i = 1; i < v.length; i++) {
+      // true lease-ups only: history starts below 50% occupied; stop once the deal first reaches 95%
+      const f = v.findIndex(x => x != null); if (f < 0 || v[f] >= 0.5) return;
+      for (let i = f + 1; i < v.length; i++) {
         const a = v[i - 1], b = v[i];
-        if (a == null || b == null || a < 0.05 || a > 0.95 || Math.abs(b - a) >= 0.25) continue;
+        if (a == null || b == null) continue;
+        if (a >= 0.95) break;
+        if (Math.abs(b - a) >= 0.25) continue;
         (g[band(a)] = g[band(a)] || []).push(b - a);
       }
     });
