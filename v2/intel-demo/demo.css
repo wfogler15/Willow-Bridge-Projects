@@ -518,3 +518,14 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 .wb-backbar { position: sticky; top: 0; z-index: 5; display: flex; padding: 10px 16px; margin: -1px 0 0; background: #faf9fd; border-bottom: 1px solid #ebe8f3; }
 .wb-back { border: 0; background: none; padding: 4px 8px 4px 4px; border-radius: 6px; font: 600 13px/1.2 Aptos, 'Segoe UI', sans-serif; color: #432890; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wb-back:hover { background: #efecf8; }
+
+/* market switch: reset inherited nav button styles so it sits centered in the ribbon */
+.wb-nav .wbi-mktseg { box-sizing: border-box; height: 40px; align-self: center; display: inline-flex; align-items: center; gap: 2px; padding: 4px; margin: 0 0 0 14px; background: #efedf4; border: 0; border-radius: 11px; }
+.wb-nav .wbi-mktseg button { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 16px; border-radius: 8px; cursor: pointer; color: #6c6782; transition: background .12s ease, color .12s ease; }
+.wb-nav .wbi-mktseg button b { font: 600 14px/1 Aptos, 'Segoe UI', sans-serif; }
+.wb-nav .wbi-mktseg button small { font: 600 10.5px/1 Aptos, 'Segoe UI', sans-serif; letter-spacing: .06em; color: #9a95ad; }
+.wb-nav .wbi-mktseg button:hover { background: rgba(255,255,255,.65); color: #1D1247; }
+.wb-nav .wbi-mktseg button.on { background: #fff; color: #1D1247; box-shadow: 0 1px 2px rgba(29,18,71,.12), 0 2px 8px rgba(29,18,71,.08); }
+.wb-nav .wbi-mktseg button.on b { font-weight: 700; }
+.wb-nav .wbi-mktseg button.on small { color: #432890; }
+.wb-nav .wbi-mktseg button:focus-visible { outline: 2px solid #432890; outline-offset: 1px; }
