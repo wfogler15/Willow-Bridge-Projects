@@ -592,8 +592,8 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 .px-reset { all:unset; cursor:pointer; margin-left:10px; font:500 13px/1 var(--x-font); color:var(--x-purple); vertical-align:2px; }
 .px-reset:hover { text-decoration:underline; }
 .px-search-slot { flex:none; padding-top:4px; }
-.px-search-slot #property-search { width: 240px; max-width: none !important; height: 34px; margin: 0 !important; border: 0 !important; border-bottom: 1px solid #dcd9e6 !important; border-radius: 0 !important; background-color: transparent !important; background-position: 4px center !important; padding-left: 28px !important; font: 400 13.5px/1 var(--x-font) !important; color: var(--x-ink); box-shadow: none !important; }
-.px-search-slot #property-search:focus { border-bottom-color: var(--x-purple) !important; outline: none; }
+.px-search-slot input { width: 240px; max-width: none !important; height: 34px; margin: 0 !important; border: 0 !important; border-bottom: 1px solid #dcd9e6 !important; border-radius: 0 !important; background-color: transparent !important; background-position: 4px center !important; padding-left: 28px !important; font: 400 13.5px/1 var(--x-font) !important; color: var(--x-ink); box-shadow: none !important; }
+.px-search-slot input:focus { border-bottom-color: var(--x-purple) !important; outline: none; }
 .px-sum { display:flex; align-items:center; gap:28px; margin-top:14px; padding:12px 0; border-top:1px solid var(--x-line); }
 .px-count { display:flex; align-items:baseline; gap:6px; font:400 13px/1 var(--x-font); color:var(--x-ink-3); padding-right:28px; border-right:1px solid var(--x-line); }
 .px-count b { font:600 18px/1 var(--x-font); color:var(--x-ink); font-variant-numeric:tabular-nums; }
@@ -675,3 +675,37 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 #view-salecomps .panel-header.px-host { display:none !important; }
 .px-pop[data-k="price"] .px-ri input { width:110px; }
 .scx-bar .px-s b { max-width:240px; overflow:hidden; text-overflow:ellipsis; }
+
+/* Sale Comps tables: fixed column plan, one line per cell, numbers right-aligned */
+#table-invcomps, #table-landcomps { table-layout: fixed !important; width: 100% !important; }
+#table-invcomps th, #table-invcomps td, #table-landcomps th, #table-landcomps td { white-space: nowrap !important; overflow: hidden; text-overflow: ellipsis; text-align: left !important; padding-left: 10px !important; padding-right: 10px !important; }
+#table-invcomps th.num, #table-invcomps td.num, #table-landcomps th.num, #table-landcomps td.num { text-align: right !important; font-variant-numeric: tabular-nums; }
+#table-invcomps td:first-child *, #table-landcomps td:first-child * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* hero: drop the empty KPI strip so the banner is one tight line */
+.wbi-hero-kpis:empty { display: none !important; }
+#table-invcomps th:nth-child(1) { width: 17%; }
+#table-invcomps th:nth-child(2) { width: 7%; }
+#table-invcomps th:nth-child(3) { width: 9%; }
+#table-invcomps th:nth-child(4) { width: 6.5%; }
+#table-invcomps th:nth-child(5) { width: 4%; }
+#table-invcomps th:nth-child(6) { width: 4%; }
+#table-invcomps th:nth-child(7) { width: 6%; }
+#table-invcomps th:nth-child(8) { width: 5.5%; }
+#table-invcomps th:nth-child(9) { width: 6%; }
+#table-invcomps th:nth-child(10) { width: 5%; }
+#table-invcomps th:nth-child(11) { width: 4.5%; }
+#table-invcomps th:nth-child(12) { width: 9.5%; }
+#table-invcomps th:nth-child(13) { width: 9.5%; }
+#table-invcomps th:nth-child(14) { width: 6.5%; }
+#table-landcomps th:nth-child(1) { width: 20%; }
+#table-landcomps th:nth-child(2) { width: 11%; }
+#table-landcomps th:nth-child(3) { width: 8%; }
+#table-landcomps th:nth-child(4) { width: 6%; }
+#table-landcomps th:nth-child(5) { width: 5%; }
+#table-landcomps th:nth-child(6) { width: 7%; }
+#table-landcomps th:nth-child(7) { width: 7%; }
+#table-landcomps th:nth-child(8) { width: 7%; }
+#table-landcomps th:nth-child(9) { width: 6%; }
+#table-landcomps th:nth-child(10) { width: 9%; }
+#table-landcomps th:nth-child(11) { width: 9%; }
+#table-landcomps th:nth-child(12) { width: 5%; }

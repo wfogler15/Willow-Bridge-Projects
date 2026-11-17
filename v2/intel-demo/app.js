@@ -23029,6 +23029,7 @@ function txRenderBoard() {
   host.classList.add('px-host');
   const srch = document.getElementById('sc-search');
   if (srch) { srch.removeAttribute('style'); bar.querySelector('.px-search-slot').appendChild(srch); }
+  const _ph = () => { if (srch) srch.placeholder = 'Search name, buyer, seller, broker…'; };
   ['sc-add-btn', 'sc-export-btn'].forEach(id => { const el = document.getElementById(id); if (el) bar.querySelector('.px-acts2').appendChild(el); });
   const ysel = document.getElementById('sc-year-filter'); if (ysel) { state.scYear = 'all'; ysel.style.display = 'none'; }
   const mt = document.getElementById('sc-mode-toggle'); if (mt && mt.parentElement) mt.parentElement.style.display = 'none';
@@ -23184,6 +23185,7 @@ function txRenderBoard() {
       cell('Most active buyer', top ? E(top[0]) : '—', top ? `${top[1].n} deal${top[1].n === 1 ? '' : 's'}` : '');
   }
   function paint() {
+    _ph();
     bar.querySelector('.px-q').innerHTML = sentence();
     bar.querySelector('.px-sum').innerHTML = summary(window.scxApply(SX.base, SX.mode));
     if (openK) place();
