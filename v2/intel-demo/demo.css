@@ -709,3 +709,8 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 #table-landcomps th:nth-child(10) { width: 9%; }
 #table-landcomps th:nth-child(11) { width: 9%; }
 #table-landcomps th:nth-child(12) { width: 5%; }
+.wbi-hero-kpis:not(:has(> *:not([style*="display: none"]))) { display: none !important; }
+#table-invcomps th:nth-child(7), #table-invcomps td:nth-child(7) { padding-left: 22px !important; }
+#table-invcomps th:nth-child(12), #table-invcomps td:nth-child(12) { padding-left: 24px !important; }
+#table-landcomps th:nth-child(6), #table-landcomps td:nth-child(6) { padding-left: 22px !important; }
+#table-landcomps th:nth-child(10), #table-landcomps td:nth-child(10) { padding-left: 24px !important; }
