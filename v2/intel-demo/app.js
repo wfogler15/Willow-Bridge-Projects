@@ -11,7 +11,14 @@ function wbEsriLightGray() {
   ]);
 }
 const WB_ATTR = '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
-function wbGL(style) { return L.maplibreGL({ style, attribution: WB_ATTR, interactive: false, minZoom: 0, maxZoom: 20 }); }  // zoom limits: marker clustering needs a map maxZoom
+// Leaflet only registers zoom limits for tile layers; marker clustering needs a map maxZoom, so register ours.
+function wbGL(style) {
+  const layer = L.maplibreGL({ style, attribution: WB_ATTR, interactive: false, minZoom: 0, maxZoom: 20 });
+  const add = layer.beforeAdd, rem = layer.onRemove;
+  layer.beforeAdd = function (map) { map._addZoomLimit(this); return add ? add.call(this, map) : this; };
+  layer.onRemove = function (map) { const r = rem.call(this, map); map._removeZoomLimit(this); return r; };
+  return layer;
+}
 // Light: clean gray canvas that lets the property colors carry the map (default)
 function wbStreetLayer() { return wbHasGL() ? wbGL(WB_OFM + 'positron') : wbEsriLightGray(); }
 // Streets: full-color street map with buildings and parks
