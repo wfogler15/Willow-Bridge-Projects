@@ -3259,9 +3259,9 @@ function renderOverview() {
       occupancy: weightedAvg(items, 'vacancy', 'units') == null ? null : 100 - weightedAvg(items, 'vacancy', 'units'),
       props: items.length
     }))
-    .filter(s => s.rent != null)
-    .sort((a,b) => b.units - a.units)
-    .slice(0, 14);
+    .filter(s => s.rent != null);
+  // (Demo) Rank EVERY submarket by rent. This used to keep only the 14 largest submarkets by units first,
+  // which dropped high-rent infill submarkets (Highlands, Golden Triangle, LoHi) and disagreed with Market Map.
 
   // Determine which PSF metric to display based on toggle
   const psfField = state.rentMode === 'effective' ? 'effectivePsf' : 'askingPsf';
@@ -3322,7 +3322,7 @@ function renderOverview() {
     rentChartLabels = sortedSubmarkets.map(s => s.name);
     rentChartValues = sortedSubmarkets.map(s => +s[psfField].toFixed(2));
     rentChartTooltipLabel = ctx => [`$${ctx.parsed.x.toFixed(2)} / SF · ${rentChartData[ctx.dataIndex].props} properties`, 'Click to filter to this submarket'];
-    if (subEl) subEl.textContent = `${psfLabel} · Top 10 Submarkets`;
+    if (subEl) subEl.textContent = `Top 10 submarkets by ${psfLabel.toLowerCase()} · existing, unit-weighted`;
     const titleEl = document.getElementById('rent-dist-title');
     if (titleEl) titleEl.innerHTML = 'Rent Distribution by <em>Submarket</em> <span class="rent-dist-expand-hint">↗ RANK</span>';
   }
@@ -3330,6 +3330,12 @@ function renderOverview() {
   destroyChart('submarket-rent');
   charts['submarket-rent'] = new Chart(document.getElementById('chart-submarket-rent'), {
     type: 'bar',
+    // value at the end of each bar, same as the Market Map ranking
+    plugins: [{ id: 'rentEndLabels', afterDatasetsDraw(chart) {
+      const { ctx } = chart, meta = chart.getDatasetMeta(0), ds = chart.data.datasets[0];
+      ctx.save(); ctx.font = "600 11.5px Aptos, 'Segoe UI', sans-serif"; ctx.fillStyle = '#1D1247'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      meta.data.forEach((bar, i) => { const v = ds.data[i]; if (v != null) ctx.fillText('$' + Number(v).toFixed(2), bar.x + 6, bar.y); });
+      ctx.restore(); } }],
     data: {
       labels: rentChartLabels,
       datasets: [{
