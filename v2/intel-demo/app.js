@@ -19,10 +19,11 @@ function wbGL(style) {
   layer.onRemove = function (map) { const r = rem.call(this, map); map._removeZoomLimit(this); return r; };
   return layer;
 }
-// Light: clean gray canvas that lets the property colors carry the map (default)
-function wbStreetLayer() { return wbHasGL() ? wbGL(WB_OFM + 'positron') : wbEsriLightGray(); }
-// Streets: full-color street map with buildings and parks
-function wbStreetsLayer() { return wbHasGL() ? wbGL(WB_OFM + 'liberty') : wbEsriLightGray(); }
+// Streets: full-color street map with buildings and parks (default on every map)
+function wbStreetLayer() { return wbHasGL() ? wbGL(WB_OFM + 'liberty') : wbEsriLightGray(); }
+function wbStreetsLayer() { return wbStreetLayer(); }
+// Light: clean gray canvas (option on the Market Map)
+function wbLightLayer() { return wbHasGL() ? wbGL(WB_OFM + 'positron') : wbEsriLightGray(); }
 // Satellite: Esri imagery with crisp vector road and place labels on top
 let wbHybridStyle = null;
 if (wbHasGL()) {
@@ -10279,6 +10280,7 @@ function renderProperties() {
       (p.submarket && p.submarket.toLowerCase().includes(q))
     );
   }
+  if (typeof window.pxApply === 'function') data = window.pxApply(data);
   document.getElementById('prop-count').textContent = data.length.toLocaleString();
   // Sort by yearBuilt desc (month+year). Within the same year, newest month first.
   // Status grouping is unnecessary now because the toggle already isolates status.
@@ -10423,11 +10425,11 @@ function renderPropertyMap(data) {
       preferCanvas: true
     });
 
-    // Three base layers: Light (default), Streets, Satellite
+    // Three base layers: Streets (default), Light, Satellite
     const streetLayer = wbStreetLayer();
     streetLayer.addTo(propertyMap);
     L.control.layers(
-      { 'Light': streetLayer, 'Streets': wbStreetsLayer(), 'Satellite': wbSatLayer() },
+      { 'Streets': streetLayer, 'Light': wbLightLayer(), 'Satellite': wbSatLayer() },
       null,
       { position: 'topright', collapsed: false }
     ).addTo(propertyMap);
@@ -13354,7 +13356,7 @@ function initOpportunityModalMap(o) {
     maxZoom: 19
   });
   const satWithLabels = L.layerGroup([sat, labels]);
-  satWithLabels.addTo(map);
+  street.addTo(map);
   L.control.layers({ 'Street': street, 'Satellite': satWithLabels }, null, { position: 'topright', collapsed: false }).addTo(map);
   L.circleMarker([o.lat, o.lng], {
     radius: 12,
@@ -13981,7 +13983,7 @@ async function initSaleCompMap(rec, type) {
   });
   const satelliteWithLabels = L.layerGroup([satelliteLayer, labelsLayer]);
 
-  satelliteWithLabels.addTo(map);   // Default to satellite for sale comp context
+  streetLayer.addTo(map);   // Streets default on every map
 
   L.control.layers(
     { 'Street': streetLayer, 'Satellite': satelliteWithLabels },
@@ -14073,9 +14075,7 @@ function initPinDropMap(rec, type) {
     maxZoom: 19
   });
   const satWithLabels = L.layerGroup([satelliteLayer, labelsLayer]);
-  // Land deals: default to satellite so the user can see the parcel boundary
-  if (type === 'land') satWithLabels.addTo(map);
-  else streetLayer.addTo(map);
+  streetLayer.addTo(map);   // Streets default on every map
   L.control.layers(
     { 'Street': streetLayer, 'Satellite': satWithLabels },
     null,
@@ -15417,8 +15417,7 @@ async function initPropertyModalMap(p) {
   });
   const satelliteWithLabels = L.layerGroup([satelliteLayer, labelsLayer]);
 
-  // Default to satellite for visual richness in the property modal
-  satelliteWithLabels.addTo(map);
+  streetLayer.addTo(map);   // Streets default on every map
 
   L.control.layers(
     { 'Street': streetLayer, 'Satellite': satelliteWithLabels },
@@ -22696,4 +22695,251 @@ function txRenderBoard() {
     return r;
   };
   window.openDetail = openDetail; window.openYocGroupDetail = openYocGroupDetail; window.closeModal = closeModal;
+})();
+
+
+/* =================================================================
+   DEMO: Property Index comp finder — product, class, location (incl. radius
+   from a property), vintage, size, rent and performance filters, a live
+   summary of the result and one-click "build comp set from results".
+   Local to the Property Index; the left-rail Filters still apply on top.
+   ================================================================= */
+(function pxFinder() {
+  const host = document.querySelector('#view-properties .panel-header');
+  if (!host) return;
+  const E = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const NOW = new Date().getFullYear();
+  const PX = window.PX = {
+    types: new Set(), classes: new Set(), subs: new Set(), cities: new Set(),
+    near: null, radius: 3,
+    yr: [null, null], units: [null, null], usf: [null, null],
+    askSF: [null, null], askU: [null, null], effSF: [null, null],
+    occ: [null, null], concW: null, stories: [null, null],
+    base: []
+  };
+  const occOf = p => p.vacancy == null ? null : 100 - p.vacancy;
+  const wksOf = p => p.concessions == null ? null : p.concessions / 100 * 52;
+  const inR = (v, r) => (r[0] == null || (v != null && v >= r[0])) && (r[1] == null || (v != null && v <= r[1]));
+  const miles = (a, b) => L.latLng(a.lat, a.lng).distanceTo([b.lat, b.lng]) / 1609.34;
+  window.pxDistance = p => (PX.near && p.lat != null) ? miles(PX.near, p) : null;
+
+  window.pxApply = function (data) {
+    PX.base = data;
+    return data.filter(p => {
+      if (PX.types.size && !PX.types.has(p.style || '—')) return false;
+      if (PX.classes.size && !PX.classes.has(p.class || '—')) return false;
+      if (PX.subs.size && !PX.subs.has(p.submarket)) return false;
+      if (PX.cities.size && !PX.cities.has(p.city)) return false;
+      if (PX.near) { if (p.lat == null || p.lng == null || miles(PX.near, p) > PX.radius) return false; }
+      if (!inR(p.yearBuilt, PX.yr)) return false;
+      if (!inR(p.units, PX.units)) return false;
+      if (!inR(p.avgUnitSF, PX.usf)) return false;
+      if (!inR(p.avgAskingSF, PX.askSF)) return false;
+      if (!inR(p.avgAskingUnit, PX.askU)) return false;
+      if (!inR(p.avgEffectiveSF, PX.effSF)) return false;
+      if (!inR(occOf(p), PX.occ)) return false;
+      if (PX.concW != null) { const w = wksOf(p); if (w == null || w > PX.concW) return false; }
+      if (!inR(p.stories, PX.stories)) return false;
+      return true;
+    });
+  };
+
+  // ---------- markup ----------
+  const bar = document.createElement('div');
+  bar.className = 'px-bar';
+  bar.innerHTML = `
+    <div class="px-pills">
+      <button type="button" class="px-pill" data-k="type">Product type</button>
+      <button type="button" class="px-pill" data-k="class">Class</button>
+      <button type="button" class="px-pill" data-k="loc">Location</button>
+      <button type="button" class="px-pill" data-k="yr">Year built</button>
+      <button type="button" class="px-pill" data-k="size">Size</button>
+      <button type="button" class="px-pill" data-k="rent">Rent</button>
+      <button type="button" class="px-pill" data-k="perf">Occupancy &amp; concessions</button>
+      <button type="button" class="px-clear" hidden>Clear all</button>
+    </div>
+    <div class="px-chips"></div>
+    <div class="px-sum"></div>`;
+  host.after(bar);
+  const pop = document.createElement('div');
+  pop.className = 'px-pop'; pop.hidden = true;
+  document.body.appendChild(pop);
+  // the old single-year select is replaced by the Year built range
+  const ysel = document.getElementById('prop-year-filter');
+  if (ysel) { ysel.value = 'all'; state.propYear = 'all'; ysel.style.display = 'none'; }
+
+  const rerender = () => { try { renderProperties(); } catch (e) { console.error('[px]', e); } };
+  let tmr = null; const soon = () => { clearTimeout(tmr); tmr = setTimeout(rerender, 160); };
+
+  // ---------- popovers ----------
+  const countBy = (k, f) => { const m = new Map(); PX.base.forEach(p => { const v = f ? f(p) : p[k]; if (v == null || v === '') return; m.set(v, (m.get(v) || 0) + 1); }); return m; };
+  const num = v => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[$,]/g, '')); return isNaN(n) ? null : n; };
+  const range = (label, key, unit, step, ph) => `
+    <div class="px-rg"><div class="px-rl">${label}</div>
+      <div class="px-ri"><input inputmode="decimal" data-r="${key}" data-i="0" placeholder="${ph ? ph[0] : 'Min'}" value="${PX[key][0] ?? ''}"><span>to</span>
+      <input inputmode="decimal" data-r="${key}" data-i="1" placeholder="${ph ? ph[1] : 'Max'}" value="${PX[key][1] ?? ''}">${unit ? `<em>${unit}</em>` : ''}</div></div>`;
+  const checks = (setKey, entries, search) => `
+    ${search ? `<input class="px-find" placeholder="Search ${search}…">` : ''}
+    <div class="px-list">${entries.map(([v, n]) => `<label class="px-ck"><input type="checkbox" data-s="${setKey}" value="${E(v)}" ${PX[setKey].has(v) ? 'checked' : ''}><span>${E(v)}</span><b>${n.toLocaleString()}</b></label>`).join('') || '<div class="px-none">Nothing in the current view</div>'}</div>`;
+  const presets = (key, list) => `<div class="px-pre">${list.map(([t, a, b]) => `<button type="button" data-p="${key}" data-a="${a ?? ''}" data-b="${b ?? ''}" class="${PX[key][0] === a && PX[key][1] === b ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const sorted = m => [...m.entries()].sort((a, b) => b[1] - a[1]);
+  const az = m => [...m.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+
+  const BODY = {
+    type: () => `<div class="px-ph">Product type</div>${checks('types', sorted(countBy('style', p => p.style || '—')))}`,
+    class: () => `<div class="px-ph">Class</div>${checks('classes', az(countBy('class', p => p.class || '—')))}
+      <div class="px-note">Adds to any class filter set in the left panel.</div>`,
+    loc: () => `<div class="px-ph">Near a property</div>
+      <div class="px-near">
+        <div class="px-ta"><input class="px-near-q" placeholder="Search a property or site…" value="${PX.near ? E(PX.near.name) : ''}"><div class="px-ta-list" hidden></div></div>
+        <select class="px-rad">${[0.5, 1, 2, 3, 5, 10].map(r => `<option value="${r}" ${PX.radius === r ? 'selected' : ''}>${r} mi</option>`).join('')}</select>
+        ${PX.near ? '<button type="button" class="px-near-x" title="Remove">×</button>' : ''}
+      </div>
+      <div class="px-cols"><div><div class="px-ph">Submarket</div>${checks('subs', az(countBy('submarket')), 'submarkets')}</div>
+      <div><div class="px-ph">City</div>${checks('cities', az(countBy('city')), 'cities')}</div></div>`,
+    yr: () => `<div class="px-ph">Year built</div>${presets('yr', [['Last 5 yrs', NOW - 5, null], ['Last 10 yrs', NOW - 10, null], ['2010+', 2010, null], ['2000–2009', 2000, 2009], ['Pre-2000', null, 1999]])}${range('Custom', 'yr', '', 1, ['From', 'To'])}`,
+    size: () => `<div class="px-ph">Size</div>${presets('units', [['100+ units', 100, null], ['200+ units', 200, null], ['300+ units', 300, null]])}
+      ${range('Units', 'units', 'units')}${range('Avg unit size', 'usf', 'SF')}${range('Stories', 'stories', 'stories')}`,
+    rent: () => `<div class="px-ph">Rent</div>${range('Asking $/SF', 'askSF', '$/SF', 0.01, ['$ min', '$ max'])}${range('Asking rent', 'askU', '$/mo', 1, ['$ min', '$ max'])}${range('Effective $/SF', 'effSF', '$/SF', 0.01, ['$ min', '$ max'])}`,
+    perf: () => `<div class="px-ph">Occupancy &amp; concessions</div>${presets('occ', [['Lease-up (<90%)', null, 89.99], ['Stabilized (90%+)', 90, null], ['95%+', 95, null]])}${range('Occupancy', 'occ', '%')}
+      <div class="px-rg"><div class="px-rl">Concessions</div><div class="px-ri"><span>Up to</span><input inputmode="decimal" data-c="1" placeholder="Any" value="${PX.concW ?? ''}"><em>weeks free</em></div></div>`
+  };
+  let openK = null, openBtn = null;
+  function openPop(k, btn) {
+    if (openK === k) return closePop();
+    openK = k; openBtn = btn;
+    pop.innerHTML = BODY[k](); pop.dataset.k = k; pop.hidden = false;
+    bar.querySelectorAll('.px-pill').forEach(b => b.classList.toggle('open', b === btn));
+    place(); wirePop();
+    const f = pop.querySelector('.px-near-q, .px-find, input[data-r]'); if (f && k !== 'type' && k !== 'class') f.focus();
+  }
+  function closePop() { openK = null; pop.hidden = true; bar.querySelectorAll('.px-pill').forEach(b => b.classList.remove('open')); }
+  function place() {
+    if (!openBtn) return;
+    const r = openBtn.getBoundingClientRect();
+    const w = pop.offsetWidth;
+    pop.style.top = Math.round(r.bottom + 8) + 'px';
+    pop.style.left = Math.round(Math.max(12, Math.min(r.left, innerWidth - w - 16))) + 'px';
+  }
+  window.addEventListener('resize', place); window.addEventListener('scroll', place, true);
+  document.addEventListener('mousedown', e => { if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.px-pill')) closePop(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) closePop(); });
+
+  function wirePop() {
+    pop.querySelectorAll('input[type=checkbox][data-s]').forEach(c => c.addEventListener('change', () => {
+      const set = PX[c.dataset.s]; c.checked ? set.add(c.value) : set.delete(c.value); rerender();
+    }));
+    pop.querySelectorAll('.px-find').forEach(f => f.addEventListener('input', () => {
+      const q = f.value.toLowerCase();
+      f.nextElementSibling.querySelectorAll('.px-ck').forEach(l => { l.style.display = l.textContent.toLowerCase().includes(q) ? '' : 'none'; });
+    }));
+    pop.querySelectorAll('input[data-r]').forEach(i => i.addEventListener('input', () => { PX[i.dataset.r][+i.dataset.i] = num(i.value); syncPre(); soon(); }));
+    pop.querySelectorAll('input[data-c]').forEach(i => i.addEventListener('input', () => { PX.concW = num(i.value); soon(); }));
+    pop.querySelectorAll('[data-p]').forEach(b => b.addEventListener('click', () => {
+      const k = b.dataset.p, a = num(b.dataset.a), z = num(b.dataset.b);
+      const same = PX[k][0] === a && PX[k][1] === z;
+      PX[k] = same ? [null, null] : [a, z];
+      pop.querySelectorAll(`input[data-r="${k}"]`).forEach(i => { i.value = PX[k][+i.dataset.i] ?? ''; });
+      syncPre(); rerender();
+    }));
+    const q = pop.querySelector('.px-near-q');
+    if (q) {
+      const list = pop.querySelector('.px-ta-list');
+      const all = RAW_DATA.map(applyUserEdits).filter(p => p.lat != null && p.lng != null && p.name);
+      q.addEventListener('input', () => {
+        const t = q.value.trim().toLowerCase();
+        if (t.length < 2) { list.hidden = true; return; }
+        const hits = all.filter(p => p.name.toLowerCase().includes(t) || (p.address || '').toLowerCase().includes(t)).slice(0, 8);
+        list.innerHTML = hits.map(p => `<button type="button" data-id="${E(p.id)}"><span>${E(p.name)}</span><em>${E([p.submarket, p.yearBuilt].filter(Boolean).join(' · '))}</em></button>`).join('') || '<div class="px-none">No match</div>';
+        list.hidden = false;
+        list.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+          const p = all.find(x => String(x.id) === b.dataset.id);
+          PX.near = { id: p.id, name: p.name, lat: p.lat, lng: p.lng };
+          openK = null; rerender(); openPop('loc', openBtn);
+        }));
+      });
+      pop.querySelector('.px-rad').addEventListener('change', e => { PX.radius = +e.target.value; rerender(); });
+      const x = pop.querySelector('.px-near-x');
+      if (x) x.addEventListener('click', () => { PX.near = null; openK = null; rerender(); openPop('loc', openBtn); });
+    }
+  }
+  function syncPre() {
+    pop.querySelectorAll('[data-p]').forEach(b => { const k = b.dataset.p; b.classList.toggle('on', PX[k][0] === num(b.dataset.a) && PX[k][1] === num(b.dataset.b)); });
+  }
+  bar.querySelectorAll('.px-pill').forEach(b => b.addEventListener('click', () => openPop(b.dataset.k, b)));
+
+  // ---------- chips, pill labels, summary ----------
+  const money = v => '$' + Math.round(v).toLocaleString();
+  const rtxt = (r, f) => r[0] != null && r[1] != null ? `${f(r[0])}–${f(r[1])}` : r[0] != null ? `${f(r[0])}+` : `≤ ${f(r[1])}`;
+  const has = r => r[0] != null || r[1] != null;
+  function chips() {
+    const c = [];
+    const setChip = (k, label) => PX[k].forEach(v => c.push([label ? `${label} ${v}` : v, () => PX[k].delete(v)]));
+    setChip('types'); setChip('classes', 'Class'); setChip('subs'); setChip('cities');
+    if (PX.near) c.push([`Within ${PX.radius} mi of ${PX.near.name}`, () => { PX.near = null; }]);
+    if (has(PX.yr)) c.push([`Built ${rtxt(PX.yr, v => v)}`, () => { PX.yr = [null, null]; }]);
+    if (has(PX.units)) c.push([`${rtxt(PX.units, v => v.toLocaleString())} units`, () => { PX.units = [null, null]; }]);
+    if (has(PX.usf)) c.push([`${rtxt(PX.usf, v => v.toLocaleString())} SF avg unit`, () => { PX.usf = [null, null]; }]);
+    if (has(PX.stories)) c.push([`${rtxt(PX.stories, v => v)} stories`, () => { PX.stories = [null, null]; }]);
+    if (has(PX.askSF)) c.push([`Asking ${rtxt(PX.askSF, v => '$' + v.toFixed(2))}/SF`, () => { PX.askSF = [null, null]; }]);
+    if (has(PX.askU)) c.push([`Asking ${rtxt(PX.askU, money)}/mo`, () => { PX.askU = [null, null]; }]);
+    if (has(PX.effSF)) c.push([`Effective ${rtxt(PX.effSF, v => '$' + v.toFixed(2))}/SF`, () => { PX.effSF = [null, null]; }]);
+    if (has(PX.occ)) c.push([`Occupancy ${rtxt(PX.occ, v => (v % 1 ? v.toFixed(0) : v) + '%')}`, () => { PX.occ = [null, null]; }]);
+    if (PX.concW != null) c.push([`≤ ${PX.concW} wks free`, () => { PX.concW = null; }]);
+    return c;
+  }
+  const PILL = {
+    type: () => PX.types.size, class: () => PX.classes.size,
+    loc: () => PX.subs.size + PX.cities.size + (PX.near ? 1 : 0),
+    yr: () => +has(PX.yr), size: () => has(PX.units) + has(PX.usf) + has(PX.stories),
+    rent: () => has(PX.askSF) + has(PX.askU) + has(PX.effSF), perf: () => has(PX.occ) + (PX.concW != null)
+  };
+  function summary(rows) {
+    const wa = (f) => { let s = 0, w = 0; rows.forEach(p => { const v = f(p); if (v != null && !isNaN(v) && p.units) { s += v * p.units; w += p.units; } }); return w ? s / w : null; };
+    const units = rows.reduce((s, p) => s + (p.units || 0), 0);
+    const yrs = rows.map(p => p.yearBuilt).filter(Boolean).sort((a, b) => a - b);
+    const med = yrs.length ? yrs[Math.floor(yrs.length / 2)] : null;
+    const a = wa(p => p.avgAskingSF), au = wa(p => p.avgAskingUnit), e = wa(p => p.avgEffectiveSF), o = wa(occOf), w = wa(wksOf);
+    const cell = (k, v, s) => `<div class="px-s"><span>${k}</span><b>${v}</b>${s ? `<em>${s}</em>` : ''}</div>`;
+    return cell('Properties', rows.length.toLocaleString(), units ? units.toLocaleString() + ' units' : '') +
+      cell('Asking rent', a != null ? '$' + a.toFixed(2) + '/SF' : '—', au != null ? money(au) + '/mo' : '') +
+      cell('Effective rent', e != null ? '$' + e.toFixed(2) + '/SF' : '—', '') +
+      cell('Occupancy', o != null ? o.toFixed(1) + '%' : '—', '') +
+      cell('Concessions', w != null ? w.toFixed(1) + ' wks' : '—', '') +
+      cell('Median vintage', med || '—', '') +
+      `<div class="px-acts"><button type="button" class="px-build" ${rows.length ? '' : 'disabled'}>Build comp set from ${rows.length.toLocaleString()} result${rows.length === 1 ? '' : 's'}</button></div>`;
+  }
+  let lastRows = [];
+  function paintBar() {
+    const list = chips();
+    bar.querySelector('.px-chips').innerHTML = list.map(([t], i) => `<button type="button" class="px-chip" data-i="${i}">${E(t)}<span>×</span></button>`).join('');
+    bar.querySelectorAll('.px-chip').forEach(b => b.addEventListener('click', () => { list[+b.dataset.i][1](); rerender(); if (openK) { const k = openK; openK = null; openPop(k, openBtn); } }));
+    bar.querySelector('.px-clear').hidden = !list.length;
+    bar.classList.toggle('active', !!list.length);
+    bar.querySelectorAll('.px-pill').forEach(b => { const n = PILL[b.dataset.k](); b.classList.toggle('on', n > 0); b.dataset.n = n || ''; });
+    lastRows = window.pxApply(PX.base);
+    const building = state.compSetMode === 'building', viewing = state.compSetMode === 'viewing';
+    bar.querySelector('.px-sum').innerHTML = summary(lastRows);
+    const bb = bar.querySelector('.px-build');
+    if (bb) {
+      if (building || viewing) bb.style.display = 'none';
+      bb.addEventListener('click', () => {
+        state.compSetMode = 'building';
+        state.compSetSelection.clear();
+        lastRows.forEach(p => state.compSetSelection.add(p.id));
+        updateCompSetUI(); rerender();
+        const n = document.getElementById('cs-selection-count'); if (n) n.textContent = state.compSetSelection.size + ' SELECTED';
+      });
+    }
+  }
+  bar.querySelector('.px-clear').addEventListener('click', () => {
+    ['types', 'classes', 'subs', 'cities'].forEach(k => PX[k].clear());
+    PX.near = null; ['yr', 'units', 'usf', 'askSF', 'askU', 'effSF', 'occ', 'stories'].forEach(k => { PX[k] = [null, null]; }); PX.concW = null;
+    closePop(); rerender();
+  });
+  // keep the bar in step with any other re-render (status toggle, search, rail filters)
+  const _rp = renderProperties;
+  renderProperties = function () { const r = _rp.apply(this, arguments); try { paintBar(); } catch (e) {} return r; };
+  window.renderProperties = renderProperties;
+  try { renderProperties(); } catch (e) {}
 })();
