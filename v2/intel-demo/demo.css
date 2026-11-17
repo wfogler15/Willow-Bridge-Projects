@@ -512,3 +512,9 @@ html body .app .sidebar .wbi-rail .tab[data-view="opportunities"] { display: non
 .wbi-rail .tab { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px !important; gap: 9px; }
 .wbi-mktseg button { height: 34px; padding: 0 16px; }
 .wbi-mktseg button b { font-size: 14.5px; }
+
+/* popups lock the page; back bar */
+html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavior: none; }
+.wb-backbar { position: sticky; top: 0; z-index: 5; display: flex; padding: 10px 16px; margin: -1px 0 0; background: #faf9fd; border-bottom: 1px solid #ebe8f3; }
+.wb-back { border: 0; background: none; padding: 4px 8px 4px 4px; border-radius: 6px; font: 600 13px/1.2 Aptos, 'Segoe UI', sans-serif; color: #432890; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wb-back:hover { background: #efecf8; }

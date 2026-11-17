@@ -16706,7 +16706,7 @@ function openYxPencilsModal(prod) {
     ov.addEventListener('click', e => {
       if (e.target === ov || e.target.closest('.yx-modal-x')) { ov.hidden = true; return; }
       const prop = e.target.closest('[data-pid]');
-      if (prop) { ov.hidden = true; openDetail(prop.dataset.pid); return; }
+      if (prop) { ov.hidden = true; window.__wbNavFrom = { kind: 'pencils', args: [ov.dataset.prod], label: 'Where ' + String(ov.dataset.prod).toLowerCase() + ' pencils' }; openDetail(prop.dataset.pid); return; }
       const row = e.target.closest('tr.yx-sm-row');
       if (row) {
         const open = row.classList.toggle('open');
@@ -16770,6 +16770,7 @@ function openYxPencilsModal(prod) {
       <tbody>${rows}</tbody></table></div>
     <div class="yx-modal-foot">Click a ${groupWord.toLowerCase()} to see its comps, then a comp for the full property. Thin = fewer than ${yocState.minCompsForColor} comps behind the average.</div>
   </div>`;
+  ov.dataset.prod = prod;
   ov.hidden = false;
 }
 
@@ -22636,4 +22637,63 @@ function txRenderBoard() {
     txRender();
   };
   window.__txLegacyRenderTrends = legacyRender;
+})();
+
+
+/* =================================================================
+   Demo: popups lock the page behind them, and a Back button appears
+   whenever one popup opens another (pencils → comps → property).
+   ================================================================= */
+(function () {
+  // 1) scroll lock: any open popup locks html/body
+  const anyOpen = () => [...document.querySelectorAll('.modal-backdrop')].some(m => m.classList.contains('show') || getComputedStyle(m).display !== 'none')
+    || (document.getElementById('yx-modal') && !document.getElementById('yx-modal').hidden)
+    || (document.getElementById('pf-overlay') && getComputedStyle(document.getElementById('pf-overlay')).display !== 'none');
+  let raf = 0;
+  const sync = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => document.documentElement.classList.toggle('wb-lock', !!anyOpen())); };
+  new MutationObserver(sync).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden'], childList: true });
+
+  // 2) back stack for the shared detail modal
+  const stack = []; let current = null, lastClosed = 0, navigating = false;
+  const modal = () => document.getElementById('modal');
+  const isOpen = () => { const m = modal(); return m && (m.classList.contains('show') || Date.now() - lastClosed < 80); };
+  const origDetail = openDetail, origGroup = openYocGroupDetail, origClose = closeModal;
+  const labelFor = (e) => e.label || (e.kind === 'group' ? `${e.args[0]} · ${e.args[1]}` : e.kind === 'detail' ? ((RAW_DATA.find(p => p.id === e.args[0]) || {}).name || 'property') : 'previous');
+  function addBack() {
+    const content = document.getElementById('modal-content'); if (!content) return;
+    const old = content.querySelector('.wb-backbar'); if (old) old.remove();
+    if (!stack.length) return;
+    const prev = stack[stack.length - 1];
+    const bar = document.createElement('div'); bar.className = 'wb-backbar';
+    bar.innerHTML = `<button type="button" class="wb-back">← Back to ${escapeHTML(labelFor(prev))}</button>`;
+    bar.querySelector('button').addEventListener('click', goBack);
+    content.prepend(bar);
+  }
+  function nav(kind, args, orig) {
+    const from = window.__wbNavFrom; window.__wbNavFrom = null;
+    if (!navigating) {
+      if (from) { stack.length = 0; stack.push(from); }
+      else if (isOpen() && current) stack.push(current);
+      else stack.length = 0;
+    }
+    current = { kind, args };
+    const r = orig.apply(this, args);
+    addBack();
+    return r;
+  }
+  function goBack() {
+    const prev = stack.pop(); if (!prev) return;
+    if (prev.kind === 'pencils') { stack.length = 0; current = null; origClose(); openYxPencilsModal(prev.args[0]); return; }
+    navigating = true;
+    try { (prev.kind === 'group' ? openYocGroupDetail : openDetail).apply(null, prev.args); } finally { navigating = false; }
+  }
+  openDetail = function (...a) { return nav('detail', a, origDetail); };
+  openYocGroupDetail = function (...a) { return nav('group', a, origGroup); };
+  closeModal = function (...a) {
+    lastClosed = Date.now();
+    const r = origClose.apply(this, a);
+    setTimeout(() => { if (!modal().classList.contains('show')) { stack.length = 0; current = null; } }, 120);
+    return r;
+  };
+  window.openDetail = openDetail; window.openYocGroupDetail = openYocGroupDetail; window.closeModal = closeModal;
 })();
