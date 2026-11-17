@@ -11,7 +11,7 @@ function wbEsriLightGray() {
   ]);
 }
 const WB_ATTR = '<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> &copy; <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>';
-function wbGL(style) { return L.maplibreGL({ style, attribution: WB_ATTR, interactive: false }); }
+function wbGL(style) { return L.maplibreGL({ style, attribution: WB_ATTR, interactive: false, minZoom: 0, maxZoom: 20 }); }  // zoom limits: marker clustering needs a map maxZoom
 // Light: clean gray canvas that lets the property colors carry the map (default)
 function wbStreetLayer() { return wbHasGL() ? wbGL(WB_OFM + 'positron') : wbEsriLightGray(); }
 // Streets: full-color street map with buildings and parks
