@@ -29,8 +29,8 @@ if (wbHasGL()) {
   fetch(WB_OFM + 'liberty').then(r => r.json()).then(st => {
     const keep = st.layers.filter(l => l.type === 'symbol' && !/poi|housenumber|aeroway|water_name_line/.test(l.id))
       .map(l => Object.assign({}, l, { paint: Object.assign({}, l.paint, { 'text-color': '#ffffff', 'text-halo-color': 'rgba(10,8,20,0.85)', 'text-halo-width': 1.4 }) }));
-    const roads = st.layers.filter(l => l.type === 'line' && /^(road|highway|bridge|tunnel)_(motorway|trunk|primary)/.test(l.id))
-      .map(l => Object.assign({}, l, { paint: Object.assign({}, l.paint, { 'line-color': 'rgba(255,214,102,0.55)' }) }));
+    const roads = st.layers.filter(l => l.type === 'line' && /^(road|highway)_(motorway|trunk)$/.test(l.id))
+      .map(l => Object.assign({}, l, { paint: Object.assign({}, l.paint, { 'line-color': '#ffffff', 'line-opacity': 0.28 }) }));
     wbHybridStyle = Object.assign({}, st, {
       sources: Object.assign({}, st.sources, { esri: { type: 'raster', tiles: [WB_SAT_URL], tileSize: 256, maxzoom: 19, attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics' } }),
       layers: [{ id: 'esri-imagery', type: 'raster', source: 'esri' }].concat(roads, keep)

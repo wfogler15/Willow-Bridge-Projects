@@ -453,3 +453,11 @@
 .tx-kpi { padding: 16px 18px 14px; }
 .tx-ks, .tx-kn { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tx-kbody > div { flex: 1; }
+
+/* map: brand cluster bubbles instead of the default traffic-light ones */
+.marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background: rgba(67,40,144,.22) !important; }
+.marker-cluster-small div { background: #6A4FC0 !important; }
+.marker-cluster-medium div { background: #432890 !important; }
+.marker-cluster-large div { background: #1D1247 !important; }
+.marker-cluster div { color: #fff !important; font: 700 11.5px/30px Aptos, 'Segoe UI', sans-serif !important; box-shadow: 0 0 0 2px rgba(255,255,255,.9); }
+.leaflet-control-layers { font-family: Aptos, 'Segoe UI', sans-serif; }
