@@ -23195,3 +23195,153 @@ function txRenderBoard() {
   window.renderSaleComps = renderSaleComps;
   try { renderSaleComps(); } catch (e) {}
 })();
+
+
+/* =================================================================
+   DEMO: Absorption pace methods. Fixed leases/mo stays the default
+   (industry convention); Own pace, Comparable curve and Blend use the
+   RealPage monthly occupancy history already loaded for each property.
+   Back-tested Nov 2026 on ~12,900 mid-lease-up points (PHX + DEN):
+   avg miss at 6 mo ≈ fixed 9–10 pts, own 7–8, comparable 7–8, blend 6–7.
+   ================================================================= */
+(function luPace() {
+  if (typeof getAbsorptionData !== 'function') return;
+  state.paceMethod = state.paceMethod || 'fixed';
+  const AS_OF = TODAY;                       // CoStar snapshot date the tab is anchored to
+  const NOW = new Date();
+  const GAP = Math.max(0, (NOW - AS_OF) / 86400000 / 30.44);   // months from snapshot to today
+  const band = o => Math.min(9, Math.max(0, Math.floor(o * 10)));
+
+  // Comparable curve: average monthly occupancy gain by 10-pt occupancy band, from every lease-up in the market's history
+  const curve = (() => {
+    const g = {};
+    Object.values(RP_PROPERTIES || {}).forEach(d => {
+      const v = d && d.s && d.s.oc && d.s.oc.v; if (!v || !(+d.un >= 50)) return;
+      for (let i = 1; i < v.length; i++) {
+        const a = v[i - 1], b = v[i];
+        if (a == null || b == null || a < 0.05 || a > 0.95 || Math.abs(b - a) >= 0.25) continue;
+        (g[band(a)] = g[band(a)] || []).push(b - a);
+      }
+    });
+    const c = {};
+    for (let k = 0; k <= 9; k++) { const a = g[k] || []; c[k] = Math.max(0.005, a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0.02); }
+    return c;
+  })();
+
+  const rpOf = p => { try { return getRpForCostarProp(p.id); } catch (e) { return null; } };
+  // Own pace: occupancy gain per month over the last 3 months of RealPage history
+  function ownPace(p) {
+    const r = rpOf(p); const oc = r && r.s && r.s.oc; if (!oc || !oc.v) return null;
+    const v = oc.v; let i = v.length - 1; while (i >= 3 && v[i] == null) i--;
+    if (i < 3 || v[i - 3] == null) return null;
+    const y = Math.floor(oc.s / 100), m = oc.s % 100 - 1 + i;
+    return { pts: Math.max(0, (v[i] - v[i - 3]) / 3), end: new Date(y, m, 1) };
+  }
+  function gain(p, o, method, own) {
+    const c = curve[band(o)];
+    if (method === 'fixed') return (state.leaseVelocity || 25) / p.units;
+    if (method === 'own') return own != null && own > 0 ? own : c;
+    if (method === 'curve') return c;
+    return own != null ? 0.5 * own + 0.5 * c : c;   // blend
+  }
+  function monthsTo(p, occ, method, target) {
+    target = target || 0.95; let o = occ, m = 0; const own = (ownPace(p) || {}).pts;
+    while (o < target && m < 120) {
+      const g = gain(p, o, method, own); if (!(g > 0)) return null;
+      if (o + g >= target) return m + (target - o) / g;
+      o += g; m++;
+    }
+    return o >= target ? m : null;
+  }
+  function projectTo(p, occ, months, method) {
+    let o = occ, m = months; const own = (ownPace(p) || {}).pts;
+    while (m > 0 && o < 0.955) { const step = Math.min(1, m); o = Math.min(0.955, o + gain(p, o, method, own) * step); m -= step; }
+    return Math.max(o, occ);
+  }
+  window.wbLU = { curve, ownPace, monthsTo, projectTo, GAP };
+
+  // Re-cost every stabilization date with the selected method; everything downstream (table, KPIs, outlook modal,
+  // submarket clearing, property detail) already reads stabilizationMonths / stabilizationDate from here.
+  const _get = getAbsorptionData;
+  getAbsorptionData = function () {
+    const rows = _get.apply(this, arguments);
+    const method = state.paceMethod || 'fixed';
+    rows.forEach(p => {
+      if (!p.units || p.occupancy == null) return;
+      const occ = p.occupancy / 100;
+      const op = ownPace(p);
+      p.pace3 = op ? op.pts * p.units : null;
+      if (!p.stabilized) {
+        const m = monthsTo(p, occ, method);
+        p.stabilizationMonths = m;
+        if (m != null) { const d = new Date(AS_OF); d.setDate(d.getDate() + Math.round(m * 30.44)); p.stabilizationDate = d; }
+        else p.stabilizationDate = null;
+      }
+      p.occNow = projectTo(p, occ, GAP, method) * 100;
+    });
+    return rows;
+  };
+  window.getAbsorptionData = getAbsorptionData;
+
+  // ---------- controls ----------
+  const METHODS = [
+    ['fixed', 'Fixed', 'Same leases / month for every deal (industry convention)', '9–10'],
+    ['own', 'Own pace', "Each deal's last 3 months of leasing, from RealPage", '7–8'],
+    ['curve', 'Comparable', 'Typical lease-up curve for this market — slows past 60% leased', '7–8'],
+    ['blend', 'Blend', 'Half own pace, half comparable curve — most accurate in testing', '6–7']
+  ];
+  const picker = document.getElementById('lease-velocity-picker');
+  const holder = picker && picker.parentElement;
+  if (!holder) return;
+  const seg = document.createElement('div');
+  seg.className = 'lu-pace';
+  seg.innerHTML = `<span class="lu-pace-k">Pace</span><div class="lu-pace-seg">${METHODS.map(([k, t, d]) => `<button type="button" data-m="${k}" title="${d}">${t}</button>`).join('')}</div>`;
+  holder.insertBefore(seg, picker);
+  picker.classList.add('lu-vel');
+  const note = document.createElement('div');
+  note.className = 'lu-note';
+  const header = holder.closest('.panel-header');
+  header.after(note);
+  seg.addEventListener('click', e => {
+    const b = e.target.closest('button[data-m]'); if (!b) return;
+    state.paceMethod = b.dataset.m; renderAbsorption();
+  });
+
+  const mo = d => d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  function decorate() {
+    const method = state.paceMethod || 'fixed';
+    const M = METHODS.find(x => x[0] === method);
+    seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === method));
+    picker.style.display = method === 'fixed' ? '' : 'none';
+    const lbl = method === 'fixed' ? `${state.leaseVelocity || 25} leases / mo` : M[1].toLowerCase() + (method === 'own' ? '' : ' method');
+    const sub = header.querySelector('.panel-sub');
+    if (sub) sub.innerHTML = `All properties delivered last 12 months · Est. stabilization to 95% at <b>${lbl}</b>`;
+    const ks = document.getElementById('lu-kpi-stab-sub'); if (ks) ks.textContent = method === 'fixed' ? `At ${state.leaseVelocity || 25}/mo to 95%` : `${M[1]} pace to 95%`;
+    note.innerHTML = `<span><b>${M[1]}:</b> ${M[2]}.</span><span>Tested avg miss 6 mo out: <b>±${M[3]} pts</b> of occupancy.</span><span>Actuals as of ${mo(AS_OF)} · <b>Today</b> column projects ${GAP.toFixed(0)} mo forward with this method.</span>`;
+
+    // extra columns: measured pace (RealPage, last 3 mo) and projected occupancy today
+    const table = document.getElementById('table-absorption'); if (!table) return;
+    const hr = table.querySelector('thead tr');
+    if (!hr.querySelector('.lu-c1')) {
+      const last = hr.lastElementChild;
+      const t1 = document.createElement('th'); t1.className = 'num lu-c1'; t1.textContent = 'Last 3 Mo Pace'; t1.title = 'Leases / month over the last 3 months of RealPage history';
+      const t2 = document.createElement('th'); t2.className = 'num lu-c2'; t2.textContent = 'Today (Proj.)'; t2.title = 'Occupancy projected from the snapshot to today with the selected method';
+      hr.insertBefore(t1, last); hr.insertBefore(t2, last);
+    }
+    const rows = getAbsorptionData(); const by = new Map(rows.map(p => [String(p.id), p]));
+    table.querySelectorAll('tbody tr[data-pid]').forEach(tr => {
+      const p = by.get(String(tr.dataset.pid)); if (!p || tr.querySelector('.lu-c1')) return;
+      const last = tr.lastElementChild;
+      const c1 = document.createElement('td'); c1.className = 'num lu-c1';
+      c1.innerHTML = p.pace3 == null ? '<span class="lu-dim">—</span>' : p.pace3.toFixed(1);
+      const c2 = document.createElement('td'); c2.className = 'num lu-c2';
+      c2.innerHTML = p.occNow == null ? '—' : (p.occNow >= 95 ? '<span class="lu-ok">95%+</span>' : `${p.occNow.toFixed(0)}%<i>est.</i>`);
+      tr.insertBefore(c1, last); tr.insertBefore(c2, last);
+    });
+    const empty = table.querySelector('td.empty'); if (empty) empty.colSpan = 11;
+  }
+  const _render = renderAbsorption;
+  renderAbsorption = function () { const r = _render.apply(this, arguments); try { decorate(); } catch (e) { console.error('[lu-pace]', e); } return r; };
+  window.renderAbsorption = renderAbsorption;
+  try { if (document.getElementById('view-absorption').classList.contains('active')) renderAbsorption(); } catch (e) {}
+})();

@@ -714,3 +714,17 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 #table-invcomps th:nth-child(12), #table-invcomps td:nth-child(12) { padding-left: 24px !important; }
 #table-landcomps th:nth-child(6), #table-landcomps td:nth-child(6) { padding-left: 22px !important; }
 #table-landcomps th:nth-child(10), #table-landcomps td:nth-child(10) { padding-left: 24px !important; }
+
+/* Absorption: pace method switch */
+.lu-pace { display:flex; align-items:center; gap:8px; font-family:var(--x-font); }
+.lu-pace-k { font:600 10.5px/1 var(--x-font); letter-spacing:.08em; text-transform:uppercase; color:var(--x-ink-3); }
+.lu-pace-seg { display:inline-flex; gap:2px; padding:3px; background:#efedf5; border-radius:9px; }
+.lu-pace-seg button { all:unset; cursor:pointer; height:28px; padding:0 12px; border-radius:7px; font:500 12.5px/28px var(--x-font); color:var(--x-ink-3); white-space:nowrap; }
+.lu-pace-seg button:hover { color:var(--x-ink); }
+.lu-pace-seg button.on { background:#fff; color:var(--x-mid); font-weight:600; box-shadow:0 1px 2px rgba(29,18,71,.12); }
+#lease-velocity-picker.lu-vel { min-width:96px !important; height:34px; }
+.lu-note { display:flex; flex-wrap:wrap; gap:6px 22px; margin:-2px 0 12px; padding:10px 0 0; border-top:1px solid var(--x-line); font:400 12.5px/1.4 var(--x-font); color:var(--x-ink-3); }
+.lu-note b { color:var(--x-ink); font-weight:600; }
+#table-absorption td.lu-c2 i { font-style:normal; margin-left:4px; font-size:11px; color:var(--x-ink-3); }
+#table-absorption .lu-ok { color:#1E7268; font-weight:600; }
+#table-absorption .lu-dim { color:#b5b1c4; }
