@@ -22748,27 +22748,13 @@ function txRenderBoard() {
   const bar = document.createElement('div');
   bar.className = 'px-bar';
   bar.innerHTML = `
-    <div class="px-tool">
-    <div class="px-search-slot"></div>
-    <div class="px-pills">
-      <button type="button" class="px-pill" data-k="type">Product type</button>
-      <button type="button" class="px-pill" data-k="class">Class</button>
-      <button type="button" class="px-pill" data-k="loc">Location</button>
-      <button type="button" class="px-pill" data-k="yr">Year built</button>
-      <button type="button" class="px-pill" data-k="size">Size</button>
-      <button type="button" class="px-pill" data-k="rent">Rent</button>
-      <button type="button" class="px-pill" data-k="perf">Occupancy &amp; concessions</button>
-      <button type="button" class="px-clear" hidden>Clear all</button>
-    </div>
-    <div class="px-status-slot"></div>
-    </div>
-    <div class="px-chips"></div>
+    <div class="px-tool"><div class="px-q" aria-label="Property filters"></div><div class="px-search-slot"></div></div>
     <div class="px-sum"></div>`;
   host.after(bar);
   // one toolbar: search + filters on the left, status on the right; header keeps only Add deal / Export
   const srch = document.getElementById('property-search'), seg = document.getElementById('prop-status-toggle');
   if (srch) { srch.placeholder = 'Search name, address, owner…'; srch.removeAttribute('style'); bar.querySelector('.px-search-slot').appendChild(srch); }
-  if (seg) bar.querySelector('.px-status-slot').appendChild(seg);
+  if (seg) { seg.style.display = 'none'; bar.appendChild(seg); }
   host.classList.add('px-host');
   const pop = document.createElement('div');
   pop.className = 'px-pop'; pop.hidden = true;
@@ -22794,7 +22780,9 @@ function txRenderBoard() {
   const sorted = m => [...m.entries()].sort((a, b) => b[1] - a[1]);
   const az = m => [...m.entries()].sort((a, b) => String(a[0]).localeCompare(String(b[0])));
 
+  const STATUS = [['Existing', 'Existing'], ['Under Construction', 'Under construction'], ['Proposed', 'Proposed'], ['all', 'All statuses']];
   const BODY = {
+    status: () => `<div class="px-ph">Status</div><div class="px-opts">${STATUS.map(([v, t]) => `<button type="button" data-st="${v}" class="${state.propStatus === v ? 'on' : ''}">${t}</button>`).join('')}</div>`,
     type: () => `<div class="px-ph">Product type</div>${checks('types', sorted(countBy('style', p => p.style || '—')))}`,
     class: () => `<div class="px-ph">Class</div>${checks('classes', az(countBy('class', p => p.class || '—')))}
       <div class="px-note">Adds to any class filter set in the left panel.</div>`,
@@ -22817,24 +22805,38 @@ function txRenderBoard() {
   function openPop(k, btn) {
     if (openK === k) return closePop();
     openK = k; openBtn = btn;
-    pop.innerHTML = BODY[k](); pop.dataset.k = k; pop.hidden = false;
-    bar.querySelectorAll('.px-pill').forEach(b => b.classList.toggle('open', b === btn));
+    pop.innerHTML = BODY[k]() + (k !== 'status' ? `<div class="px-foot"><button type="button" class="px-reset1">Clear</button><button type="button" class="px-done">Done</button></div>` : '');
+    pop.dataset.k = k; pop.hidden = false;
+    bar.querySelectorAll('.px-tok').forEach(b => b.classList.toggle('open', b.dataset.k === k));
     place(); wirePop();
     const f = pop.querySelector('.px-near-q, .px-find, input[data-r]'); if (f && k !== 'type' && k !== 'class') f.focus();
   }
-  function closePop() { openK = null; pop.hidden = true; bar.querySelectorAll('.px-pill').forEach(b => b.classList.remove('open')); }
+  function closePop() { openK = null; pop.hidden = true; bar.querySelectorAll('.px-tok').forEach(b => b.classList.remove('open')); }
+  const CLEAR = {
+    type: () => PX.types.clear(), class: () => PX.classes.clear(),
+    loc: () => { PX.subs.clear(); PX.cities.clear(); PX.near = null; },
+    yr: () => { PX.yr = [null, null]; }, size: () => { PX.units = [null, null]; PX.usf = [null, null]; PX.stories = [null, null]; },
+    rent: () => { PX.askSF = [null, null]; PX.askU = [null, null]; PX.effSF = [null, null]; },
+    perf: () => { PX.occ = [null, null]; PX.concW = null; }
+  };
   function place() {
-    if (!openBtn) return;
+    if (openK) openBtn = bar.querySelector(`.px-tok[data-k="${openK}"]`) || openBtn;
+    if (!openBtn || !openBtn.isConnected) return;
     const r = openBtn.getBoundingClientRect();
     const w = pop.offsetWidth;
     pop.style.top = Math.round(r.bottom + 8) + 'px';
     pop.style.left = Math.round(Math.max(12, Math.min(r.left, innerWidth - w - 16))) + 'px';
   }
   window.addEventListener('resize', place); window.addEventListener('scroll', place, true);
-  document.addEventListener('mousedown', e => { if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.px-pill')) closePop(); });
+  document.addEventListener('mousedown', e => { if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.px-tok')) closePop(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) closePop(); });
 
   function wirePop() {
+    const r1 = pop.querySelector('.px-reset1'); if (r1) r1.addEventListener('click', () => { const k = openK; CLEAR[k](); rerender(); openK = null; openPop(k, bar.querySelector(`.px-tok[data-k="${k}"]`)); });
+    const dn = pop.querySelector('.px-done'); if (dn) dn.addEventListener('click', closePop);
+    pop.querySelectorAll('[data-st]').forEach(b => b.addEventListener('click', () => {
+      const t = document.querySelector(`#prop-status-toggle .toggle-btn[data-status="${b.dataset.st}"]`); closePop(); if (t) t.click();
+    }));
     pop.querySelectorAll('input[type=checkbox][data-s]').forEach(c => c.addEventListener('change', () => {
       const set = PX[c.dataset.s]; c.checked ? set.add(c.value) : set.delete(c.value); rerender();
     }));
@@ -22875,7 +22877,10 @@ function txRenderBoard() {
   function syncPre() {
     pop.querySelectorAll('[data-p]').forEach(b => { const k = b.dataset.p; b.classList.toggle('on', PX[k][0] === num(b.dataset.a) && PX[k][1] === num(b.dataset.b)); });
   }
-  bar.querySelectorAll('.px-pill').forEach(b => b.addEventListener('click', () => openPop(b.dataset.k, b)));
+  bar.querySelector('.px-q').addEventListener('click', e => {
+    const t = e.target.closest('.px-tok'); if (t) return openPop(t.dataset.k, t);
+    if (e.target.closest('.px-reset')) { Object.keys(CLEAR).forEach(k => CLEAR[k]()); closePop(); rerender(); }
+  });
 
   // ---------- chips, pill labels, summary ----------
   const money = v => '$' + Math.round(v).toLocaleString();
@@ -22897,12 +22902,33 @@ function txRenderBoard() {
     if (PX.concW != null) c.push([`≤ ${PX.concW} wks free`, () => { PX.concW = null; }]);
     return c;
   }
-  const PILL = {
-    type: () => PX.types.size, class: () => PX.classes.size,
-    loc: () => PX.subs.size + PX.cities.size + (PX.near ? 1 : 0),
-    yr: () => +has(PX.yr), size: () => has(PX.units) + has(PX.usf) + has(PX.stories),
-    rent: () => has(PX.askSF) + has(PX.askU) + has(PX.effSF), perf: () => has(PX.occ) + (PX.concW != null)
+  const many = (set, one, n) => set.size === 0 ? null : set.size === 1 ? [...set][0] : set.size === 2 ? [...set].join(' + ') : `${set.size} ${n}`;
+  const parts = list => { const l = list.filter(Boolean); return l.length ? l.join(', ') : null; };
+  const f$ = v => '$' + v.toFixed(2);
+  const TOK = {
+    status: () => [({ Existing: 'Existing', 'Under Construction': 'Under construction', Proposed: 'Proposed', all: 'All' })[state.propStatus] + ' properties', state.propStatus !== 'Existing'],
+    type: () => { const v = many(PX.types, null, 'product types'); return [v || 'any product type', !!v]; },
+    class: () => { const v = PX.classes.size ? 'Class ' + [...PX.classes].sort().join(', ') : null; return [v || 'any class', !!v]; },
+    loc: () => {
+      const v = PX.near ? `within ${PX.radius} mi of ${PX.near.name}` : parts([many(PX.subs, null, 'submarkets'), many(PX.cities, null, 'cities')]);
+      const extra = PX.near && (PX.subs.size || PX.cities.size) ? ' +' : '';
+      return [v ? v + extra : ((window.__WBD && window.__WBD.title) || 'the whole market'), !!v];
+    },
+    yr: () => { const v = has(PX.yr) ? rtxt(PX.yr, x => x) : null; return [v || 'any year', !!v]; },
+    size: () => { const v = parts([has(PX.units) && rtxt(PX.units, x => x.toLocaleString()) + ' units', has(PX.usf) && rtxt(PX.usf, x => x.toLocaleString()) + ' SF units', has(PX.stories) && rtxt(PX.stories, x => x) + ' stories']); return [v || 'any size', !!v]; },
+    rent: () => { const v = parts([has(PX.askSF) && rtxt(PX.askSF, f$) + '/SF asking', has(PX.askU) && rtxt(PX.askU, money) + '/mo', has(PX.effSF) && rtxt(PX.effSF, f$) + '/SF effective']); return [v || 'any rent', !!v]; },
+    perf: () => { const v = parts([has(PX.occ) && rtxt(PX.occ, x => (Math.round(x * 10) / 10) + '%') + ' occupied', PX.concW != null && `≤ ${PX.concW} wks free`]); return [v || 'any occupancy', !!v]; }
   };
+  const SENT = [['', 'status'], ['of', 'type'], ['', 'class'], ['in', 'loc'], ['built', 'yr'], ['', 'size'], ['at', 'rent'], ['', 'perf']];
+  function sentence() {
+    let any = false;
+    const html = SENT.map(([lead, k], i) => {
+      const [t, on] = TOK[k](); if (on && k !== 'status') any = true;
+      const sep = i === 0 ? '' : (i === 2 || i >= 5 ? '<i>,</i> ' : ' ');
+      return `${sep}${lead ? `<i>${lead}</i> ` : ''}<button type="button" class="px-tok${on ? ' on' : ''}${openK === k ? ' open' : ''}" data-k="${k}">${E(t)}</button>`;
+    }).join('');
+    return html + (any ? ` <button type="button" class="px-reset">Reset</button>` : '');
+  }
   function summary(rows) {
     const wa = (f) => { let s = 0, w = 0; rows.forEach(p => { const v = f(p); if (v != null && !isNaN(v) && p.units) { s += v * p.units; w += p.units; } }); return w ? s / w : null; };
     const units = rows.reduce((s, p) => s + (p.units || 0), 0);
@@ -22916,16 +22942,12 @@ function txRenderBoard() {
       cell('Occupancy', o != null ? o.toFixed(1) + '%' : '—', '') +
       cell('Concessions', w != null ? w.toFixed(1) + ' wks' : '—', '') +
       cell('Median vintage', med || '—', '') +
-      `<button type="button" class="px-build" ${rows.length ? '' : 'disabled'}><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Comp set from results</button>`;
+      `<button type="button" class="px-build" ${rows.length ? '' : 'disabled'}><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Save results as comp set</button>`;
   }
   let lastRows = [];
   function paintBar() {
-    const list = chips();
-    bar.querySelector('.px-chips').innerHTML = list.map(([t], i) => `<button type="button" class="px-chip" data-i="${i}">${E(t)}<span>×</span></button>`).join('');
-    bar.querySelectorAll('.px-chip').forEach(b => b.addEventListener('click', () => { list[+b.dataset.i][1](); rerender(); if (openK) { const k = openK; openK = null; openPop(k, openBtn); } }));
-    bar.querySelector('.px-clear').hidden = !list.length;
-    bar.classList.toggle('active', !!list.length);
-    bar.querySelectorAll('.px-pill').forEach(b => { const n = PILL[b.dataset.k](); b.classList.toggle('on', n > 0); b.dataset.n = n || ''; });
+    bar.querySelector('.px-q').innerHTML = sentence();
+    if (openK) place();
     lastRows = window.pxApply(PX.base);
     const building = state.compSetMode === 'building', viewing = state.compSetMode === 'viewing';
     bar.querySelector('.px-sum').innerHTML = summary(lastRows);
@@ -22941,11 +22963,6 @@ function txRenderBoard() {
       });
     }
   }
-  bar.querySelector('.px-clear').addEventListener('click', () => {
-    ['types', 'classes', 'subs', 'cities'].forEach(k => PX[k].clear());
-    PX.near = null; ['yr', 'units', 'usf', 'askSF', 'askU', 'effSF', 'occ', 'stories'].forEach(k => { PX[k] = [null, null]; }); PX.concW = null;
-    closePop(); rerender();
-  });
   // keep the bar in step with any other re-render (status toggle, search, rail filters)
   const _rp = renderProperties;
   renderProperties = function () { const r = _rp.apply(this, arguments); try { paintBar(); } catch (e) {} return r; };
