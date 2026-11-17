@@ -23246,7 +23246,7 @@ function txRenderBoard() {
     if (method === 'fixed') return (state.leaseVelocity || 25) / p.units;
     if (method === 'own') return own != null && own > 0 ? own : c;
     if (method === 'curve') return c;
-    return own != null ? 0.5 * own + 0.5 * c : c;   // blend
+    return own != null && own > 0 ? 0.5 * own + 0.5 * c : c;   // blend; a flat 3-mo history usually means RealPage stopped updating, so lean on the curve
   }
   function monthsTo(p, occ, method, target) {
     target = target || 0.95; let o = occ, m = 0; const own = (ownPace(p) || {}).pts;
