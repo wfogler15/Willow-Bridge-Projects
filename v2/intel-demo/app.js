@@ -22748,6 +22748,8 @@ function txRenderBoard() {
   const bar = document.createElement('div');
   bar.className = 'px-bar';
   bar.innerHTML = `
+    <div class="px-tool">
+    <div class="px-search-slot"></div>
     <div class="px-pills">
       <button type="button" class="px-pill" data-k="type">Product type</button>
       <button type="button" class="px-pill" data-k="class">Class</button>
@@ -22758,9 +22760,16 @@ function txRenderBoard() {
       <button type="button" class="px-pill" data-k="perf">Occupancy &amp; concessions</button>
       <button type="button" class="px-clear" hidden>Clear all</button>
     </div>
+    <div class="px-status-slot"></div>
+    </div>
     <div class="px-chips"></div>
     <div class="px-sum"></div>`;
   host.after(bar);
+  // one toolbar: search + filters on the left, status on the right; header keeps only Add deal / Export
+  const srch = document.getElementById('property-search'), seg = document.getElementById('prop-status-toggle');
+  if (srch) { srch.placeholder = 'Search name, address, owner…'; srch.removeAttribute('style'); bar.querySelector('.px-search-slot').appendChild(srch); }
+  if (seg) bar.querySelector('.px-status-slot').appendChild(seg);
+  host.classList.add('px-host');
   const pop = document.createElement('div');
   pop.className = 'px-pop'; pop.hidden = true;
   document.body.appendChild(pop);
@@ -22901,13 +22910,13 @@ function txRenderBoard() {
     const med = yrs.length ? yrs[Math.floor(yrs.length / 2)] : null;
     const a = wa(p => p.avgAskingSF), au = wa(p => p.avgAskingUnit), e = wa(p => p.avgEffectiveSF), o = wa(occOf), w = wa(wksOf);
     const cell = (k, v, s) => `<div class="px-s"><span>${k}</span><b>${v}</b>${s ? `<em>${s}</em>` : ''}</div>`;
-    return cell('Properties', rows.length.toLocaleString(), units ? units.toLocaleString() + ' units' : '') +
-      cell('Asking rent', a != null ? '$' + a.toFixed(2) + '/SF' : '—', au != null ? money(au) + '/mo' : '') +
-      cell('Effective rent', e != null ? '$' + e.toFixed(2) + '/SF' : '—', '') +
+    return `<div class="px-count"><b>${rows.length.toLocaleString()}</b> properties<em>${units ? units.toLocaleString() + ' units' : ''}</em></div>` +
+      cell('Asking', a != null ? '$' + a.toFixed(2) + '/SF' : '—', au != null ? money(au) + '/mo' : '') +
+      cell('Effective', e != null ? '$' + e.toFixed(2) + '/SF' : '—', '') +
       cell('Occupancy', o != null ? o.toFixed(1) + '%' : '—', '') +
       cell('Concessions', w != null ? w.toFixed(1) + ' wks' : '—', '') +
       cell('Median vintage', med || '—', '') +
-      `<div class="px-acts"><button type="button" class="px-build" ${rows.length ? '' : 'disabled'}>Build comp set from ${rows.length.toLocaleString()} result${rows.length === 1 ? '' : 's'}</button></div>`;
+      `<button type="button" class="px-build" ${rows.length ? '' : 'disabled'}><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Comp set from results</button>`;
   }
   let lastRows = [];
   function paintBar() {
