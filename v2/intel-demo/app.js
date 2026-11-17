@@ -22756,6 +22756,10 @@ function txRenderBoard() {
   if (srch) { srch.placeholder = 'Search name, address, owner…'; srch.removeAttribute('style'); bar.querySelector('.px-search-slot').appendChild(srch); }
   if (seg) { seg.style.display = 'none'; bar.appendChild(seg); }
   host.classList.add('px-host');
+  // the page hero already says Property Index: fold Add deal / Export into the toolbar and drop the duplicate header
+  const acts = document.createElement('div'); acts.className = 'px-acts2';
+  ['prop-add-deal-btn', 'wb-deal-hidden-note', 'prop-export-btn'].forEach(id => { const el = document.getElementById(id); if (el) acts.appendChild(el); });
+  bar.querySelector('.px-tool').appendChild(acts);
   const pop = document.createElement('div');
   pop.className = 'px-pop'; pop.hidden = true;
   document.body.appendChild(pop);

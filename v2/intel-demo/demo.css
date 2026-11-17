@@ -663,3 +663,10 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 .wbi-railtop .wbi-fbtn { height: 34px !important; border: 0 !important; background: transparent !important; font-weight: 500 !important; color: #34304a !important; border-radius: 8px !important; }
 .wbi-railtop .wbi-fbtn:hover { background: #f4f2fa !important; color: #1D1247 !important; }
 .wbi-railtop .wbi-fbtn[aria-expanded="true"] { background: #1D1247 !important; color: #fff !important; }
+
+.px-bar > #prop-status-toggle { display:none !important; }
+#view-properties .panel-header.px-host { display:none !important; }
+.px-bar { padding-top: 4px; }
+.px-acts2 { flex:none; display:flex; align-items:center; gap:14px; padding-top:6px; }
+.px-acts2 .cs-build-btn, .px-acts2 .sc-export-btn { border:0 !important; background:none !important; box-shadow:none !important; padding:6px 2px !important; height:auto !important; font:500 13px/1 var(--x-font) !important; color:var(--x-ink-2) !important; letter-spacing:0 !important; text-transform:none !important; display:inline-flex; align-items:center; gap:5px; }
+.px-acts2 .cs-build-btn:hover, .px-acts2 .sc-export-btn:hover { color:var(--x-purple) !important; }
