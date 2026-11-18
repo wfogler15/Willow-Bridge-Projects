@@ -109,7 +109,7 @@
 
     const s = document.createElement('script');
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
-    s.onload = () => { overlay.remove(); buildShell(); sentenceCase(); document.addEventListener('click', scLater, true); };
+    s.onload = () => { try { buildShell(); sentenceCase(); } finally { document.documentElement.classList.add('wbi-ready'); requestAnimationFrame(() => overlay.remove()); } document.addEventListener('click', scLater, true); };
     s.onerror = () => { overlay.textContent = 'The dashboard code failed to load. Reload the page.'; };
     document.body.appendChild(s);
   }
