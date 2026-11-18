@@ -23558,8 +23558,8 @@ function txRenderBoard() {
     });
     // rail: per-product operations as one compact grid (products across, assumptions down)
     const t = document.createElement('div'); t.className = 'yx-ops';
-    t.innerHTML = `<div class="yx-ops-h">Operations by product</div>
-      <table class="yx-ops-t"><thead><tr><th></th>${YOC_PRODUCT_COLUMNS.map(p => `<th>${p === 'Mid-Rise' ? 'Mid' : p === 'High-Rise' ? 'High' : p}</th>`).join('')}</tr></thead>
+    t.innerHTML = `<div class="yx-ops-h">Operations</div>
+      <table class="yx-ops-t"><thead><tr><th></th>${YOC_PRODUCT_COLUMNS.map(p => `<th>${p}</th>`).join('')}</tr></thead>
       <tbody>${FIELDS.map(([k, label, opts, fmt, key]) => `<tr><td class="l">${label}</td>${YOC_PRODUCT_COLUMNS.map(p =>
         `<td><select id="${PRE[p]}-${k}" class="yx-ops-sel" data-prod="${p}" data-k="${k}" aria-label="${p} ${label}">${opts.map(v => `<option value="${key(v)}">${fmt(v)}</option>`).join('')}</select></td>`).join('')}</tr>`).join('')}</tbody></table>`;
     form.after(t);
