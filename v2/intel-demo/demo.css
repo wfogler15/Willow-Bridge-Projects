@@ -790,3 +790,13 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 /* cards match the Assumptions panel height; footer content sits at the bottom */
 html body #view-yoc .yx-grid { align-items: stretch !important; }
 html body #view-yoc .yx-main, html body #view-yoc #yx-verdict { height: 100%; }
+/* tighten the Assumptions panel so it matches the cards' natural height */
+html body #view-yoc .yx-assump .yx-card-head { padding: 14px 20px 2px; }
+html body #view-yoc .yx-form { padding: 6px 20px 8px; align-items: center; }
+html body #view-yoc .yx-form .yx-field:not([style*="none"]) { display: flex; flex-direction: row; align-items: center; gap: 10px; }
+html body #view-yoc .yx-form .yx-field > span { white-space: nowrap; margin: 0; }
+html body #view-yoc .yx-form .yx-field select { flex: 1; min-width: 0; }
+html body #view-yoc .yx-ops { padding: 0 20px 14px; }
+html body #view-yoc .yx-ops-h { margin: 10px 0 6px; }
+html body #view-yoc .yx-ops-t thead th { padding: 10px 10px 4px; }
+html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
