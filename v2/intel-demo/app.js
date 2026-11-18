@@ -23521,11 +23521,11 @@ function txRenderBoard() {
   const PRE = { 'Garden': 'garden', 'Mid-Rise': 'midrise', 'High-Rise': 'highrise' };
   const range = (a, b, st) => { const o = []; for (let v = a; v <= b + 1e-9; v += st) o.push(+v.toFixed(4)); return o; };
   const FIELDS = [
-    ['opex', 'OpEx', range(0.12, 0.40, 0.01), v => (v * 100).toFixed(0) + '%', v => v.toFixed(2)],
-    ['vacancy', 'Vacancy', range(0.03, 0.10, 0.005), v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%', v => v.toFixed(3)],
-    ['oi', 'Other income', range(0, 6000, 250), v => '$' + v.toLocaleString(), v => String(v)],
+    ['units', 'Units', range(100, 600, 25), v => String(v), v => String(v)],
     ['unitSize', 'Unit size', range(600, 1300, 25), v => v + ' SF', v => String(v)],
-    ['units', 'Units', range(100, 600, 25), v => String(v), v => String(v)]
+    ['oi', 'Other income', range(0, 6000, 250), v => '$' + v.toLocaleString(), v => String(v)],
+    ['vacancy', 'Vacancy', range(0.03, 0.10, 0.005), v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%', v => v.toFixed(3)],
+    ['opex', 'OpEx', range(0.12, 0.40, 0.01), v => (v * 100).toFixed(0) + '%', v => v.toFixed(2)]
   ];
 
   // carry older saved defaults (one global opex / other income / unit size / deal size) into each product
