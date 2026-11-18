@@ -786,3 +786,7 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 #view-yoc .yx-ops-sel { appearance:none; -webkit-appearance:none; width:100%; height:30px; border:0; border-radius:6px; background:transparent; padding:0 8px; text-align:right; text-align-last:right; font:500 13px/30px var(--x-font); color:var(--x-ink); font-variant-numeric:tabular-nums; cursor:pointer; }
 #view-yoc .yx-ops-sel:hover { background:#f3f1f8; }
 #view-yoc .yx-ops-sel:focus { outline:none; background:#efedf7; box-shadow:inset 0 0 0 1.5px var(--x-purple); }
+/* cards match the Assumptions panel height; footer content sits at the bottom */
+html body #view-yoc .yx-grid { align-items: stretch !important; }
+html body #view-yoc .yx-main, html body #view-yoc #yx-verdict { height: 100%; }
+html body #view-yoc .yx-vcard .yx-v-bar { margin-top: auto; }
