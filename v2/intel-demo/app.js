@@ -2532,7 +2532,7 @@ const yocState = {
   targetYoc: 0.0650,
   opex: 0.30,             // global opex — used when opexMode is a fixed % (not 'product')
   opexMode: 'product',    // 'product' = use per-product opexByProduct; or a number string = uniform %
-  opexByProduct: { 'Garden': 0.30, 'Mid-Rise': 0.28, 'High-Rise': 0.25 },
+  opexByProduct: { 'Garden': 0.30, 'Mid-Rise': 0.28, 'High-Rise': 0.17 },
   vacancy: 0.05,         // fixed at 5% per requirements
   otherIncomePerUnit: 2500,  // $/unit/year — other income, matches proforma convention
   unitSize: 925,         // default; user toggles 800-1200 in 25 SF steps
@@ -2550,10 +2550,18 @@ const yocState = {
   growth: 0.02,
   years: 1,
   costs: {
-    'Garden':    { land: 40000, hc: 225, otherHc: 20000, soft: 55000 },
-    'Mid-Rise':  { land: 55000, hc: 300, otherHc: 25000, soft: 65000 },
-    'High-Rise': { land: 60000, hc: 500, otherHc: 30000, soft: 75000 }
+    'Garden':    { land: 40000, hc: 225, otherHc: 20000, soft: 55000, opex: 0.30, vacancy: 0.05, oi: 2500, unitSize: 925, units: 300 },
+    'Mid-Rise':  { land: 55000, hc: 300, otherHc: 25000, soft: 65000, opex: 0.28, vacancy: 0.05, oi: 2500, unitSize: 925, units: 300 },
+    'High-Rise': { land: 60000, hc: 500, otherHc: 30000, soft: 75000, opex: 0.17, vacancy: 0.05, oi: 2500, unitSize: 925, units: 300 }
   }
+};
+// Per-product operating assumptions (Will, Nov 18 2026): only Target YOC and trended rents are shared;
+// opex, vacancy, other income, unit size and deal size are set per product. High-Rise opex 17% per the
+// Tempe high-rise equity model.
+const YOC_OPS_DEFAULTS = {
+  'Garden':    { opex: 0.30, vacancy: 0.05, oi: 2500, unitSize: 925, units: 300 },
+  'Mid-Rise':  { opex: 0.28, vacancy: 0.05, oi: 2500, unitSize: 925, units: 300 },
+  'High-Rise': { opex: 0.17, vacancy: 0.05, oi: 2500, unitSize: 925, units: 300 }
 };
 
 // Underwriting assumption used for the Total Project Cost preview on each
@@ -6321,15 +6329,15 @@ function seedProformaFromYoc() {
   const prod = (yocState.productFilter && yocState.productFilter !== 'all') ? yocState.productFilter : 'Garden';
   pfState.product = prod;
   const c = yocState.costs[prod] || yocState.costs['Garden'];
-  pfState.units = yocState.dealSize || 300;
-  pfState.unitSize = yocState.unitSize || 925;
+  pfState.units = unitsFor(prod) || 300;
+  pfState.unitSize = sfFor(prod) || 925;
   pfState.landPerUnit = c.land;
   pfState.hcPerNRSF = c.hc;
   pfState.otherHcPerUnit = c.otherHc || 0;
   pfState.softPerUnit = c.soft;
-  pfState.vacancyPct = +(yocState.vacancy * 100).toFixed(1);
+  pfState.vacancyPct = +(vacFor(prod) * 100).toFixed(1);
   pfState.opexPct = +(opexFor(prod) * 100).toFixed(1);  // match the YOC matrix (per-product) opex
-  pfState.otherIncomePerUnit = yocState.otherIncomePerUnit || 0;  // match matrix other income
+  pfState.otherIncomePerUnit = oiFor(prod);  // match matrix other income (per product)
   pfState.exitCapPct = 5.25;  // default exit cap
   pfState.trendEnabled = !!yocState.trendEnabled;
   pfState.growthPct = +(yocState.growth * 100).toFixed(2);
@@ -12911,12 +12919,12 @@ function renderOpportunityModal() {
         };
 
         const matrixOpexPct = (opexFor(rr.bucket) * 100).toFixed(0) + '%';
-        const matrixVacPct = (yocState.vacancy * 100).toFixed(0) + '%';
+        const matrixVacPct = (vacFor(rr.bucket) * 100).toFixed(0) + '%';
         const matrixYocPct = (yocState.targetYoc * 100).toFixed(2) + '%';
         const matrixHc = yocState.costs[rr.bucket] ? yocState.costs[rr.bucket].hc : null;
         const matrixOtherHc = yocState.costs[rr.bucket] ? (yocState.costs[rr.bucket].otherHc || 0) : 0;
         const matrixSoft = yocState.costs[rr.bucket] ? (yocState.costs[rr.bucket].soft || 0) : 0;
-        const matrixOi = yocState.otherIncomePerUnit || 0;
+        const matrixOi = oiFor(rr.bucket);
         // Effective land TOTAL for display = per-unit land × proposed units
         const effLandTotal = (o.units && rr.components.landPerUnit != null) ? rr.components.landPerUnit * o.units : null;
         // Default land total shown as placeholder = UW land price (total)
@@ -12937,7 +12945,7 @@ function renderOpportunityModal() {
               ${ov('Vacancy', 'uwVacancy', o.uwVacancy, rr.components.vacancy * 100, matrixVacPct, '%', v => v.toFixed(1) + '%', '0.1')}
               ${ov('OpEx Ratio', 'uwOpex', o.uwOpex, rr.components.opex * 100, matrixOpexPct, '%', v => v.toFixed(1) + '%', '0.5')}
               ${ov('Land — Total', 'uwLandTotalOverride', o.uwLandTotalOverride, effLandTotal, money0(defaultLandTotal) + ' (UW land)', '$', money0, '100000')}
-              ${ov('Avg Unit Size', 'uwAvgUnitSize', o.uwAvgUnitSize, rr.components.sf, yocState.unitSize + ' SF', 'SF', v => Math.round(v).toLocaleString() + ' SF', '5')}
+              ${ov('Avg Unit Size', 'uwAvgUnitSize', o.uwAvgUnitSize, rr.components.sf, sfFor(rr.bucket) + ' SF', 'SF', v => Math.round(v).toLocaleString() + ' SF', '5')}
               ${ov('Hard Cost / NRSF', 'uwHardCostPerNRSF', o.uwHardCostPerNRSF, rr.components.hc, money0(matrixHc), '$', v => '$' + Math.round(v).toLocaleString(), '1')}
               ${ov('Other HC / Unit', 'uwOtherHcPerUnit', o.uwOtherHcPerUnit, rr.components.otherHc, money0(matrixOtherHc), '$', money0, '500')}
               ${ov('Soft / Unit', 'uwSoftPerUnit', o.uwSoftPerUnit, rr.components.soft, money0(matrixSoft), '$', money0, '500')}
@@ -15695,7 +15703,18 @@ document.addEventListener('keydown', e => {
 // Opex ratio for a product. When opexMode is 'product', each product type uses
 // its own default (Garden 30% / Mid-Rise 28% / High-Rise 25%); otherwise a
 // single uniform opex (yocState.opex) applies across all products.
+function yocOps(productType, key, fallback) {
+  const c = yocState.costs[productType];
+  return (c && c[key] != null) ? c[key] : fallback;
+}
+function vacFor(productType) { return yocOps(productType, 'vacancy', yocState.vacancy); }
+function oiFor(productType) { return yocOps(productType, 'oi', yocState.otherIncomePerUnit || 0); }
+function sfFor(productType) { return yocOps(productType, 'unitSize', yocState.unitSize); }
+function unitsFor(productType) { return yocOps(productType, 'units', yocState.dealSize); }
+function yocOpsList(fn, fmt) { return YOC_PRODUCT_COLUMNS.map(p => fmt(fn(p))).join(' / ') + ' (G / M / H)'; }
 function opexFor(productType) {
+  const own = yocOps(productType, 'opex', null);
+  if (own != null) return own;
   if (yocState.opexMode === 'product') {
     const v = yocState.opexByProduct && yocState.opexByProduct[productType];
     if (v != null) return v;
@@ -15713,7 +15732,6 @@ function affTag(p) {
 // run different ratios (Garden / Mid-Rise / High-Rise), so a single flat number would
 // misstate two of them. `prod` limits it to one product; omit it for all three.
 function opexLabel(prod) {
-  if (yocState.opexMode !== 'product') return (yocState.opex * 100).toFixed(0) + '%';
   if (prod) return (opexFor(prod) * 100).toFixed(0) + '%';
   return YOC_PRODUCT_COLUMNS.map(pr => (opexFor(pr) * 100).toFixed(0) + '%').join(' / ') + ' (Garden / Mid-Rise / High-Rise)';
 }
@@ -15755,8 +15773,8 @@ function requiredPsfRent(productType, sf) {
   // opex is taken on Gross Potential Rent (rent GPR + other income), and other
   // income offsets the rent needed.
   //   NOI = (rentGPR + OI)·(1 − vac − opex)  ⇒  rentGPR = NOI/(1−vac−opex) − OI
-  const oiPerUnit = yocState.otherIncomePerUnit || 0;  // annual $/unit
-  const denom = (1 - yocState.vacancy - opexFor(productType));
+  const oiPerUnit = oiFor(productType);  // annual $/unit
+  const denom = (1 - vacFor(productType) - opexFor(productType));
   if (denom <= 0) return null;
   const rentGprPerUnit = targetNoi / denom - oiPerUnit;
   const requiredAtDelivery = rentGprPerUnit / 12 / sf;
@@ -15803,9 +15821,9 @@ function rocFromPsf(psf, productType, sf, submarket) {
   const tc = c.land + c.hc * sf + (c.otherHc || 0) + c.soft;
   // Match the dev proforma: gross potential = rent + other income; opex on GPR.
   const rentGpr = psfAtDelivery * 12 * sf;
-  const oiPerUnit = yocState.otherIncomePerUnit || 0;  // annual $/unit
+  const oiPerUnit = oiFor(productType);  // annual $/unit
   const grossPotential = rentGpr + oiPerUnit;
-  const noi = grossPotential * (1 - yocState.vacancy - opexFor(productType));
+  const noi = grossPotential * (1 - vacFor(productType) - opexFor(productType));
   return noi / tc;  // as a decimal, e.g. 0.0651
 }
 
@@ -16216,8 +16234,8 @@ function requiredRentForOpp(opp, opts) {
     vacancy = opp.uwVacancy / 100;
     sources.vacancy = 'UW · deal';
   } else {
-    vacancy = yocState.vacancy;
-    sources.vacancy = 'YOC matrix · global';
+    vacancy = vacFor(bucket);
+    sources.vacancy = `YOC matrix · ${bucket}`;
   }
 
   // OpEx ratio — deal override (uwOpex, stored as percent) else matrix (which
@@ -16237,8 +16255,8 @@ function requiredRentForOpp(opp, opts) {
     oiPerUnit = opp.uwOtherIncomePerUnit;
     sources.oi = 'UW · deal';
   } else {
-    oiPerUnit = yocState.otherIncomePerUnit || 0;
-    sources.oi = 'YOC matrix · global';
+    oiPerUnit = oiFor(bucket);
+    sources.oi = `YOC matrix · ${bucket}`;
   }
 
   // Land cost per unit. A deal can override the TOTAL land value (for
@@ -16290,8 +16308,8 @@ function requiredRentForOpp(opp, opts) {
     sf = opp.uwAvgUnitSize;
     sources.sf = 'UW · deal';
   } else {
-    sf = yocState.unitSize;
-    sources.sf = 'YOC matrix · global';
+    sf = sfFor(bucket);
+    sources.sf = `YOC matrix · ${bucket}`;
   }
 
   // Other HC + Soft — deal per-unit override if set, else matrix bucket default
@@ -16388,12 +16406,12 @@ function renderYoc() {
 
   // 1. Required PSF strip
   const reqStrip = activeProducts.map(prod => {
-    const req = requiredPsfRent(prod, yocState.unitSize);  // today's required PSF (trended-discounted if enabled)
+    const req = requiredPsfRent(prod, sfFor(prod));  // today's required PSF (trended-discounted if enabled)
     const reqAtDelivery = trendGrow(req);  // at-delivery rent target — same as req when trend is off
     // Monthly rent equivalents — PSF × unit size, so the user can see
     // "I need $2,610/mo on an 870 SF unit" without doing the math in their head.
-    const reqMonthly = req == null ? null : req * yocState.unitSize;
-    const reqMonthlyAtDelivery = reqAtDelivery == null ? null : reqAtDelivery * yocState.unitSize;
+    const reqMonthly = req == null ? null : req * sfFor(prod);
+    const reqMonthlyAtDelivery = reqAtDelivery == null ? null : reqAtDelivery * sfFor(prod);
     const fmtMonthly = v => v == null ? '—' : '$' + Math.round(v).toLocaleString();
     const trendDetail = yocState.trendEnabled
       ? ` · ${yocState.years}yr @ ${(yocState.growth*100).toFixed(1)}% → $${reqAtDelivery.toFixed(2)} / SF ${fmtMonthly(reqMonthlyAtDelivery)} at delivery`
@@ -16402,8 +16420,8 @@ function renderYoc() {
       <div class="yoc-req-cell">
         <div class="yoc-req-label">Required PSF · ${prod}${yocState.trendEnabled ? ' · Today' : ''}</div>
         <div class="yoc-req-val">$${req == null ? '—' : req.toFixed(2)}<span class="unit">/SF</span></div>
-        <div class="yoc-req-monthly">${fmtMonthly(reqMonthly)}<span class="unit">/mo</span> · ${yocState.unitSize} SF</div>
-        <div class="yoc-req-detail">Target ${(yocState.targetYoc*100).toFixed(2)}% YOC · ${opexLabel(prod)} OpEx · ${(yocState.vacancy*100).toFixed(0)}% VL${trendDetail}</div>
+        <div class="yoc-req-monthly">${fmtMonthly(reqMonthly)}<span class="unit">/mo</span> · ${sfFor(prod)} SF</div>
+        <div class="yoc-req-detail">Target ${(yocState.targetYoc*100).toFixed(2)}% YOC · ${opexLabel(prod)} OpEx · ${(vacFor(prod)*100).toFixed(0)}% VL${trendDetail}</div>
       </div>
     `;
   }).join('');
@@ -16428,9 +16446,9 @@ function renderYoc() {
     if (!el) return;
     const c = yocState.costs[prod];
     if (!c) { el.innerHTML = ''; return; }
-    const tcPerUnit = c.land + c.hc * yocState.unitSize + (c.otherHc || 0) + c.soft;
+    const tcPerUnit = c.land + c.hc * sfFor(prod) + (c.otherHc || 0) + c.soft;
     el.innerHTML = `
-      <span class="label">TPC / Unit <span class="qual">· Based on ${yocState.dealSize} units</span></span>
+      <span class="label">TPC / Unit <span class="qual">· Based on ${unitsFor(prod)} units</span></span>
       <span class="value">${fmtTpcPerUnit(tcPerUnit)}</span>
     `;
   });
@@ -16545,7 +16563,7 @@ function renderYoc() {
       <button type="button" class="yx-gh-sort${sortKey === 'alpha' ? ' on' : ''}" data-sort="alpha" title="Sort A–Z">A–Z${sortKey === 'alpha' ? ' ↓' : ''}</button></span>
       <span class="yx-ph-req yx-gh-count">${groupKeys.length} ${yocState.groupBy === 'city' ? 'cities' : 'submarkets'}</span></th>`;
   for (const prod of activeProducts) {
-    const reqH = requiredPsfRent(prod, yocState.unitSize);
+    const reqH = requiredPsfRent(prod, sfFor(prod));
     const on = sortKey === 'prod:' + prod;
     theadHtml += `<th colspan="2" class="product-header yx-sortable${on ? ' on' : ''}" data-sort="prod:${escapeHTML(prod)}" title="Sort by ${escapeHTML(prod)} rent, high to low"><span class="yx-ph-name">${prod}${arrow(on)}</span><span class="yx-ph-req">Needs $${reqH == null ? '—' : reqH.toFixed(2)}/SF</span></th>`;
   }
@@ -16609,8 +16627,8 @@ function renderYoc() {
       // market rent benchmark, while the color band reflects the trended ROC.
       // Pass `sm` so the trend math can pull this submarket's RealPage forecast
       // CAGR when trendSource === 'rp'.
-      const rocAvg = rocFromPsf(avg, prod, yocState.unitSize, sm);
-      const rocBest = rocFromPsf(best, prod, yocState.unitSize, sm);
+      const rocAvg = rocFromPsf(avg, prod, sfFor(prod), sm);
+      const rocBest = rocFromPsf(best, prod, sfFor(prod), sm);
 
       const firstInGroup = pi > 0;
 
@@ -16782,9 +16800,9 @@ function renderYxVerdict() {
   const bands = yocColorBands();
   const groupWord = yocState.groupBy === 'city' ? 'cities' : 'submarkets';
   YOC_PRODUCT_COLUMNS.forEach(prod => {
-    const req = requiredPsfRent(prod, yocState.unitSize);
+    const req = requiredPsfRent(prod, sfFor(prod));
     const c = yocState.costs[prod];
-    const tpc = c ? c.land + c.hc * yocState.unitSize + (c.otherHc || 0) + c.soft : null;
+    const tpc = c ? c.land + c.hc * sfFor(prod) + (c.otherHc || 0) + c.soft : null;
     const counts = Object.fromEntries(bands.map(b => [b.key, 0]));
     let total = 0; const clears = [];
     const threshold = yocState.targetYoc - 0.0015;
@@ -16794,7 +16812,7 @@ function renderYxVerdict() {
       total++;
       const w = props.filter(p => p.units != null);
       const psf = w.length ? weightedAvg(w, 'avgAskingSF', 'units') : props.reduce((s, p) => s + p.avgAskingSF, 0) / props.length;
-      const roc = rocFromPsf(psf, prod, yocState.unitSize, sm);
+      const roc = rocFromPsf(psf, prod, sfFor(prod), sm);
       const b = yocBandFor(roc);
       if (b) counts[b.key]++;
       if (roc != null && roc >= threshold) clears.push({ sm, roc, n: props.length, psf, best: Math.max(...props.map(p => p.avgAskingSF)), units: props.reduce((t, p) => t + (p.units || 0), 0), props });
@@ -16806,7 +16824,7 @@ function renderYxVerdict() {
       + ` <button type="button" class="yx-v-all" data-prod="${escapeHTML(prod)}">${clears.length > 3 ? '+' + (clears.length - 3) + ' more' : 'Details'}</button>`;
     const active = yocState.productFilter === prod;
     const dim = yocState.productFilter !== 'all' && !active;
-    const monthly = req == null ? null : req * yocState.unitSize;
+    const monthly = req == null ? null : req * sfFor(prod);
     const card = host.querySelector(`.yx-vcard[data-prod="${prod}"]`);
     if (!card) return;
     card.classList.toggle('active', active);
@@ -16814,7 +16832,7 @@ function renderYxVerdict() {
     const f = k => card.querySelector(`[data-f="${k}"]`);
     f('label').textContent = `Rent needed for ${(yocState.targetYoc * 100).toFixed(2)}% YOC`;
     f('req').innerHTML = `$${req == null ? '—' : req.toFixed(2)}<small>/SF</small>`;
-    f('mo').textContent = `$${monthly == null ? '—' : Math.round(monthly).toLocaleString()}/mo on ${yocState.unitSize} SF · ${opexLabel(prod)} OpEx`;
+    f('mo').textContent = `$${monthly == null ? '—' : Math.round(monthly).toLocaleString()}/mo on ${sfFor(prod)} SF · ${opexLabel(prod)} OpEx · ${(vacFor(prod)*100).toFixed(0)}% vac`;
     f('bar').innerHTML = seg || '<i class="thin" style="flex:1"></i>';
     f('foot').innerHTML = `<b>${clears.length}</b> of ${total} ${groupWord} pencil`;
     f('best').innerHTML = clears.length ? names : 'None at today\'s rents';
@@ -16921,7 +16939,7 @@ function renderYocThresholdPanel(grouped, groupKeys) {
       }
       if (psf == null) continue;
 
-      const roc = rocFromPsf(psf, prod, yocState.unitSize, sm);
+      const roc = rocFromPsf(psf, prod, sfFor(prod), sm);
       if (roc == null) continue;
       if (roc < threshold) continue;
       rows.push({ sm, prod, psf, roc, bestPid, bestName, n: props.filter(p => p.avgAskingSF != null && !isNaN(p.avgAskingSF)).length });
@@ -17087,7 +17105,7 @@ function openYocGroupDetail(groupName, productType) {
   // ROC at the weighted PSF (factors in trend assumption if enabled).
   // When grouped by submarket, `groupName` is the submarket → RP forecast lookup
   // works. When grouped by city, the lookup falls back to flat growth.
-  const roc = rocFromPsf(weightedPsf, productType, yocState.unitSize, groupName);
+  const roc = rocFromPsf(weightedPsf, productType, sfFor(productType), groupName);
 
   // Compose the modal body
   const rowsHtml = sourceData.map(p => `
@@ -18962,7 +18980,8 @@ function resetYocDefaults() {
   yocState.targetYoc = 0.0650;
   yocState.opex = 0.30;
   yocState.opexMode = 'product';
-  yocState.opexByProduct = { 'Garden': 0.30, 'Mid-Rise': 0.28, 'High-Rise': 0.25 };
+  yocState.opexByProduct = { 'Garden': 0.30, 'Mid-Rise': 0.28, 'High-Rise': 0.17 };
+  for (const p of YOC_PRODUCT_COLUMNS) Object.assign(yocState.costs[p], YOC_OPS_DEFAULTS[p]);
   yocState.otherIncomePerUnit = 2500;
   yocState.unitSize = 925;
   yocState.dealSize = 300;
@@ -19101,7 +19120,7 @@ function exportYocMatrixPdf() {
   // Per-product cost breakdown table
   const costRows = YOC_PRODUCT_COLUMNS.map(prod => {
     const c = yocState.costs[prod];
-    const tcPerUnit = c.land + c.hc * yocState.unitSize + (c.otherHc || 0) + c.soft;
+    const tcPerUnit = c.land + c.hc * sfFor(prod) + (c.otherHc || 0) + c.soft;
     return `
       <tr>
         <td><strong>${prod}</strong></td>
@@ -19271,8 +19290,8 @@ function exportYocMatrixPdf() {
         <div class="pdf-footer-list">
           <strong>Target YOC:</strong> ${fmtPct(yocState.targetYoc)}<br>
           <strong>OpEx Ratio:</strong> ${opexLabel()}<br>
-          <strong>Vacancy:</strong> ${fmtPct(yocState.vacancy, 0)}<br>
-          <strong>Avg Unit Size:</strong> ${yocState.unitSize} SF<br>
+          <strong>Vacancy:</strong> ${yocOpsList(vacFor, v => fmtPct(v, 0))}<br>
+          <strong>Avg Unit Size:</strong> ${yocOpsList(sfFor, v => v + ' SF')}<br>
           <strong>Product Filter:</strong> ${productFilterLabel}<br>
           <strong>Comp Set:</strong> ${yocCompLabel()} (min ${yocState.minAvgUnitSf} SF avg unit)<br>
           <strong>Grouped By:</strong> ${groupByLabel}<br>
@@ -20113,7 +20132,7 @@ async function exportMarketReportPdf(reportOptions) {
   // YOC cost assumptions table for the appendix
   const yocCostRows = YOC_PRODUCT_COLUMNS.map(prod => {
     const c = yocState.costs[prod];
-    const tcPerUnit = c.land + c.hc * yocState.unitSize + (c.otherHc || 0) + c.soft;
+    const tcPerUnit = c.land + c.hc * sfFor(prod) + (c.otherHc || 0) + c.soft;
     return `
       <tr>
         <td><strong>${prod}</strong></td>
@@ -20975,7 +20994,7 @@ async function exportMarketReportPdf(reportOptions) {
   <!-- SECTION 4: YOC MATRIX -->
   ${sections.yoc ? `<div class="report-section section-break">
     <h2>Yield-on-Cost <em>Matrix</em></h2>
-    <div class="section-sub">Target ${(yocState.targetYoc*100).toFixed(2)}% YOC · ${opexLabel()} OpEx · ${(yocState.vacancy*100).toFixed(0)}% VL · ${yocState.unitSize} SF avg unit · Comps: ${yocCompLabel()}</div>
+    <div class="section-sub">Target ${(yocState.targetYoc*100).toFixed(2)}% YOC · ${opexLabel()} OpEx · ${yocOpsList(vacFor, v => (v*100).toFixed(0) + '%')} VL · ${yocOpsList(sfFor, v => v + ' SF')} avg unit · Comps: ${yocCompLabel()}</div>
     <!-- The Required PSF strip and threshold panel both come back as standalone -->
     <div class="yoc-print-strip-wrap">
       ${yocStripHtml}
@@ -23487,4 +23506,84 @@ function txRenderBoard() {
     return r;
   };
   window.renderPropertyMap = renderPropertyMap;
+})();
+
+/* =================================================================
+   DEMO: per-product operating assumptions in each YOC product card.
+   Shared (rail): Target YOC, trended rents, comp set. Per product: land,
+   hard cost, other HC, soft, opex, vacancy, other income, unit size, units.
+   Values live on yocState.costs[prod], so "Save current as default" keeps them.
+   ================================================================= */
+(function yocPerProduct() {
+  if (typeof yocState === 'undefined' || typeof renderYoc !== 'function') return;
+  const PRE = { 'Garden': 'garden', 'Mid-Rise': 'midrise', 'High-Rise': 'highrise' };
+  const range = (a, b, st) => { const o = []; for (let v = a; v <= b + 1e-9; v += st) o.push(+v.toFixed(4)); return o; };
+  const FIELDS = [
+    ['opex', 'OpEx ratio', range(0.12, 0.40, 0.01), v => (v * 100).toFixed(0) + '%', v => v.toFixed(2)],
+    ['vacancy', 'Vacancy', range(0.03, 0.10, 0.005), v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%', v => v.toFixed(3)],
+    ['oi', 'Other inc. / unit', range(0, 6000, 250), v => '$' + v.toLocaleString(), v => String(v)],
+    ['unitSize', 'Avg unit size', range(600, 1300, 25), v => v + ' SF', v => String(v)],
+    ['units', 'Units', range(100, 600, 25), v => String(v), v => String(v)]
+  ];
+
+  // carry older saved defaults (one global opex / other income / unit size / deal size) into each product
+  function migrate() {
+    let d = null; try { d = loadYocSavedDefaults(); } catch (e) {}
+    if (!d || !d.costs || !d.costs.Garden || d.costs.Garden.unitSize != null) return;
+    for (const p of YOC_PRODUCT_COLUMNS) {
+      const c = yocState.costs[p], def = YOC_OPS_DEFAULTS[p];
+      c.oi = d.otherIncomePerUnit != null ? d.otherIncomePerUnit : def.oi;
+      c.unitSize = d.unitSize != null ? d.unitSize : def.unitSize;
+      c.units = d.dealSize != null ? d.dealSize : def.units;
+      c.opex = (d.opexMode && d.opexMode !== 'product' && d.opex != null) ? d.opex : def.opex;
+      if (c.vacancy == null) c.vacancy = def.vacancy;
+    }
+  }
+  const _apply = applyYocSavedDefaults;
+  applyYocSavedDefaults = function () { const r = _apply.apply(this, arguments); if (r) migrate(); return r; };
+  migrate();
+
+  let built = false;
+  function build() {
+    if (built) return;
+    const cards = document.querySelectorAll('#yx-verdict .yx-vcard'); if (!cards.length) return;
+    cards.forEach(card => {
+      const prod = card.dataset.prod, box = card.querySelector('.yx-v-costs'); if (!box) return;
+      const head = document.createElement('div'); head.className = 'yx-c-sub'; head.textContent = 'Operations';
+      box.appendChild(head);
+      const grid = document.createElement('div'); grid.className = 'yx-ops-grid'; box.appendChild(grid);
+      FIELDS.forEach(([k, label, opts, fmt, key]) => {
+        const row = document.createElement('label'); row.className = 'yx-c-row';
+        row.innerHTML = `<span>${label}</span><select id="${PRE[prod]}-${k}" class="yoc-cost-select yx-ops-sel" data-prod="${prod}" data-k="${k}">${opts.map(v => `<option value="${key(v)}">${fmt(v)}</option>`).join('')}</select>`;
+        grid.appendChild(row);
+      });
+    });
+    document.querySelectorAll('.yx-ops-sel').forEach(sel => sel.addEventListener('change', () => {
+      const v = parseFloat(sel.value); if (isNaN(v)) return;
+      yocState.costs[sel.dataset.prod][sel.dataset.k] = v;
+      renderYoc();
+    }));
+    // rail keeps only the shared assumptions
+    ['yoc-opex', 'yoc-otherincome', 'yoc-unitsize', 'yoc-dealsize'].forEach(id => {
+      const el = document.getElementById(id); const f = el && (el.closest('.yx-field') || el.closest('label'));
+      if (f) f.style.display = 'none';
+    });
+    built = true;
+  }
+  function sync() {
+    FIELDS.forEach(([k, , opts, , key]) => {
+      for (const p of YOC_PRODUCT_COLUMNS) {
+        const sel = document.getElementById(`${PRE[p]}-${k}`); if (!sel) continue;
+        const v = yocState.costs[p][k]; if (v == null) continue;
+        const want = key(v);
+        if (![...sel.options].some(o => o.value === want)) {   // keep an off-grid saved value selectable
+          const o = document.createElement('option'); o.value = want; o.textContent = FIELDS.find(f => f[0] === k)[3](v); sel.appendChild(o);
+        }
+        if (sel.value !== want) sel.value = want;
+      }
+    });
+  }
+  const _render = renderYoc;
+  renderYoc = function () { try { build(); sync(); } catch (e) { console.error('[yoc-ops]', e); } return _render.apply(this, arguments); };
+  window.renderYoc = renderYoc;
 })();

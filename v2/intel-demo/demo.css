@@ -767,3 +767,7 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 .mm-table th.txt, .mm-table td.txt { text-align:left !important; }
 .mm-table th.num, .mm-table td.num { text-align:right !important; }
 .mm-table th:first-child, .mm-table td:first-child { padding-left:4px; }
+
+/* YOC: per-product operations block inside each product card */
+.yx-c-sub { grid-column:1 / -1; margin:10px 0 2px; padding-top:10px; border-top:1px solid var(--x-line); font:600 10.5px/1 var(--x-font); letter-spacing:.08em; text-transform:uppercase; color:var(--x-ink-3); }
+#view-yoc .yx-ops-grid { grid-column:1 / -1; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; }
