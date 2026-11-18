@@ -23521,10 +23521,10 @@ function txRenderBoard() {
   const PRE = { 'Garden': 'garden', 'Mid-Rise': 'midrise', 'High-Rise': 'highrise' };
   const range = (a, b, st) => { const o = []; for (let v = a; v <= b + 1e-9; v += st) o.push(+v.toFixed(4)); return o; };
   const FIELDS = [
-    ['opex', 'OpEx ratio', range(0.12, 0.40, 0.01), v => (v * 100).toFixed(0) + '%', v => v.toFixed(2)],
+    ['opex', 'OpEx', range(0.12, 0.40, 0.01), v => (v * 100).toFixed(0) + '%', v => v.toFixed(2)],
     ['vacancy', 'Vacancy', range(0.03, 0.10, 0.005), v => (v * 100).toFixed(1).replace(/\.0$/, '') + '%', v => v.toFixed(3)],
-    ['oi', 'Other inc. / unit', range(0, 6000, 250), v => '$' + v.toLocaleString(), v => String(v)],
-    ['unitSize', 'Avg unit size', range(600, 1300, 25), v => v + ' SF', v => String(v)],
+    ['oi', 'Other income', range(0, 6000, 250), v => '$' + v.toLocaleString(), v => String(v)],
+    ['unitSize', 'Unit size', range(600, 1300, 25), v => v + ' SF', v => String(v)],
     ['units', 'Units', range(100, 600, 25), v => String(v), v => String(v)]
   ];
 
@@ -23549,25 +23549,26 @@ function txRenderBoard() {
   function build() {
     if (built) return;
     const cards = document.querySelectorAll('#yx-verdict .yx-vcard'); if (!cards.length) return;
+    const form = document.querySelector('.yx-assump .yx-form'); if (!form) return;
+    // cards: costs stay; one quiet total hard cost line under them
     cards.forEach(card => {
       const prod = card.dataset.prod, box = card.querySelector('.yx-v-costs'); if (!box) return;
       const tot = document.createElement('div'); tot.className = 'yx-hc-total'; tot.dataset.prod = prod;
       box.appendChild(tot);
-      const head = document.createElement('div'); head.className = 'yx-c-sub'; head.textContent = 'Operations';
-      box.appendChild(head);
-      const grid = document.createElement('div'); grid.className = 'yx-ops-grid'; box.appendChild(grid);
-      FIELDS.forEach(([k, label, opts, fmt, key]) => {
-        const row = document.createElement('label'); row.className = 'yx-c-row';
-        row.innerHTML = `<span>${label}</span><select id="${PRE[prod]}-${k}" class="yoc-cost-select yx-ops-sel" data-prod="${prod}" data-k="${k}">${opts.map(v => `<option value="${key(v)}">${fmt(v)}</option>`).join('')}</select>`;
-        grid.appendChild(row);
-      });
     });
-    document.querySelectorAll('.yx-ops-sel').forEach(sel => sel.addEventListener('change', () => {
+    // rail: per-product operations as one compact grid (products across, assumptions down)
+    const t = document.createElement('div'); t.className = 'yx-ops';
+    t.innerHTML = `<div class="yx-ops-h">Operations by product</div>
+      <table class="yx-ops-t"><thead><tr><th></th>${YOC_PRODUCT_COLUMNS.map(p => `<th>${p === 'Mid-Rise' ? 'Mid' : p === 'High-Rise' ? 'High' : p}</th>`).join('')}</tr></thead>
+      <tbody>${FIELDS.map(([k, label, opts, fmt, key]) => `<tr><td class="l">${label}</td>${YOC_PRODUCT_COLUMNS.map(p =>
+        `<td><select id="${PRE[p]}-${k}" class="yx-ops-sel" data-prod="${p}" data-k="${k}" aria-label="${p} ${label}">${opts.map(v => `<option value="${key(v)}">${fmt(v)}</option>`).join('')}</select></td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    form.after(t);
+    t.querySelectorAll('.yx-ops-sel').forEach(sel => sel.addEventListener('change', () => {
       const v = parseFloat(sel.value); if (isNaN(v)) return;
       yocState.costs[sel.dataset.prod][sel.dataset.k] = v;
       renderYoc();
     }));
-    // rail keeps only the shared assumptions
+    // rail keeps only the shared assumptions up top
     ['yoc-opex', 'yoc-otherincome', 'yoc-unitsize', 'yoc-dealsize'].forEach(id => {
       const el = document.getElementById(id); const f = el && (el.closest('.yx-field') || el.closest('label'));
       if (f) f.style.display = 'none';
@@ -23581,8 +23582,7 @@ function txRenderBoard() {
       if (!c || !sf) { el.textContent = ''; return; }
       const hcU = c.hc * sf + (c.otherHc || 0);
       const tpc = (c.land || 0) + hcU + (c.soft || 0);
-      el.innerHTML = `<span class="k">Total hard cost</span><b>$${Math.round(hcU).toLocaleString()}</b><span class="u">/ unit</span>` +
-        `<span class="d">$${Math.round(hcU / sf)}/SF on ${sf} SF</span><span class="d">${Math.round(hcU / tpc * 100)}% of total cost</span>`;
+      el.innerHTML = `Total hard cost <b>$${Math.round(hcU / 1000).toLocaleString()}K</b> / unit · $${Math.round(hcU / sf)}/SF on ${sf} SF · ${Math.round(hcU / tpc * 100)}% of cost`;
     });
   }
   function sync() {
