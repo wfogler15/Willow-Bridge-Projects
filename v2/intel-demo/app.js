@@ -23603,3 +23603,30 @@ function txRenderBoard() {
   renderYoc = function () { try { build(); sync(); } catch (e) { console.error('[yoc-ops]', e); } return _render.apply(this, arguments); };
   window.renderYoc = renderYoc;
 })();
+
+/* DEMO: "Save as default for all markets" — writes the same YOC defaults to every market's
+   namespaced key (wbv2:intel-demo:<market>:yoc_defaults_v1). The loader re-scopes Storage to the
+   current market, so the write uses an unpatched Storage from a blank same-origin iframe. */
+(function yocSaveAll() {
+  const btn = document.getElementById('yx-save-all'); if (!btn) return;
+  function nativeStorage() {
+    const f = document.createElement('iframe'); f.style.display = 'none'; document.body.appendChild(f);
+    const P = f.contentWindow.Storage.prototype;
+    const api = { get: k => P.getItem.call(window.localStorage, k), set: (k, v) => P.setItem.call(window.localStorage, k, v), key: i => P.key.call(window.localStorage, i), done: () => f.remove() };
+    return api;
+  }
+  btn.addEventListener('click', () => {
+    if (!saveYocDefaults()) return;
+    const cur = new URLSearchParams(location.search).get('market') || 'denver';
+    const S = nativeStorage();
+    try {
+      const json = S.get(`wbv2:intel-demo:${cur}:${YOC_DEFAULTS_KEY}`);
+      const markets = new Set(['denver', 'phoenix', cur]);
+      for (let i = 0; ; i++) { const k = S.key(i); if (k == null) break; const m = k.match(/^wbv2:intel-demo:([a-z0-9-]+):market$/); if (m) markets.add(m[1]); }
+      markets.forEach(m => S.set(`wbv2:intel-demo:${m}:${YOC_DEFAULTS_KEY}`, json));
+      btn.textContent = `Saved for ${markets.size} markets`;
+    } finally { S.done(); }
+    try { updateYxDefaultNote(); } catch (e) {}
+    setTimeout(() => { btn.textContent = 'Save as default for all markets'; const m = document.getElementById('yx-menu'); if (m) m.hidden = true; }, 1100);
+  });
+})();
