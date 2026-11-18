@@ -19127,6 +19127,7 @@ function exportYocMatrixPdf() {
         <td>${fmtK(c.land)}</td>
         <td>${fmtDollar(c.hc)}</td>
         <td>${fmtK(c.otherHc || 0)}</td>
+        <td>${fmtK(c.hc * sfFor(prod) + (c.otherHc || 0))}</td>
         <td>${fmtK(c.soft)}</td>
         <td><strong>${fmtTpcPerUnit(tcPerUnit)}</strong></td>
       </tr>
@@ -19282,7 +19283,7 @@ function exportYocMatrixPdf() {
         <div>
           <table>
             <thead>
-              <tr><th>Product</th><th>Land/Unit</th><th>HC/NRSF</th><th>Other HC</th><th>Soft/Unit</th><th>TPC/Unit</th></tr>
+              <tr><th>Product</th><th>Land/Unit</th><th>HC/NRSF</th><th>Other HC</th><th>Total HC/Unit</th><th>Soft/Unit</th><th>TPC/Unit</th></tr>
             </thead>
             <tbody>${costRows}</tbody>
           </table>
@@ -20139,6 +20140,7 @@ async function exportMarketReportPdf(reportOptions) {
         <td class="num">$${(c.land/1000).toFixed(0)}K</td>
         <td class="num">$${c.hc}</td>
         <td class="num">$${((c.otherHc||0)/1000).toFixed(0)}K</td>
+        <td class="num">$${((c.hc * sfFor(prod) + (c.otherHc||0))/1000).toFixed(0)}K</td>
         <td class="num">$${(c.soft/1000).toFixed(0)}K</td>
         <td class="num"><strong>$${(tcPerUnit/1000).toFixed(0)}K</strong></td>
       </tr>
@@ -21127,7 +21129,7 @@ async function exportMarketReportPdf(reportOptions) {
         <div style="font-family:'Inter Tight',sans-serif;font-size:12px;letter-spacing:0.11em;text-transform:uppercase;color:#432890;font-weight:600;margin-bottom:8px;">YOC Assumptions</div>
         <table class="report-table">
           <thead>
-            <tr><th>Product</th><th class="num">Land</th><th class="num">HC/NRSF</th><th class="num">Other HC</th><th class="num">Soft</th><th class="num">TPC/Unit</th></tr>
+            <tr><th>Product</th><th class="num">Land</th><th class="num">HC/NRSF</th><th class="num">Other HC</th><th class="num">Total HC/Unit</th><th class="num">Soft</th><th class="num">TPC/Unit</th></tr>
           </thead>
           <tbody>${yocCostRows}</tbody>
         </table>
@@ -23549,6 +23551,8 @@ function txRenderBoard() {
     const cards = document.querySelectorAll('#yx-verdict .yx-vcard'); if (!cards.length) return;
     cards.forEach(card => {
       const prod = card.dataset.prod, box = card.querySelector('.yx-v-costs'); if (!box) return;
+      const tot = document.createElement('div'); tot.className = 'yx-hc-total'; tot.dataset.prod = prod;
+      box.appendChild(tot);
       const head = document.createElement('div'); head.className = 'yx-c-sub'; head.textContent = 'Operations';
       box.appendChild(head);
       const grid = document.createElement('div'); grid.className = 'yx-ops-grid'; box.appendChild(grid);
@@ -23570,7 +23574,19 @@ function txRenderBoard() {
     });
     built = true;
   }
+  // Total hard cost per unit = HC/SF × unit size + other HC, so the matrix lines up with models that quote one HC figure
+  function totals() {
+    document.querySelectorAll('.yx-hc-total').forEach(el => {
+      const p = el.dataset.prod, c = yocState.costs[p], sf = sfFor(p);
+      if (!c || !sf) { el.textContent = ''; return; }
+      const hcU = c.hc * sf + (c.otherHc || 0);
+      const tpc = (c.land || 0) + hcU + (c.soft || 0);
+      el.innerHTML = `<span class="k">Total hard cost</span><b>$${Math.round(hcU).toLocaleString()}</b><span class="u">/ unit</span>` +
+        `<span class="d">$${Math.round(hcU / sf)}/SF on ${sf} SF</span><span class="d">${Math.round(hcU / tpc * 100)}% of total cost</span>`;
+    });
+  }
   function sync() {
+    totals();
     FIELDS.forEach(([k, , opts, , key]) => {
       for (const p of YOC_PRODUCT_COLUMNS) {
         const sel = document.getElementById(`${PRE[p]}-${k}`); if (!sel) continue;

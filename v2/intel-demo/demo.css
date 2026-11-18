@@ -771,3 +771,8 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 /* YOC: per-product operations block inside each product card */
 .yx-c-sub { grid-column:1 / -1; margin:10px 0 2px; padding-top:10px; border-top:1px solid var(--x-line); font:600 10.5px/1 var(--x-font); letter-spacing:.08em; text-transform:uppercase; color:var(--x-ink-3); }
 #view-yoc .yx-ops-grid { grid-column:1 / -1; display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:8px; }
+#view-yoc .yx-hc-total { grid-column:1 / -1; display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; margin-top:4px; padding:8px 10px; background:#fff; border-radius:8px; font:400 12px/1.2 var(--x-font); color:var(--x-ink-3); }
+#view-yoc .yx-hc-total .k { font-weight:600; color:var(--x-ink-2); margin-right:2px; }
+#view-yoc .yx-hc-total b { font:600 14px/1 var(--x-font); color:var(--x-ink); font-variant-numeric:tabular-nums; }
+#view-yoc .yx-hc-total .u { margin-left:-4px; }
+#view-yoc .yx-hc-total .d { padding-left:8px; border-left:1px solid var(--x-line); font-variant-numeric:tabular-nums; }
