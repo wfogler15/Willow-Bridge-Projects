@@ -23688,17 +23688,32 @@ function txRenderBoard() {
   if (!head || typeof renderYoc !== 'function') return;
   const E = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  // ---------- button + menu ----------
+  // ---------- one Export button in the purple page header, options follow the open view ----------
+  const heroRow = document.querySelector('.wbi-hero .wbi-head-row');
   const wrap = document.createElement('div'); wrap.className = 'yx-exp';
-  wrap.innerHTML = `<button type="button" class="yx-exp-btn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 2v8m0 0L5 7m3 3 3-3M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Export</button>
-    <div class="yx-exp-menu" hidden><button type="button" data-x="pdf"><b>PDF</b><span>16:9 slides for the IC deck</span></button><button type="button" data-x="xlsx"><b>Excel</b><span>Formatted workbook, all tables</span></button></div>`;
-  const gearWrap = head.querySelector('.yx-menu-wrap'); head.insertBefore(wrap, gearWrap);
+  wrap.innerHTML = `<button type="button" class="yx-exp-btn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 2v8m0 0L5 7m3 3 3-3M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Export</button><div class="yx-exp-menu" hidden></div>`;
+  (heroRow || head).appendChild(wrap);
   const btn = wrap.querySelector('.yx-exp-btn'), menu = wrap.querySelector('.yx-exp-menu');
-  btn.addEventListener('click', e => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
+  const clickId = id => () => { const el = document.getElementById(id); if (el) el.click(); };
+  const OPTS = {
+    'view-yoc': [['PDF', '16:9 slides for the IC deck', () => exportPdf()], ['Excel', 'Formatted workbook, all tables', () => exportXlsx()]],
+    'view-properties': [['Property list', 'Current filters, CSV', clickId('prop-export-btn')]],
+    'view-salecomps': [['Sale comps', 'Current filters, CSV', clickId('sc-export-btn')]],
+    'view-absorption': [['Lease-up data', 'CSV', clickId('absorption-export-btn')]],
+    'view-pipeline': [['Pipeline', 'CSV', clickId('pipeline-export-btn')]]
+  };
+  let current = [];
+  function fill() {
+    const v = (document.querySelector('.view.active') || {}).id;
+    current = (OPTS[v] || []).concat([['Market report', 'Full market PDF', clickId('overview-report-btn')]]);
+    menu.innerHTML = current.map(([t, d], i) => `<button type="button" data-i="${i}"><b>${t}</b><span>${d}</span></button>`).join('');
+  }
+  btn.addEventListener('click', e => { e.stopPropagation(); if (menu.hidden) fill(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
   document.addEventListener('click', e => { if (!menu.hidden && !wrap.contains(e.target)) menu.hidden = true; });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') menu.hidden = true; });
   menu.addEventListener('click', e => {
-    const b = e.target.closest('[data-x]'); if (!b) return; menu.hidden = true;
-    try { if (b.dataset.x === 'pdf') exportPdf(); else exportXlsx(); } catch (err) { console.error('[yx-export]', err); alert('Export failed: ' + err.message); }
+    const b = e.target.closest('[data-i]'); if (!b) return; menu.hidden = true;
+    try { current[+b.dataset.i][2](); } catch (err) { console.error('[export]', err); alert('Export failed: ' + err.message); }
   });
 
   // ---------- data ----------
@@ -23997,8 +24012,21 @@ function txRenderBoard() {
     const buf = await wb.xlsx.writeBuffer();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
-    a.download = `YOC Matrix - ${D.market.replace(/[^\w\- ]+/g, '')} - ${D.date.toISOString().slice(0, 10)}.xlsx`;
+    a.download = `YOC Matrix - ${D.market.replace(/[^\w\- ]+/g, '')} - ${D.date.getFullYear()}-${String(D.date.getMonth() + 1).padStart(2, '0')}-${String(D.date.getDate()).padStart(2, '0')}.xlsx`;
     document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
   }
   window.yxExportPdf = exportPdf; window.yxExportXlsx = exportXlsx; window.yxExportData = collect;
+})();
+
+
+/* DEMO: expand the YOC heat map to full screen (Esc or the button closes it) */
+(function yxExpand() {
+  const card = document.querySelector('#view-yoc .yx-matrix'); const head = card && card.querySelector('.yx-card-head');
+  if (!head) return;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'yx-expand';
+  const label = on => b.innerHTML = on ? '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M6 2v4H2M10 14v-4h4M14 6h-4V2M2 10h4v4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Close' : '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M2 6V2h4M14 10v4h-4M10 2h4v4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Expand';
+  label(false); head.appendChild(b);
+  const set = on => { card.classList.toggle('yx-full', on); document.documentElement.classList.toggle('wb-lock', on); label(on); };
+  b.addEventListener('click', () => set(!card.classList.contains('yx-full')));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && card.classList.contains('yx-full')) set(false); });
 })();

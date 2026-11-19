@@ -826,3 +826,20 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 .yx-gd td.vs.up { color: #1F7A4C !important; font-weight: 600; }
 .yx-gd td.vs.dn { color: #a0393e !important; }
 .yx-gd th { text-transform: none !important; letter-spacing: 0 !important; font-weight: 600 !important; }
+
+/* Export button in the purple page header */
+.wbi-hero .wbi-head-row { display:flex; align-items:center; }
+.yx-exp { position:relative; margin-left:auto; z-index:5; }
+.yx-exp-btn { all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 14px; border-radius:8px; border:1px solid rgba(255,255,255,.35); color:#fff; font:600 13px/1 Aptos, 'Segoe UI', sans-serif; background:rgba(255,255,255,.06); }
+.yx-exp-btn:hover { background:rgba(255,255,255,.16); border-color:rgba(255,255,255,.6); }
+.yx-exp-menu { position:absolute; right:0; top:42px; min-width:240px; background:#fff; border-radius:10px; box-shadow:0 2px 6px rgba(29,18,71,.08), 0 18px 48px rgba(29,18,71,.2); padding:6px; }
+.yx-exp-menu button { all:unset; cursor:pointer; display:flex; flex-direction:column; gap:3px; width:calc(100% - 20px); padding:9px 10px; border-radius:7px; }
+.yx-exp-menu button:hover { background:#f4f2fa; }
+.yx-exp-menu b { font:600 13px/1.2 Aptos, 'Segoe UI', sans-serif; color:#1D1247; }
+.yx-exp-menu span { font:400 12px/1.2 Aptos, 'Segoe UI', sans-serif; color:#6c6782; }
+/* YOC heat map expand */
+#view-yoc .yx-matrix .yx-card-head { position:relative; }
+.yx-expand { all:unset; cursor:pointer; display:inline-flex; align-items:center; gap:6px; margin-left:auto; padding:6px 10px; border-radius:7px; font:600 12.5px/1 Aptos, 'Segoe UI', sans-serif; color:#4b4660; }
+.yx-expand:hover { background:#f4f2fa; color:#1D1247; }
+#view-yoc .yx-matrix.yx-full { position:fixed !important; inset:20px 24px !important; z-index:7000 !important; margin:0 !important; display:flex; flex-direction:column; box-shadow:0 0 0 100vmax rgba(18,12,40,.45), 0 24px 64px rgba(0,0,0,.3) !important; border-radius:14px; background:#fff; }
+#view-yoc .yx-matrix.yx-full .yoc-table-scroll { flex:1; max-height:none !important; overflow:auto; }
