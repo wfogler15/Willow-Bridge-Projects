@@ -23603,7 +23603,7 @@ function txRenderBoard() {
         ? `<b>${picked.size}</b> selected${off ? ` <span>(${off} outside the map)</span>` : ''}`
         : 'Click rows or pins to add them';
       const go = pk.querySelector('.mm-pick-go'), nm = pk.querySelector('.mm-pick-name');
-      go.disabled = !picked.size || !nm.value.trim(); go.textContent = picked.size ? `Save comp set (${picked.size})` : 'Save comp set';
+      go.disabled = !picked.size; go.textContent = picked.size ? `Save comp set (${picked.size})` : 'Save comp set';
     }
     paintPicks();
     fitCols();
@@ -23664,12 +23664,13 @@ function txRenderBoard() {
   panel.querySelector('.mm-pick-clear').addEventListener('click', () => { picked.clear(); paint(); });
   panel.querySelector('.mm-pick-all').addEventListener('click', () => { inView.forEach(p => picked.add(String(p.id))); paint(); });
   const nameIn = panel.querySelector('.mm-pick-name');
-  nameIn.addEventListener('input', () => { const go = panel.querySelector('.mm-pick-go'); go.disabled = !picked.size || !nameIn.value.trim(); });
+  nameIn.addEventListener('input', () => { nameIn.classList.remove('need'); nameIn.placeholder = 'Name this comp set'; });
   nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') panel.querySelector('.mm-pick-go').click(); if (e.key === 'Escape') setPicking(false); });
   // save right here: same record the Property Index save writes
   panel.querySelector('.mm-pick-go').addEventListener('click', () => {
     const name = nameIn.value.trim();
-    if (!picked.size || !name) { if (!name) nameIn.focus(); return; }
+    if (!picked.size) return;
+    if (!name) { nameIn.classList.add('need'); nameIn.placeholder = 'Name it first, then save'; nameIn.focus(); return; }
     const byStr = new Map(all.map(p => [String(p.id), p.id]));
     const id = 'cs-' + Date.now();
     compSets[id] = { id, name, propertyIds: [...picked].map(x => byStr.has(x) ? byStr.get(x) : x),
