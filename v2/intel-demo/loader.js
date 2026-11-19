@@ -23,6 +23,8 @@
     if (!id || id === (window.__WBD && window.__WBD.market)) return;
     localStorage.setItem('market', id);
     if (window.WB && WB.getMarket() !== id) WB.setMarket(id);   // keep this tab's market toggle in step
+    // show the loading mark straight away so the old market doesn't sit on screen while the next one loads
+    try { overlay.innerHTML = `<div class="wbl" role="status" aria-live="polite"><div class="wbl-mark"><img src="../shared/wb-mark.png" alt=""><i></i></div><div class="wbl-t">Loading ${(MARKETS && MARKETS[id]) || id}</div></div>`; document.body.appendChild(overlay); } catch (e) {}
     const u = new URL(location.href); u.searchParams.set('market', id); location.href = u.toString();
   };
   const overlay = document.createElement('div');
@@ -43,7 +45,7 @@
     if (!MARKETS[market]) market = markets.length ? markets.find((m) => m.id === 'denver')?.id || markets[0].id : 'denver';
     localStorage.setItem('market', market);
     WB.showMarket(market);
-    overlay.textContent = `Loading ${MARKETS[market]} market data…`;
+    overlay.innerHTML = `<div class="wbl" role="status" aria-live="polite"><div class="wbl-mark"><img src="../shared/wb-mark.png" alt=""><i></i></div><div class="wbl-t">Loading ${MARKETS[market]}</div></div>`;
     document.body.appendChild(overlay);
 
     const t0 = performance.now();

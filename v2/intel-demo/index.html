@@ -1,10 +1,19 @@
 <!DOCTYPE html>
 <html lang="en"><head>
 <style id="wbi-boot">
-/* Demo: keep the legacy markup hidden until loader.js has built the new shell, so a reload never flashes the old layout */
+/* Demo: keep the legacy markup hidden until loader.js has built the new shell; show the Willow Bridge mark while loading */
 html:not(.wbi-ready) .app { visibility: hidden !important; }
-html:not(.wbi-ready) body::after { content: 'Loading market data\2026'; position: fixed; inset: 48px 0 0 0; z-index: 8999; display: grid; place-items: center; background: #FBFBF9; font: 15px/1.4 Aptos, Inter, Arial, sans-serif; color: #1D1247; }
-html:not(.wbi-ready) body:has(.wb-login)::after { display: none; }
+html:not(.wbi-ready) body::before { content: ''; position: fixed; inset: 0; z-index: 8998; background: #FBFBF9; }
+html:not(.wbi-ready) body::after { content: ''; position: fixed; left: 50%; top: 50%; z-index: 8999; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 14px; background: url(../shared/wb-mark.png) center / cover no-repeat; animation: wbl-breathe 1.6s ease-in-out infinite; box-shadow: 0 0 0 0 rgba(67,40,144,.35); }
+html:not(.wbi-ready) body:has(.wb-login)::before, html:not(.wbi-ready) body:has(.wb-login)::after { display: none; }
+@keyframes wbl-breathe { 0%, 100% { transform: scale(.94); box-shadow: 0 0 0 0 rgba(67,40,144,.28); } 50% { transform: scale(1); box-shadow: 0 0 0 14px rgba(67,40,144,0); } }
+@keyframes wbl-spin { to { transform: rotate(360deg); } }
+#wb-intel-loading .wbl { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+#wb-intel-loading .wbl-mark { position: relative; width: 64px; height: 64px; }
+#wb-intel-loading .wbl-mark img { width: 64px; height: 64px; border-radius: 14px; display: block; animation: wbl-breathe 1.6s ease-in-out infinite; }
+#wb-intel-loading .wbl-mark i { position: absolute; inset: -12px; border-radius: 50%; border: 2px solid rgba(67,40,144,.12); border-top-color: #432890; animation: wbl-spin .9s linear infinite; }
+#wb-intel-loading .wbl-t { font: 500 13px/1 Aptos, Inter, Arial, sans-serif; color: #6c6782; letter-spacing: .02em; }
+@media (prefers-reduced-motion: reduce) { #wb-intel-loading .wbl-mark img, #wb-intel-loading .wbl-mark i, html:not(.wbi-ready) body::after { animation: none; } }
 </style>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8936,7 +8945,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611181706">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611181718">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9196,14 +9205,14 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="../shared/wb.js?v=202611181706"></script>
-<script src="../shared/legacy-db.js?v=202611181706"></script>
-<script>window.WB_BUILD = '202611181706';</script>
-<link rel="stylesheet" href="demo.css?v=202611181706">
+<script src="../shared/wb.js?v=202611181718"></script>
+<script src="../shared/legacy-db.js?v=202611181718"></script>
+<script>window.WB_BUILD = '202611181718';</script>
+<link rel="stylesheet" href="demo.css?v=202611181718">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
-<script src="loader.js?v=202611181706"></script>
+<script src="loader.js?v=202611181718"></script>
 
 
 

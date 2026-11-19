@@ -23019,7 +23019,7 @@ function txRenderBoard() {
   function paintBar() {
     bar.querySelector('.px-q').innerHTML = sentence();
     if (openK) place();
-    lastRows = window.pxApply(PX.base);
+    lastRows = window.pxApply(PX.base); window.__pxLast = lastRows;
     const building = state.compSetMode === 'building', viewing = state.compSetMode === 'viewing';
     bar.querySelector('.px-sum').innerHTML = summary(lastRows);
     const bb = bar.querySelector('.px-build');
@@ -23492,7 +23492,7 @@ function txRenderBoard() {
   function paint() {
     if (!propertyMap) return;
     const b = propertyMap.getBounds();
-    inView = all.filter(p => b.contains([p.lat, p.lng]));
+    inView = all.filter(p => b.contains([p.lat, p.lng])); window.__mmInView = inView;
     panel.querySelector('.mm-sum').innerHTML = summary(inView);
     const col = COLS.find(c => c[0] === sortK);
     const rows = [...inView].sort((x, y) => {
@@ -23697,16 +23697,14 @@ function txRenderBoard() {
   const btn = wrap.querySelector('.yx-exp-btn'), menu = wrap.querySelector('.yx-exp-menu');
   const clickId = id => () => { const el = document.getElementById(id); if (el) el.click(); };
   const OPTS = {
-    'view-yoc': [['PDF', '16:9 slides for the IC deck', () => exportPdf()], ['Excel', 'Formatted workbook, all tables', () => exportXlsx()]],
-    'view-properties': [['Property list', 'Current filters, CSV', clickId('prop-export-btn')]],
-    'view-salecomps': [['Sale comps', 'Current filters, CSV', clickId('sc-export-btn')]],
-    'view-absorption': [['Lease-up data', 'CSV', clickId('absorption-export-btn')]],
-    'view-pipeline': [['Pipeline', 'CSV', clickId('pipeline-export-btn')]]
+    'view-yoc': [['PDF', '16:9 slides for the IC deck', () => exportPdf()], ['Excel', 'Formatted workbook, all tables', () => exportXlsx()]]
   };
+  const viewOpts = v => (window.wbViewExport && wbViewExport.has(v))
+    ? [['PDF', '16:9 slides, ready for a deck', () => wbViewExport.pdf(v)], ['Excel', 'Formatted workbook', () => wbViewExport.xlsx(v)]] : [];
   let current = [];
   function fill() {
     const v = (document.querySelector('.view.active') || {}).id;
-    current = (OPTS[v] || []).concat([['Market report', 'Full market PDF', clickId('overview-report-btn')]]);
+    current = (OPTS[v] || viewOpts(v)).concat([['Market report', 'Full market PDF (all sections)', clickId('overview-report-btn')]]);
     menu.innerHTML = current.map(([t, d], i) => `<button type="button" data-i="${i}"><b>${t}</b><span>${d}</span></button>`).join('');
   }
   btn.addEventListener('click', e => { e.stopPropagation(); if (menu.hidden) fill(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
@@ -23714,7 +23712,7 @@ function txRenderBoard() {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') menu.hidden = true; });
   menu.addEventListener('click', e => {
     const b = e.target.closest('[data-i]'); if (!b) return; menu.hidden = true;
-    try { current[+b.dataset.i][2](); } catch (err) { console.error('[export]', err); alert('Export failed: ' + err.message); }
+    try { const r = current[+b.dataset.i][2](); if (r && r.catch) r.catch(err => { console.error('[export]', err); alert('Export failed: ' + err.message); }); } catch (err) { console.error('[export]', err); alert('Export failed: ' + err.message); }
   });
 
   // ---------- data ----------
@@ -23777,7 +23775,7 @@ function txRenderBoard() {
         <div class="big">${$2(p.req)}<small>/SF</small></div>
         <div class="sub">${$0(p.mo)}/mo on ${p.sf} SF</div>
         <div class="stat"><span><b>${p.pencil}</b> of ${p.total} ${D.groupWord.toLowerCase()}s pencil</span><span><b>${p.deals.length}</b> deal${p.deals.length === 1 ? '' : 's'} clear</span></div>
-        <div class="tops">${p.list.slice(0, 4).map(c => `<div><span>${E(c.sm)}</span><b>${sgn(c.psf - c.req)}</b></div>`).join('') || '<div class="none">No submarket average clears today</div>'}</div>
+        <div class="tops">${p.list.length ? '<div class="th">Submarkets that pencil</div>' + p.list.slice(0, 3).map(c => `<div><span>${E(c.sm)}</span><b class="${c.psf - c.req >= 0 ? 'up' : 'nr'}">${sgn(c.psf - c.req)}</b></div>`).join('') : ''}${!p.list.length && p.deals.length ? '<div class="th">Top deals that clear</div>' + p.deals.slice().sort((a, b) => b.over - a.over).slice(0, 3).map(d => `<div><span>${E(d.p.name || 'Unnamed')} · ${E(d.sm)}</span><b class="up">${sgn(d.over)}</b></div>`).join('') : ''}${!p.list.length && !p.deals.length ? '<div class="none">No submarket or deal clears today</div>' : ''}</div>
         <table class="kv"><tr><td>Land</td><td>${$K(p.c.land)}</td><td>OpEx</td><td>${pct(p.opex, 0)}</td></tr>
           <tr><td>Hard cost</td><td>$${p.c.hc}/SF</td><td>Vacancy</td><td>${pct(p.vac)}</td></tr>
           <tr><td>Other hard</td><td>${$K(p.c.otherHc || 0)}</td><td>Other income</td><td>${$0(p.oi)}</td></tr>
@@ -23865,7 +23863,9 @@ function txRenderBoard() {
       .stat b { color: #1F7A4C; font-size: 12pt; }
       .tops { margin: .08in 0 .1in; min-height: .9in; }
       .tops div { display: flex; justify-content: space-between; font-size: 10pt; padding: 2px 0; }
-      .tops b { color: #1F7A4C; font-variant-numeric: tabular-nums; }
+      .tops b { font-variant-numeric: tabular-nums; } .tops b.up { color: #1F7A4C; } .tops b.nr { color: #9A6B10; }
+      .tops .th { font-size: 8.5pt; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #8a849e; margin-bottom: 3px; }
+      .tops span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 2.9in; }
       .none { color: #8a849e; font-size: 10pt; font-style: italic; }
       .kv { width: 100%; border-collapse: collapse; font-size: 9pt; background: #f8f7fb; border-radius: 8px; }
       .kv td { padding: 3px 6px; color: #6c6782; } .kv td:nth-child(2n) { color: #16131f; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
@@ -24030,4 +24030,271 @@ function txRenderBoard() {
   const set = on => { card.classList.toggle('yx-full', on); document.documentElement.classList.toggle('wb-lock', on); label(on); };
   b.addEventListener('click', () => set(!card.classList.contains('yx-full')));
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && card.classList.contains('yx-full')) set(false); });
+})();
+
+
+/* =================================================================
+   DEMO: PDF + Excel export for every view. Each view supplies a spec
+   (title, KPIs, tables); one renderer turns it into 16:9 slides
+   (13.33 × 7.5 in, drop straight into a deck) and one into a formatted
+   Excel workbook. The YOC Matrix keeps its own richer export.
+   ================================================================= */
+(function viewExports() {
+  const E = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const MKT = () => (window.__WBD && window.__WBD.title) || 'Market';
+  const wa = (rows, f, w = p => p.units) => { let s = 0, n = 0; rows.forEach(p => { const v = f(p), x = w(p); if (v != null && !isNaN(v) && x) { s += v * x; n += x; } }); return n ? s / n : null; };
+  const occOf = p => p.vacancy == null ? null : 100 - p.vacancy;
+  const wksOf = p => p.concessions == null ? null : p.concessions / 100 * 52;
+  const sfOf = p => p.avgUnitSF || (p.avgAskingUnit && p.avgAskingSF ? p.avgAskingUnit / p.avgAskingSF : null);
+  const median = a => { a = a.filter(v => v != null).sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : null; };
+  const isProp = p => typeof isPlannedProposed === 'function' && isPlannedProposed(p);
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const monYr = (m, y) => y ? (m ? MON[(+m - 1) % 12] + ' ' : '') + y : null;
+  const dateOf = s => s ? new Date(String(s).slice(0, 10) + 'T12:00') : null;
+  const asOfTxt = () => { const d = (RAW_DATA || []).map(p => p.costarAsOf).filter(Boolean).sort().pop(); return d ? new Date(d + 'T12:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null; };
+
+  // ---------- value formats (one table of types drives PDF text and Excel numFmt) ----------
+  const T = {
+    text: { pdf: v => v == null || v === '' ? '—' : E(v), xl: null, align: 'left' },
+    int: { pdf: v => v == null ? '—' : Math.round(v).toLocaleString(), xl: '#,##0' },
+    yr: { pdf: v => v == null ? '—' : String(v), xl: '0' },
+    usd0: { pdf: v => v == null ? '—' : '$' + Math.round(v).toLocaleString(), xl: '$#,##0' },
+    usd2: { pdf: v => v == null ? '—' : '$' + v.toFixed(2), xl: '$#,##0.00' },
+    usdM: { pdf: v => v == null ? '—' : v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B' : '$' + (v / 1e6).toFixed(v >= 1e8 ? 0 : 1) + 'M', xl: '$#,##0' },
+    pct: { pdf: v => v == null ? '—' : v.toFixed(1) + '%', xl: '0.0%', toXl: v => v == null ? null : v / 100 },
+    pct2: { pdf: v => v == null ? '—' : v.toFixed(2) + '%', xl: '0.00%', toXl: v => v == null ? null : v / 100 },
+    sgnpct: { pdf: v => v == null ? '—' : (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1) + '%', xl: '+0.0%;-0.0%', toXl: v => v == null ? null : v / 100 },
+    wks: { pdf: v => v == null ? '—' : v.toFixed(1) + ' wks', xl: '0.0 "wks"' },
+    num1: { pdf: v => v == null ? '—' : v.toFixed(1), xl: '0.0' },
+    date: { pdf: v => v == null ? '—' : v.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), xl: 'mmm yyyy' },
+    mo: { pdf: v => v == null ? '—' : E(v), xl: null }
+  };
+  const col = (h, v, t = 'text', w) => ({ h, v, t, w });
+
+  // ---------- specs per view ----------
+  const SPEC = {
+    'view-overview': () => {
+      const all = getFilteredAllStatus();
+      const ex = all.filter(p => p.status === 'Existing' && !isProp(p));
+      const uc = all.filter(p => p.status === 'Under Construction' && !isProp(p));
+      const subs = {};
+      ex.forEach(p => { (subs[p.submarket || '—'] = subs[p.submarket || '—'] || { ex: [], uc: [] }).ex.push(p); });
+      uc.forEach(p => { (subs[p.submarket || '—'] = subs[p.submarket || '—'] || { ex: [], uc: [] }).uc.push(p); });
+      const rows = Object.entries(subs).map(([g, s]) => ({ g, n: s.ex.length, units: s.ex.reduce((a, p) => a + (p.units || 0), 0), ask: wa(s.ex, p => p.avgAskingSF), askU: wa(s.ex, p => p.avgAskingUnit), eff: wa(s.ex, p => p.avgEffectiveSF), occ: wa(s.ex, occOf), wks: wa(s.ex, wksOf), uc: s.uc.reduce((a, p) => a + (p.units || 0), 0) })).filter(r => r.n).sort((a, b) => b.units - a.units);
+      return {
+        file: 'Market overview', title: `${MKT()} market overview`, lede: 'Existing apartment inventory, rents, occupancy and concessions by submarket, with units under construction.',
+        kpis: kpisFor(ex).concat([['Under construction', T.int.pdf(uc.reduce((a, p) => a + (p.units || 0), 0)) + ' units', uc.length + ' projects']]),
+        tables: [{ name: 'Submarkets', title: 'Submarkets by existing units', cols: [col('Submarket', r => r.g, 'text', 26), col('Properties', r => r.n, 'int'), col('Units', r => r.units, 'int'), col('Asking $/SF', r => r.ask, 'usd2'), col('Asking $/mo', r => r.askU, 'usd0'), col('Effective $/SF', r => r.eff, 'usd2'), col('Occupancy', r => r.occ, 'pct'), col('Concessions', r => r.wks, 'wks'), col('UC units', r => r.uc, 'int')], rows }]
+      };
+    },
+    'view-trends': () => {
+      const geo = (typeof TX !== 'undefined' && TX.geo) || txGeos().primary;
+      const rows = txRows(geo);
+      const scale = v => v == null ? null : (v <= 1.5 ? v * 100 : v);
+      const sub = txGeos().subs.map(g => { const r = txRows(g); const last = r.filter(x => !x.fc).pop(); return { g: txGeoLabel(g), last, cagr: txCagr(r, last ? last.y : 0, 2030, 'eR') }; }).filter(x => x.last);
+      return {
+        file: 'Trends and forecast', title: `${txGeoLabel(geo)} rent and occupancy trends`, lede: `RealPage history and forecast. Forecast years start in ${RP_FORECAST_START_YEAR}; $/SF in forecast years is derived from unit rent.`,
+        kpis: (() => { const last = rows.filter(r => !r.fc).pop() || {}; const c = txCagr(rows, last.y, 2030, 'eR'); return [['Effective rent', T.usd2.pdf(last.psf) + '/SF', T.usd0.pdf(last.eR) + '/mo · ' + (last.y || '')], ['Occupancy', T.pct.pdf(scale(last.oc)), String(last.y || '')], ['Rent growth YoY', T.sgnpct.pdf(scale(last.yR)), String(last.y || '')], ['Forecast rent growth', c == null ? '—' : (c * 100).toFixed(1) + '% / yr', 'to 2030']]; })(),
+        tables: [
+          { name: 'By year', title: 'By year', cols: [col('Year', r => r.y + (r.fc ? ' (F)' : ''), 'text', 10), col('Effective rent $/mo', r => r.eR, 'usd0'), col('Effective rent $/SF', r => r.psf, 'usd2'), col('Rent growth YoY', r => scale(r.yR), 'sgnpct'), col('Occupancy', r => scale(r.oc), 'pct'), col('Existing units', r => r.eu, 'int')], rows },
+          { name: 'Submarkets', title: 'Submarkets, latest year', cols: [col('Submarket', r => r.g, 'text', 28), col('Effective $/mo', r => r.last.eR, 'usd0'), col('Effective $/SF', r => r.last.psf, 'usd2'), col('Rent growth YoY', r => scale(r.last.yR), 'sgnpct'), col('Occupancy', r => scale(r.last.oc), 'pct'), col('Forecast / yr to 2030', r => r.cagr == null ? null : r.cagr * 100, 'sgnpct')], rows: sub }
+        ]
+      };
+    },
+    'view-submarkets': () => {
+      const rows = (window.__mmInView || []).slice().sort((a, b) => (b.units || 0) - (a.units || 0));
+      const ex = rows.filter(p => p.status === 'Existing' && !isProp(p));
+      return {
+        file: 'Market map - in view', title: `${MKT()} · properties in the map view`, lede: 'Everything inside the map at the time of export, with the map’s status and filter settings.',
+        kpis: kpisFor(ex).concat([['Pipeline', T.int.pdf(rows.filter(p => p.status !== 'Existing' || isProp(p)).reduce((a, p) => a + (p.units || 0), 0)) + ' units', 'under construction + proposed']]),
+        tables: [{ name: 'Properties', title: 'Properties in view', cols: propCols(true), rows }]
+      };
+    },
+    'view-properties': () => {
+      const rows = (window.__pxLast || []).slice();
+      const q = document.querySelector('.px-q'); const sentence = q ? q.textContent.replace(/\s+Reset$/, '').replace(/\s+/g, ' ').trim() : '';
+      return {
+        file: 'Property index', title: `${MKT()} property index`, lede: sentence ? sentence + '.' : 'Current filters.',
+        kpis: kpisFor(rows.filter(p => p.status === 'Existing' && !isProp(p))),
+        tables: [{ name: 'Properties', title: 'Properties', cols: propCols(false), rows }]
+      };
+    },
+    'view-absorption': () => {
+      const rows = getAbsorptionData().slice().sort((a, b) => (b.absorption || 0) - (a.absorption || 0));
+      const units = rows.reduce((s, p) => s + (p.units || 0), 0), leased = rows.reduce((s, p) => s + (p.leasedUnits || 0), 0);
+      const m = state.paceMethod || 'fixed';
+      const mlab = m === 'fixed' ? `Fixed ${state.leaseVelocity || 25} leases / mo` : { own: 'Own pace (last 3 months)', curve: 'Comparable lease-up curve', blend: 'Blend of own pace and comparable curve' }[m];
+      const unst = rows.filter(p => !p.stabilized && p.stabilizationMonths != null);
+      return {
+        file: 'Absorption and lease-up', title: `${MKT()} lease-ups · delivered in the last 12 months`, lede: `Stabilization to 95% projected with: ${mlab}. Actuals as of the CoStar snapshot; "Today" projects forward with the same method.`,
+        kpis: [['In lease-up', rows.length + ' properties', units.toLocaleString() + ' units'], ['Cohort leased', units ? Math.round(leased / units * 100) + '%' : '—', leased.toLocaleString() + ' of ' + units.toLocaleString() + ' units'], ['Avg to stabilize', unst.length ? (unst.reduce((s, p) => s + p.stabilizationMonths, 0) / unst.length).toFixed(1) + ' mo' : '—', 'to 95%'], ['Stabilized', rows.filter(p => p.stabilized).length + ' of ' + rows.length, '95%+ leased']],
+        tables: [{ name: 'Lease-ups', title: 'Lease-up performance', cols: [col('Property', p => p.name, 'text', 30), col('Submarket', p => p.submarket, 'text', 20), col('Units', p => p.units, 'int'), col('Product', p => p.style, 'text', 12), col('Delivered', p => monYr(p.monthBuilt, p.yearBuilt), 'mo', 10), col('Months open', p => p.months, 'num1'), col('Leased', p => p.occupancy, 'pct'), col('Leases / mo', p => p.absorption, 'num1'), col('Last 3 mo pace', p => p.pace3, 'num1'), col('Today (proj.)', p => p.occNow, 'pct'), col('Est. 95%', p => p.stabilized ? 'Stabilized' : p.stabilizationDate ? MON[p.stabilizationDate.getMonth()] + ' ' + p.stabilizationDate.getFullYear() : null, 'mo', 11)], rows }]
+      };
+    },
+    'view-pipeline': () => {
+      const rows = RAW_DATA.map(applyUserEdits).filter(p => {
+        if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
+        if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
+        if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
+        if (p.status !== 'Under Construction') return false;
+        const stage = p.pipelineStage || 'UC';
+        if (state.pipelineStageFilter === 'UC' && stage !== 'UC') return false;
+        if (state.pipelineStageFilter === 'planned' && stage === 'UC') return false;
+        return true;
+      }).sort((a, b) => ((a.yearBuilt || 9999) * 12 + (a.monthBuilt || 0)) - ((b.yearBuilt || 9999) * 12 + (b.monthBuilt || 0)));
+      const stage = state.pipelineStageFilter === 'planned' ? 'Planned / proposed' : 'Under construction';
+      const units = rows.reduce((s, p) => s + (p.units || 0), 0);
+      const by = {}; rows.forEach(p => { by[p.yearBuilt || '—'] = (by[p.yearBuilt || '—'] || 0) + (p.units || 0); });
+      return {
+        file: 'Pipeline and supply', title: `${MKT()} pipeline · ${stage.toLowerCase()}`, lede: 'New supply by expected delivery. All classes are included; the rail filters for city, submarket and product apply.',
+        kpis: [['Projects', rows.length.toLocaleString(), stage], ['Units', units.toLocaleString(), 'in the pipeline']].concat(Object.keys(by).filter(y => y !== '—').sort().slice(0, 3).map(y => ['Delivering ' + y, by[y].toLocaleString() + ' units', ''])),
+        tables: [{ name: 'Pipeline', title: 'Projects by expected delivery', cols: [col('Project', p => p.name, 'text', 30), col('Submarket', p => p.submarket, 'text', 20), col('City', p => p.city, 'text', 14), col('Product', p => p.style, 'text', 12), col('Developer', p => p.developer, 'text', 22), col('Units', p => p.units, 'int'), col('Started', p => p.constructionBegin || null, 'mo', 10), col('Est. delivery', p => monYr(p.monthBuilt, p.yearBuilt), 'mo', 11), col('Pre-leasing', p => p.preLeasing, 'pct')], rows }]
+      };
+    },
+    'view-salecomps': () => {
+      const mode = (window.SX && SX.mode) || 'investment';
+      const rows = window.scxApply ? scxApply(SX.base || [], mode).slice().sort((a, b) => String(b.saleDate || '').localeCompare(String(a.saleDate || ''))) : [];
+      const q = document.querySelector('.scx-bar .px-q'); const sentence = q ? q.textContent.replace(/\s+Reset$/, '').replace(/\s+/g, ' ').trim() : '';
+      const vol = rows.reduce((s, r) => s + (r.salePrice || 0), 0);
+      const inv = mode === 'investment';
+      const wk = inv ? 'units' : 'proposedUnits';
+      const w = f => wa(rows, f, r => r[wk]);
+      const cap = w(r => r.capRate), nc = rows.filter(r => r.capRate != null).length;
+      return {
+        file: inv ? 'Investment sale comps' : 'Land sale comps', title: `${MKT()} ${inv ? 'investment' : 'land'} sales`, lede: sentence ? sentence + '.' : '',
+        kpis: inv
+          ? [['Sales', rows.length.toLocaleString(), rows.reduce((s, r) => s + (r.units || 0), 0).toLocaleString() + ' units'], ['Volume', T.usdM.pdf(vol), ''], ['Per unit', T.usd0.pdf(w(r => r.pricePerUnit)), 'unit-weighted'], ['Per SF', T.usd0.pdf(w(r => r.pricePerSF)), ''], ['Cap rate', cap == null ? '—' : cap.toFixed(2) + '%', nc + ' reported']]
+          : [['Sales', rows.length.toLocaleString(), Math.round(rows.reduce((s, r) => s + (r.acreage || 0), 0)).toLocaleString() + ' acres'], ['Volume', T.usdM.pdf(vol), ''], ['Per proposed unit', T.usd0.pdf(w(r => r.pricePerUnit)), ''], ['Per land SF', T.usd2.pdf(w(r => r.pricePerSF)), '']],
+        tables: [{
+          name: inv ? 'Investment sales' : 'Land sales', title: inv ? 'Investment sales, most recent first' : 'Land sales, most recent first',
+          cols: inv
+            ? [col('Property', r => r.name, 'text', 28), col('City', r => r.city, 'text', 13), col('Submarket', r => r.submarket, 'text', 18), col('Built', r => r.yearBuilt, 'yr'), col('Units', r => r.units, 'int'), col('Sale date', r => dateOf(r.saleDate), 'date'), col('Price', r => r.salePrice, 'usdM'), col('$ / unit', r => r.pricePerUnit, 'usd0'), col('$ / SF', r => r.pricePerSF, 'usd0'), col('Cap', r => r.capRate, 'pct2'), col('Buyer', r => r.buyer, 'text', 24), col('Seller', r => r.seller, 'text', 24)]
+            : [col('Site', r => r.name, 'text', 28), col('Submarket', r => r.submarket, 'text', 18), col('Construction', r => r.constructionType, 'text', 12), col('Sale date', r => dateOf(r.saleDate), 'date'), col('Acres', r => r.acreage, 'num1'), col('Proposed units', r => r.proposedUnits, 'int'), col('Price', r => r.salePrice, 'usdM'), col('$ / unit', r => r.pricePerUnit, 'usd0'), col('$ / land SF', r => r.pricePerSF, 'usd2'), col('Buyer', r => r.buyer, 'text', 24)],
+          rows
+        }]
+      };
+    }
+  };
+  function kpisFor(ex) {
+    const units = ex.reduce((s, p) => s + (p.units || 0), 0);
+    return [
+      ['Properties', ex.length.toLocaleString(), units.toLocaleString() + ' units'],
+      ['Asking rent', T.usd2.pdf(wa(ex, p => p.avgAskingSF)) + '/SF', T.usd0.pdf(wa(ex, p => p.avgAskingUnit)) + '/mo'],
+      ['Effective rent', T.usd2.pdf(wa(ex, p => p.avgEffectiveSF)) + '/SF', T.usd0.pdf(wa(ex, p => p.avgEffectiveUnit)) + '/mo'],
+      ['Occupancy', T.pct.pdf(wa(ex, occOf)), 'unit-weighted'],
+      ['Concessions', T.wks.pdf(wa(ex, wksOf)), 'free'],
+      ['Median vintage', String(median(ex.map(p => p.yearBuilt)) || '—'), '']
+    ];
+  }
+  function propCols(withStatus) {
+    const c = [col('Property', p => p.name, 'text', 30), col('Submarket', p => p.submarket, 'text', 20), col('Product', p => p.style, 'text', 11), col('Class', p => p.class, 'text', 6)];
+    if (withStatus) c.push(col('Status', p => isProp(p) ? 'Proposed' : p.status === 'Under Construction' ? 'Under constr.' : 'Existing', 'text', 11));
+    return c.concat([col('Units', p => p.units, 'int'), col('Built', p => p.yearBuilt, 'yr'), col('Avg SF', p => sfOf(p), 'int'), col('Occupancy', occOf, 'pct'), col('Asking $/SF', p => p.avgAskingSF, 'usd2'), col('Asking $/mo', p => p.avgAskingUnit, 'usd0'), col('Effective $/SF', p => p.avgEffectiveSF, 'usd2'), col('Concessions', wksOf, 'wks')]);
+  }
+
+  // ---------- PDF ----------
+  const CSS = `@page { size: 13.333in 7.5in; margin: 0; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { margin: 0; font-family: Aptos, 'Segoe UI', Calibri, Arial, sans-serif; color: #16131f; background: #e9e7ef; }
+    .s { width: 13.333in; height: 7.5in; padding: .55in .6in .5in; position: relative; background: #fff; page-break-after: always; overflow: hidden; margin: 0 auto 18px; }
+    @media print { body { background: #fff; } .s { margin: 0; } }
+    .s::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: .12in; background: #1D1247; }
+    .eyebrow { font-size: 10.5pt; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #432890; }
+    h1 { font-size: 28pt; line-height: 1.1; margin: .08in 0 .1in; color: #1D1247; font-weight: 700; letter-spacing: -.01em; }
+    h2 { font-size: 19pt; line-height: 1.15; margin: .06in 0 .2in; color: #1D1247; font-weight: 700; }
+    .lede { font-size: 12pt; color: #4b4660; margin: 0 0 .32in; max-width: 11in; }
+    .kpis { display: grid; grid-template-columns: repeat(var(--n), 1fr); border-top: 1.5px solid #1D1247; border-bottom: 1px solid #e3e0ec; }
+    .kpi { padding: .2in .16in .2in 0; border-right: 1px solid #ebe8f3; } .kpi + .kpi { padding-left: .18in; } .kpi:last-child { border-right: 0; }
+    .kpi span { display: block; font-size: 9pt; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: #6c6782; }
+    .kpi b { display: block; font-size: 20pt; font-weight: 700; color: #1D1247; margin-top: .08in; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .kpi em { display: block; font-style: normal; font-size: 9.5pt; color: #6c6782; margin-top: .04in; white-space: nowrap; }
+    .prev { margin-top: .34in; }
+    table.t { width: 100%; border-collapse: collapse; table-layout: auto; font-variant-numeric: tabular-nums; }
+    .t th { font-size: 8.5pt; font-weight: 600; color: #6c6782; text-align: right; padding: 0 7px 6px; border-bottom: 1.5px solid #1D1247; white-space: nowrap; }
+    .t th.l, .t td.l { text-align: left; }
+    .t td { font-size: 9.5pt; padding: 4.5px 7px; border-bottom: 1px solid #f0eef5; text-align: right; white-space: nowrap; max-width: 2.8in; overflow: hidden; text-overflow: ellipsis; }
+    .t td.first { font-weight: 600; color: #16131f; }
+    .t tr:nth-child(even) td { background: #fbfaff; }
+    .more { font-size: 9pt; color: #6c6782; margin-top: .1in; }
+    .ft { position: absolute; left: .6in; right: .6in; bottom: .25in; display: flex; justify-content: space-between; gap: 16px; font-size: 7.5pt; color: #8a849e; border-top: 1px solid #ebe8f3; padding-top: 6px; }
+    .ft span:nth-child(2) { flex: 1; text-align: center; }`;
+  function tableHtml(t, rows) {
+    return `<table class="t"><thead><tr>${t.cols.map((c, i) => `<th class="${(T[c.t].align || (i === 0 ? 'left' : '')) === 'left' || i === 0 ? 'l' : ''}">${E(c.h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${t.cols.map((c, i) => { const v = c.v(r); return `<td class="${T[c.t].align === 'left' || i === 0 ? 'l' : ''}${i === 0 ? ' first' : ''}">${T[c.t].pdf(v)}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+  function exportPdf(view) {
+    const S = SPEC[view](); const date = new Date(); const asOf = asOfTxt();
+    const foot = n => `<div class="ft"><span>Willow Bridge Property Company · Market Intel</span><span>Source: ${view === 'view-trends' ? 'RealPage' : 'CoStar' + (asOf ? ' (' + asOf + ')' : '')}${view === 'view-salecomps' ? ', Willow Bridge sale comp log' : ''}. Exported ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.</span><span>${n}</span></div>`;
+    const slides = []; const PER = 20, CAP = 100;
+    const first = S.tables[0];
+    slides.push(`<section class="s"><div class="eyebrow">${E(MKT())} · ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div><h1>${E(S.title)}</h1>${S.lede ? `<p class="lede">${E(S.lede)}</p>` : ''}
+      <div class="kpis" style="--n:${S.kpis.length}">${S.kpis.map(([l, v, s]) => `<div class="kpi"><span>${E(l)}</span><b>${v}</b><em>${E(s || '')}</em></div>`).join('')}</div>
+      ${first && first.rows.length ? `<div class="prev">${tableHtml(first, first.rows.slice(0, 6))}${first.rows.length > 6 ? `<div class="more">Top 6 of ${first.rows.length.toLocaleString()} shown · full list follows</div>` : ''}</div>` : ''}
+      ${foot(1)}</section>`);
+    S.tables.forEach(t => {
+      const rows = t.rows.slice(0, CAP);   // long lists: the deck gets the first 100, the Excel export has every row
+      const pages = Math.max(1, Math.ceil(rows.length / PER));
+      for (let i = 0; i < pages; i++) {
+        const lastPage = i === pages - 1;
+        slides.push(`<section class="s"><div class="eyebrow">${E(MKT())} · ${E(S.file)}${pages > 1 ? ` · ${i + 1} of ${pages}` : ''}</div><h2>${E(t.title)}${t.rows.length > 1 ? ` <span style="font-weight:500;color:#6c6782;font-size:13pt">${t.rows.length.toLocaleString()}</span>` : ''}</h2>
+          ${rows.length ? tableHtml(t, rows.slice(i * PER, (i + 1) * PER)) : '<div class="more">Nothing to show with the current filters.</div>'}${lastPage && t.rows.length > CAP ? `<div class="more">First ${CAP} of ${t.rows.length.toLocaleString()} shown · every row is in the Excel export</div>` : ''}${foot(slides.length + 1)}</section>`);
+      }
+    });
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${E(MKT() + ' - ' + S.file)}</title><style>${CSS}</style></head><body>${slides.join('')}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { alert('Allow pop-ups for this site to export the PDF.'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+    return html;
+  }
+
+  // ---------- Excel ----------
+  function loadExcelJS() {
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'; s.onload = () => res(window.ExcelJS); s.onerror = () => rej(new Error('Could not load the Excel library')); document.head.appendChild(s); });
+  }
+  async function exportXlsx(view) {
+    const S = SPEC[view](); const ExcelJS = await loadExcelJS(); const date = new Date(); const asOf = asOfTxt();
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Willow Bridge'; wb.created = date;
+    const F = { name: 'Aptos', size: 10 }, FB = { ...F, bold: true }, MID = 'FF1D1247', GRY = 'FF6C6782';
+    const thin = { style: 'thin', color: { argb: 'FFE3E0EC' } };
+    const sub = `${MKT()} · ${date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · Source: ${view === 'view-trends' ? 'RealPage' : 'CoStar' + (asOf ? ' (' + asOf + ')' : '')}`;
+    const top = (ws, title, line2) => {
+      ws.getCell('A1').value = title; ws.getCell('A1').font = { name: 'Aptos', size: 14, bold: true, color: { argb: MID } };
+      ws.getCell('A2').value = line2; ws.getCell('A2').font = { ...F, color: { argb: GRY } };
+      ws.getRow(3).height = 6;
+    };
+    // Summary
+    let ws = wb.addWorksheet('Summary', { views: [{ showGridLines: false }] });
+    top(ws, S.title, sub);
+    if (S.lede) { ws.getCell('A4').value = S.lede; ws.getCell('A4').font = { ...F, italic: true, color: { argb: GRY } }; }
+    const hr = ws.getRow(6); ['Measure', 'Value', 'Note'].forEach((h, i) => { const c = hr.getCell(i + 1); c.value = h; c.font = { ...FB, color: { argb: MID } }; c.border = { bottom: { style: 'medium', color: { argb: MID } } }; c.alignment = { horizontal: i === 1 ? 'right' : 'left' }; });
+    S.kpis.forEach(([l, v, n], i) => { const r = ws.getRow(7 + i); r.getCell(1).value = l; r.getCell(1).font = F; r.getCell(2).value = String(v).replace(/<[^>]+>/g, ''); r.getCell(2).font = FB; r.getCell(2).alignment = { horizontal: 'right' }; r.getCell(3).value = n || ''; r.getCell(3).font = { ...F, color: { argb: GRY } }; [1, 2, 3].forEach(k => { r.getCell(k).border = { bottom: thin }; }); });
+    ws.columns = [{ width: 26 }, { width: 22 }, { width: 34 }];
+    // tables
+    S.tables.forEach(t => {
+      ws = wb.addWorksheet(t.name.slice(0, 31), { views: [{ showGridLines: false }] });
+      top(ws, t.title, sub);
+      const h = ws.getRow(4);
+      t.cols.forEach((c, i) => { const cell = h.getCell(i + 1); cell.value = c.h; cell.font = { ...FB, color: { argb: MID } }; cell.border = { bottom: { style: 'medium', color: { argb: MID } } }; cell.alignment = { horizontal: (T[c.t].align === 'left' || i === 0 || !T[c.t].xl) ? 'left' : 'right', vertical: 'bottom', wrapText: true }; });
+      h.height = 30;
+      t.rows.forEach((r, j) => {
+        const row = ws.getRow(5 + j);
+        t.cols.forEach((c, i) => {
+          const ty = T[c.t]; let v = c.v(r); if (v === '' || (typeof v === 'number' && isNaN(v))) v = null;
+          if (ty.toXl) v = ty.toXl(v);
+          const cell = row.getCell(i + 1); cell.value = v == null ? null : v; cell.font = i === 0 ? FB : F; cell.border = { bottom: thin };
+          if (ty.xl) { cell.numFmt = ty.xl; cell.alignment = { horizontal: 'right' }; }
+        });
+      });
+      if (!t.rows.length) { ws.getCell('A5').value = 'Nothing to show with the current filters.'; ws.getCell('A5').font = { ...F, italic: true }; }
+      ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(5, 4 + t.rows.length), column: t.cols.length } };
+      ws.columns = t.cols.map(c => ({ width: c.w || (T[c.t].xl ? 13 : 16) }));
+    });
+    wb.eachSheet(s => { s.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } }; });
+    const buf = await wb.xlsx.writeBuffer();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = `${S.file} - ${MKT().replace(/[^\w\- ]+/g, '')} - ${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}.xlsx`;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  }
+  window.wbViewExport = { SPEC, pdf: exportPdf, xlsx: exportXlsx, has: v => !!SPEC[v] };
 })();
