@@ -843,3 +843,10 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 .yx-expand:hover { background:#f4f2fa; color:#1D1247; }
 #view-yoc .yx-matrix.yx-full { position:fixed !important; inset:20px 24px !important; z-index:7000 !important; margin:0 !important; display:flex; flex-direction:column; box-shadow:0 0 0 100vmax rgba(18,12,40,.45), 0 24px 64px rgba(0,0,0,.3) !important; border-radius:14px; background:#fff; }
 #view-yoc .yx-matrix.yx-full .yoc-table-scroll { flex:1; max-height:none !important; overflow:auto; }
+
+/* matrix header: fully opaque, nothing scrolls visibly above or behind it */
+#view-yoc .yoc-table-scroll { padding-top: 0 !important; }
+#view-yoc .yoc-table thead tr:first-child th { box-shadow: 0 -40px 0 #fff !important; }
+#view-yoc .yoc-table thead tr:first-child th.yx-gh { box-shadow: 0 -40px 0 #fff, inset 0 -1px 0 var(--x-line) !important; }
+#view-yoc .yoc-table thead th { background-color: #fff !important; opacity: 1 !important; }
+#view-yoc .yoc-table thead { position: relative; z-index: 4; }
