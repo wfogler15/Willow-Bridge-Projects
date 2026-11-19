@@ -14829,42 +14829,60 @@ function renderModal() {
         const leasesPerMo = leasedUnits / monthsOpen;
         const target = p.units * 0.95;
         const velocity = state.leaseVelocity || 25;
+        const method = state.paceMethod || 'fixed';
+        const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const mo = d => `${MN[d.getMonth()]} ${d.getFullYear()}`;
+        const asOf = mo(TODAY);
+        const NOW = new Date();
+        const gapMo = Math.max(0, (NOW - TODAY) / 86400000 / 30.44);
+        const LU = window.wbLU;
+        // Actuals are CoStar as of the snapshot date; "today" is a projection from there
+        const occNow = LU ? LU.projectTo(p, occ / 100, gapMo, method) * 100 : Math.min(95.5, occ + velocity * gapMo / p.units * 100);
+        const methodLbl = method === 'fixed' ? `${velocity} leases / mo` : ({ own: 'own pace', curve: 'comparable curve', blend: 'blend' })[method] + ' method';
         let stabLabel, stabSubLabel;
         if (leasedUnits >= target) {
           stabLabel = 'Stabilized';
-          stabSubLabel = `${occ.toFixed(1)}% leased · already ≥ 95%`;
+          stabSubLabel = `${occ.toFixed(1)}% leased in ${asOf}`;
         } else {
           const unitsToGo = target - leasedUnits;
-          const monthsToStab = unitsToGo / velocity;
-          const fwd = new Date(TODAY);
-          fwd.setDate(fwd.getDate() + Math.round(monthsToStab * 30.44));
-          const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-          stabLabel = `${m[fwd.getMonth()]} ${fwd.getFullYear()}`;
-          stabSubLabel = `~${monthsToStab.toFixed(1)} months out · ${Math.round(unitsToGo)} units to go`;
+          const monthsToStab = LU ? LU.monthsTo(p, occ / 100, method) : unitsToGo / velocity;
+          if (monthsToStab == null) { stabLabel = '—'; stabSubLabel = 'No measurable pace'; }
+          else {
+            const fwd = new Date(TODAY);
+            fwd.setDate(fwd.getDate() + Math.round(monthsToStab * 30.44));
+            stabLabel = mo(fwd);
+            stabSubLabel = fwd <= NOW
+              ? `Likely stabilized · ${Math.round(unitsToGo)} units to go in ${asOf}`
+              : `~${((fwd - NOW) / 86400000 / 30.44).toFixed(1)} months from today`;
+          }
         }
+        const sub = t => `<div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-4);margin-top:3px;letter-spacing:0.04em;">${t}</div>`;
         return `
           <div class="detail-section-title">Lease-Up Performance</div>
           <div class="detail-grid">
             <div class="detail-cell">
-              <div class="detail-label">Months Open</div>
-              <div class="detail-value">${monthsOpen}</div>
-            </div>
-            <div class="detail-cell">
-              <div class="detail-label">Leased Units</div>
+              <div class="detail-label">Leased · ${asOf}</div>
               <div class="detail-value">${fmt.int(leasedUnits)} <span style="font-size:13px;color:var(--ink-3);">of ${fmt.int(p.units)}</span></div>
+              ${sub(`${monthsOpen} months after delivery`)}
             </div>
             <div class="detail-cell">
               <div class="detail-label">Avg Leases / Month</div>
               <div class="detail-value">${leasesPerMo.toFixed(1)}</div>
+              ${sub(`${mo(delivered)} – ${asOf}`)}
+            </div>
+            <div class="detail-cell">
+              <div class="detail-label">Leased Today (Proj.)</div>
+              <div class="detail-value">${occNow >= 95 ? '95%+' : occNow.toFixed(0) + '%'}</div>
+              ${sub(`${Math.round(monthsBetween(delivered, NOW))} months open · ${gapMo.toFixed(0)} mo projected`)}
             </div>
             <div class="detail-cell">
               <div class="detail-label">Est. Stabilization</div>
               <div class="detail-value" style="font-size:18px;">${stabLabel}</div>
-              <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-4);margin-top:3px;letter-spacing:0.04em;">${stabSubLabel}</div>
+              ${sub(stabSubLabel)}
             </div>
           </div>
           <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-4);margin-top:-2px;letter-spacing:0.04em;font-style:italic;padding:0 4px;">
-            Est. Stabilization assumes ${velocity} units / month — adjustable on the Absorption tab. Reaches 95% leased.
+            Leased units and pace are CoStar actuals as of ${asOf}. Today and stabilization project forward at ${methodLbl} to 95% — change on the Absorption tab.
           </div>
         `;
       })()}
@@ -23398,6 +23416,7 @@ function txRenderBoard() {
       const t2 = document.createElement('th'); t2.className = 'num lu-c2'; t2.textContent = 'Today (Proj.)'; t2.title = 'Occupancy projected from the snapshot to today with the selected method';
       hr.insertBefore(t1, last); hr.insertBefore(t2, last);
     }
+    hr.querySelectorAll('th').forEach(th => { if (/^Months Open$/.test(th.textContent.trim())) { th.textContent = `Months Open (${mo(AS_OF)})`; th.title = 'Months from delivery to the CoStar snapshot date; leases / month is measured over the same window'; } });
     const rows = getAbsorptionData(); const by = new Map(rows.map(p => [String(p.id), p]));
     table.querySelectorAll('tbody tr[data-pid]').forEach(tr => {
       const p = by.get(String(tr.dataset.pid)); if (!p || tr.querySelector('.lu-c1')) return;
