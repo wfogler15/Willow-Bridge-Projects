@@ -23618,8 +23618,8 @@ function txRenderBoard() {
     if (!tbl || !wrap || !wrap.clientWidth) return;
     tbl.style.setProperty('--mm-gap', '40px');
     const n = tbl.querySelectorAll('thead th').length - 1;
-    const spare = wrap.clientWidth - 8 - tbl.offsetWidth;
-    if (spare > 0 && n > 0) tbl.style.setProperty('--mm-gap', (40 + Math.min(40, spare / n)).toFixed(1) + 'px');
+    const spare = wrap.clientWidth - 2 - tbl.offsetWidth;
+    if (spare > 0 && n > 0) tbl.style.setProperty('--mm-gap', (40 + spare / n).toFixed(1) + 'px');
   }
   window.addEventListener('resize', () => { clearTimeout(fitCols._t); fitCols._t = setTimeout(fitCols, 150); });
   function paintPicks() {
