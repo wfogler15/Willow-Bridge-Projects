@@ -23606,20 +23606,7 @@ function txRenderBoard() {
   // Column widths: measure each column's natural width, cap the two long text columns, then spread the
   // leftover width evenly across every column so the gaps between columns are equal (no single column
   // swallowing the extra space and pushing the numbers to the far right).
-  function fitCols() {
-    const tbl = panel.querySelector('.mm-table'), wrap = panel.querySelector('.mm-tablewrap');
-    if (!tbl || !wrap || !wrap.clientWidth) return;
-    const ths = [...tbl.querySelectorAll('thead th')];
-    tbl.style.tableLayout = 'auto'; tbl.style.width = 'auto';
-    ths.forEach(th => { th.style.width = ''; });
-    const CAP = { name: 320, developer: 250 };
-    const nat = ths.map(th => Math.min(th.offsetWidth, CAP[th.dataset.k] || 9999));
-    const W = wrap.clientWidth - 2, S = nat.reduce((a, b) => a + b, 0);
-    const widths = W >= S ? nat.map(w => w + (W - S) / nat.length) : nat.map(w => w * W / S);
-    ths.forEach((th, i) => { th.style.width = widths[i].toFixed(1) + 'px'; });
-    tbl.style.width = '100%'; tbl.style.tableLayout = 'fixed';
-  }
-  window.addEventListener('resize', () => { clearTimeout(fitCols._t); fitCols._t = setTimeout(fitCols, 150); });
+  function fitCols() { /* widths come from content; see .mm-table in demo.css */ }
   function paintPicks() {
     if (!propertyMap) return;
     if (pickLayer) { propertyMap.removeLayer(pickLayer); pickLayer = null; }

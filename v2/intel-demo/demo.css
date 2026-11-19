@@ -905,3 +905,14 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 /* In view: status and class sit centered in their columns so the gap around them is even */
 .mm-table th[data-k="status"], .mm-table td:nth-child(4) { text-align:center !important; }
 .mm-table td { padding-left:14px; padding-right:14px; }
+
+/* In view table, final layout: columns sized to their content with one uniform gap between them.
+   The table no longer stretches to the card width, so there are no stretched gaps on wide screens. */
+#view-submarkets .mm-table { width:auto !important; table-layout:auto !important; }
+#view-submarkets .mm-table th, #view-submarkets .mm-table td { width:auto !important; padding:10px 0 10px 40px !important; }
+#view-submarkets .mm-table th:first-child, #view-submarkets .mm-table td:first-child { padding-left:4px !important; }
+#view-submarkets .mm-table.picking td:first-child, #view-submarkets .mm-table.picking th:first-child { padding-left:30px !important; }
+#view-submarkets .mm-table th:last-child, #view-submarkets .mm-table td:last-child { padding-right:8px !important; }
+#view-submarkets .mm-table td { overflow:visible; }
+#view-submarkets .mm-table .mm-nm, #view-submarkets .mm-table td:first-child .mm-ad { max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#view-submarkets .mm-table .mm-nm2, #view-submarkets .mm-table td:nth-child(2) .mm-ad { max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
