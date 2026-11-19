@@ -16798,7 +16798,7 @@ function renderYoc() {
         const tooltip = isNoData
           ? 'No data'
           : `${escapeHTML(bestProp.name)}: ${vsNeededTxt(best, reqTodayFor(prod, sm))}${trendNote} · rents ${best >= reqTodayFor(prod, sm) ? 'support' : 'do not support'} ${escapeHTML(prod.toLowerCase())} at ${(yocState.targetYoc*100).toFixed(2)}% · click to view detail`;
-        const label = isNoData ? '—' : '<span class="yx-psf">$' + best.toFixed(2) + '</span><span class="yoc-n">(' + propsWithPsf.length + ')</span>';
+        const label = isNoData ? '—' : '<span class="yx-psf">$' + best.toFixed(2) + '</span><span class="yoc-n">(1)</span>';
         const dataAttr = isClickable ? ` data-best-pid="${escapeHTML(bestProp.id)}"` : '';
         row += `<td class="${cls}"${dataAttr} style="${isNoData ? '' : `background:${bg};color:${fg};`}" title="${tooltip}">${label}</td>`;
       }
