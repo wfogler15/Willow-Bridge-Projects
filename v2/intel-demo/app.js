@@ -16499,7 +16499,7 @@ function yocCsRow() {
     if (p.submarket) smCount[p.submarket] = (smCount[p.submarket] || 0) + 1;
   });
   const sm = Object.keys(smCount).sort((a, b) => smCount[b] - smCount[a])[0] || null;
-  return { id, name: cs.name, group, sm, missing };
+  return { id, name: cs.name, group, sm, missing, ids };
 }
 function paintYxCsPicker() {
   const sel = document.getElementById('yx-csrow'); if (!sel) return;
@@ -16602,6 +16602,12 @@ function renderYoc() {
   }
 
   let groupKeys = Object.keys(grouped).sort((a,b) => a.localeCompare(b));
+  // With a comp set row showing, the rows below are only the submarkets (or cities) the set's properties are in
+  if (csRow) {
+    const csGroups = new Set();
+    RAW_DATA.map(applyUserEdits).forEach(p => { if (csRow.ids.has(String(p.id)) && p[groupKey]) csGroups.add(p[groupKey]); });
+    groupKeys = groupKeys.filter(k => csGroups.has(k));
+  }
   // When a single product is selected, drop rows with no comps for that product —
   // keeps the matrix focused on rows that actually have data to compare.
   if (yocState.productFilter !== 'all') {
@@ -16653,7 +16659,7 @@ function renderYoc() {
     groupKeys.sort((a, b) => avgForRow(b) - avgForRow(a));
   }
 
-  if (groupKeys.length === 0) {
+  if (groupKeys.length === 0 && !csRow) {
     document.querySelector('#yoc-table thead').innerHTML = '';
     document.querySelector('#yoc-table tbody').innerHTML = '<tr><td class="empty">No data matches current filters.</td></tr>';
     // Still render the threshold panel — it shows an empty-state message rather than
