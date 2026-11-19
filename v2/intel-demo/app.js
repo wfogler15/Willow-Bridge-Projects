@@ -23598,6 +23598,7 @@ function txRenderBoard() {
     ['status', 'Status', stat, 'txt'],
     ['units', 'Units', p => p.units, 'num'],
     ['yearBuilt', 'Built', p => p.yearBuilt, 'num'],
+    ['avgSF', 'Avg SF', p => p.avgUnitSF, 'num'],
     ['askSF', 'Asking $/SF', p => p.avgAskingSF, 'num'],
     ['askU', 'Asking $/mo', p => p.avgAskingUnit, 'num'],
     ['effSF', 'Eff. $/SF', p => p.avgEffectiveSF, 'num'],
@@ -23615,6 +23616,7 @@ function txRenderBoard() {
     units: p => p.units ? p.units.toLocaleString() : '—', yearBuilt: p => p.yearBuilt || '—',
     occ: p => { const o = occOf(p); return o == null ? '<span class="mm-dim">—</span>' : o.toFixed(1) + '%'; },
     askSF: p => fmt2(p.avgAskingSF), effSF: p => fmt2(p.avgEffectiveSF),
+    avgSF: p => p.avgUnitSF ? Math.round(p.avgUnitSF).toLocaleString() : '<span class="mm-dim">—</span>',
     askU: p => p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '<span class="mm-dim">—</span>',
     effU: p => p.avgEffectiveUnit ? '$' + Math.round(p.avgEffectiveUnit).toLocaleString() : '<span class="mm-dim">—</span>', conc: p => { const w = wksOf(p); return w == null ? '<span class="mm-dim">—</span>' : w.toFixed(1) + ' wks'; }
   };
