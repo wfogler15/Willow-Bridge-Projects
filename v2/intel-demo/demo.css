@@ -800,3 +800,29 @@ html body #view-yoc .yx-ops { padding: 0 20px 14px; }
 html body #view-yoc .yx-ops-h { margin: 10px 0 6px; }
 html body #view-yoc .yx-ops-t thead th { padding: 10px 10px 4px; }
 html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
+
+/* Pencils modal: tabs, clearing counts, deals list */
+.yx-modal-tabs { display:flex; gap:22px; padding:0 26px; border-bottom:1px solid #e6e4ee; }
+.yx-modal-tabs button { all:unset; cursor:pointer; padding:12px 0 10px; font:600 13px/1 Aptos, 'Segoe UI', sans-serif; color:#6c6782; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.yx-modal-tabs button:hover { color:#1D1247; }
+.yx-modal-tabs button.on { color:#1D1247; border-bottom-color:#1D1247; }
+.yx-clr { font-variant-numeric:tabular-nums; color:#6c6782; } .yx-clr b { color:#1F7A4C; }
+.yx-prop.ok .nm::before { content:'✓'; color:#1F7A4C; font-weight:700; margin-right:6px; }
+.yx-dl { width:100%; border-collapse:collapse; }
+.yx-dl th { text-align:left; font:600 11.5px/1 Aptos, 'Segoe UI', sans-serif; color:#6c6782; padding:12px 12px 8px; border-bottom:1px solid #e6e4ee; position:sticky; top:0; background:#fff; }
+.yx-dl th.num, .yx-dl td.num { text-align:right; font-variant-numeric:tabular-nums; }
+.yx-dl-sm td { padding:16px 12px 6px; font:700 13px/1.2 Aptos, 'Segoe UI', sans-serif; color:#1D1247; border-bottom:1px solid #ebe8f3; }
+.yx-dl-sm td span { margin-left:10px; font-weight:500; font-size:12px; color:#6c6782; }
+.yx-dl-row td { padding:9px 12px; border-bottom:1px solid #f2f0f7; font:400 13px/1.2 Aptos, 'Segoe UI', sans-serif; color:#16131f; }
+.yx-dl-row { cursor:pointer; } .yx-dl-row:hover td { background:#f8f7fb; }
+.yx-dl-row td.nm { font-weight:600; }
+.yx-dl-row td.up { color:#1F7A4C; font-weight:600; }
+.yx-empty { padding:28px !important; text-align:center; color:#6c6782; }
+
+/* YOC group drill-down: one line per cell, clean numbers */
+.yx-gd th, .yx-gd td { white-space: nowrap !important; }
+.yx-gd td.nm { max-width: 340px; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--x-ink, #16131f) !important; }
+.yx-gd tr.ok td.nm::before { content: '✓'; color: #1F7A4C; font-weight: 700; margin-right: 6px; }
+.yx-gd td.vs.up { color: #1F7A4C !important; font-weight: 600; }
+.yx-gd td.vs.dn { color: #a0393e !important; }
+.yx-gd th { text-transform: none !important; letter-spacing: 0 !important; font-weight: 600 !important; }

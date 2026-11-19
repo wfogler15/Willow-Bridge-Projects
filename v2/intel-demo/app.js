@@ -15812,6 +15812,17 @@ function effectiveGrowthRate(submarket) {
 // before computing ROC — so a trended assumption boosts apparent ROC.
 // Optional `submarket` arg lets the trend math use RealPage's submarket-specific
 // forecast CAGR instead of the global flat growth assumption.
+function reqTodayFor(productType, submarket) {
+  const was = yocState.trendEnabled; yocState.trendEnabled = false;
+  const atDelivery = requiredPsfRent(productType, sfFor(productType));
+  yocState.trendEnabled = was;
+  return atDelivery == null ? null : trendDiscount(atDelivery, submarket);
+}
+function vsNeededTxt(psf, req) {
+  if (psf == null || req == null) return '';
+  const d = psf - req;
+  return `$${psf.toFixed(2)}/SF vs $${req.toFixed(2)} needed (${d >= 0 ? '+' : '−'}$${Math.abs(d).toFixed(2)})`;
+}
 function rocFromPsf(psf, productType, sf, submarket) {
   if (psf == null) return null;
   const c = yocState.costs[productType];
@@ -16648,7 +16659,7 @@ function renderYoc() {
         const compCount = validForWeight.length || validPsf.length;
         const tooltip = isNoData
           ? 'No data'
-          : `${(rocAvg*100).toFixed(2)}% ROC${trendNote} · ${compCount} comp(s) · unit-weighted${bestProp ? ' · best: ' + escapeHTML(bestProp.name) + ' $' + best.toFixed(2) : ''} · click to view all`;
+          : `Avg ${vsNeededTxt(avg, reqTodayFor(prod, sm))}${trendNote} · ${compCount} comp(s) · unit-weighted${bestProp ? ' · best: ' + escapeHTML(bestProp.name) + ' $' + best.toFixed(2) : ''} · click to view all`;
         const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span><span class="yoc-n">(' + (validForWeight.length || validPsf.length) + ')</span>';
         const dataAttr = isClickable
           ? ` data-avg-group="${escapeHTML(sm)}" data-avg-product="${escapeHTML(prod)}"`
@@ -16668,7 +16679,7 @@ function renderYoc() {
           : '';
         const tooltip = isNoData
           ? 'No data'
-          : `${(rocBest*100).toFixed(2)}% ROC${trendNote} · ${escapeHTML(bestProp.name)} · click to view detail`;
+          : `${escapeHTML(bestProp.name)}: ${vsNeededTxt(best, reqTodayFor(prod, sm))}${trendNote} · rents ${best >= reqTodayFor(prod, sm) ? 'support' : 'do not support'} ${escapeHTML(prod.toLowerCase())} at ${(yocState.targetYoc*100).toFixed(2)}% · click to view detail`;
         const label = isNoData ? '—' : '<span class="yx-psf">$' + best.toFixed(2) + '</span><span class="yoc-n">(' + propsWithPsf.length + ')</span>';
         const dataAttr = isClickable ? ` data-best-pid="${escapeHTML(bestProp.id)}"` : '';
         row += `<td class="${cls}"${dataAttr} style="${isNoData ? '' : `background:${bg};color:${fg};`}" title="${tooltip}">${label}</td>`;
@@ -16713,9 +16724,10 @@ function renderYoc() {
 // focuses the matrix on that product; clicking the active card shows all.
 // Modal: every submarket that pencils for one product, ranked by return on cost.
 // Click a submarket to expand its comps; click a comp for the property detail.
-function openYxPencilsModal(prod) {
+function openYxPencilsModal(prod, tab) {
   const data = (window.__yxClears || {})[prod];
   if (!data) return;
+  tab = tab || (data.list.length ? 'sm' : 'deals');
   const groupWord = yocState.groupBy === 'city' ? 'City' : 'Submarket';
   let ov = document.getElementById('yx-modal');
   if (!ov) {
@@ -16723,8 +16735,9 @@ function openYxPencilsModal(prod) {
     document.body.appendChild(ov);
     ov.addEventListener('click', e => {
       if (e.target === ov || e.target.closest('.yx-modal-x')) { ov.hidden = true; return; }
+      const t = e.target.closest('[data-yxtab]'); if (t) { openYxPencilsModal(ov.dataset.prod, t.dataset.yxtab); return; }
       const prop = e.target.closest('[data-pid]');
-      if (prop) { ov.hidden = true; window.__wbNavFrom = { kind: 'pencils', args: [ov.dataset.prod], label: 'Where ' + String(ov.dataset.prod).toLowerCase() + ' pencils' }; openDetail(prop.dataset.pid); return; }
+      if (prop) { ov.hidden = true; window.__wbNavFrom = { kind: 'pencils', args: [ov.dataset.prod, ov.dataset.tab], label: 'Where ' + String(ov.dataset.prod).toLowerCase() + ' pencils' }; openDetail(prop.dataset.pid); return; }
       const row = e.target.closest('tr.yx-sm-row');
       if (row) {
         const open = row.classList.toggle('open');
@@ -16734,41 +16747,63 @@ function openYxPencilsModal(prod) {
     });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') ov.hidden = true; });
   }
-  const maxSpread = Math.max(0.01, ...data.list.map(c => Math.abs(c.psf - (data.req || 0))));
   const fmt$ = v => '$' + v.toFixed(2);
-  const rows = data.list.map((c, i) => {
-    const b = yocBandFor(c.roc);
-    const spread = data.req == null ? 0 : c.psf - data.req;
-    const thin = c.n < yocState.minCompsForColor;
-    const w = Math.round(Math.abs(spread) / maxSpread * 100);
-    const props = c.props.slice().sort((x, y) => (y.avgAskingSF || 0) - (x.avgAskingSF || 0));
-    const plist = props.map(p => {
-      const sf = p.avgUnitSF || (p.avgAskingUnit && p.avgAskingSF ? p.avgAskingUnit / p.avgAskingSF : null);
-      const mo = p.avgAskingUnit || (sf && p.avgAskingSF ? p.avgAskingSF * sf : null);
-      const vs = data.req == null || p.avgAskingSF == null ? null : p.avgAskingSF - data.req;
-      return `<div class="yx-prop" data-pid="${escapeHTML(p.id)}">
-        <span class="nm">${escapeHTML(p.name || 'Unnamed')}${typeof affTag === 'function' ? affTag(p) : ''}</span>
-        <span>${p.yearBuilt || '—'}</span><span>${p.units ? p.units.toLocaleString() + ' units' : '—'}</span>
-        <span>${sf ? Math.round(sf).toLocaleString() + ' SF' : '—'}</span>
-        <span class="r"><b>${p.avgAskingSF != null ? fmt$(p.avgAskingSF) : '—'}</b> / SF</span>
-        <span class="r">${mo ? '$' + Math.round(mo).toLocaleString() + ' / mo' : '—'}</span>
-        <span class="r ${vs != null && vs >= 0 ? 'up' : 'dn'}">${vs == null ? '' : (vs >= 0 ? '+' : '−') + fmt$(Math.abs(vs))}</span>
-      </div>`;
-    }).join('');
-    return `<tr class="yx-sm-row" title="Show the comps">
-      <td class="rk">${i + 1}</td>
-      <td class="sm"><span class="chev">›</span>${escapeHTML(c.sm)}</td>
-      <td class="num"><b>${fmt$(c.psf)}</b></td>
-      <td class="spread"><span class="v ${spread >= 0 ? 'up' : 'dn'}">${(spread >= 0 ? '+' : '−') + fmt$(Math.abs(spread))}</span><span class="bar"><i class="${spread >= 0 ? 'up' : 'dn'}" style="width:${w}%"></i></span></td>
-      <td class="num">${fmt$(c.best)}</td>
-      <td class="num">${thin ? `<span class="thin">${c.n} · thin</span>` : c.n}</td>
-      <td class="num">${c.units.toLocaleString()}</td>
-      <td class="num"><span class="pill" style="background:${b ? b.color : '#eee'};color:${b ? b.ink : '#333'}">${(c.roc * 100).toFixed(2)}%</span></td>
-    </tr>
-    <tr class="yx-props-row" hidden><td></td><td colspan="7"><div class="yx-props">
-      <div class="yx-prop yx-prop-h"><span>Property</span><span>Built</span><span>Units</span><span>Avg unit</span><span class="r">Rent / SF</span><span class="r">Rent / mo</span><span class="r">vs. needed</span></div>
-      ${plist}</div></td></tr>`;
-  }).join('');
+  const sgn = v => (v >= 0 ? '+' : '−') + fmt$(Math.abs(v));
+  const sfOf = p => p.avgUnitSF || (p.avgAskingUnit && p.avgAskingSF ? p.avgAskingUnit / p.avgAskingSF : null);
+  const moOf = p => { const sf = sfOf(p); return p.avgAskingUnit || (sf && p.avgAskingSF ? p.avgAskingSF * sf : null); };
+  let body;
+  if (tab === 'sm') {
+    const maxSpread = Math.max(0.01, ...data.list.map(c => Math.abs(c.psf - (c.req || 0))));
+    const rows = data.list.map((c, i) => {
+      const spread = c.req == null ? 0 : c.psf - c.req;
+      const thin = c.n < yocState.minCompsForColor;
+      const w = Math.round(Math.abs(spread) / maxSpread * 100);
+      const props = c.props.slice().sort((x, y) => (y.avgAskingSF || 0) - (x.avgAskingSF || 0));
+      const plist = props.map(p => {
+        const sf = sfOf(p), mo = moOf(p);
+        const vs = c.req == null || p.avgAskingSF == null ? null : p.avgAskingSF - c.req;
+        return `<div class="yx-prop${vs != null && vs >= 0 ? ' ok' : ''}" data-pid="${escapeHTML(p.id)}">
+          <span class="nm">${escapeHTML(p.name || 'Unnamed')}${typeof affTag === 'function' ? affTag(p) : ''}</span>
+          <span>${p.yearBuilt || '—'}</span><span>${p.units ? p.units.toLocaleString() + ' units' : '—'}</span>
+          <span>${sf ? Math.round(sf).toLocaleString() + ' SF' : '—'}</span>
+          <span class="r"><b>${p.avgAskingSF != null ? fmt$(p.avgAskingSF) : '—'}</b> / SF</span>
+          <span class="r">${mo ? '$' + Math.round(mo).toLocaleString() + ' / mo' : '—'}</span>
+          <span class="r ${vs != null && vs >= 0 ? 'up' : 'dn'}">${vs == null ? '' : sgn(vs)}</span>
+        </div>`;
+      }).join('');
+      return `<tr class="yx-sm-row" title="Show the comps">
+        <td class="rk">${i + 1}</td>
+        <td class="sm"><span class="chev">›</span>${escapeHTML(c.sm)}</td>
+        <td class="num"><b>${fmt$(c.psf)}</b></td>
+        <td class="spread"><span class="v ${spread >= 0 ? 'up' : 'dn'}">${sgn(spread)}</span><span class="bar"><i class="${spread >= 0 ? 'up' : 'dn'}" style="width:${w}%"></i></span></td>
+        <td class="num">${fmt$(c.best)}</td>
+        <td class="num">${thin ? `<span class="thin">${c.n} · thin</span>` : c.n}</td>
+        <td class="num">${c.units.toLocaleString()}</td>
+        <td class="num"><span class="yx-clr"><b>${c.nClear}</b> of ${c.n}</span></td>
+      </tr>
+      <tr class="yx-props-row" hidden><td></td><td colspan="7"><div class="yx-props">
+        <div class="yx-prop yx-prop-h"><span>Property</span><span>Built</span><span>Units</span><span>Avg unit</span><span class="r">Rent / SF</span><span class="r">Rent / mo</span><span class="r">vs. needed</span></div>
+        ${plist}</div></td></tr>`;
+    }).join('') || `<tr><td colspan="8" class="yx-empty">No ${groupWord.toLowerCase()} average clears today. See Deals that clear.</td></tr>`;
+    body = `<table><thead><tr><th class="rk">#</th><th>${groupWord}</th><th class="num">Avg rent / SF</th><th>vs. needed</th><th class="num">Best comp</th><th class="num">Comps</th><th class="num">Units</th><th class="num">Comps that clear</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } else {
+    let lastSm = null;
+    const rows = data.deals.map(d => {
+      const p = d.p, sf = sfOf(p), mo = moOf(p);
+      const head = d.sm !== lastSm ? `<tr class="yx-dl-sm"><td colspan="7">${escapeHTML(d.sm)}<span>${data.deals.filter(x => x.sm === d.sm).length} clear · needs ${fmt$(d.req)}/SF</span></td></tr>` : '';
+      lastSm = d.sm;
+      return head + `<tr class="yx-dl-row" data-pid="${escapeHTML(p.id)}">
+        <td class="nm">${escapeHTML(p.name || 'Unnamed')}${typeof affTag === 'function' ? affTag(p) : ''}</td>
+        <td class="num">${p.yearBuilt || '—'}</td>
+        <td class="num">${p.units ? p.units.toLocaleString() : '—'}</td>
+        <td class="num">${sf ? Math.round(sf).toLocaleString() + ' SF' : '—'}</td>
+        <td class="num"><b>${fmt$(p.avgAskingSF)}</b></td>
+        <td class="num">${mo ? '$' + Math.round(mo).toLocaleString() : '—'}</td>
+        <td class="num up">${sgn(d.over)}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="7" class="yx-empty">No comps clear the rent needed today.</td></tr>`;
+    body = `<table class="yx-dl"><thead><tr><th>Property</th><th class="num">Built</th><th class="num">Units</th><th class="num">Avg unit</th><th class="num">Rent / SF</th><th class="num">Rent / mo</th><th class="num">Over needed</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
   const top = data.list[0];
   ov.innerHTML = `<div class="yx-modal-card" role="dialog" aria-modal="true" aria-label="${escapeHTML(prod)} submarkets that pencil">
     <div class="yx-modal-head">
@@ -16779,16 +16814,15 @@ function openYxPencilsModal(prod) {
       <button type="button" class="yx-modal-x" aria-label="Close">×</button>
     </div>
     <div class="yx-modal-stats">
-      <div><span>Rent needed</span><b>$${data.req == null ? '—' : data.req.toFixed(2)}<small>/SF</small></b><em>${(yocState.targetYoc * 100).toFixed(2)}% YOC</em></div>
-      <div><span>${groupWord}s that pencil</span><b>${data.list.length}<small> of ${data.total}</small></b><em>within 15 bps of target</em></div>
-      <div><span>Strongest</span><b class="sm">${top ? escapeHTML(top.sm) : '—'}</b><em>${top ? fmt$(top.psf) + '/SF · ' + (top.roc * 100).toFixed(2) + '%' : ''}</em></div>
+      <div><span>Rent needed</span><b>$${data.req == null ? '—' : data.req.toFixed(2)}<small>/SF</small></b><em>${(yocState.targetYoc * 100).toFixed(2)}% YOC on our ${escapeHTML(prod.toLowerCase())} costs</em></div>
+      <div><span>${groupWord}s that pencil</span><b>${data.list.length}<small> of ${data.total}</small></b><em>average rent clears</em></div>
+      <div><span>Deals that clear</span><b>${data.deals.length}</b><em>across ${data.dealSms} ${groupWord.toLowerCase()}${data.dealSms === 1 ? '' : 's'}</em></div>
     </div>
-    <div class="yx-modal-body"><table>
-      <thead><tr><th class="rk">#</th><th>${groupWord}</th><th class="num">Avg rent / SF</th><th>vs. needed</th><th class="num">Best comp</th><th class="num">Comps</th><th class="num">Units</th><th class="num">Return on cost</th></tr></thead>
-      <tbody>${rows}</tbody></table></div>
-    <div class="yx-modal-foot">Click a ${groupWord.toLowerCase()} to see its comps, then a comp for the full property. Thin = fewer than ${yocState.minCompsForColor} comps behind the average.</div>
+    <div class="yx-modal-tabs"><button type="button" data-yxtab="sm" class="${tab === 'sm' ? 'on' : ''}">By ${groupWord.toLowerCase()}</button><button type="button" data-yxtab="deals" class="${tab === 'deals' ? 'on' : ''}">Deals that clear</button></div>
+    <div class="yx-modal-body">${body}</div>
+    <div class="yx-modal-foot">${tab === 'sm' ? `Click a ${groupWord.toLowerCase()} to see its comps, then a comp for the full property. Thin = fewer than ${yocState.minCompsForColor} comps behind the average.` : `A deal clears when its asking rent is at or above the rent our ${escapeHTML(prod.toLowerCase())} assumptions need. That says its rents support this product at today's costs, not what the deal itself yields.`}</div>
   </div>`;
-  ov.dataset.prod = prod;
+  ov.dataset.prod = prod; ov.dataset.tab = tab;
   ov.hidden = false;
 }
 
@@ -16804,7 +16838,7 @@ function renderYxVerdict() {
     const c = yocState.costs[prod];
     const tpc = c ? c.land + c.hc * sfFor(prod) + (c.otherHc || 0) + c.soft : null;
     const counts = Object.fromEntries(bands.map(b => [b.key, 0]));
-    let total = 0; const clears = [];
+    let total = 0; const clears = []; const deals = [];
     const threshold = yocState.targetYoc - 0.0015;
     for (const sm of Object.keys(grouped)) {
       const props = (grouped[sm][prod] || []).filter(p => p.avgAskingSF != null && !isNaN(p.avgAskingSF));
@@ -16815,10 +16849,14 @@ function renderYxVerdict() {
       const roc = rocFromPsf(psf, prod, sfFor(prod), sm);
       const b = yocBandFor(roc);
       if (b) counts[b.key]++;
-      if (roc != null && roc >= threshold) clears.push({ sm, roc, n: props.length, psf, best: Math.max(...props.map(p => p.avgAskingSF)), units: props.reduce((t, p) => t + (p.units || 0), 0), props });
+      const reqSm = reqTodayFor(prod, sm);
+      const clearing = reqSm == null ? [] : props.filter(p => p.avgAskingSF >= reqSm);
+      clearing.forEach(p => deals.push({ p, sm, req: reqSm, over: p.avgAskingSF - reqSm }));
+      if (roc != null && roc >= threshold) clears.push({ sm, roc, n: props.length, psf, req: reqSm, nClear: clearing.length, best: Math.max(...props.map(p => p.avgAskingSF)), units: props.reduce((t, p) => t + (p.units || 0), 0), props });
     }
     clears.sort((x, y) => y.roc - x.roc);
-    (window.__yxClears = window.__yxClears || {})[prod] = { list: clears, total, req };
+    deals.sort((x, y) => x.sm.localeCompare(y.sm) || y.over - x.over);
+    (window.__yxClears = window.__yxClears || {})[prod] = { list: clears, total, req, deals, dealSms: new Set(deals.map(d => d.sm)).size };
     const seg = bands.map(b => counts[b.key] ? `<i style="flex:${counts[b.key]};background:${b.color}" title="${counts[b.key]} ${groupWord} · ${b.label}"></i>` : '').join('');
     const names = clears.slice(0, 3).map(c => `${escapeHTML(c.sm)}${c.n < yocState.minCompsForColor ? ` <em title="${c.n} comp${c.n === 1 ? '' : 's'}">(${c.n})</em>` : ''}`).join(' · ')
       + ` <button type="button" class="yx-v-all" data-prod="${escapeHTML(prod)}">${clears.length > 3 ? '+' + (clears.length - 3) + ' more' : 'Details'}</button>`;
@@ -16834,8 +16872,8 @@ function renderYxVerdict() {
     f('req').innerHTML = `$${req == null ? '—' : req.toFixed(2)}<small>/SF</small>`;
     f('mo').textContent = `$${monthly == null ? '—' : Math.round(monthly).toLocaleString()}/mo on ${sfFor(prod)} SF · ${opexLabel(prod)} OpEx · ${(vacFor(prod)*100).toFixed(0)}% vac`;
     f('bar').innerHTML = seg || '<i class="thin" style="flex:1"></i>';
-    f('foot').innerHTML = `<b>${clears.length}</b> of ${total} ${groupWord} pencil`;
-    f('best').innerHTML = clears.length ? names : 'None at today\'s rents';
+    f('foot').innerHTML = `<b>${clears.length}</b> of ${total} ${groupWord} pencil · <b>${deals.length}</b> deal${deals.length === 1 ? '' : 's'} clear`;
+    f('best').innerHTML = clears.length ? names : (deals.length ? `No ${groupWord} average clears · <button type="button" class="yx-v-all" data-prod="${escapeHTML(prod)}">${deals.length} deal${deals.length === 1 ? '' : 's'} clear</button>` : 'None at today\'s rents');
   });
 
   const ts = document.getElementById('yx-trend-sum');
@@ -17108,19 +17146,24 @@ function openYocGroupDetail(groupName, productType) {
   const roc = rocFromPsf(weightedPsf, productType, sfFor(productType), groupName);
 
   // Compose the modal body
-  const rowsHtml = sourceData.map(p => `
-    <tr data-pid="${escapeHTML(p.id)}" style="cursor:pointer;" class="yoc-group-row">
-      <td>${escapeHTML(p.name)}${affTag(p)}</td>
-      <td>${escapeHTML(p.submarket || '—')}</td>
+  const gdReq = reqTodayFor(productType, groupName);
+  const bySubCol = yocState.groupBy === 'city';
+  const rowsHtml = sourceData.map(p => {
+    const vs = gdReq == null || p.avgAskingSF == null ? null : p.avgAskingSF - gdReq;
+    return `
+    <tr data-pid="${escapeHTML(p.id)}" style="cursor:pointer;" class="yoc-group-row${vs != null && vs >= 0 ? ' ok' : ''}">
+      <td class="nm" title="${escapeHTML(p.name)}">${escapeHTML(p.name)}${affTag(p)}</td>
+      ${bySubCol ? `<td>${escapeHTML(p.submarket || '—')}</td>` : ''}
       <td>${escapeHTML(p.style || '—')}</td>
       <td class="num">${fmt.int(p.units)}</td>
-      <td class="num">${fmt.int(p.yearBuilt)}</td>
+      <td class="num">${p.yearBuilt || '—'}</td>
       <td class="num">${fmt.int(p.avgUnitSF)}</td>
       <td class="num">${fmt.money(p.avgAskingUnit)}</td>
       <td class="num" style="font-weight:600;color:var(--accent-text);">${p.avgAskingSF == null ? '—' : '$' + p.avgAskingSF.toFixed(2)}</td>
+      <td class="num vs ${vs != null && vs >= 0 ? 'up' : 'dn'}">${vs == null ? '—' : (vs >= 0 ? '+' : '−') + '$' + Math.abs(vs).toFixed(2)}</td>
       <td class="num">${p.vacancy == null ? '—' : (100 - p.vacancy).toFixed(1) + '%'}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 
   // The Weighted Average row sits on the brand-purple background. Inline `color`
   // on each <td> beats the global `tbody td { color: var(--ink-2) }` rule, and
@@ -17128,12 +17171,13 @@ function openYocGroupDetail(groupName, productType) {
   const totalsCellStyle = 'color:#ffffff;background:var(--accent);font-weight:600;';
   const totalsRow = `
     <tr class="yoc-totals-row" style="background:var(--accent);color:#ffffff;font-weight:600;cursor:default;">
-      <td colspan="3" style="${totalsCellStyle}text-align:left;">Weighted Average · ${sourceData.length} ${sourceData.length === 1 ? 'property' : 'properties'}</td>
+      <td colspan="${bySubCol ? 3 : 2}" style="${totalsCellStyle}text-align:left;">Weighted average · ${sourceData.length} ${sourceData.length === 1 ? 'property' : 'properties'}</td>
       <td class="num" style="${totalsCellStyle}">${fmt.int(totalUnits)}</td>
       <td class="num" style="${totalsCellStyle}">—</td>
       <td class="num" style="${totalsCellStyle}">${weightedSf == null ? '—' : fmt.int(weightedSf)}</td>
       <td class="num" style="${totalsCellStyle}">${weightedRent == null ? '—' : fmt.money(weightedRent)}</td>
       <td class="num" style="${totalsCellStyle}">${weightedPsf == null ? '—' : '$' + weightedPsf.toFixed(2)}</td>
+      <td class="num" style="${totalsCellStyle}">${weightedPsf == null || gdReq == null ? '—' : (weightedPsf >= gdReq ? '+' : '−') + '$' + Math.abs(weightedPsf - gdReq).toFixed(2)}</td>
       <td class="num" style="${totalsCellStyle}">${weightedOcc == null ? '—' : weightedOcc.toFixed(1) + '%'}</td>
     </tr>
   `;
@@ -17150,7 +17194,7 @@ function openYocGroupDetail(groupName, productType) {
         <div class="modal-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span>Weighted Avg $/SF · ${weightedPsf == null ? '—' : '$' + weightedPsf.toFixed(2)}</span>
           <span style="opacity:0.5;">·</span>
-          <span>ROC ${roc == null ? '—' : (roc*100).toFixed(2) + '%'}</span>
+          <span>${(() => { const r = reqTodayFor(productType, groupName); if (weightedPsf == null || r == null) return 'Needed —'; const d = weightedPsf - r; return `Needed $${r.toFixed(2)} · ${d >= 0 ? 'clears by' : 'short by'} $${Math.abs(d).toFixed(2)}`; })()}</span>
           ${trendBadge}
         </div>
       </div>
@@ -17159,20 +17203,21 @@ function openYocGroupDetail(groupName, productType) {
     <div class="modal-body">
       <div class="detail-section-title">All Properties Contributing to This Average</div>
       <div style="margin-top:8px;color:var(--ink-3);font-size:13px;margin-bottom:14px;">
-        Click any row to open that property's full detail. Weighted average row at bottom uses unit count as weight.
+        Click a row for the property. vs. needed = asking rent minus the $${gdReq == null ? '—' : gdReq.toFixed(2)}/SF our ${escapeHTML(productType.toLowerCase())} assumptions need; ✓ = rents support the product. Weighted average uses unit count.
       </div>
       <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <table class="yx-gd" style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead>
             <tr style="background:var(--bg-2);color:var(--ink-3);font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.12em;text-transform:uppercase;">
               <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);">Property</th>
-              <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);">Submarket</th>
+              ${bySubCol ? '<th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);">Submarket</th>' : ''}
               <th style="text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);">Style</th>
               <th style="padding:8px 10px;border-bottom:1px solid var(--line);">Units</th>
               <th style="padding:8px 10px;border-bottom:1px solid var(--line);">Built</th>
               <th style="padding:8px 10px;border-bottom:1px solid var(--line);">Avg SF</th>
               <th style="padding:8px 10px;border-bottom:1px solid var(--line);">Rent</th>
               <th style="padding:8px 10px;border-bottom:1px solid var(--line);">$/SF</th>
+              <th style="padding:8px 10px;border-bottom:1px solid var(--line);">vs. needed</th>
               <th style="padding:8px 10px;border-bottom:1px solid var(--line);">Occ %</th>
             </tr>
           </thead>
@@ -22704,7 +22749,7 @@ function txRenderBoard() {
   }
   function goBack() {
     const prev = stack.pop(); if (!prev) return;
-    if (prev.kind === 'pencils') { stack.length = 0; current = null; origClose(); openYxPencilsModal(prev.args[0]); return; }
+    if (prev.kind === 'pencils') { stack.length = 0; current = null; origClose(); openYxPencilsModal(prev.args[0], prev.args[1]); return; }
     navigating = true;
     try { (prev.kind === 'group' ? openYocGroupDetail : openDetail).apply(null, prev.args); } finally { navigating = false; }
   }
@@ -23629,4 +23674,331 @@ function txRenderBoard() {
     try { updateYxDefaultNote(); } catch (e) {}
     setTimeout(() => { btn.textContent = 'Save as default for all markets'; const m = document.getElementById('yx-menu'); if (m) m.hidden = true; }, 1100);
   });
+})();
+
+
+/* =================================================================
+   DEMO: YOC export — IC-ready PDF (16:9 slides, 13.33 × 7.5 in) and a
+   formatted Excel workbook. Same numbers as the page: per-product costs and
+   operations, rent needed, submarket averages vs needed, and the deals whose
+   rents clear. No individual comp yields.
+   ================================================================= */
+(function yxExport() {
+  const head = document.querySelector('.yx-assump .yx-card-head');
+  if (!head || typeof renderYoc !== 'function') return;
+  const E = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ---------- button + menu ----------
+  const wrap = document.createElement('div'); wrap.className = 'yx-exp';
+  wrap.innerHTML = `<button type="button" class="yx-exp-btn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 2v8m0 0L5 7m3 3 3-3M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Export</button>
+    <div class="yx-exp-menu" hidden><button type="button" data-x="pdf"><b>PDF</b><span>16:9 slides for the IC deck</span></button><button type="button" data-x="xlsx"><b>Excel</b><span>Formatted workbook, all tables</span></button></div>`;
+  const gearWrap = head.querySelector('.yx-menu-wrap'); head.insertBefore(wrap, gearWrap);
+  const btn = wrap.querySelector('.yx-exp-btn'), menu = wrap.querySelector('.yx-exp-menu');
+  btn.addEventListener('click', e => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); });
+  document.addEventListener('click', e => { if (!menu.hidden && !wrap.contains(e.target)) menu.hidden = true; });
+  menu.addEventListener('click', e => {
+    const b = e.target.closest('[data-x]'); if (!b) return; menu.hidden = true;
+    try { if (b.dataset.x === 'pdf') exportPdf(); else exportXlsx(); } catch (err) { console.error('[yx-export]', err); alert('Export failed: ' + err.message); }
+  });
+
+  // ---------- data ----------
+  function collect() {
+    try { renderYoc(); } catch (e) {}
+    const last = window.__yocLast || { grouped: {} };
+    const grouped = last.grouped || {};
+    const groupWord = yocState.groupBy === 'city' ? 'City' : 'Submarket';
+    const products = YOC_PRODUCT_COLUMNS.map(prod => {
+      const c = yocState.costs[prod], sf = sfFor(prod);
+      const hcU = c.hc * sf + (c.otherHc || 0), tpc = c.land + hcU + c.soft;
+      const req = requiredPsfRent(prod, sf);
+      const cl = (window.__yxClears || {})[prod] || { list: [], total: 0, deals: [] };
+      return { prod, c, sf, hcU, tpc, req, mo: req == null ? null : req * sf, opex: opexFor(prod), vac: vacFor(prod), oi: oiFor(prod), units: unitsFor(prod),
+        pencil: cl.list.length, total: cl.total, list: cl.list, deals: cl.deals || [] };
+    });
+    const rows = Object.keys(grouped).map(g => {
+      const cells = {};
+      for (const prod of YOC_PRODUCT_COLUMNS) {
+        const props = (grouped[g][prod] || []).filter(p => p.avgAskingSF != null && !isNaN(p.avgAskingSF));
+        if (!props.length) { cells[prod] = null; continue; }
+        const w = props.filter(p => p.units);
+        const avg = w.length ? weightedAvg(w, 'avgAskingSF', 'units') : props.reduce((s, p) => s + p.avgAskingSF, 0) / props.length;
+        const req = reqTodayFor(prod, g);
+        const band = yocBandFor(rocFromPsf(avg, prod, sfFor(prod), g));
+        cells[prod] = { avg, n: props.length, req, over: req == null ? null : avg - req, band, clear: req != null ? props.filter(p => p.avgAskingSF >= req).length : 0 };
+      }
+      const score = YOC_PRODUCT_COLUMNS.reduce((m, p) => Math.max(m, cells[p] && cells[p].over != null ? cells[p].over : -99), -99);
+      return { g, cells, score };
+    }).filter(r => YOC_PRODUCT_COLUMNS.some(p => r.cells[p])).sort((a, b) => b.score - a.score || a.g.localeCompare(b.g));
+    const asOf = (() => { const d = (RAW_DATA || []).map(p => p.costarAsOf).filter(Boolean).sort().pop(); return d ? new Date(d + 'T12:00') : null; })();
+    return {
+      market: (window.__WBD && window.__WBD.title) || 'Market', groupWord, products, rows,
+      target: yocState.targetYoc, comp: yocCompLabel(), minSf: yocState.minAvgUnitSf,
+      trend: yocState.trendEnabled ? (yocState.trendSource === 'rp' ? 'RealPage submarket forecast' : (yocState.growth * 100).toFixed(1) + '% / yr') + ' × ' + yocState.years + ' yr' : 'Off (today’s rents)',
+      date: new Date(), asOf, bands: yocColorBands()
+    };
+  }
+  const $2 = v => v == null ? '—' : '$' + v.toFixed(2);
+  const $0 = v => v == null ? '—' : '$' + Math.round(v).toLocaleString();
+  const $K = v => v == null ? '—' : '$' + Math.round(v / 1000).toLocaleString() + 'K';
+  const pct = (v, d = 1) => v == null ? '—' : (v * 100).toFixed(d).replace(/\.0+$/, '') + '%';
+  const sgn = v => v == null ? '—' : (v >= 0 ? '+' : '−') + '$' + Math.abs(v).toFixed(2);
+  const dstr = d => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const short = p => p === 'Mid-Rise' ? 'Mid-Rise' : p;
+
+  // ---------- PDF (print-ready HTML, 16:9 pages) ----------
+  function exportPdf() {
+    const D = collect();
+    const title = `Where new development pencils · ${D.market}`;
+    const foot = (n) => `<div class="ft"><span>Willow Bridge Property Company · Market Intel</span><span>Source: CoStar${D.asOf ? ' (' + D.asOf.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + ')' : ''}, Willow Bridge assumptions. Comps: ${E(D.comp)}, ${D.minSf}+ SF avg unit.</span><span>${n}</span></div>`;
+    const slides = [];
+    // 1 — summary
+    slides.push(`<section class="s">
+      <div class="eyebrow">${E(D.market)} · ${dstr(D.date)}</div>
+      <h1>Where rents support new development today</h1>
+      <p class="lede">Rent needed to hit a ${pct(D.target, 2)} yield on cost for each product, against today's asking rents across ${D.rows.length} ${D.groupWord.toLowerCase()}s. Trended rents: ${E(D.trend)}.</p>
+      <div class="cards">${D.products.map(p => `<div class="card">
+        <div class="ch"><b>${short(p.prod)}</b><span>${$K(p.tpc)} / unit all-in</span></div>
+        <div class="big">${$2(p.req)}<small>/SF</small></div>
+        <div class="sub">${$0(p.mo)}/mo on ${p.sf} SF</div>
+        <div class="stat"><span><b>${p.pencil}</b> of ${p.total} ${D.groupWord.toLowerCase()}s pencil</span><span><b>${p.deals.length}</b> deal${p.deals.length === 1 ? '' : 's'} clear</span></div>
+        <div class="tops">${p.list.slice(0, 4).map(c => `<div><span>${E(c.sm)}</span><b>${sgn(c.psf - c.req)}</b></div>`).join('') || '<div class="none">No submarket average clears today</div>'}</div>
+        <table class="kv"><tr><td>Land</td><td>${$K(p.c.land)}</td><td>OpEx</td><td>${pct(p.opex, 0)}</td></tr>
+          <tr><td>Hard cost</td><td>$${p.c.hc}/SF</td><td>Vacancy</td><td>${pct(p.vac)}</td></tr>
+          <tr><td>Other hard</td><td>${$K(p.c.otherHc || 0)}</td><td>Other income</td><td>${$0(p.oi)}</td></tr>
+          <tr><td>Total hard</td><td>${$K(p.hcU)}</td><td>Soft</td><td>${$K(p.c.soft)}</td></tr></table>
+      </div>`).join('')}</div>
+      ${foot(1)}</section>`);
+    // 2.. — submarket matrix
+    const PER = 18, legend = D.bands.map((b, i) => `<span><i style="background:${b.color}"></i>${i === 0 ? 'Clears' : i === 1 ? 'Within 0.15%' : i === 2 ? 'Within 0.30%' : i === 3 ? 'Within 0.60%' : 'Further out'}</span>`).join('');
+    for (let i = 0; i < D.rows.length; i += PER) {
+      const chunk = D.rows.slice(i, i + PER);
+      slides.push(`<section class="s">
+        <div class="eyebrow">${E(D.market)} · ${D.groupWord} detail${D.rows.length > PER ? ` · ${i / PER + 1} of ${Math.ceil(D.rows.length / PER)}` : ''}</div>
+        <h2>Average asking rent vs. rent needed, by ${D.groupWord.toLowerCase()}</h2>
+        <table class="mx"><thead><tr><th>${D.groupWord}</th>${D.products.map(p => `<th colspan="2">${short(p.prod)}<em>needs ${$2(p.req)}</em></th>`).join('')}</tr>
+          <tr class="h2"><th></th>${D.products.map(() => '<th>Avg rent / SF</th><th>vs. needed</th>').join('')}</tr></thead>
+        <tbody>${chunk.map(r => `<tr><td class="g">${E(r.g)}</td>${D.products.map(p => { const c = r.cells[p.prod]; if (!c) return '<td class="na">—</td><td class="na"></td>'; return `<td class="v" style="background:${c.band ? c.band.color : '#eee'};color:${c.band ? c.band.ink : '#333'}">${$2(c.avg)}<small>${c.n}</small></td><td class="o ${c.over >= 0 ? 'up' : 'dn'}">${sgn(c.over)}</td>`; }).join('')}</tr>`).join('')}</tbody></table>
+        <div class="legend">${legend}<span class="note">Cell = unit-weighted average asking rent (number of comps). Color = how close that average comes to the target yield on our costs.</span></div>
+        ${foot(slides.length + 1)}</section>`);
+    }
+    // deals that clear — one run per product
+    const DPER = 17;
+    D.products.forEach(p => {
+      const rows = []; let lastSm = null;
+      p.deals.forEach(d => { if (d.sm !== lastSm) { rows.push({ h: d.sm, req: d.req, n: p.deals.filter(x => x.sm === d.sm).length }); lastSm = d.sm; } rows.push(d); });
+      if (!rows.length) rows.push({ empty: true });
+      for (let i = 0; i < rows.length; i += DPER) {
+        let chunk = rows.slice(i, i + DPER);
+        if (!chunk[0].h && !chunk[0].empty) { const prevH = [...rows.slice(0, i)].reverse().find(r => r.h); if (prevH) chunk = [{ ...prevH, cont: true }, ...chunk]; }
+        const pages = Math.ceil(rows.length / DPER);
+        slides.push(`<section class="s">
+          <div class="eyebrow">${E(D.market)} · ${short(p.prod)} · Deals that clear${pages > 1 ? ` · ${i / DPER + 1} of ${pages}` : ''}</div>
+          <h2>${p.deals.length} ${short(p.prod).toLowerCase()} comp${p.deals.length === 1 ? '' : 's'} with rents at or above ${$2(p.req)}/SF</h2>
+          <table class="dl"><thead><tr><th>Property</th><th>Built</th><th>Units</th><th>Avg unit</th><th>Rent / SF</th><th>Rent / mo</th><th>Over needed</th></tr></thead>
+          <tbody>${chunk.map(r => r.empty ? `<tr><td colspan="7" class="none">No ${short(p.prod).toLowerCase()} comps clear the rent needed today.</td></tr>`
+            : r.h ? `<tr class="smh"><td colspan="7">${E(r.h)}${r.cont ? ' (cont.)' : ''}<span>${r.n} clear · needs ${$2(r.req)}/SF</span></td></tr>`
+            : (() => { const q = r.p, sf = q.avgUnitSF || (q.avgAskingUnit && q.avgAskingSF ? q.avgAskingUnit / q.avgAskingSF : null), mo = q.avgAskingUnit || (sf ? q.avgAskingSF * sf : null);
+                return `<tr><td class="nm">${E(q.name || 'Unnamed')}</td><td>${q.yearBuilt || '—'}</td><td>${q.units ? q.units.toLocaleString() : '—'}</td><td>${sf ? Math.round(sf).toLocaleString() + ' SF' : '—'}</td><td><b>${$2(q.avgAskingSF)}</b></td><td>${$0(mo)}</td><td class="up">${sgn(r.over)}</td></tr>`; })()).join('')}</tbody></table>
+          <div class="note2">A deal clears when its asking rent meets the rent our ${short(p.prod).toLowerCase()} assumptions need. It shows the rents support this product at today's costs, not the deal's own yield.</div>
+          ${foot(slides.length + 1)}</section>`);
+      }
+    });
+    // assumptions
+    slides.push(`<section class="s">
+      <div class="eyebrow">${E(D.market)} · Assumptions</div>
+      <h2>Underwriting assumptions</h2>
+      <table class="as"><thead><tr><th></th>${D.products.map(p => `<th>${short(p.prod)}</th>`).join('')}</tr></thead><tbody>
+        <tr class="grp"><td colspan="4">Cost per unit</td></tr>
+        <tr><td>Land</td>${D.products.map(p => `<td>${$0(p.c.land)}</td>`).join('')}</tr>
+        <tr><td>Hard cost / SF</td>${D.products.map(p => `<td>$${p.c.hc}</td>`).join('')}</tr>
+        <tr><td>Other hard cost</td>${D.products.map(p => `<td>${$0(p.c.otherHc || 0)}</td>`).join('')}</tr>
+        <tr class="b"><td>Total hard cost</td>${D.products.map(p => `<td>${$0(p.hcU)}</td>`).join('')}</tr>
+        <tr><td>Soft cost</td>${D.products.map(p => `<td>${$0(p.c.soft)}</td>`).join('')}</tr>
+        <tr class="b t"><td>Total project cost</td>${D.products.map(p => `<td>${$0(p.tpc)}</td>`).join('')}</tr>
+        <tr class="grp"><td colspan="4">Operations</td></tr>
+        <tr><td>Units</td>${D.products.map(p => `<td>${p.units}</td>`).join('')}</tr>
+        <tr><td>Avg unit size</td>${D.products.map(p => `<td>${p.sf} SF</td>`).join('')}</tr>
+        <tr><td>Other income / unit / yr</td>${D.products.map(p => `<td>${$0(p.oi)}</td>`).join('')}</tr>
+        <tr><td>Vacancy</td>${D.products.map(p => `<td>${pct(p.vac)}</td>`).join('')}</tr>
+        <tr><td>OpEx (% of gross potential)</td>${D.products.map(p => `<td>${pct(p.opex, 0)}</td>`).join('')}</tr>
+        <tr class="grp"><td colspan="4">Result</td></tr>
+        <tr class="b"><td>Rent needed for ${pct(D.target, 2)} YOC</td>${D.products.map(p => `<td>${$2(p.req)} / SF</td>`).join('')}</tr>
+        <tr><td>Monthly equivalent</td>${D.products.map(p => `<td>${$0(p.mo)}</td>`).join('')}</tr>
+      </tbody></table>
+      <div class="meth"><b>Method.</b> Rent needed = (total project cost × target yield ÷ (1 − vacancy − opex) − other income) ÷ 12 ÷ unit SF. Comps: ${E(D.comp)}, ${D.minSf}+ SF average unit; submarket averages are unit-weighted asking rents. Trended rents: ${E(D.trend)}.</div>
+      ${foot(slides.length + 1)}</section>`);
+
+    const css = `@page { size: 13.333in 7.5in; margin: 0; }
+      * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { margin: 0; font-family: Aptos, 'Segoe UI', Calibri, Arial, sans-serif; color: #16131f; background: #e9e7ef; }
+      .s { width: 13.333in; height: 7.5in; padding: .55in .6in .5in; position: relative; background: #fff; page-break-after: always; overflow: hidden; margin: 0 auto 18px; }
+      @media print { body { background: #fff; } .s { margin: 0; } }
+      .s::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: .12in; background: #1D1247; }
+      .eyebrow { font-size: 10.5pt; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: #432890; }
+      h1 { font-size: 28pt; line-height: 1.1; margin: .08in 0 .08in; color: #1D1247; font-weight: 700; letter-spacing: -.01em; }
+      h2 { font-size: 20pt; line-height: 1.15; margin: .06in 0 .22in; color: #1D1247; font-weight: 700; }
+      .lede { font-size: 12pt; color: #4b4660; margin: 0 0 .28in; max-width: 10.5in; }
+      .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: .22in; }
+      .card { border: 1px solid #e3e0ec; border-radius: 10px; padding: .18in .2in; }
+      .ch { display: flex; justify-content: space-between; align-items: baseline; font-size: 11pt; color: #6c6782; }
+      .ch b { font-size: 14pt; color: #1D1247; }
+      .big { font-size: 34pt; font-weight: 700; color: #1D1247; line-height: 1; margin-top: .12in; font-variant-numeric: tabular-nums; }
+      .big small { font-size: 13pt; font-weight: 600; color: #6c6782; margin-left: 2px; }
+      .sub { font-size: 10pt; color: #6c6782; margin: .05in 0 .12in; }
+      .stat { display: flex; justify-content: space-between; font-size: 10.5pt; color: #4b4660; padding: .08in 0; border-top: 1px solid #ebe8f3; border-bottom: 1px solid #ebe8f3; }
+      .stat b { color: #1F7A4C; font-size: 12pt; }
+      .tops { margin: .08in 0 .1in; min-height: .9in; }
+      .tops div { display: flex; justify-content: space-between; font-size: 10pt; padding: 2px 0; }
+      .tops b { color: #1F7A4C; font-variant-numeric: tabular-nums; }
+      .none { color: #8a849e; font-size: 10pt; font-style: italic; }
+      .kv { width: 100%; border-collapse: collapse; font-size: 9pt; background: #f8f7fb; border-radius: 8px; }
+      .kv td { padding: 3px 6px; color: #6c6782; } .kv td:nth-child(2n) { color: #16131f; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+      table.mx, table.dl, table.as { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+      .mx th { font-size: 10.5pt; text-align: center; color: #1D1247; padding: 0 4px 4px; }
+      .mx th:first-child { text-align: left; }
+      .mx th em { display: block; font-style: normal; font-weight: 500; font-size: 8.5pt; color: #6c6782; }
+      .mx tr.h2 th { font-size: 8pt; font-weight: 600; color: #8a849e; border-bottom: 1px solid #d9d6e3; padding-bottom: 4px; }
+      .mx td { font-size: 10pt; padding: 3px 6px; border-bottom: 1px solid #f0eef5; height: .235in; }
+      .mx td.g { font-weight: 600; color: #16131f; width: 2.6in; }
+      .mx td.v { text-align: center; font-weight: 600; border-left: 3px solid #fff; }
+      .mx td.v small { font-size: 7.5pt; font-weight: 500; opacity: .75; margin-left: 4px; }
+      .mx td.o { text-align: right; font-size: 9.5pt; width: .8in; }
+      .mx td.na { text-align: center; color: #b5b1c4; }
+      .up { color: #1F7A4C; font-weight: 600; } .dn { color: #a0393e; }
+      .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-top: .14in; font-size: 8.5pt; color: #6c6782; }
+      .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+      .legend .note { margin-left: auto; }
+      .dl th { font-size: 9pt; font-weight: 600; color: #6c6782; text-align: right; padding: 0 8px 6px; border-bottom: 1px solid #d9d6e3; }
+      .dl th:first-child { text-align: left; }
+      .dl td { font-size: 10pt; padding: 4px 8px; border-bottom: 1px solid #f0eef5; text-align: right; }
+      .dl td.nm { text-align: left; font-weight: 600; }
+      .dl tr.smh td { text-align: left; font-weight: 700; color: #1D1247; font-size: 10.5pt; padding-top: 10px; border-bottom: 1px solid #e3e0ec; }
+      .dl tr.smh td span { font-weight: 500; color: #6c6782; font-size: 9pt; margin-left: 10px; }
+      .note2, .meth { position: absolute; left: .6in; right: .6in; bottom: .62in; font-size: 9pt; color: #6c6782; }
+      .as { width: 8.2in; }
+      .as th { font-size: 11pt; color: #1D1247; text-align: right; padding: 0 12px 6px; border-bottom: 1.5px solid #1D1247; }
+      .as td { font-size: 10.5pt; padding: 4px 12px; text-align: right; border-bottom: 1px solid #f0eef5; }
+      .as td:first-child { text-align: left; color: #4b4660; }
+      .as tr.grp td { text-align: left; font-size: 8.5pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #432890; padding-top: 12px; border-bottom: 0; }
+      .as tr.b td { font-weight: 700; color: #16131f; } .as tr.t td { border-top: 1.5px solid #1D1247; }
+      .ft { position: absolute; left: .6in; right: .6in; bottom: .25in; display: flex; justify-content: space-between; gap: 16px; font-size: 7.5pt; color: #8a849e; border-top: 1px solid #ebe8f3; padding-top: 6px; }
+      .ft span:nth-child(2) { flex: 1; text-align: center; }`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${E(title)}</title><style>${css}</style></head><body>${slides.join('')}<script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { alert('Allow pop-ups for this site to export the PDF.'); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  }
+
+  // ---------- Excel (ExcelJS, loaded on demand) ----------
+  function loadExcelJS() {
+    if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'; s.onload = () => res(window.ExcelJS); s.onerror = () => rej(new Error('Could not load the Excel library')); document.head.appendChild(s); });
+  }
+  async function exportXlsx() {
+    const D = collect();
+    const ExcelJS = await loadExcelJS();
+    const wb = new ExcelJS.Workbook(); wb.creator = 'Willow Bridge'; wb.created = new Date();
+    const F = { name: 'Aptos', size: 10 }, FB = { ...F, bold: true }, MID = 'FF1D1247', GRN = 'FF1F7A4C', RED = 'FFA0393E', GRY = 'FF6C6782';
+    const thin = { style: 'thin', color: { argb: 'FFD9D6E3' } };
+    const titleBlock = (ws, title, sub) => {
+      ws.getCell('A1').value = title; ws.getCell('A1').font = { name: 'Aptos', size: 14, bold: true, color: { argb: MID } };
+      ws.getCell('A2').value = sub; ws.getCell('A2').font = { ...F, color: { argb: GRY } };
+      ws.getRow(3).height = 6;
+    };
+    const header = (ws, r, labels, aligns) => {
+      const row = ws.getRow(r);
+      labels.forEach((l, i) => { const c = row.getCell(i + 1); c.value = l; c.font = { ...FB, color: { argb: MID } }; c.border = { bottom: { style: 'medium', color: { argb: MID } } }; c.alignment = { horizontal: aligns && aligns[i] || (i ? 'right' : 'left'), vertical: 'bottom', wrapText: true }; });
+      row.height = 28;
+    };
+    const sub = `${D.market} · ${dstr(D.date)} · Target YOC ${pct(D.target, 2)} · Comps: ${D.comp}, ${D.minSf}+ SF avg unit · Trended rents: ${D.trend}`;
+
+    // Summary
+    let ws = wb.addWorksheet('Summary', { views: [{ showGridLines: false }] });
+    titleBlock(ws, 'Where rents support new development today', sub);
+    header(ws, 4, ['', ...D.products.map(p => p.prod)]);
+    const sumRows = [
+      ['Rent needed / SF', p => p.req, '$#,##0.00', true], ['Rent needed / month', p => p.mo, '$#,##0'], ['Total project cost / unit', p => p.tpc, '$#,##0'],
+      [`${D.groupWord}s that pencil`, p => `${p.pencil} of ${p.total}`], ['Deals that clear', p => p.deals.length, '0', true],
+      ['Top ' + D.groupWord.toLowerCase() + 's (rent over needed)', p => p.list.slice(0, 4).map(c => `${c.sm} (${sgn(c.psf - c.req)})`).join('\n') || 'None today']
+    ];
+    sumRows.forEach(([lab, fn, fmt, bold], i) => {
+      const r = ws.getRow(5 + i); r.getCell(1).value = lab; r.getCell(1).font = bold ? FB : F;
+      D.products.forEach((p, j) => { const c = r.getCell(j + 2); c.value = fn(p); c.font = bold ? FB : F; if (fmt) c.numFmt = fmt; c.alignment = { horizontal: 'right', vertical: 'top', wrapText: true }; c.border = { bottom: thin }; });
+      r.getCell(1).border = { bottom: thin }; r.getCell(1).alignment = { vertical: 'top' };
+      if (i === 5) r.height = 62;
+    });
+    ws.columns = [{ width: 34 }, { width: 26 }, { width: 26 }, { width: 26 }];
+
+    // Matrix
+    ws = wb.addWorksheet('Submarket detail', { views: [{ showGridLines: false }] });
+    titleBlock(ws, `Average asking rent vs. rent needed, by ${D.groupWord.toLowerCase()}`, sub);
+    const mh = [D.groupWord]; D.products.forEach(p => mh.push(`${p.prod}\navg rent / SF`, 'Comps', 'Rent needed', 'Over (under)', 'Comps that clear'));
+    header(ws, 4, mh, mh.map((_, i) => i ? 'right' : 'left'));
+    D.rows.forEach((r, i) => {
+      const row = ws.getRow(5 + i); row.getCell(1).value = r.g; row.getCell(1).font = FB;
+      D.products.forEach((p, j) => {
+        const c = r.cells[p.prod], base = 2 + j * 5;
+        const vals = c ? [c.avg, c.n, c.req, c.over, c.clear] : [null, null, null, null, null];
+        const fm = ['$#,##0.00', '0', '$#,##0.00', '+$#,##0.00;-$#,##0.00;$0.00', '0'];
+        vals.forEach((v, k) => { const cell = row.getCell(base + k); cell.value = v; cell.numFmt = fm[k]; cell.font = F; cell.alignment = { horizontal: 'right' }; cell.border = { bottom: thin }; });
+        if (c && c.band) { const a = row.getCell(base); a.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + c.band.color.slice(1).toUpperCase() } }; a.font = { ...FB, color: { argb: 'FF' + (c.band.ink || '#000000').slice(1).toUpperCase() } }; }
+        if (c && c.over != null) row.getCell(base + 3).font = { ...F, color: { argb: c.over >= 0 ? GRN : RED }, bold: c.over >= 0 };
+      });
+      row.getCell(1).border = { bottom: thin };
+    });
+    ws.columns = [{ width: 30 }, ...D.products.flatMap(() => [{ width: 14 }, { width: 8 }, { width: 12 }, { width: 13 }, { width: 13 }])];
+    const lr = 6 + D.rows.length;
+    ws.getCell('A' + lr).value = 'Shaded cell = how close the unit-weighted average comes to the target yield on our costs (green clears). Over (under) = average rent minus rent needed, $/SF.';
+    ws.getCell('A' + lr).font = { ...F, italic: true, color: { argb: GRY } };
+
+    // Deals that clear
+    ws = wb.addWorksheet('Deals that clear', { views: [{ showGridLines: false }] });
+    titleBlock(ws, 'Deals whose rents clear the rent needed', sub + ' · A deal clears when its asking rent meets the rent our product assumptions need; this is not the deal’s own yield.');
+    header(ws, 4, ['Product', D.groupWord, 'Property', 'Address', 'Year built', 'Units', 'Avg unit SF', 'Rent / SF', 'Rent / month', 'Rent needed', 'Over needed'], ['left', 'left', 'left', 'left']);
+    let r = 5;
+    D.products.forEach(p => {
+      p.deals.forEach(d => {
+        const q = d.p, sf = q.avgUnitSF || (q.avgAskingUnit && q.avgAskingSF ? q.avgAskingUnit / q.avgAskingSF : null);
+        const vals = [p.prod, d.sm, q.name || 'Unnamed', q.address || '', q.yearBuilt || null, q.units || null, sf ? Math.round(sf) : null, q.avgAskingSF, q.avgAskingUnit || (sf ? q.avgAskingSF * sf : null), d.req, d.over];
+        const fm = [null, null, null, null, '0', '#,##0', '#,##0', '$#,##0.00', '$#,##0', '$#,##0.00', '+$#,##0.00;-$#,##0.00'];
+        const row = ws.getRow(r++);
+        vals.forEach((v, k) => { const c = row.getCell(k + 1); c.value = v; c.font = k === 2 ? FB : F; if (fm[k]) { c.numFmt = fm[k]; c.alignment = { horizontal: 'right' }; } c.border = { bottom: thin }; });
+        row.getCell(11).font = { ...FB, color: { argb: GRN } };
+      });
+    });
+    if (r === 5) { ws.getCell('A5').value = 'No comps clear the rent needed today.'; ws.getCell('A5').font = { ...F, italic: true }; }
+    ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: Math.max(5, r - 1), column: 11 } };
+    ws.columns = [{ width: 11 }, { width: 24 }, { width: 30 }, { width: 28 }, { width: 10 }, { width: 8 }, { width: 11 }, { width: 10 }, { width: 12 }, { width: 12 }, { width: 12 }];
+
+    // Assumptions
+    ws = wb.addWorksheet('Assumptions', { views: [{ showGridLines: false }] });
+    titleBlock(ws, 'Underwriting assumptions', sub);
+    header(ws, 4, ['', ...D.products.map(p => p.prod)]);
+    const A = [
+      ['COST PER UNIT'], ['Land', p => p.c.land, '$#,##0'], ['Hard cost / SF', p => p.c.hc, '$#,##0'], ['Other hard cost', p => p.c.otherHc || 0, '$#,##0'],
+      ['Total hard cost', p => p.hcU, '$#,##0', true], ['Soft cost', p => p.c.soft, '$#,##0'], ['Total project cost', p => p.tpc, '$#,##0', true, true],
+      ['OPERATIONS'], ['Units', p => p.units, '0'], ['Avg unit size (SF)', p => p.sf, '#,##0'], ['Other income / unit / yr', p => p.oi, '$#,##0'], ['Vacancy', p => p.vac, '0.0%'], ['OpEx (% of gross potential)', p => p.opex, '0.0%'],
+      ['RESULT'], [`Rent needed for ${pct(D.target, 2)} YOC (per SF)`, p => p.req, '$#,##0.00', true], ['Monthly equivalent', p => p.mo, '$#,##0']
+    ];
+    A.forEach(([lab, fn, fmt, bold, top], i) => {
+      const row = ws.getRow(5 + i); const c1 = row.getCell(1); c1.value = lab;
+      if (!fn) { c1.font = { ...FB, size: 9, color: { argb: 'FF432890' } }; row.height = 20; c1.alignment = { vertical: 'bottom' }; return; }
+      c1.font = bold ? FB : F; c1.border = { bottom: thin, ...(top ? { top: { style: 'medium', color: { argb: MID } } } : {}) };
+      D.products.forEach((p, j) => { const c = row.getCell(j + 2); c.value = fn(p); c.numFmt = fmt; c.font = bold ? FB : F; c.alignment = { horizontal: 'right' }; c.border = { bottom: thin, ...(top ? { top: { style: 'medium', color: { argb: MID } } } : {}) }; });
+    });
+    const mr = 6 + A.length;
+    ws.getCell('A' + mr).value = 'Rent needed = (total project cost × target yield ÷ (1 − vacancy − opex) − other income) ÷ 12 ÷ unit SF.';
+    ws.getCell('A' + mr).font = { ...F, italic: true, color: { argb: GRY } };
+    ws.getCell('A' + (mr + 1)).value = `Source: CoStar${D.asOf ? ' (' + D.asOf.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) + ')' : ''}; Willow Bridge assumptions. Comps: ${D.comp}, ${D.minSf}+ SF average unit; submarket averages are unit-weighted asking rents.`;
+    ws.getCell('A' + (mr + 1)).font = { ...F, italic: true, color: { argb: GRY } };
+    ws.columns = [{ width: 38 }, { width: 18 }, { width: 18 }, { width: 18 }];
+
+    wb.eachSheet(s => { s.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 } }; });
+    const buf = await wb.xlsx.writeBuffer();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = `YOC Matrix - ${D.market.replace(/[^\w\- ]+/g, '')} - ${D.date.toISOString().slice(0, 10)}.xlsx`;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+  }
+  window.yxExportPdf = exportPdf; window.yxExportXlsx = exportXlsx; window.yxExportData = collect;
 })();
