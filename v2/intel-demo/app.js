@@ -14852,7 +14852,8 @@ function renderModal() {
         const gapMo = Math.max(0, (NOW - AS) / 86400000 / 30.44);
         const LU = window.wbLU;
         // Actuals are CoStar as of the snapshot date; "today" is a projection from there
-        const occNow = LU ? LU.projectTo(p, occ / 100, gapMo, method) * 100 : Math.min(95.5, occ + velocity * gapMo / p.units * 100);
+        const freshEntry = handEntered && gapMo < 1;
+        const occNow = freshEntry ? occ : LU ? LU.projectTo(p, occ / 100, gapMo, method) * 100 : Math.min(95.5, occ + velocity * gapMo / p.units * 100);
         const methodLbl = method === 'fixed' ? `${velocity} leases / mo` : ({ own: 'own pace', curve: 'comparable curve', blend: 'blend' })[method] + ' method';
         let stabLabel, stabSubLabel;
         if (leasedUnits >= target) {
@@ -14886,9 +14887,9 @@ function renderModal() {
               ${sub(`${mo(delivered)} – ${asOf}`)}
             </div>
             <div class="detail-cell">
-              <div class="detail-label">Leased Today (Proj.)</div>
+              <div class="detail-label">${freshEntry ? 'Leased Today' : 'Leased Today (Proj.)'}</div>
               <div class="detail-value">${occNow >= 95 ? '95%+' : occNow.toFixed(0) + '%'}</div>
-              ${sub(gapMo < 0.5 ? `${Math.round(monthsBetween(delivered, NOW))} months open · entered today` : `${Math.round(monthsBetween(delivered, NOW))} months open · ${gapMo.toFixed(0)} mo projected`)}
+              ${sub(freshEntry ? `${Math.round(monthsBetween(delivered, NOW))} months open · as entered ${AS.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : `${Math.round(monthsBetween(delivered, NOW))} months open · ${gapMo.toFixed(0)} mo projected`)}
             </div>
             <div class="detail-cell">
               <div class="detail-label">Est. Stabilization</div>
@@ -14897,7 +14898,7 @@ function renderModal() {
             </div>
           </div>
           <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-4);margin-top:-2px;letter-spacing:0.04em;font-style:italic;padding:0 4px;">
-            ${handEntered ? `Vacancy entered by hand on ${asOf}; leased units and pace are measured to that date.` : `Leased units and pace are CoStar actuals as of ${asOf}.`} Today and stabilization project forward at ${methodLbl} to 95% — change on the Absorption tab.
+            ${handEntered ? `Vacancy entered by hand on ${asOf}; leased units and pace are measured to that date${freshEntry ? ', shown as entered (no projection) for its first month' : ', projected forward since it is over a month old'}.` : `Leased units and pace are CoStar actuals as of ${asOf}.`} Today and stabilization project forward at ${methodLbl} to 95% — change on the Absorption tab.
           </div>
         `;
       })()}
@@ -23380,7 +23381,10 @@ function txRenderBoard() {
         if (m != null) { const d = new Date(p.occAsOf || AS_OF); d.setDate(d.getDate() + Math.round(m * 30.44)); p.stabilizationDate = d; }
         else p.stabilizationDate = null;
       }
-      p.occNow = projectTo(p, occ, Math.max(0, (NOW - (p.occAsOf || AS_OF)) / 86400000 / 30.44), method) * 100;
+      // hand-entered vacancy is taken as-is for its first month; after that it's dated and gets projected like CoStar data
+      const gapP = Math.max(0, (NOW - (p.occAsOf || AS_OF)) / 86400000 / 30.44);
+      const fresh = p.occAsOf && p.occAsOf > AS_OF && gapP < 1;
+      p.occNow = fresh ? occ * 100 : projectTo(p, occ, gapP, method) * 100;
     });
     return rows;
   };
@@ -23439,7 +23443,8 @@ function txRenderBoard() {
       const c1 = document.createElement('td'); c1.className = 'num lu-c1';
       c1.innerHTML = p.pace3 == null ? '<span class="lu-dim">—</span>' : p.pace3.toFixed(1);
       const c2 = document.createElement('td'); c2.className = 'num lu-c2';
-      c2.innerHTML = p.occNow == null ? '—' : (p.occNow >= 95 ? '<span class="lu-ok">95%+</span>' : `${p.occNow.toFixed(0)}%<i>est.</i>`);
+      const handFresh = p.occAsOf && p.occAsOf > AS_OF && (NOW - p.occAsOf) / 86400000 < 30.44;
+      c2.innerHTML = p.occNow == null ? '—' : (p.occNow >= 95 ? '<span class="lu-ok">95%+</span>' : `${p.occNow.toFixed(0)}%${handFresh ? '<i>entered</i>' : '<i>est.</i>'}`);
       tr.insertBefore(c1, last); tr.insertBefore(c2, last);
     });
     const empty = table.querySelector('td.empty'); if (empty) empty.colSpan = 11;
