@@ -23692,7 +23692,8 @@ function txRenderBoard() {
   const heroRow = document.querySelector('.wbi-hero .wbi-head-row');
   const wrap = document.createElement('div'); wrap.className = 'yx-exp';
   wrap.innerHTML = `<button type="button" class="yx-exp-btn" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 2v8m0 0L5 7m3 3 3-3M3 12.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Export</button><div class="yx-exp-menu" hidden></div>`;
-  (heroRow || head).appendChild(wrap);
+  // the purple header is built by loader.js after this file runs, so wait for it
+  (function place(tries) { const r = document.querySelector('.wbi-hero .wbi-head-row'); if (r) r.appendChild(wrap); else if (tries < 100) setTimeout(() => place(tries + 1), 100); else head.appendChild(wrap); })(0);
   const btn = wrap.querySelector('.yx-exp-btn'), menu = wrap.querySelector('.yx-exp-menu');
   const clickId = id => () => { const el = document.getElementById(id); if (el) el.click(); };
   const OPTS = {
