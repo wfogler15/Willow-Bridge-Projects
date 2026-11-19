@@ -3312,7 +3312,9 @@ function renderOverview() {
 
   // If a specific submarket filter is active, pivot the chart to show individual properties
   // rather than the single aggregated submarket bar
-  const submarketFilterActive = state.submarkets.size > 0;
+  // An open comp set also shows its properties, not submarkets
+  const csOpen = state.compSetMode === 'viewing' && state.activeCompSetId && compSets[state.activeCompSetId];
+  const submarketFilterActive = state.submarkets.size > 0 || !!csOpen;
   let rentChartData, rentChartIsProperties;
   let rentChartLabels, rentChartValues, rentChartTooltipLabel;
 
@@ -3348,7 +3350,7 @@ function renderOverview() {
     // Update subtitle to indicate property-level
     if (subEl) {
       const subList = [...state.submarkets].slice(0, 2).join(', ') + (state.submarkets.size > 2 ? '…' : '');
-      subEl.textContent = `${psfLabel} · Top 10 Properties · ${subList}`;
+      subEl.textContent = csOpen ? `${psfLabel} · Top 10 Properties · ${compSets[state.activeCompSetId].name}` : `${psfLabel} · Top 10 Properties · ${subList}`;
     }
     const titleEl = document.getElementById('rent-dist-title');
     if (titleEl) titleEl.innerHTML = 'Rent Distribution by <em>Property</em> <span class="rent-dist-expand-hint">↗ RANK</span>';
@@ -6145,7 +6147,7 @@ function closeTrendsHeatmapModal() {
 // Whether the rank modal should show properties (a submarket filter is active,
 // matching the inline chart's by-property mode) or submarkets.
 function rentRankIsPropertyMode() {
-  return state.submarkets.size > 0;
+  return state.submarkets.size > 0 || !!(state.compSetMode === 'viewing' && state.activeCompSetId && compSets[state.activeCompSetId]);
 }
 
 function buildRentRankRows() {
