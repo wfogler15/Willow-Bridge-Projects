@@ -914,8 +914,6 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 #view-submarkets .mm-table.picking td:first-child, #view-submarkets .mm-table.picking th:first-child { padding-left:30px !important; }
 #view-submarkets .mm-table th:last-child, #view-submarkets .mm-table td:last-child { padding-right:8px !important; }
 #view-submarkets .mm-table td { overflow:visible; }
-#view-submarkets .mm-table .mm-nm, #view-submarkets .mm-table td:first-child .mm-ad { max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-#view-submarkets .mm-table .mm-cut { display:inline-block; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
+#view-submarkets .mm-table .mm-nm, #view-submarkets .mm-table td:first-child .mm-ad { max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#view-submarkets .mm-table .mm-cut { white-space:nowrap; }
 
-/* Developer: narrow column so blank rows don't leave a hole before Class */
-#view-submarkets .mm-table td:nth-child(3), #view-submarkets .mm-table th:nth-child(3) { max-width:150px; }
