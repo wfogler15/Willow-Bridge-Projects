@@ -16583,6 +16583,7 @@ function renderYoc() {
     if (!matchesClass(p)) return false;
     if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
     if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
+    if (typeof window.pxLocMatch === 'function' && !window.pxLocMatch(p)) return false;
     if (!yocCompInScope(p)) return false;
     return true;
   });
@@ -17214,6 +17215,7 @@ function openYocGroupDetail(groupName, productType) {
     if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
     if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
     if (p[groupKey] !== groupName) return false;
+    if (typeof window.pxLocMatch === 'function' && !window.pxLocMatch(p)) return false;
     if (!yocCompInScope(p)) return false;
     const bucket = PRODUCT_TYPE_MAP[p.style];
     if (bucket !== productType) return false;
@@ -22904,6 +22906,13 @@ function txRenderBoard() {
   window.pxDistance = p => (PX.near && p.lat != null) ? miles(PX.near, p) : null;
 
   window.pxApply = function (data) { PX.base = data; return data.filter(window.pxMatch); };
+  // Location only (submarkets, cities, within X mi): the YOC matrix follows this part of the filter bar
+  window.pxLocMatch = function (p) {
+    if (PX.subs.size && !PX.subs.has(p.submarket)) return false;
+    if (PX.cities.size && !PX.cities.has(p.city)) return false;
+    if (PX.near) { if (p.lat == null || p.lng == null || miles(PX.near, p) > PX.radius) return false; }
+    return true;
+  };
   window.pxMatch = function (p) {
     return (p => {
       if (PX.types.size && !PX.types.has(p.style || '—')) return false;
