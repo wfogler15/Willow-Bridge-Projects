@@ -2451,7 +2451,11 @@ async function pullCompSetsFromCloud() {
   if (!result) return;
   // Replace local state with server truth. Map snake_case columns back to
   // the camelCase shape the dashboard uses internally.
+  // Demo is read-only, so sets built here never reach the cloud: keep them instead of wiping them on every pull.
+  const keepLocal = window.__WB_DEMO_READONLY
+    ? Object.values(compSets).filter(c => c && c.id && !result.some(r => r.id === c.id)) : [];
   for (const k of Object.keys(compSets)) delete compSets[k];
+  for (const c of keepLocal) compSets[c.id] = c;
   for (const row of result) {
     compSets[row.id] = {
       id: row.id,
