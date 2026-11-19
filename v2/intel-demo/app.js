@@ -1568,9 +1568,22 @@ const state = {
 // Otherwise the property's class must be in the selected set. Used everywhere
 // a class filter applies so the behavior is consistent across views/exports.
 function matchesClass(p) {
-  if (state.classes.size === 0) return true;
-  return state.classes.has(p.class);
+  // Every tab's filter calls this, so the filter bar's extra filters (year built, size, rent, occupancy,
+  // concessions, within X mi) ride along here and apply across the whole dashboard.
+  if (state.classes.size > 0 && !state.classes.has(p.class)) return false;
+  return extraFiltersMatch(p);
 }
+function extraFiltersMatch(p) { return typeof window.pxExtraMatch === 'function' ? window.pxExtraMatch(p) : true; }
+// One status for the whole dashboard: Property Index's status reads and writes the left panel's Status.
+// 'Proposed' is the one value only Property Index offers, so it's kept as a flag on top.
+(function () {
+  let proposed = false;
+  Object.defineProperty(state, 'propStatus', {
+    configurable: true, enumerable: true,
+    get() { return proposed ? 'Proposed' : state.status; },
+    set(v) { if (v === 'Proposed') { proposed = true; } else { proposed = false; state.status = v || 'all'; } }
+  });
+})();
 // Human-readable label for the active class selection (for facets/exports).
 function classLabel() {
   if (state.classes.size === 0) return 'All Classes';
@@ -2797,6 +2810,8 @@ function getFilteredAllStatus() {
   }
   return RAW_DATA.map(applyUserEdits).filter(p => {
     if (!matchesClass(p)) return false;
+    if (state.minUnitSF > 0 && !(p.avgUnitSF >= state.minUnitSF)) return false;
+    if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
     if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
     if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
     return true;
@@ -3096,6 +3111,8 @@ function attachFilterEvents() {
   // Clear
   document.getElementById('clear-filters').addEventListener('click', () => {
     state.classes = new Set();   // back to the default: all classes
+    // the filter bar's extra filters are part of the same filter set, so Reset clears them too
+    if (window.PX) { const P = window.PX; P.near = null; ['yr', 'units', 'usf', 'askSF', 'askU', 'effSF', 'occ', 'stories'].forEach(k => { P[k] = [null, null]; }); P.concW = null; }
     state.status = 'all';
     state.minUnitSF = 0;
     state.productTypes.clear();
@@ -14291,6 +14308,7 @@ function renderSubmarkets() {
       if (!compSetIds.has(p.id)) return false;
     } else {
       if (!matchesClass(p)) return false;
+      if (state.minUnitSF > 0 && !(p.avgUnitSF >= state.minUnitSF)) return false;
       if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
       if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
       if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
@@ -16583,7 +16601,8 @@ function renderYoc() {
     if (!matchesClass(p)) return false;
     if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
     if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
-    if (typeof window.pxLocMatch === 'function' && !window.pxLocMatch(p)) return false;
+    if (state.minUnitSF > 0 && !(p.avgUnitSF >= state.minUnitSF)) return false;
+    if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
     if (!yocCompInScope(p)) return false;
     return true;
   });
@@ -17221,7 +17240,8 @@ function openYocGroupDetail(groupName, productType) {
     if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
     if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
     if (p[groupKey] !== groupName) return false;
-    if (typeof window.pxLocMatch === 'function' && !window.pxLocMatch(p)) return false;
+    if (state.minUnitSF > 0 && !(p.avgUnitSF >= state.minUnitSF)) return false;
+    if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
     if (!yocCompInScope(p)) return false;
     const bucket = PRODUCT_TYPE_MAP[p.style];
     if (bucket !== productType) return false;
@@ -21404,7 +21424,18 @@ function renderActive() {
   else if (view === 'opportunities') renderOpportunities();
 }
 
+// Keep the left panel's chips in step with the filter state (the filter bar can change it too)
+function syncFilterPanelChips() {
+  const setOn = (sel, test) => document.querySelectorAll(sel).forEach(c => c.classList.toggle('active', test(c.dataset.value)));
+  setOn('#filter-class .chip', v => v === 'all' ? state.classes.size === 0 : state.classes.has(v));
+  setOn('#filter-status .chip', v => v === state.status);
+  setOn('#filter-unitsize .chip', v => Number(v) === (state.minUnitSF || 0));
+  setOn('#filter-product-type .product-chip', v => state.productTypes.has(v));
+  try { updateProductTypeCount(); } catch (e) {}
+}
+
 function renderAll() {
+  try { syncFilterPanelChips(); } catch (e) {}
   renderCityList();
   renderSubmarketList();
   renderContextLine();
@@ -22905,18 +22936,31 @@ function txRenderBoard() {
     occ: [null, null], concW: null, stories: [null, null],
     base: []
   };
+  // One filter set: product, class, submarket and city here ARE the left panel's sets
+  [['types', 'productTypes'], ['classes', 'classes'], ['subs', 'submarkets'], ['cities', 'cities']].forEach(([k, sk]) => {
+    Object.defineProperty(PX, k, { configurable: true, enumerable: true, get: () => state[sk], set: v => { state[sk] = v; } });
+  });
   const occOf = p => p.vacancy == null ? null : 100 - p.vacancy;
   const wksOf = p => p.concessions == null ? null : p.concessions / 100 * 52;
   const inR = (v, r) => (r[0] == null || (v != null && v >= r[0])) && (r[1] == null || (v != null && v <= r[1]));
   const miles = (a, b) => L.latLng(a.lat, a.lng).distanceTo([b.lat, b.lng]) / 1609.34;
   window.pxDistance = p => (PX.near && p.lat != null) ? miles(PX.near, p) : null;
 
-  window.pxApply = function (data) { PX.base = data; return data.filter(window.pxMatch); };
-  // Location only (submarkets, cities, within X mi): the YOC matrix follows this part of the filter bar
-  window.pxLocMatch = function (p) {
-    if (PX.subs.size && !PX.subs.has(p.submarket)) return false;
-    if (PX.cities.size && !PX.cities.has(p.city)) return false;
+  // Property Index data already comes through the shared filters (getFiltered / matchesClass), and an open
+  // comp set is the filter on its own, so nothing more is applied here.
+  window.pxApply = function (data) { PX.base = data; return data; };
+  // The filters only the bar has; matchesClass() applies them on every tab
+  window.pxExtraMatch = function (p) {
     if (PX.near) { if (p.lat == null || p.lng == null || miles(PX.near, p) > PX.radius) return false; }
+    if (!inR(p.yearBuilt, PX.yr)) return false;
+    if (!inR(p.units, PX.units)) return false;
+    if (!inR(p.avgUnitSF, PX.usf)) return false;
+    if (!inR(p.avgAskingSF, PX.askSF)) return false;
+    if (!inR(p.avgAskingUnit, PX.askU)) return false;
+    if (!inR(p.avgEffectiveSF, PX.effSF)) return false;
+    if (!inR(occOf(p), PX.occ)) return false;
+    if (PX.concW != null) { const w = wksOf(p); if (w == null || w > PX.concW) return false; }
+    if (!inR(p.stories, PX.stories)) return false;
     return true;
   };
   window.pxMatch = function (p) {
@@ -22962,9 +23006,11 @@ function txRenderBoard() {
   const ysel = document.getElementById('prop-year-filter');
   if (ysel) { ysel.value = 'all'; state.propYear = 'all'; ysel.style.display = 'none'; }
 
+  // A change in the bar is a change to the dashboard's filters: refresh the left panel and the open tab
   const rerender = () => {
-    try { renderProperties(); } catch (e) { console.error('[px]', e); }
-    try { if (getActiveView() === 'submarkets') renderSubmarkets(); } catch (e) { console.error('[px map]', e); }
+    try { syncFilterPanelChips(); } catch (e) {}
+    try { renderAll(); } catch (e) { console.error('[px]', e); }
+    try { if (getActiveView() !== 'properties') renderProperties(); } catch (e) {}
   };
   let tmr = null; const soon = () => { clearTimeout(tmr); tmr = setTimeout(rerender, 160); };
 
@@ -23755,7 +23801,6 @@ function txRenderBoard() {
   let wired = false;
   const _r = renderPropertyMap;
   renderPropertyMap = function (data) {
-    if (typeof window.pxMatch === 'function' && data) { data = data.filter(window.pxMatch); arguments[0] = data; }
     const r = _r.apply(this, arguments);
     all = (data || []).filter(p => p.lat != null && p.lng != null && !isNaN(p.lat) && !isNaN(p.lng));
     if (propertyMap && !wired) { propertyMap.on('moveend zoomend resize', soon); wired = true; }
@@ -23788,7 +23833,12 @@ function txRenderBoard() {
     }
   }
   const _ra = renderActive;
-  renderActive = function () { try { place(); } catch (e) { console.error('[map filters]', e); } return _ra.apply(this, arguments); };
+  renderActive = function () {
+    try { place(); } catch (e) { console.error('[map filters]', e); }
+    const r = _ra.apply(this, arguments);
+    try { if (bar.classList.contains('px-onmap') && window.pxPaint) window.pxPaint(); } catch (e) {}
+    return r;
+  };
   window.renderActive = renderActive;
   try { place(); } catch (e) {}
 })();
