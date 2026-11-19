@@ -751,10 +751,10 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 .mm-table td { padding:9px 10px; border-bottom:1px solid #f0eef5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .mm-table tbody tr { cursor:pointer; transition:background .1s; }
 .mm-table tbody tr:hover { background:#f7f6fb; }
-.mm-table th:nth-child(1) { width:22%; } .mm-table th:nth-child(2) { width:13%; } .mm-table th:nth-child(3) { width:5%; }
-.mm-table th:nth-child(4) { width:9%; } .mm-table th:nth-child(5) { width:6%; } .mm-table th:nth-child(6) { width:6%; }
-.mm-table th:nth-child(7) { width:6%; } .mm-table th:nth-child(8) { width:8%; } .mm-table th:nth-child(9) { width:8%; }
-.mm-table th:nth-child(10) { width:8%; } .mm-table th:nth-child(11) { width:7%; }
+.mm-table th:nth-child(1) { width:19%; } .mm-table th:nth-child(2) { width:11%; } .mm-table th:nth-child(3) { width:13%; }
+.mm-table th:nth-child(4) { width:5%; } .mm-table th:nth-child(5) { width:8%; } .mm-table th:nth-child(6) { width:5%; }
+.mm-table th:nth-child(7) { width:5%; } .mm-table th:nth-child(8) { width:6%; } .mm-table th:nth-child(9) { width:7%; }
+.mm-table th:nth-child(10) { width:7%; } .mm-table th:nth-child(11) { width:7%; } .mm-table th:nth-child(12) { width:7%; }
 .mm-nm { font-weight:600; overflow:hidden; text-overflow:ellipsis; }
 .mm-ad { font-size:11.5px; color:var(--x-ink-3); overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
 .mm-dim { color:#b5b1c4; }
@@ -850,3 +850,18 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 #view-yoc .yoc-table thead tr:first-child th.yx-gh { box-shadow: 0 -40px 0 #fff, inset 0 -1px 0 var(--x-line) !important; }
 #view-yoc .yoc-table thead th { background-color: #fff !important; opacity: 1 !important; }
 #view-yoc .yoc-table thead { position: relative; z-index: 4; }
+
+/* map hover cards */
+.leaflet-tooltip.mm-hover { background:#fff; border:1px solid var(--x-line, #e6e3ee); border-radius:8px; box-shadow:0 6px 20px rgba(29,18,71,.14); padding:9px 11px; font:400 12.5px/1.35 var(--x-font, 'Inter Tight', sans-serif); color:var(--x-ink, #1d1247); white-space:normal; min-width:200px; max-width:300px; }
+.leaflet-tooltip.mm-hover::before { display:none; }
+.mm-hover .mmh-t { font-weight:600; font-size:13.5px; margin-bottom:2px; }
+.mm-hover .mmh-s { color:var(--x-ink-3, #6c6782); margin-bottom:5px; } .mm-hover .mmh-s em { font-style:normal; color:#946b00; }
+.mm-hover .mmh-b { color:var(--x-ink-2, #3d3852); font-variant-numeric:tabular-nums; } .mm-hover .mmh-b span { color:var(--x-ink-3, #6c6782); }
+.leaflet-tooltip.mm-hover-list { min-width:340px; max-width:420px; }
+.mm-hover .mmh-h { font-weight:600; font-size:12px; color:var(--x-ink-3, #6c6782); padding-bottom:5px; margin-bottom:3px; border-bottom:1px solid var(--x-line, #e6e3ee); }
+.mm-hover .mmh-r { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1.2fr) 46px 48px; gap:8px; padding:3px 0; font-variant-numeric:tabular-nums; }
+.mm-hover .mmh-r span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mm-hover .mmh-n { font-weight:500; } .mm-hover .mmh-d { color:var(--x-ink-3, #6c6782); } .mm-hover .mmh-u, .mm-hover .mmh-p { text-align:right; }
+.mm-hover .mmh-more { color:var(--x-ink-3, #6c6782); font-size:11.5px; padding-top:4px; }
+.leaflet-tooltip.mm-hover:not(.mm-hover-list) { max-width:none; }
+.mm-hover .mmh-b, .mm-hover .mmh-s, .mm-hover .mmh-t { white-space:nowrap; }

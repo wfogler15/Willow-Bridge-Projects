@@ -10425,6 +10425,18 @@ function renderProperties() {
 let propertyMap = null;
 let propertyMarkerLayer = null;
 
+// Hover card for a single map pin: name, developer, size and rent at a glance
+function mapHoverHtml(p) {
+  const esc = escapeHTML;
+  const st = isPlannedProposed(p) ? 'Proposed' : p.status === 'Under Construction' ? 'Under construction' : null;
+  const occ = p.vacancy == null ? null : 100 - p.vacancy;
+  const bits = [p.units ? p.units.toLocaleString() + ' units' : null, p.yearBuilt ? (st ? 'Delivers ' : 'Built ') + p.yearBuilt : null, p.class ? 'Class ' + p.class : null].filter(Boolean).join(' · ');
+  const rent = p.avgAskingSF ? `<b>$${p.avgAskingSF.toFixed(2)}/SF</b>${p.avgAskingUnit ? ` <span>$${Math.round(p.avgAskingUnit).toLocaleString()}/mo</span>` : ''}${occ != null && !st ? ` <span>· ${occ.toFixed(1)}% occ.</span>` : ''}` : '';
+  return `<div class="mmh-t">${esc(p.name || 'Unnamed')}</div>`
+    + `<div class="mmh-s">${p.developer ? esc(p.developer) : '<i>Developer not listed</i>'}${st ? ` · <em>${st}</em>` : ''}</div>`
+    + (bits ? `<div class="mmh-b">${bits}</div>` : '') + (rent ? `<div class="mmh-b">${rent}</div>` : '');
+}
+
 function renderPropertyMap(data) {
   const mapEl = document.getElementById('property-map');
   if (!mapEl) return;
@@ -10533,9 +10545,32 @@ function renderPropertyMap(data) {
       </div>
     `;
     marker.bindPopup(popupHtml, { maxWidth: 320, closeButton: true });
+    marker._wbP = p;
+    marker.bindTooltip(mapHoverHtml(p), { direction: 'top', offset: [0, -6], className: 'mm-hover', opacity: 1 });
+    marker.on('popupopen', () => marker.closeTooltip());
+    marker.on('tooltipopen', ev => {   // flip below the pin in the top half so the card isn't cut off
+      const t = ev.tooltip, up = propertyMap.latLngToContainerPoint(marker.getLatLng()).y > propertyMap.getSize().y * 0.45;
+      const want = up ? 'top' : 'bottom';
+      if (t.options.direction !== want) { t.options.direction = want; t.options.offset = up ? [0, -6] : [0, 6]; t.update(); }
+    });
     propertyMarkerLayer.addLayer(marker);
   }
 
+  if (propertyMarkerLayer.on && typeof L.markerClusterGroup === 'function') {
+    propertyMarkerLayer.on('clustermouseover', e => {
+      const ps = e.layer.getAllChildMarkers().map(m => m._wbP).filter(Boolean)
+        .sort((a, b) => (b.units || 0) - (a.units || 0));
+      const MAX = 12, esc = escapeHTML;
+      const html = `<div class="mmh-h">${ps.length} properties · ${ps.reduce((t, p) => t + (p.units || 0), 0).toLocaleString()} units</div>`
+        + ps.slice(0, MAX).map(p => `<div class="mmh-r"><span class="mmh-n">${esc(p.name || 'Unnamed')}</span><span class="mmh-d">${esc(p.developer || '')}</span><span class="mmh-u">${p.units ? p.units.toLocaleString() : '—'}</span><span class="mmh-p">${p.avgAskingSF ? '$' + p.avgAskingSF.toFixed(2) : '—'}</span></div>`).join('')
+        + (ps.length > MAX ? `<div class="mmh-more">+${ps.length - MAX} more · click to zoom in</div>` : '');
+      const up = propertyMap.latLngToContainerPoint(e.layer.getLatLng()).y > propertyMap.getSize().y * 0.55;
+      e.layer.unbindTooltip();
+      e.layer.bindTooltip(html, { direction: up ? 'top' : 'bottom', offset: up ? [0, -14] : [0, 14], className: 'mm-hover mm-hover-list', opacity: 1 }).openTooltip();
+    });
+    propertyMarkerLayer.on('clustermouseout', e => { e.layer.closeTooltip(); });
+    propertyMarkerLayer.on('clusterclick', e => { e.layer.closeTooltip(); });
+  }
   propertyMap.addLayer(propertyMarkerLayer);
 
   // Fit bounds (but only if we have markers and we're not zoomed in already)
@@ -23488,6 +23523,7 @@ function txRenderBoard() {
   const COLS = [
     ['name', 'Property', p => p.name || '', 'txt'],
     ['submarket', 'Submarket', p => p.submarket || '', 'txt'],
+    ['developer', 'Developer', p => p.developer || '', 'txt'],
     ['class', 'Class', p => p.class || '', 'txt'],
     ['status', 'Status', stat, 'txt'],
     ['units', 'Units', p => p.units, 'num'],
@@ -23502,6 +23538,7 @@ function txRenderBoard() {
   const CELL = {
     name: p => `<div class="mm-nm">${E(p.name || '(Unnamed)')}</div><div class="mm-ad">${E(p.address || '')}</div>`,
     submarket: p => E(p.submarket || '—'), class: p => E(p.class || '—'),
+    developer: p => p.developer ? `<span title="${E(p.developer)}">${E(p.developer)}</span>` : '<span class="mm-dim">—</span>',
     status: p => { const s = stat(p); return s === 'Existing' ? '<span class="mm-dim">Existing</span>' : `<span class="mm-st ${s === 'UC' ? 'uc' : 'pr'}">${s === 'UC' ? 'Under constr.' : 'Proposed'}</span>`; },
     units: p => p.units ? p.units.toLocaleString() : '—', yearBuilt: p => p.yearBuilt || '—',
     occ: p => { const o = occOf(p); return o == null ? '<span class="mm-dim">—</span>' : o.toFixed(1) + '%'; },
