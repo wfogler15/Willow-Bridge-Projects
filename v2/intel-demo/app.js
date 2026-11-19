@@ -14573,7 +14573,7 @@ function exportOpportunity() {
     if (prev && prev.classList && prev.classList.contains('detail-section-title')) prev.remove();
     mapEl.remove();
   }
-  const styles = Array.from(document.querySelectorAll('style')).map(s => s.textContent).join('\n');
+  const styles = Array.from(document.querySelectorAll('style:not(#wbi-boot)')).map(s => s.textContent).join('\n');
   const title = (o && o.name) ? o.name : 'Opportunity';
   const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   const w = window.open('', '_blank');
@@ -19275,7 +19275,7 @@ function exportYocMatrixPdf() {
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   // Pull in the dashboard's main stylesheet by reference (cloning <style> tags into the new window)
-  const inlineStyles = Array.from(document.querySelectorAll('style'))
+  const inlineStyles = Array.from(document.querySelectorAll('style:not(#wbi-boot)'))
     .map(s => s.outerHTML)
     .join('\n');
   // Plus stylesheet links (Leaflet etc. aren't needed; Google Fonts + dashboard CSS are)
@@ -20044,7 +20044,7 @@ async function exportMarketReportPdf(reportOptions) {
 
   // --- 9. Build the document --------------------------------------------------
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const inlineStyles = Array.from(document.querySelectorAll('style'))
+  const inlineStyles = Array.from(document.querySelectorAll('style:not(#wbi-boot)'))
     .map(s => s.outerHTML).join('\n');
   const linkedStyles = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
     .map(l => l.outerHTML).join('\n');
