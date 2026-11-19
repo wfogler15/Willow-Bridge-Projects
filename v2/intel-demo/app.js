@@ -23531,13 +23531,16 @@ function txRenderBoard() {
   const stat = p => isPlannedProposed(p) ? 'Proposed' : p.status === 'Under Construction' ? 'UC' : 'Existing';
   const COLS = [
     ['name', 'Property', p => p.name || '', 'txt'],
-    ['developer', 'Developer · Submarket', p => p.developer || '~', 'txt'],
+    ['submarket', 'Submarket', p => p.submarket || '~', 'txt'],
+    ['developer', 'Developer', p => p.developer || '~', 'txt'],
     ['class', 'Class', p => p.class || '', 'ctr'],
     ['status', 'Status', stat, 'txt'],
     ['units', 'Units', p => p.units, 'num'],
     ['yearBuilt', 'Built', p => p.yearBuilt, 'num'],
-    ['askSF', 'Asking', p => p.avgAskingSF, 'num'],
-    ['effSF', 'Effective', p => p.avgEffectiveSF, 'num'],
+    ['askSF', 'Asking $/SF', p => p.avgAskingSF, 'num'],
+    ['askU', 'Asking $/mo', p => p.avgAskingUnit, 'num'],
+    ['effSF', 'Eff. $/SF', p => p.avgEffectiveSF, 'num'],
+    ['effU', 'Eff. $/mo', p => p.avgEffectiveUnit, 'num'],
     ['occ', 'Occupancy', occOf, 'num'],
     ['conc', 'Concessions', wksOf, 'num']
   ];
@@ -23545,12 +23548,14 @@ function txRenderBoard() {
   const CELL = {
     name: p => `${picking ? `<span class="mm-ck${picked.has(String(p.id)) ? ' on' : ''}"></span>` : ''}<div class="mm-nm">${E(p.name || '(Unnamed)')}</div><div class="mm-ad">${E(p.address || '')}</div>`,
     submarket: p => E(p.submarket || '—'), class: p => E(p.class || '—'),
-    developer: p => `<div class="mm-nm2" title="${E(p.developer || '')}">${p.developer ? E(p.developer) : '<span class="mm-dim">Developer not listed</span>'}</div><div class="mm-ad">${E(p.submarket || '—')}</div>`,
+    submarket: p => `<span class="mm-cut" title="${E(p.submarket || '')}">${E(p.submarket || '—')}</span>`,
+    developer: p => p.developer ? `<span class="mm-cut" title="${E(p.developer)}">${E(p.developer)}</span>` : '<span class="mm-dim">—</span>',
     status: p => { const s = stat(p); return `<span class="mm-st ${s === 'UC' ? 'uc' : s === 'Proposed' ? 'pr' : 'ex'}">${s === 'UC' ? 'Under construction' : s}</span>`; },
     units: p => p.units ? p.units.toLocaleString() : '—', yearBuilt: p => p.yearBuilt || '—',
     occ: p => { const o = occOf(p); return o == null ? '<span class="mm-dim">—</span>' : o.toFixed(1) + '%'; },
-    askSF: p => p.avgAskingSF ? `<div class="mm-v">$${p.avgAskingSF.toFixed(2)}<small>/SF</small></div><div class="mm-ad">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() + '/mo' : ''}</div>` : '<span class="mm-dim">—</span>',
-    effSF: p => p.avgEffectiveSF ? `<div class="mm-v">$${p.avgEffectiveSF.toFixed(2)}<small>/SF</small></div><div class="mm-ad">${p.avgEffectiveUnit ? '$' + Math.round(p.avgEffectiveUnit).toLocaleString() + '/mo' : ''}</div>` : '<span class="mm-dim">—</span>', conc: p => { const w = wksOf(p); return w == null ? '<span class="mm-dim">—</span>' : w.toFixed(1) + ' wks'; }
+    askSF: p => fmt2(p.avgAskingSF), effSF: p => fmt2(p.avgEffectiveSF),
+    askU: p => p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '<span class="mm-dim">—</span>',
+    effU: p => p.avgEffectiveUnit ? '$' + Math.round(p.avgEffectiveUnit).toLocaleString() : '<span class="mm-dim">—</span>', conc: p => { const w = wksOf(p); return w == null ? '<span class="mm-dim">—</span>' : w.toFixed(1) + ' wks'; }
   };
   panel.querySelector('thead').innerHTML = '<tr>' + COLS.map(([k, t, , ty]) => `<th class="${ty}" data-k="${k}">${t}</th>`).join('') + '</tr>';
 
@@ -23606,7 +23611,17 @@ function txRenderBoard() {
   // Column widths: measure each column's natural width, cap the two long text columns, then spread the
   // leftover width evenly across every column so the gaps between columns are equal (no single column
   // swallowing the extra space and pushing the numbers to the far right).
-  function fitCols() { /* widths come from content; see .mm-table in demo.css */ }
+  // Columns are sized to their content (demo.css). If the card is wider than the table, widen every gap by the
+  // same amount, up to 40px more, so the table fills more of the card without opening up uneven holes.
+  function fitCols() {
+    const tbl = panel.querySelector('.mm-table'), wrap = panel.querySelector('.mm-tablewrap');
+    if (!tbl || !wrap || !wrap.clientWidth) return;
+    tbl.style.setProperty('--mm-gap', '40px');
+    const n = tbl.querySelectorAll('thead th').length - 1;
+    const spare = wrap.clientWidth - 8 - tbl.offsetWidth;
+    if (spare > 0 && n > 0) tbl.style.setProperty('--mm-gap', (40 + Math.min(40, spare / n)).toFixed(1) + 'px');
+  }
+  window.addEventListener('resize', () => { clearTimeout(fitCols._t); fitCols._t = setTimeout(fitCols, 150); });
   function paintPicks() {
     if (!propertyMap) return;
     if (pickLayer) { propertyMap.removeLayer(pickLayer); pickLayer = null; }
