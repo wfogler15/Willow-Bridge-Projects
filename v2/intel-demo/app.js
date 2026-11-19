@@ -22969,7 +22969,9 @@ function txRenderBoard() {
   let tmr = null; const soon = () => { clearTimeout(tmr); tmr = setTimeout(rerender, 160); };
 
   // ---------- popovers ----------
-  const countBy = (k, f) => { const m = new Map(); PX.base.forEach(p => { const v = f ? f(p) : p[k]; if (v == null || v === '') return; m.set(v, (m.get(v) || 0) + 1); }); return m; };
+  // pick lists always cover the whole market, so an open comp set or a narrow list can't hide choices
+  const optBase = () => { try { return RAW_DATA.map(applyUserEdits); } catch (e) { return PX.base; } };
+  const countBy = (k, f) => { const m = new Map(); optBase().forEach(p => { const v = f ? f(p) : p[k]; if (v == null || v === '') return; m.set(v, (m.get(v) || 0) + 1); }); return m; };
   const num = v => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[$,]/g, '')); return isNaN(n) ? null : n; };
   const range = (label, key, unit, step, ph) => `
     <div class="px-rg"><div class="px-rl">${label}</div>
