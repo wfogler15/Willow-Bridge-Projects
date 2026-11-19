@@ -919,3 +919,8 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 
 .mm-pick .mm-pick-name.need { border-color:#c0392b; box-shadow:0 0 0 3px rgba(192,57,43,.14); }
 .mm-pick .mm-pick-name.need::placeholder { color:#c0392b; }
+/* YOC matrix: comp set row pinned at the top */
+#view-yoc .yoc-table tbody tr.yx-cs-row td { border-bottom:2px solid #1D1247; }
+#view-yoc .yx-cs-cell { background:#f4f1fb; }
+#view-yoc .yx-cs-tag { font:600 10px/1 var(--x-font); letter-spacing:.08em; text-transform:uppercase; color:var(--x-purple, #432890); margin-bottom:4px; }
+#view-yoc .yx-cs-cell .yoc-sm-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; }

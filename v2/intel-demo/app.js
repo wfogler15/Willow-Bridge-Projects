@@ -16477,7 +16477,37 @@ function yocBandFor(roc) {
 function colorForRoc(roc) { const b = yocBandFor(roc); return b ? b.color : '#f6f6f8'; }
 function textColorForRoc(roc) { const b = yocBandFor(roc); return b ? b.ink : '#8f8aa3'; }
 
+// Comp set row for the YOC matrix. Every Existing property in the set with an asking rent, no comp filter
+// (the set was picked on purpose). Default: the comp set currently open; the picker can switch or clear it.
+function yocCsRow() {
+  let id = yocState.csRowId;
+  if (id === undefined) id = (state.compSetMode === 'viewing' && state.activeCompSetId) ? state.activeCompSetId : null;
+  const cs = id && compSets[id];
+  if (!cs) return null;
+  const ids = new Set((cs.propertyIds || []).map(String));
+  const group = { Garden: [], 'Mid-Rise': [], 'High-Rise': [] };
+  let missing = 0; const smCount = {};
+  RAW_DATA.map(applyUserEdits).forEach(p => {
+    if (!ids.has(String(p.id)) || p.status !== 'Existing') return;
+    if (!p.avgAskingSF) { missing++; return; }
+    const col = yocColumnFor(p.style); if (!col) return;
+    group[col].push(p);
+    if (p.submarket) smCount[p.submarket] = (smCount[p.submarket] || 0) + 1;
+  });
+  const sm = Object.keys(smCount).sort((a, b) => smCount[b] - smCount[a])[0] || null;
+  return { id, name: cs.name, group, sm, missing };
+}
+function paintYxCsPicker() {
+  const sel = document.getElementById('yx-csrow'); if (!sel) return;
+  const cur = yocCsRow();
+  const sets = Object.values(compSets || {}).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+  sel.innerHTML = `<option value="">${sets.length ? 'No comp set row' : 'No saved comp sets'}</option>`
+    + sets.map(c => `<option value="${escapeHTML(c.id)}"${cur && cur.id === c.id ? ' selected' : ''}>Comp set: ${escapeHTML(c.name)}</option>`).join('');
+  sel.onchange = () => { yocState.csRowId = sel.value || null; renderYoc(); };
+}
+
 function renderYoc() {
+  try { paintYxCsPicker(); } catch (e) { console.error('[yoc cs row]', e); }
   // Active product columns — honor the Product Type filter dropdown.
   // When 'all', show every YOC product column; otherwise restrict to the chosen one.
   const activeProducts = yocState.productFilter === 'all'
@@ -16542,13 +16572,10 @@ function renderYoc() {
   // 3. Source data — Existing only; honor sidebar Class/City/Submarket filters.
   // Apply user edits first so any manual corrections to status/class/submarket/rent flow through.
   // If a comp set is active, scope to those property IDs and ignore other filters.
-  const yocCompSetIds = (state.compSetMode === 'viewing' && state.activeCompSetId && compSets[state.activeCompSetId])
-    ? new Set(compSets[state.activeCompSetId].propertyIds) : null;
+  // A saved comp set shows as its own row at the top (yx-csrow picker); submarket rows keep the market scope.
+  const csRow = yocCsRow();
   const sourceData = RAW_DATA.map(applyUserEdits).filter(p => {
     if (p.status !== 'Existing') return false;
-    if (yocCompSetIds) {
-      return yocCompSetIds.has(p.id);
-    }
     if (!matchesClass(p)) return false;
     if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
     if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
@@ -16662,15 +16689,20 @@ function renderYoc() {
     renderYoc();
   };
 
-  // 6. Rows
-  const rows = groupKeys.map(sm => {
+  // 6. Rows (comp set row first when one is picked)
+  const rowGroups = csRow ? Object.assign({ __cs: csRow.group }, grouped) : grouped;
+  const rowKeys = csRow ? ['__cs'].concat(groupKeys) : groupKeys;
+  const rows = rowKeys.map(rk => {
+    const isCs = rk === '__cs';
+    const sm = isCs ? csRow.sm : rk;            // trend lookups use the set's main submarket
+    const grouped = rowGroups; const gk = rk;
     // Compute distinct property count + total units across all product columns for this row.
     // We dedupe by property id since the same property could (in theory) appear under
     // multiple product buckets; in practice it won't, but the Set is safe.
     const uniqProps = new Set();
     let unitTotal = 0;
     for (const prod of activeProducts) {
-      const propsHere = grouped[sm][prod] || [];
+      const propsHere = grouped[gk][prod] || [];
       for (const p of propsHere) {
         if (!uniqProps.has(p.id)) {
           uniqProps.add(p.id);
@@ -16679,13 +16711,19 @@ function renderYoc() {
       }
     }
     const propCount = uniqProps.size;
-    let row = `<td class="yoc-submarket">
+    let row = isCs
+      ? `<td class="yoc-submarket yx-cs-cell">
+        <div class="yx-cs-tag">Comp set</div>
+        <div class="yoc-sm-name" title="${escapeHTML(csRow.name)}">${escapeHTML(csRow.name)}</div>
+        <div class="yoc-sm-meta">${propCount} ${propCount === 1 ? 'prop' : 'props'} · ${unitTotal.toLocaleString()} units${csRow.missing ? ` · ${csRow.missing} without rents` : ''}</div>
+      </td>`
+      : `<td class="yoc-submarket">
         <div class="yoc-sm-name">${escapeHTML(sm)}</div>
         <div class="yoc-sm-meta">${propCount} ${propCount === 1 ? 'prop' : 'props'} · ${unitTotal.toLocaleString()} units</div>
       </td>`;
     for (let pi = 0; pi < activeProducts.length; pi++) {
       const prod = activeProducts[pi];
-      const props = grouped[sm][prod];
+      const props = grouped[gk][prod];
       const validPsf = props.map(p => p.avgAskingSF).filter(v => v != null && !isNaN(v));
       const validForWeight = props.filter(p => p.avgAskingSF != null && p.units != null);
       let avg = null, best = null, bestProp = null;
@@ -16731,7 +16769,7 @@ function renderYoc() {
           : `Avg ${vsNeededTxt(avg, reqTodayFor(prod, sm))}${trendNote} · ${compCount} comp(s) · unit-weighted${bestProp ? ' · best: ' + escapeHTML(bestProp.name) + ' $' + best.toFixed(2) : ''} · click to view all`;
         const label = isNoData ? '—' : '<span class="yx-psf">$' + avg.toFixed(2) + '</span><span class="yoc-n">(' + (validForWeight.length || validPsf.length) + ')</span>';
         const dataAttr = isClickable
-          ? ` data-avg-group="${escapeHTML(sm)}" data-avg-product="${escapeHTML(prod)}"`
+          ? ` data-avg-group="${escapeHTML(gk)}" data-avg-product="${escapeHTML(prod)}"`
           : '';
         row += `<td class="${cls}"${dataAttr} style="${isNoData ? '' : `background:${bg};color:${fg};`}" title="${tooltip}">${label}</td>`;
       }
@@ -16754,7 +16792,7 @@ function renderYoc() {
         row += `<td class="${cls}"${dataAttr} style="${isNoData ? '' : `background:${bg};color:${fg};`}" title="${tooltip}">${label}</td>`;
       }
     }
-    return `<tr>${row}</tr>`;
+    return `<tr${isCs ? ' class="yx-cs-row"' : ''}>${row}</tr>`;
   }).join('');
   document.querySelector('#yoc-table tbody').innerHTML = rows;
 
@@ -17165,13 +17203,14 @@ function openYocGroupDetail(groupName, productType) {
   // Resolve the same source set the matrix used: Existing properties matching
   // the sidebar filters AND the row's group AND the column's product bucket.
   const groupKey = yocState.groupBy === 'city' ? 'city' : 'submarket';
-  const sourceData = RAW_DATA.map(applyUserEdits).filter(p => {
+  const csRow = groupName === '__cs' ? yocCsRow() : null;
+  const sourceData = csRow ? (csRow.group[productType] || []).slice() : RAW_DATA.map(applyUserEdits).filter(p => {
     if (p.status !== 'Existing') return false;
     if (!matchesClass(p)) return false;
     if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
     if (state.submarkets.size > 0 && !state.submarkets.has(p.submarket)) return false;
     if (p[groupKey] !== groupName) return false;
-    if (!(state.compSetMode === 'viewing' && state.activeCompSetId && compSets[state.activeCompSetId]) && !yocCompInScope(p)) return false;
+    if (!yocCompInScope(p)) return false;
     const bucket = PRODUCT_TYPE_MAP[p.style];
     if (bucket !== productType) return false;
     return p.avgAskingSF != null;
@@ -17212,11 +17251,12 @@ function openYocGroupDetail(groupName, productType) {
   // ROC at the weighted PSF (factors in trend assumption if enabled).
   // When grouped by submarket, `groupName` is the submarket → RP forecast lookup
   // works. When grouped by city, the lookup falls back to flat growth.
-  const roc = rocFromPsf(weightedPsf, productType, sfFor(productType), groupName);
+  const smKey = csRow ? csRow.sm : groupName;   // trend / rent-needed lookups for the comp set use its main submarket
+  const roc = rocFromPsf(weightedPsf, productType, sfFor(productType), smKey);
 
   // Compose the modal body
-  const gdReq = reqTodayFor(productType, groupName);
-  const bySubCol = yocState.groupBy === 'city';
+  const gdReq = reqTodayFor(productType, smKey);
+  const bySubCol = yocState.groupBy === 'city' || !!csRow;
   const rowsHtml = sourceData.map(p => {
     const vs = gdReq == null || p.avgAskingSF == null ? null : p.avgAskingSF - gdReq;
     return `
@@ -17258,12 +17298,12 @@ function openYocGroupDetail(groupName, productType) {
   document.getElementById('modal-content').innerHTML = `
     <div class="modal-header">
       <div>
-        <div class="modal-eyebrow">${escapeHTML(productType)} · ${escapeHTML(yocState.groupBy === 'city' ? 'City' : 'Submarket')}</div>
-        <h2 class="modal-title">${escapeHTML(groupName)}</h2>
+        <div class="modal-eyebrow">${escapeHTML(productType)} · ${csRow ? 'Comp set' : escapeHTML(yocState.groupBy === 'city' ? 'City' : 'Submarket')}</div>
+        <h2 class="modal-title">${escapeHTML(csRow ? csRow.name : groupName)}</h2>
         <div class="modal-sub" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <span>Weighted Avg $/SF · ${weightedPsf == null ? '—' : '$' + weightedPsf.toFixed(2)}</span>
           <span style="opacity:0.5;">·</span>
-          <span>${(() => { const r = reqTodayFor(productType, groupName); if (weightedPsf == null || r == null) return 'Needed —'; const d = weightedPsf - r; return `Needed $${r.toFixed(2)} · ${d >= 0 ? 'clears by' : 'short by'} $${Math.abs(d).toFixed(2)}`; })()}</span>
+          <span>${(() => { const r = reqTodayFor(productType, smKey); if (weightedPsf == null || r == null) return 'Needed —'; const d = weightedPsf - r; return `Needed $${r.toFixed(2)} · ${d >= 0 ? 'clears by' : 'short by'} $${Math.abs(d).toFixed(2)}`; })()}</span>
           ${trendBadge}
         </div>
       </div>
