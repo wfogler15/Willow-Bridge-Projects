@@ -23530,28 +23530,26 @@ function txRenderBoard() {
   const stat = p => isPlannedProposed(p) ? 'Proposed' : p.status === 'Under Construction' ? 'UC' : 'Existing';
   const COLS = [
     ['name', 'Property', p => p.name || '', 'txt'],
-    ['submarket', 'Submarket', p => p.submarket || '', 'txt'],
-    ['developer', 'Developer', p => p.developer || '', 'txt'],
-    ['class', 'Class', p => p.class || '', 'txt'],
+    ['developer', 'Developer · Submarket', p => p.developer || '~', 'txt'],
+    ['class', 'Class', p => p.class || '', 'ctr'],
     ['status', 'Status', stat, 'txt'],
     ['units', 'Units', p => p.units, 'num'],
     ['yearBuilt', 'Built', p => p.yearBuilt, 'num'],
-    ['occ', 'Occ.', occOf, 'num'],
-    ['askSF', 'Asking $/SF', p => p.avgAskingSF, 'num'],
-    ['askU', 'Asking $/mo', p => p.avgAskingUnit, 'num'],
-    ['effSF', 'Eff. $/SF', p => p.avgEffectiveSF, 'num'],
-    ['conc', 'Conc.', wksOf, 'num']
+    ['askSF', 'Asking', p => p.avgAskingSF, 'num'],
+    ['effSF', 'Effective', p => p.avgEffectiveSF, 'num'],
+    ['occ', 'Occupancy', occOf, 'num'],
+    ['conc', 'Concessions', wksOf, 'num']
   ];
   const fmt2 = v => v == null ? '<span class="mm-dim">—</span>' : '$' + v.toFixed(2);
   const CELL = {
     name: p => `${picking ? `<span class="mm-ck${picked.has(String(p.id)) ? ' on' : ''}"></span>` : ''}<div class="mm-nm">${E(p.name || '(Unnamed)')}</div><div class="mm-ad">${E(p.address || '')}</div>`,
     submarket: p => E(p.submarket || '—'), class: p => E(p.class || '—'),
-    developer: p => p.developer ? `<span title="${E(p.developer)}">${E(p.developer)}</span>` : '<span class="mm-dim">—</span>',
-    status: p => { const s = stat(p); return s === 'Existing' ? '<span class="mm-dim">Existing</span>' : `<span class="mm-st ${s === 'UC' ? 'uc' : 'pr'}">${s === 'UC' ? 'Under constr.' : 'Proposed'}</span>`; },
+    developer: p => `<div class="mm-nm2" title="${E(p.developer || '')}">${p.developer ? E(p.developer) : '<span class="mm-dim">Developer not listed</span>'}</div><div class="mm-ad">${E(p.submarket || '—')}</div>`,
+    status: p => { const s = stat(p); return `<span class="mm-st ${s === 'UC' ? 'uc' : s === 'Proposed' ? 'pr' : 'ex'}">${s === 'UC' ? 'Under construction' : s}</span>`; },
     units: p => p.units ? p.units.toLocaleString() : '—', yearBuilt: p => p.yearBuilt || '—',
     occ: p => { const o = occOf(p); return o == null ? '<span class="mm-dim">—</span>' : o.toFixed(1) + '%'; },
-    askSF: p => fmt2(p.avgAskingSF), askU: p => p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '<span class="mm-dim">—</span>',
-    effSF: p => fmt2(p.avgEffectiveSF), conc: p => { const w = wksOf(p); return w == null ? '<span class="mm-dim">—</span>' : w.toFixed(1) + ' wks'; }
+    askSF: p => p.avgAskingSF ? `<div class="mm-v">$${p.avgAskingSF.toFixed(2)}<small>/SF</small></div><div class="mm-ad">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() + '/mo' : ''}</div>` : '<span class="mm-dim">—</span>',
+    effSF: p => p.avgEffectiveSF ? `<div class="mm-v">$${p.avgEffectiveSF.toFixed(2)}<small>/SF</small></div><div class="mm-ad">${p.avgEffectiveUnit ? '$' + Math.round(p.avgEffectiveUnit).toLocaleString() + '/mo' : ''}</div>` : '<span class="mm-dim">—</span>', conc: p => { const w = wksOf(p); return w == null ? '<span class="mm-dim">—</span>' : w.toFixed(1) + ' wks'; }
   };
   panel.querySelector('thead').innerHTML = '<tr>' + COLS.map(([k, t, , ty]) => `<th class="${ty}" data-k="${k}">${t}</th>`).join('') + '</tr>';
 

@@ -751,10 +751,9 @@ html.wb-lock, html.wb-lock body { overflow: hidden !important; overscroll-behavi
 .mm-table td { padding:9px 10px; border-bottom:1px solid #f0eef5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .mm-table tbody tr { cursor:pointer; transition:background .1s; }
 .mm-table tbody tr:hover { background:#f7f6fb; }
-.mm-table th:nth-child(1) { width:19%; } .mm-table th:nth-child(2) { width:11%; } .mm-table th:nth-child(3) { width:13%; }
-.mm-table th:nth-child(4) { width:5%; } .mm-table th:nth-child(5) { width:8%; } .mm-table th:nth-child(6) { width:5%; }
-.mm-table th:nth-child(7) { width:5%; } .mm-table th:nth-child(8) { width:6%; } .mm-table th:nth-child(9) { width:7%; }
-.mm-table th:nth-child(10) { width:7%; } .mm-table th:nth-child(11) { width:7%; } .mm-table th:nth-child(12) { width:7%; }
+.mm-table th:nth-child(1) { width:23%; } .mm-table th:nth-child(2) { width:21%; } .mm-table th:nth-child(3) { width:5%; }
+.mm-table th:nth-child(4) { width:10%; } .mm-table th:nth-child(5) { width:6%; } .mm-table th:nth-child(6) { width:6%; }
+.mm-table th:nth-child(7) { width:8%; } .mm-table th:nth-child(8) { width:8%; } .mm-table th:nth-child(9) { width:7%; } .mm-table th:nth-child(10) { width:6%; }
 .mm-nm { font-weight:600; overflow:hidden; text-overflow:ellipsis; }
 .mm-ad { font-size:11.5px; color:var(--x-ink-3); overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
 .mm-dim { color:#b5b1c4; }
@@ -885,3 +884,16 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 .px-bar.px-onmap .px-search-slot, .px-bar.px-onmap .px-acts2, .px-bar.px-onmap .px-sum, .px-bar.px-onmap #prop-status-toggle { display:none !important; }
 .mm-acts[hidden] { display:none !important; }
 .px-bar.px-onmap .px-lead { font-weight:500; color:var(--x-ink, #1d1247); }
+
+/* In view table: two-line rows, centered class, pills for status */
+.mm-table td { padding:11px 12px; vertical-align:middle; }
+.mm-table th { padding:10px 12px; }
+.mm-table th.ctr, .mm-table td.ctr { text-align:center !important; }
+.mm-nm2 { font-weight:500; overflow:hidden; text-overflow:ellipsis; }
+.mm-v { font-weight:500; font-variant-numeric:tabular-nums; } .mm-v small { font-size:11px; font-weight:400; color:var(--x-ink-3); margin-left:1px; }
+.mm-table td.num .mm-ad { text-align:right; }
+.mm-st { display:inline-block; padding:3px 8px; border-radius:999px; font-size:11.5px; font-weight:500; line-height:1.2; }
+.mm-st.ex { background:#f1eff6; color:#5d5875; }
+.mm-st.uc { background:#fbf3df; color:#8a6400; }
+.mm-st.pr { background:#efecf5; color:#6b5d83; }
+.mm-table th:last-child, .mm-table td:last-child { padding-right:16px; }
