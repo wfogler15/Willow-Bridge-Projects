@@ -22859,9 +22859,9 @@ function txRenderBoard() {
   const miles = (a, b) => L.latLng(a.lat, a.lng).distanceTo([b.lat, b.lng]) / 1609.34;
   window.pxDistance = p => (PX.near && p.lat != null) ? miles(PX.near, p) : null;
 
-  window.pxApply = function (data) {
-    PX.base = data;
-    return data.filter(p => {
+  window.pxApply = function (data) { PX.base = data; return data.filter(window.pxMatch); };
+  window.pxMatch = function (p) {
+    return (p => {
       if (PX.types.size && !PX.types.has(p.style || '—')) return false;
       if (PX.classes.size && !PX.classes.has(p.class || '—')) return false;
       if (PX.subs.size && !PX.subs.has(p.submarket)) return false;
@@ -22877,7 +22877,7 @@ function txRenderBoard() {
       if (PX.concW != null) { const w = wksOf(p); if (w == null || w > PX.concW) return false; }
       if (!inR(p.stories, PX.stories)) return false;
       return true;
-    });
+    })(p);
   };
 
   // ---------- markup ----------
@@ -22903,7 +22903,10 @@ function txRenderBoard() {
   const ysel = document.getElementById('prop-year-filter');
   if (ysel) { ysel.value = 'all'; state.propYear = 'all'; ysel.style.display = 'none'; }
 
-  const rerender = () => { try { renderProperties(); } catch (e) { console.error('[px]', e); } };
+  const rerender = () => {
+    try { renderProperties(); } catch (e) { console.error('[px]', e); }
+    try { if (getActiveView() === 'submarkets') renderSubmarkets(); } catch (e) { console.error('[px map]', e); }
+  };
   let tmr = null; const soon = () => { clearTimeout(tmr); tmr = setTimeout(rerender, 160); };
 
   // ---------- popovers ----------
@@ -23065,6 +23068,8 @@ function txRenderBoard() {
     const html = SENT.map(([lead, k], i) => {
       const [t, on] = TOK[k](); if (on && k !== 'status') any = true;
       const sep = i === 0 ? '' : (i === 2 || i >= 5 ? '<i>,</i> ' : ' ');
+      // on the map the Show chips pick the status, so the first word is plain text there
+      if (k === 'status' && bar.classList.contains('px-onmap')) return '<b class="px-lead">Properties</b>';
       return `${sep}${lead ? `<i>${lead}</i> ` : ''}<button type="button" class="px-tok${on ? ' on' : ''}${openK === k ? ' open' : ''}" data-k="${k}">${E(t)}</button>`;
     }).join('');
     return html + (any ? ` <button type="button" class="px-reset">Reset</button>` : '');
@@ -23085,6 +23090,7 @@ function txRenderBoard() {
       `<button type="button" class="px-build" ${rows.length ? '' : 'disabled'}><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Save results as comp set</button>`;
   }
   let lastRows = [];
+  window.pxPaint = () => { try { paintBar(); } catch (e) {} };
   function paintBar() {
     bar.querySelector('.px-q').innerHTML = sentence();
     if (openK) place();
@@ -23509,7 +23515,8 @@ function txRenderBoard() {
   panel.innerHTML = `
     <div class="mm-head">
       <div><div class="mm-title">In view</div><div class="mm-sub">Everything inside the map right now · pan or zoom to change it</div></div>
-      <div class="mm-acts"><button type="button" class="mm-fit">Zoom to all</button><button type="button" class="mm-build">+ Comp set from view</button></div>
+      <div class="mm-acts"><button type="button" class="mm-fit">Zoom to all</button><button type="button" class="mm-build">+ Build comp set</button></div>
+      <div class="mm-pick" hidden><span class="mm-pick-n"></span><button type="button" class="mm-pick-all">Select all in view</button><button type="button" class="mm-pick-clear">Clear</button><button type="button" class="mm-pick-cancel">Cancel</button><button type="button" class="mm-pick-go">Continue</button></div>
     </div>
     <div class="px-sum mm-sum"></div>
     <div class="mm-tablewrap"><table class="mm-table"><thead></thead><tbody></tbody></table></div>
@@ -23517,6 +23524,7 @@ function txRenderBoard() {
   view.appendChild(panel);
 
   let all = [], inView = [], sortK = 'units', sortDir = -1, showAll = false, ring = null;
+  let picking = false; const picked = new Set(); let pickLayer = null;
   const occOf = p => p.vacancy == null ? null : 100 - p.vacancy;
   const wksOf = p => p.concessions == null ? null : p.concessions / 100 * 52;
   const stat = p => isPlannedProposed(p) ? 'Proposed' : p.status === 'Under Construction' ? 'UC' : 'Existing';
@@ -23536,7 +23544,7 @@ function txRenderBoard() {
   ];
   const fmt2 = v => v == null ? '<span class="mm-dim">—</span>' : '$' + v.toFixed(2);
   const CELL = {
-    name: p => `<div class="mm-nm">${E(p.name || '(Unnamed)')}</div><div class="mm-ad">${E(p.address || '')}</div>`,
+    name: p => `${picking ? `<span class="mm-ck${picked.has(String(p.id)) ? ' on' : ''}"></span>` : ''}<div class="mm-nm">${E(p.name || '(Unnamed)')}</div><div class="mm-ad">${E(p.address || '')}</div>`,
     submarket: p => E(p.submarket || '—'), class: p => E(p.class || '—'),
     developer: p => p.developer ? `<span title="${E(p.developer)}">${E(p.developer)}</span>` : '<span class="mm-dim">—</span>',
     status: p => { const s = stat(p); return s === 'Existing' ? '<span class="mm-dim">Existing</span>' : `<span class="mm-st ${s === 'UC' ? 'uc' : 'pr'}">${s === 'UC' ? 'Under constr.' : 'Proposed'}</span>`; },
@@ -23577,14 +23585,32 @@ function txRenderBoard() {
       return (col[3] === 'txt' ? String(a).localeCompare(String(c)) : a - c) * sortDir;
     });
     const LIM = 40, shown = showAll ? rows : rows.slice(0, LIM);
-    panel.querySelector('tbody').innerHTML = shown.map(p => `<tr data-pid="${E(p.id)}">${COLS.map(([k, , , ty]) => `<td class="${ty}">${CELL[k](p)}</td>`).join('')}</tr>`).join('')
+    panel.querySelector('tbody').innerHTML = shown.map(p => `<tr data-pid="${E(p.id)}"${picking && picked.has(String(p.id)) ? ' class="mm-sel"' : ''}>${COLS.map(([k, , , ty]) => `<td class="${ty}">${CELL[k](p)}</td>`).join('')}</tr>`).join('')
       || `<tr><td colspan="${COLS.length}" class="mm-empty">Nothing in view. Zoom out or turn on more statuses.</td></tr>`;
     panel.querySelectorAll('th').forEach(th => { th.classList.toggle('on', th.dataset.k === sortK); th.dataset.dir = th.dataset.k === sortK ? (sortDir > 0 ? '↑' : '↓') : ''; });
     panel.querySelector('.mm-foot').innerHTML = rows.length > LIM
       ? `<button type="button" class="mm-more">${showAll ? 'Show top ' + LIM : 'Show all ' + rows.length.toLocaleString()}</button>` : '';
-    const bb = panel.querySelector('.mm-build'); bb.disabled = !inView.length;
-    bb.textContent = inView.length ? `+ Comp set from ${inView.length.toLocaleString()} in view` : '+ Comp set from view';
+    panel.querySelector('.mm-table').classList.toggle('picking', picking);
+    panel.querySelector('.mm-acts').hidden = picking;
+    const pk = panel.querySelector('.mm-pick'); pk.hidden = !picking;
+    if (picking) {
+      const nIn = inView.filter(p => picked.has(String(p.id))).length, off = picked.size - nIn;
+      pk.querySelector('.mm-pick-n').innerHTML = picked.size
+        ? `<b>${picked.size}</b> selected${off ? ` <span>(${off} outside the map)</span>` : ''}`
+        : 'Click rows or pins to add them';
+      const go = pk.querySelector('.mm-pick-go'); go.disabled = !picked.size; go.textContent = picked.size ? `Continue with ${picked.size} →` : 'Continue →';
+    }
+    paintPicks();
   }
+  function paintPicks() {
+    if (!propertyMap) return;
+    if (pickLayer) { propertyMap.removeLayer(pickLayer); pickLayer = null; }
+    if (!picking || !picked.size) return;
+    pickLayer = L.layerGroup(all.filter(p => picked.has(String(p.id)))
+      .map(p => L.circleMarker([p.lat, p.lng], { radius: 13, color: '#1D1247', weight: 3, fill: false, interactive: false }))).addTo(propertyMap);
+  }
+  function togglePick(id) { id = String(id); picked.has(id) ? picked.delete(id) : picked.add(id); paint(); }
+  function setPicking(on) { picking = on; if (!on) picked.clear(); paint(); }
   let t = null; const soon = () => { clearTimeout(t); t = setTimeout(paint, 120); };
 
   // sort, expand, row hover/click
@@ -23604,15 +23630,25 @@ function txRenderBoard() {
     ring = L.circleMarker([p.lat, p.lng], { radius: 16, color: '#1D1247', weight: 2.5, fill: false, interactive: false }).addTo(propertyMap);
   });
   tbody.addEventListener('mouseleave', () => { if (ring && propertyMap) { propertyMap.removeLayer(ring); ring = null; } });
-  tbody.addEventListener('click', e => { const tr = e.target.closest('tr[data-pid]'); if (tr) { try { openDetail(tr.dataset.pid); } catch (err) { console.error(err); } } });
+  tbody.addEventListener('click', e => {
+    const tr = e.target.closest('tr[data-pid]'); if (!tr) return;
+    if (picking) { togglePick(tr.dataset.pid); return; }
+    try { openDetail(tr.dataset.pid); } catch (err) { console.error(err); }
+  });
   panel.querySelector('.mm-fit').addEventListener('click', () => {
     if (!propertyMap || !all.length) return;
     propertyMap.fitBounds(L.latLngBounds(all.map(p => [p.lat, p.lng])), { padding: [24, 24] });
   });
-  panel.querySelector('.mm-build').addEventListener('click', () => {
-    if (!inView.length) return;
+  panel.querySelector('.mm-build').addEventListener('click', () => setPicking(true));
+  panel.querySelector('.mm-pick-cancel').addEventListener('click', () => setPicking(false));
+  panel.querySelector('.mm-pick-clear').addEventListener('click', () => { picked.clear(); paint(); });
+  panel.querySelector('.mm-pick-all').addEventListener('click', () => { inView.forEach(p => picked.add(String(p.id))); paint(); });
+  panel.querySelector('.mm-pick-go').addEventListener('click', () => {
+    if (!picked.size) return;
+    const byStr = new Map(all.map(p => [String(p.id), p.id]));
     state.compSetMode = 'building'; state.compSetSelection.clear();
-    inView.forEach(p => state.compSetSelection.add(p.id));
+    picked.forEach(id => state.compSetSelection.add(byStr.has(id) ? byStr.get(id) : id));
+    picking = false; picked.clear(); paintPicks();
     try { updateCompSetUI(); } catch (e) {}
     const tab = document.querySelector('[data-view="properties"]'); if (tab) tab.click();
     try { renderProperties(); } catch (e) {}
@@ -23622,13 +23658,42 @@ function txRenderBoard() {
   let wired = false;
   const _r = renderPropertyMap;
   renderPropertyMap = function (data) {
+    if (typeof window.pxMatch === 'function' && data) { data = data.filter(window.pxMatch); arguments[0] = data; }
     const r = _r.apply(this, arguments);
     all = (data || []).filter(p => p.lat != null && p.lng != null && !isNaN(p.lat) && !isNaN(p.lng));
     if (propertyMap && !wired) { propertyMap.on('moveend zoomend resize', soon); wired = true; }
+    if (propertyMarkerLayer && propertyMarkerLayer.eachLayer) propertyMarkerLayer.eachLayer(m => {
+      if (!m._wbP || m._wbPick) return; m._wbPick = true;
+      m.on('click', () => { if (!picking) return; m.closePopup(); togglePick(m._wbP.id); });
+    });
     setTimeout(paint, 60);
     return r;
   };
   window.renderPropertyMap = renderPropertyMap;
+})();
+
+/* =================================================================
+   DEMO: Property Index filters on the Market Map tab. One shared filter
+   state (window.PX); the same sentence bar moves to whichever of the two
+   tabs is open, so filtering on the map carries into the index and back.
+   ================================================================= */
+(function mapFilters() {
+  const bar = document.querySelector('#view-properties .px-bar');
+  const home = document.querySelector('#view-properties .panel-header');
+  const mapView = document.getElementById('view-submarkets');
+  if (!bar || !home || !mapView || typeof renderActive !== 'function') return;
+  function place() {
+    const v = getActiveView();
+    if (v === 'submarkets' && !bar.classList.contains('px-onmap')) {
+      mapView.insertBefore(bar, mapView.querySelector('.panel')); bar.classList.add('px-onmap'); if (window.pxPaint) window.pxPaint();
+    } else if (v === 'properties' && bar.classList.contains('px-onmap')) {
+      home.after(bar); bar.classList.remove('px-onmap'); if (window.pxPaint) window.pxPaint();
+    }
+  }
+  const _ra = renderActive;
+  renderActive = function () { try { place(); } catch (e) { console.error('[map filters]', e); } return _ra.apply(this, arguments); };
+  window.renderActive = renderActive;
+  try { place(); } catch (e) {}
 })();
 
 /* =================================================================
