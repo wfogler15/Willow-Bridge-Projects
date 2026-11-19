@@ -53,6 +53,18 @@ const RAW_DATA = window.__WBD.RAW_DATA;
 const INVESTMENT_COMPS = [];
 const LAND_COMPS = [];
 const TODAY = new Date('2026-05-20');
+// Occupancy as-of date for one property: a hand-entered vacancy is dated the day it was entered
+// (e.g. today's CoStar figure typed in), otherwise the CoStar snapshot date.
+function occAsOf(p) {
+  try {
+    const e = p && typeof userEdits !== 'undefined' && userEdits[p.id];
+    if (e && e.vacancy != null && e._updatedAt) {
+      const d = new Date(Math.min(+e._updatedAt, Date.now()));
+      if (d > TODAY) return d;
+    }
+  } catch (_) {}
+  return TODAY;
+}
 // Anchor year — treated as "current/today" everywhere RealPage data is
 // surfaced (Trends tab KPIs, YOC matrix forecast-adjusted growth, etc).
 // RP's data file labels 2026 as the current-year near-term projection
@@ -3771,13 +3783,14 @@ function getAbsorptionData() {
     // day 7 would show "30 leases/month" which isn't a real lease-up pace).
     // We compute the unclamped value too so the UI can flag this case.
     const hasDay = p.dayBuilt != null && p.dayBuilt !== '';
+    const asOf = occAsOf(p);
     let monthsRaw, months;
     if (hasDay) {
-      const days = Math.max(0, daysBetween(d, TODAY));
+      const days = Math.max(0, daysBetween(d, asOf));
       monthsRaw = days / 30.44;
       months = Math.max(1, days) / 30.44;  // clamp the days, then convert
     } else {
-      monthsRaw = monthsBetween(d, TODAY);
+      monthsRaw = monthsBetween(d, asOf);
       months = Math.max(1, monthsRaw);
     }
     // "Fresh delivery" — open less than a month, so the leases/month rate
@@ -3801,13 +3814,13 @@ function getAbsorptionData() {
       } else {
         const unitsToGo = target - leasedUnits;
         stabilizationMonths = unitsToGo / velocity;
-        const fwd = new Date(TODAY);
+        const fwd = new Date(asOf);
         // Add months as fractional days to be precise (avg 30.44 days/month)
         fwd.setDate(fwd.getDate() + Math.round(stabilizationMonths * 30.44));
         stabilizationDate = fwd;
       }
     }
-    return { ...p, deliveryDate: d, months, monthsRaw, freshDelivery, leasedUnits, absorption, occupancy,
+    return { ...p, occAsOf: asOf, deliveryDate: d, months, monthsRaw, freshDelivery, leasedUnits, absorption, occupancy,
              stabilizationDate, stabilizationMonths, stabilized, hasDayPrecision: hasDay };
   }).filter(p => p.absorption != null);
 }
@@ -14824,7 +14837,8 @@ function renderModal() {
         if (delivered < cutoff || delivered > TODAY) return '';
         if (p.status !== 'Existing') return '';
         if (!p.units || occ == null) return '';
-        const monthsOpen = Math.max(1, monthsBetween(delivered, TODAY));
+        const AS = occAsOf(p);
+        const monthsOpen = Math.max(1, monthsBetween(delivered, AS));
         const leasedUnits = Math.round(p.units * occ / 100);
         const leasesPerMo = leasedUnits / monthsOpen;
         const target = p.units * 0.95;
@@ -14832,9 +14846,10 @@ function renderModal() {
         const method = state.paceMethod || 'fixed';
         const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
         const mo = d => `${MN[d.getMonth()]} ${d.getFullYear()}`;
-        const asOf = mo(TODAY);
+        const handEntered = AS > TODAY;
+        const asOf = handEntered ? AS.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : mo(TODAY);
         const NOW = new Date();
-        const gapMo = Math.max(0, (NOW - TODAY) / 86400000 / 30.44);
+        const gapMo = Math.max(0, (NOW - AS) / 86400000 / 30.44);
         const LU = window.wbLU;
         // Actuals are CoStar as of the snapshot date; "today" is a projection from there
         const occNow = LU ? LU.projectTo(p, occ / 100, gapMo, method) * 100 : Math.min(95.5, occ + velocity * gapMo / p.units * 100);
@@ -14848,7 +14863,7 @@ function renderModal() {
           const monthsToStab = LU ? LU.monthsTo(p, occ / 100, method) : unitsToGo / velocity;
           if (monthsToStab == null) { stabLabel = '—'; stabSubLabel = 'No measurable pace'; }
           else {
-            const fwd = new Date(TODAY);
+            const fwd = new Date(AS);
             fwd.setDate(fwd.getDate() + Math.round(monthsToStab * 30.44));
             stabLabel = mo(fwd);
             stabSubLabel = fwd <= NOW
@@ -14873,7 +14888,7 @@ function renderModal() {
             <div class="detail-cell">
               <div class="detail-label">Leased Today (Proj.)</div>
               <div class="detail-value">${occNow >= 95 ? '95%+' : occNow.toFixed(0) + '%'}</div>
-              ${sub(`${Math.round(monthsBetween(delivered, NOW))} months open · ${gapMo.toFixed(0)} mo projected`)}
+              ${sub(gapMo < 0.5 ? `${Math.round(monthsBetween(delivered, NOW))} months open · entered today` : `${Math.round(monthsBetween(delivered, NOW))} months open · ${gapMo.toFixed(0)} mo projected`)}
             </div>
             <div class="detail-cell">
               <div class="detail-label">Est. Stabilization</div>
@@ -14882,7 +14897,7 @@ function renderModal() {
             </div>
           </div>
           <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-4);margin-top:-2px;letter-spacing:0.04em;font-style:italic;padding:0 4px;">
-            Leased units and pace are CoStar actuals as of ${asOf}. Today and stabilization project forward at ${methodLbl} to 95% — change on the Absorption tab.
+            ${handEntered ? `Vacancy entered by hand on ${asOf}; leased units and pace are measured to that date.` : `Leased units and pace are CoStar actuals as of ${asOf}.`} Today and stabilization project forward at ${methodLbl} to 95% — change on the Absorption tab.
           </div>
         `;
       })()}
@@ -23362,10 +23377,10 @@ function txRenderBoard() {
       if (!p.stabilized) {
         const m = monthsTo(p, occ, method);
         p.stabilizationMonths = m;
-        if (m != null) { const d = new Date(AS_OF); d.setDate(d.getDate() + Math.round(m * 30.44)); p.stabilizationDate = d; }
+        if (m != null) { const d = new Date(p.occAsOf || AS_OF); d.setDate(d.getDate() + Math.round(m * 30.44)); p.stabilizationDate = d; }
         else p.stabilizationDate = null;
       }
-      p.occNow = projectTo(p, occ, GAP, method) * 100;
+      p.occNow = projectTo(p, occ, Math.max(0, (NOW - (p.occAsOf || AS_OF)) / 86400000 / 30.44), method) * 100;
     });
     return rows;
   };
