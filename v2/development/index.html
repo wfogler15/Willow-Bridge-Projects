@@ -304,7 +304,7 @@ button.ag-row:hover,button.ag-row:focus-visible{background:#F7F6FB;outline:none}
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="../shared/wb.js?v=202611161211"></script>
+<script src="../shared/wb.js?v=202611192200"></script>
 <script>
 (async () => {
 const { sb } = await WB.ready("dev");
@@ -325,7 +325,7 @@ let allSizes = false; try { allSizes = localStorage.getItem("wbv2:dev:allSizes")
 let outOfScope = 0;
 /* This week: recent sale comps (Sale Comps scope applies) and the weekly curation rows */
 let SALES = [], HLROWS = [], HLS = new Map(), afterLoad = () => {};
-const SALE_COLS = "id,comp_type,name,address,city,market_id,lat,lng,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_land_sf,cap_rate,cap_rate_t12,buyer,seller,broker,notes,source,source_url,excluded,portfolio,created_at,property_id";
+const SALE_COLS = "id,comp_type,name,address,city,market_id,lat,lng,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_sf,price_per_land_sf,cap_rate,cap_rate_t12,buyer,seller,broker,notes,source,source_url,excluded,portfolio,created_at,property_id";
 async function loadHL(){
   try { HLROWS = await WB.fetchAll("market", "weekly_highlights", "*"); } catch(e){ HLROWS = []; console.warn("weekly_highlights", e); }
   HLS = new Map(HLROWS.map(r => [r.week_of + "|" + r.item_key, r]));
@@ -757,7 +757,7 @@ function renderSale(s){
     + esc([c.address && c.address !== c.name ? c.address : "", c.city].filter(Boolean).join(" · ")) + '</h2><div class="tags"><span class="t-up">' + (inv ? "Investment sale" : "Land sale") + "</span>" + (c.portfolio ? "<span>Portfolio allocation</span>" : "") + "</div></div>"
     + (s.h ? hlBlock(s.h) : "")
     + '<div class="hero"><div class="hv">' + (price ? fMoney(price) : "Unpriced") + '</div><div class="hs">Sold ' + fDate(c.sale_date) + "</div></div>"
-    + '<div class="stats">' + (inv ? [stat("Units", c.units ? fNum(c.units) : ""), stat("Per unit", ppu ? fMoney(ppu) : ""), stat("Cap", cap), stat("Built", c.year_built || "")]
+    + '<div class="stats">' + (inv ? [stat("Units", c.units ? fNum(c.units) : ""), stat("Per unit", ppu ? fMoney(ppu) : ""), stat("Per SF", c.price_per_sf ? "$" + fNum(Math.round(c.price_per_sf)) : ""), stat("Cap", cap), stat("Built", c.year_built || "")]
       : [stat("Acres", c.acres ? fNum(c.acres) : ""), stat("Per land SF", c.price_per_land_sf ? "$" + fNum(c.price_per_land_sf) : ""), stat("Units planned", c.proposed_units ? fNum(c.proposed_units) : "")]).join("") + "</div>"
     + sec("Parties", dl([["Buyer", esc(c.buyer || "")], ["Seller", esc(c.seller || "")], ["Broker", esc(c.broker || "")]]))
     + sec("Notes", c.notes ? "<p>" + esc(c.notes) + "</p>" : "")
