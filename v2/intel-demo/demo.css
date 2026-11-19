@@ -897,3 +897,9 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 .mm-st.uc { background:#fbf3df; color:#8a6400; }
 .mm-st.pr { background:#efecf5; color:#6b5d83; }
 .mm-table th:last-child, .mm-table td:last-child { padding-right:16px; }
+.mm-pick .mm-pick-name { font:400 13px/1 var(--x-font); color:var(--x-ink); border:1px solid var(--x-line, #e6e3ee); border-radius:7px; padding:8px 10px; width:220px; outline:none; }
+.mm-pick .mm-pick-name:focus { border-color:var(--x-purple, #432890); box-shadow:0 0 0 3px rgba(67,40,144,.12); }
+.mm-saved { display:flex; align-items:center; gap:12px; margin-top:12px; padding:10px 14px; border-radius:9px; background:#f3f0fa; font:400 13px/1.2 var(--x-font); color:var(--x-ink-2); }
+.mm-saved[hidden] { display:none; }
+.mm-saved button { all:unset; cursor:pointer; font:600 12.5px/1 var(--x-font); color:var(--x-purple, #432890); }
+.mm-saved .mm-saved-x { margin-left:auto; color:var(--x-ink-3); font-size:16px; }

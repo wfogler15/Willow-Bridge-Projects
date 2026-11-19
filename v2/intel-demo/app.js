@@ -23516,8 +23516,9 @@ function txRenderBoard() {
     <div class="mm-head">
       <div><div class="mm-title">In view</div><div class="mm-sub">Everything inside the map right now · pan or zoom to change it</div></div>
       <div class="mm-acts"><button type="button" class="mm-fit">Zoom to all</button><button type="button" class="mm-build">+ Build comp set</button></div>
-      <div class="mm-pick" hidden><span class="mm-pick-n"></span><button type="button" class="mm-pick-all">Select all in view</button><button type="button" class="mm-pick-clear">Clear</button><button type="button" class="mm-pick-cancel">Cancel</button><button type="button" class="mm-pick-go">Continue</button></div>
+      <div class="mm-pick" hidden><span class="mm-pick-n"></span><button type="button" class="mm-pick-all">Select all in view</button><button type="button" class="mm-pick-clear">Clear</button><button type="button" class="mm-pick-cancel">Cancel</button><input class="mm-pick-name" type="text" placeholder="Name this comp set" maxlength="80"><button type="button" class="mm-pick-go">Save comp set</button></div>
     </div>
+    <div class="mm-saved" hidden></div>
     <div class="px-sum mm-sum"></div>
     <div class="mm-tablewrap"><table class="mm-table"><thead></thead><tbody></tbody></table></div>
     <div class="mm-foot"></div>`;
@@ -23596,7 +23597,8 @@ function txRenderBoard() {
       pk.querySelector('.mm-pick-n').innerHTML = picked.size
         ? `<b>${picked.size}</b> selected${off ? ` <span>(${off} outside the map)</span>` : ''}`
         : 'Click rows or pins to add them';
-      const go = pk.querySelector('.mm-pick-go'); go.disabled = !picked.size; go.textContent = picked.size ? `Continue with ${picked.size} →` : 'Continue →';
+      const go = pk.querySelector('.mm-pick-go'), nm = pk.querySelector('.mm-pick-name');
+      go.disabled = !picked.size || !nm.value.trim(); go.textContent = picked.size ? `Save comp set (${picked.size})` : 'Save comp set';
     }
     paintPicks();
   }
@@ -23608,7 +23610,7 @@ function txRenderBoard() {
       .map(p => L.circleMarker([p.lat, p.lng], { radius: 13, color: '#1D1247', weight: 3, fill: false, interactive: false }))).addTo(propertyMap);
   }
   function togglePick(id) { id = String(id); picked.has(id) ? picked.delete(id) : picked.add(id); paint(); }
-  function setPicking(on) { picking = on; if (!on) picked.clear(); paint(); }
+  function setPicking(on) { picking = on; if (!on) picked.clear(); paint(); if (on) setTimeout(() => { const n = panel.querySelector('.mm-pick-name'); if (n) n.focus(); }, 30); }
   let t = null; const soon = () => { clearTimeout(t); t = setTimeout(paint, 120); };
 
   // sort, expand, row hover/click
@@ -23641,15 +23643,28 @@ function txRenderBoard() {
   panel.querySelector('.mm-pick-cancel').addEventListener('click', () => setPicking(false));
   panel.querySelector('.mm-pick-clear').addEventListener('click', () => { picked.clear(); paint(); });
   panel.querySelector('.mm-pick-all').addEventListener('click', () => { inView.forEach(p => picked.add(String(p.id))); paint(); });
+  const nameIn = panel.querySelector('.mm-pick-name');
+  nameIn.addEventListener('input', () => { const go = panel.querySelector('.mm-pick-go'); go.disabled = !picked.size || !nameIn.value.trim(); });
+  nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') panel.querySelector('.mm-pick-go').click(); if (e.key === 'Escape') setPicking(false); });
+  // save right here: same record the Property Index save writes
   panel.querySelector('.mm-pick-go').addEventListener('click', () => {
-    if (!picked.size) return;
+    const name = nameIn.value.trim();
+    if (!picked.size || !name) { if (!name) nameIn.focus(); return; }
     const byStr = new Map(all.map(p => [String(p.id), p.id]));
-    state.compSetMode = 'building'; state.compSetSelection.clear();
-    picked.forEach(id => state.compSetSelection.add(byStr.has(id) ? byStr.get(id) : id));
-    picking = false; picked.clear(); paintPicks();
+    const id = 'cs-' + Date.now();
+    compSets[id] = { id, name, propertyIds: [...picked].map(x => byStr.has(x) ? byStr.get(x) : x),
+      createdBy: (typeof syncState !== 'undefined' && syncState.editorName) || 'Anonymous', createdAt: Date.now(), updatedAt: Date.now() };
+    try { saveCompSets(); } catch (e) { console.error(e); }
+    try { pushCompSet(compSets[id]); } catch (e) { console.error(e); }
     try { updateCompSetUI(); } catch (e) {}
-    const tab = document.querySelector('[data-view="properties"]'); if (tab) tab.click();
-    try { renderProperties(); } catch (e) {}
+    const n = picked.size;
+    nameIn.value = ''; setPicking(false);
+    const sv = panel.querySelector('.mm-saved');
+    sv.innerHTML = `Saved <b>${E(name)}</b> · ${n} ${n === 1 ? 'property' : 'properties'}<button type="button" class="mm-saved-open">Open set</button><button type="button" class="mm-saved-x" aria-label="Dismiss">×</button>`;
+    sv.hidden = false;
+    sv.querySelector('.mm-saved-open').onclick = () => { sv.hidden = true; try { activateCompSet(id); } catch (e) { console.error(e); } };
+    sv.querySelector('.mm-saved-x').onclick = () => { sv.hidden = true; };
+    clearTimeout(sv._t); sv._t = setTimeout(() => { sv.hidden = true; }, 12000);
   });
 
   // hook the map render: keep the plotted set, wire move events once
