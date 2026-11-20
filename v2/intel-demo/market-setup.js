@@ -255,7 +255,9 @@
   /** "North Phoenix" ↔ "Phoenix-North": same words in any order */
   function tokenTwin(cs, names) {
     const t = (x) => norm(x).split(' ').filter((w) => w && w !== 'city').sort().join(' '); const k = t(cs);
-    const hit = names.filter((n) => t(n) === k); return hit.length === 1 ? hit[0] : null;
+    let hit = names.filter((n) => t(n) === k); if (hit.length === 1) return hit[0];
+    // "Holladay/Cottonwood Heights" or "Salt Lake City-Rose Park": match any one part after the city
+    hit = names.filter((n) => n.split(/\s*[-/]\s*/).slice(n.includes('-') ? 1 : 0).some((part) => t(part) === k)); return hit.length === 1 ? hit[0] : null;
   }
 
   const api = { crosswalk, SPLIT, DEFAULT_RULES, normRules, classify, classifyAll, density, far, surfaceFit, assignSubmarkets, inheritSubmarket, parseName };
