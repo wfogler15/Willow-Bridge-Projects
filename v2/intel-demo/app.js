@@ -15720,6 +15720,12 @@ function renderSettingsModal() {
         ${(window.__WBD.markets || []).map(m => `<option value="${m.id}"${m.id === ACTIVE_MARKET ? ' selected' : ''}>${escapeHTML(m.title || m.label || m.id)}</option>`).join('')}
       </select>
 
+      <div class="detail-section-title">Upload data</div>
+      <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
+        Load new CoStar and RealPage exports for a market, or add a new market. You review a check before anything is written.
+      </div>
+      <button class="modal-btn" style="color:var(--accent-text);background:var(--bg-2);border-color:var(--line);margin-bottom:22px;" onclick="location.href='upload.html?market='+encodeURIComponent(ACTIVE_MARKET)">↑ Upload data</button>
+
       <div class="detail-section-title">Appearance</div>
       <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
         Switches the page background, panels, and text to a dark palette. The purple header stays the same in both. Saved to this browser.

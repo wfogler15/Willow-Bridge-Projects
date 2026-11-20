@@ -160,7 +160,7 @@
     const hero = document.createElement('section'); hero.className = 'wbi-hero';
     hero.innerHTML = '<div class="wbi-hero-deco" aria-hidden="true"></div><header class="wbi-head"><div class="wbi-head-row"><div class="wbi-ttl"><div class="wbi-eyebrow"></div><h1 class="wbi-h1"></h1><div class="wbi-sum"></div></div><div class="wbi-acts"></div></div></header><div class="wbi-hero-kpis"></div>';
     const head = $('.wbi-head', hero), acts = $('.wbi-acts', hero), slot = $('.wbi-hero-kpis', hero);
-    ['overview-report-btn', 'settings-btn', 'upload-btn'].forEach((id) => {
+    ['overview-report-btn', 'settings-btn'].forEach((id) => {
       const b = document.getElementById(id); if (!b) return;
       b.childNodes.forEach((n) => { if (n.nodeType === 3 && n.textContent.trim()) { const t = n.textContent.trim(); n.textContent = ' ' + t.charAt(0) + t.slice(1).toLowerCase(); } });
       acts.appendChild(b);
