@@ -89,7 +89,7 @@
     for (const c of lifeSales) { if (!c.sale_date) continue; const h = H(c.property_id); h.sales++; if (!h.lastSale || c.sale_date > h.lastSale.sale_date) h.lastSale = c; }
     window.__WBD = {
       market, label: mrow.data.label, title: cfg.title || mrow.data.title, msa_label: cfg.msa_label || cfg.title,
-      center: cfg.center || [39.74, -104.99], WB_SUBMARKETS: cfg.wb_submarkets || [], WB_RP_MAPPING: cfg.rp_mapping || {},
+      center: cfg.center || [39.74, -104.99], asOf: cfg.as_of || null, WB_SUBMARKETS: cfg.wb_submarkets || [], WB_RP_MAPPING: cfg.rp_mapping || {},
       RAW_DATA, RP_PROPERTIES: Object.fromEntries(rp.map((r) => [r.realpage_id, r.data])),
       RP_FORECAST: Object.fromEntries(trends.map((r) => [r.geography, r.data])),
       propByCostar, costarByProp, customProps, user, markets, history,

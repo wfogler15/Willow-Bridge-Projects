@@ -52,7 +52,7 @@ function wbSatLayer() {
 const RAW_DATA = window.__WBD.RAW_DATA;
 const INVESTMENT_COMPS = [];
 const LAND_COMPS = [];
-const TODAY = new Date('2026-05-20');
+const TODAY = new Date(window.__WBD.asOf || '2026-05-20');   // the market's CoStar "as of" date (set by each upload); Denver/Phoenix: May 20 2026 snapshot
 // Occupancy as-of date for one property: a hand-entered vacancy is dated the day it was entered
 // (e.g. today's CoStar figure typed in), otherwise the CoStar snapshot date.
 function occAsOf(p) {

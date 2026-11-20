@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upload market data · Willow Bridge Market Intel</title>
+<link rel="icon" href="../shared/wb-mark.png">
+<link rel="stylesheet" href="../shared/wb.css?v=202611201058">
+<style>
+  .page{max-width:1100px}
+  h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
+  .lead{color:var(--muted);margin:0 0 28px;max-width:760px}
+  .step{border-top:1px solid var(--ink);padding:16px 0 28px}
+  .step>h2{font:600 var(--fs-md)/1.3 var(--font-display);margin:0 0 12px;color:var(--ink)}
+  .step>h2 b{display:inline-block;width:22px;color:var(--muted);font-weight:600}
+  .row{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+  .row label{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);color:var(--muted)}
+  .row .input{min-width:220px}
+  #drop{border:1px dashed var(--rule-3);border-radius:8px;padding:34px 20px;text-align:center;color:var(--muted);cursor:pointer;transition:background .15s,border-color .15s}
+  #drop.over{background:var(--hover);border-color:var(--purple);color:var(--ink)}
+  #drop strong{color:var(--ink)}
+  .files{margin-top:14px}
+  .files .tbl{width:100%;table-layout:auto}
+  .files .tbl td,.files .tbl th{text-align:left}
+  .bad{color:#9A2B2B}
+  .ok{color:#2F6B3A}
+  .figs{margin:4px 0 14px}
+  details{margin:6px 0}
+  details summary{cursor:pointer;color:var(--purple)}
+  details .tbl{margin-top:6px}
+  .tblwrap{max-height:280px;overflow:auto;border-top:1px solid var(--rule-2)}
+  #log{font:12px/1.6 ui-monospace,Consolas,monospace;color:var(--ink-2);white-space:pre-wrap;margin-top:12px}
+  .warn{color:#8A5A00;margin:6px 0}
+  .acts{display:flex;gap:10px;margin-top:14px;align-items:center}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="../shared/wb.js?v=202611201058"></script>
+<script src="market-upload.js?v=202611201058"></script>
+</head>
+<body>
+<main class="page">
+  <h1 class="t">Upload market data</h1>
+  <p class="lead">Drop the CoStar and RealPage exports for one market. Nothing is written until you review the check and press Load.</p>
+
+  <section class="step">
+    <h2><b>1</b>Market</h2>
+    <div class="row">
+      <label>Market<select id="mkt" class="input"></select></label>
+      <span id="newFields" hidden class="row">
+        <label>Name<input id="nmLabel" class="input" placeholder="Salt Lake City, UT"></label>
+        <label>Short id<input id="nmId" class="input" placeholder="slc" style="min-width:120px"></label>
+        <label>State<input id="nmState" class="input" placeholder="UT" style="min-width:70px;width:70px"></label>
+      </span>
+    </div>
+  </section>
+
+  <section class="step">
+    <h2><b>2</b>Files</h2>
+    <div id="drop" tabindex="0" role="button" aria-label="Choose files"><strong>Drop files here</strong> or click to choose · CoStar properties (any number of slices), CoStar sale comps, RealPage monthly property time series, RealPage annual market performance</div>
+    <input id="pick" type="file" multiple accept=".csv,.xlsx,.xls" hidden>
+    <div class="files" id="files"></div>
+    <div class="acts"><button class="btn primary" id="bCheck" disabled>Check files</button><span class="muted" id="checkMsg"></span></div>
+  </section>
+
+  <section class="step" id="sPreview" hidden>
+    <h2><b>3</b>Check</h2>
+    <div id="preview"></div>
+    <div class="acts"><button class="btn primary" id="bLoad">Load into database</button><span class="muted" id="loadMsg"></span></div>
+    <div id="log"></div>
+  </section>
+</main>
+<script>
+(async () => {
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const n = (v) => (v == null ? '—' : Number(v).toLocaleString('en-US'));
+  const { sb, user } = await WB.ready('intel');
+  const U = window.WBUpload;
+  const TYPE_LABEL = { costar_props: 'CoStar properties', costar_sales: 'CoStar sale comps', rp_monthly: 'RealPage monthly property time series', rp_annual: 'RealPage annual market performance' };
+
+  // markets
+  const { data: markets, error: mErr } = await sb.schema('core').from('markets').select('id,label,config').order('label');
+  if (mErr) { $('#checkMsg').textContent = mErr.message; return; }
+  const q = new URLSearchParams(location.search);
+  $('#mkt').innerHTML = markets.filter((m) => m.config && m.config.active !== false).map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('') + '<option value="__new">New market…</option>';
+  if (q.get('market') && markets.some((m) => m.id === q.get('market'))) $('#mkt').value = q.get('market');
+  if (q.get('new')) $('#mkt').value = '__new';
+  const syncNew = () => { $('#newFields').hidden = $('#mkt').value !== '__new'; invalidate(); };
+  $('#mkt').onchange = syncNew;
+  ['#nmLabel', '#nmId', '#nmState'].forEach((s) => $(s).addEventListener('input', invalidate));
+
+  // files
+  const files = [];   // { name, type, wb, summary, error }
+  const drop = $('#drop');
+  drop.onclick = () => $('#pick').click();
+  drop.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#pick').click(); } };
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); addFiles([...e.dataTransfer.files]); };
+  $('#pick').onchange = (e) => { const fl = [...e.target.files]; e.target.value = ''; addFiles(fl); };
+
+  async function addFiles(list) {
+    for (const f of list) {
+      const rec = { name: f.name, type: null, wb: null, summary: 'Reading…' };
+      files.push(rec); renderFiles();
+      try {
+        rec.wb = U.readWorkbook(await f.arrayBuffer(), f.name);
+        rec.type = U.detect(rec.wb);
+        if (!rec.type) rec.error = 'Not recognised: expected a CoStar property or sale comp export, or a RealPage monthly / annual workbook';
+        else rec.parsed = parseOne(rec);
+        rec.summary = rec.error || summarize(rec);
+      } catch (e) { rec.error = e.message; rec.summary = e.message; }
+      renderFiles();
+    }
+    // a new market's name and state come from the CoStar file
+    const cp = files.find((f) => f.type === 'costar_props' && f.parsed);
+    if (cp && $('#mkt').value === '__new') {
+      const mn = cp.parsed.marketName || '';
+      if (!$('#nmLabel').value) $('#nmLabel').value = mn;
+      if (!$('#nmState').value) $('#nmState').value = (cp.parsed.rows[0] && cp.parsed.rows[0].state) || (mn.split(',')[1] || '').trim();
+      if (!$('#nmId').value) $('#nmId').value = U.slug(mn.split(',')[0]);
+    }
+    invalidate();
+  }
+  function parseOne(rec) {
+    const asOf = new Date().toISOString().slice(0, 10);
+    if (rec.type === 'costar_props') return U.parseCostarProps(rec.wb, { asOf });
+    if (rec.type === 'costar_sales') return U.parseSaleComps(rec.wb, { asOf });
+    if (rec.type === 'rp_monthly') return U.parseRpMonthly(rec.wb);
+    if (rec.type === 'rp_annual') return U.parseRpAnnual(rec.wb);
+  }
+  function summarize(rec) {
+    const p = rec.parsed;
+    if (rec.type === 'costar_props') { const by = {}; p.rows.forEach((r) => { by[r.status] = (by[r.status] || 0) + 1; }); return `${n(p.rows.length)} properties (${Object.entries(by).map(([k, v]) => `${n(v)} ${k.toLowerCase()}`).join(', ')})${p.skipped.length ? ` · ${p.skipped.length} left out` : ''} · ${esc(p.marketName || '')}`; }
+    if (rec.type === 'costar_sales') return `${n(p.rows.length)} sales (${p.rows.filter((r) => r.sale_price).length} with a price)${p.skipped.length ? ` · ${p.skipped.length} left out` : ''}`;
+    if (rec.type === 'rp_monthly') return `${n(p.props.length)} properties · ${esc(p.msa || '')} · data as of ${esc(p.asOf || '?')}`;
+    if (rec.type === 'rp_annual') return `${Object.keys(p.geos).length} geographies (market + submarkets) · data as of ${esc(p.asOf || '?')}`;
+  }
+  function renderFiles() {
+    $('#files').innerHTML = files.length ? `<table class="tbl"><thead><tr><th>File</th><th>Recognised as</th><th>Contents</th><th></th></tr></thead><tbody>${files.map((f, i) => `<tr><td>${esc(f.name)}</td><td class="${f.error ? 'bad' : ''}">${f.type ? TYPE_LABEL[f.type] : f.error ? 'Unknown' : '…'}</td><td class="${f.error ? 'bad' : ''}">${f.summary || ''}</td><td><button class="btn ghost sm" data-rm="${i}" aria-label="Remove ${esc(f.name)}">Remove</button></td></tr>`).join('')}</tbody></table>` : '';
+    $('#files').querySelectorAll('[data-rm]').forEach((b) => (b.onclick = () => { files.splice(+b.dataset.rm, 1); renderFiles(); invalidate(); }));
+  }
+
+  // several CoStar slices = one property set
+  function combined() {
+    const out = {}; const ok = files.filter((f) => f.parsed && !f.error);
+    const cps = ok.filter((f) => f.type === 'costar_props');
+    if (cps.length) {
+      const rows = [], skipped = [], seen = new Set();
+      cps.forEach((f) => { f.parsed.skipped.forEach((s) => skipped.push(s)); f.parsed.rows.forEach((r) => { if (seen.has(r.costar_id)) return; seen.add(r.costar_id); rows.push(r); }); });
+      out.costar_props = { rows, skipped, marketName: cps[0].parsed.marketName };
+    }
+    const sales = ok.filter((f) => f.type === 'costar_sales');
+    if (sales.length) out.costar_sales = { rows: sales.flatMap((f) => f.parsed.rows), skipped: sales.flatMap((f) => f.parsed.skipped) };
+    const mon = ok.filter((f) => f.type === 'rp_monthly'); if (mon.length > 1) throw new Error('Two RealPage monthly files: upload one per market'); if (mon[0]) out.rp_monthly = mon[0].parsed;
+    const ann = ok.filter((f) => f.type === 'rp_annual'); if (ann.length > 1) throw new Error('Two RealPage annual files: upload one per market'); if (ann[0]) out.rp_annual = ann[0].parsed;
+    return out;
+  }
+
+  let P = null;
+  function invalidate() {
+    P = null; $('#sPreview').hidden = true; $('#log').textContent = '';
+    $('#bCheck').disabled = !files.some((f) => f.parsed && !f.error);
+  }
+
+  $('#bCheck').onclick = async () => {
+    $('#checkMsg').textContent = 'Checking against the database…'; $('#bCheck').disabled = true;
+    try {
+      const parsed = combined();
+      let marketId = $('#mkt').value, newMarket = null;
+      if (marketId === '__new') {
+        const id = $('#nmId').value.trim().toLowerCase(), label = $('#nmLabel').value.trim(), state = $('#nmState').value.trim().toUpperCase();
+        if (!/^[a-z][a-z0-9_]{1,30}$/.test(id)) throw new Error('Short id: lowercase letters, numbers or _ (e.g. slc)');
+        if (!label) throw new Error('Give the market a name');
+        if (markets.some((m) => m.id === id)) throw new Error(`A market with id "${id}" already exists`);
+        if (!parsed.costar_props) throw new Error('A new market needs the CoStar property export');
+        const msa = parsed.rp_monthly ? parsed.rp_monthly.msa : parsed.rp_annual ? parsed.rp_annual.msa : null;
+        newMarket = U.newMarketConfig({ id, label, state, title: `${label.split(',')[0]} MSA`, msa: msa ? msa.replace(/,\s*[A-Z-]+$/, '') : null, costarRows: parsed.costar_props.rows });
+        marketId = id;
+      }
+      P = await U.plan(sb, { marketId, newMarket, parsed });
+      renderPreview(P);
+      $('#checkMsg').textContent = '';
+    } catch (e) { $('#checkMsg').innerHTML = `<span class="bad">${esc(e.message)}</span>`; }
+    $('#bCheck').disabled = false;
+  };
+
+  function list(rows, cols) {
+    return `<div class="tblwrap"><table class="tbl"><thead><tr>${cols.map((c) => `<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${cols.map((c) => `<td>${esc(c[1](r))}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+  function renderPreview(P) {
+    const h = [];
+    const mk = P.newMarket ? `New market <b>${esc(P.newMarket.label)}</b> (id <code>${esc(P.newMarket.id)}</code>, map center ${P.newMarket.config.center ? P.newMarket.config.center.join(', ') : '—'}, ${P.newMarket.config.wb_submarkets.length} submarkets from CoStar)` : `Market <b>${esc((markets.find((m) => m.id === P.marketId) || {}).label || P.marketId)}</b>`;
+    h.push(`<p>${mk}</p>`);
+    P.warnings.forEach((w) => h.push(`<p class="warn">${esc(w)}</p>`));
+    if (P.props) {
+      const x = P.props;
+      h.push(`<div class="figs"><div class="fig"><div class="v">${n(x.inserts.length)}</div><div class="l">New properties</div></div><div class="fig"><div class="v">${n(x.updates.length)}</div><div class="l">Updated</div></div><div class="fig"><div class="v">${n(x.skipped.length + x.removedSkips.length)}</div><div class="l">Left out</div></div>${P.newMarket ? '' : `<div class="fig"><div class="v">${n(x.notInFile)}</div><div class="l">On file, not in this upload (kept)</div></div>`}</div>`);
+      const out = [...x.skipped.map((s) => ({ name: s.name, id: s.costar_id, reason: s.reason })), ...x.removedSkips.map((r) => ({ name: r.name, id: r.costar_id, reason: 'Removed earlier in a cleanup (core.properties_removed)' }))];
+      if (out.length) h.push(`<details><summary>Left out (${out.length})</summary>${list(out, [['Property', (r) => r.name], ['CoStar id', (r) => r.id], ['Why', (r) => r.reason]])}</details>`);
+      if (x.inserts.length) h.push(`<details><summary>New properties (${x.inserts.length})</summary>${list(x.inserts, [['Property', (r) => r.name], ['Address', (r) => r.address], ['City', (r) => r.city], ['Status', (r) => r.status], ['Units', (r) => r.units], ['Built', (r) => r.year_built], ['Submarket', (r) => r.costar_submarket]])}</details>`);
+    }
+    if (P.rp) h.push(`<p><b>RealPage:</b> ${n(P.rp.props.length)} properties, ${n(P.rp.matched)} matched to a CoStar property, ${n(P.rp.unmatched)} RealPage-only (kept for submarket figures). Data as of ${esc(P.rp.asOf || '?')}.</p>`);
+    if (P.trends) h.push(`<p><b>RealPage trends:</b> ${n(P.trends.count)} geographies (${esc(Object.keys(P.trends.geos).join(', '))}).</p>`);
+    if (P.sales) {
+      h.push(`<p><b>Sale comps:</b> ${n(P.sales.inserts.length)} new, ${n(P.sales.dupes.length)} already on file (skipped), ${n(P.sales.inserts.filter((r) => r.sale_price).length)} of the new ones have a price, ${n(P.sales.inserts.filter((r) => r.portfolio).length)} flagged portfolio.</p>`);
+      if (P.sales.inserts.length) h.push(`<details><summary>New sale comps (${P.sales.inserts.length})</summary>${list(P.sales.inserts, [['Property', (r) => r.name], ['Date', (r) => r.sale_date], ['Price', (r) => (r.sale_price ? '$' + n(r.sale_price) : '')], ['Units', (r) => r.units], ['Built', (r) => r.year_built], ['Buyer', (r) => r.buyer], ['Portfolio', (r) => (r.portfolio ? 'Yes' : '')]])}</details>`);
+    }
+    $('#preview').innerHTML = h.join('');
+    $('#sPreview').hidden = false; $('#loadMsg').textContent = ''; $('#bLoad').disabled = false;
+    $('#sPreview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  $('#bLoad').onclick = async () => {
+    if (!P) return;
+    $('#bLoad').disabled = true; $('#bCheck').disabled = true;
+    const log = $('#log'); log.textContent = '';
+    const step = (s) => { log.textContent += s + '\n'; };
+    try {
+      const out = await U.commit(sb, P, { user: user.email, onStep: step, period: U.currentPeriod() });
+      step(`Done: ${out.inserted} new and ${out.updated} updated properties, ${out.rp} RealPage properties, ${out.trends} trend geographies, ${out.sales} sale comps.`);
+      $('#loadMsg').innerHTML = `<a class="link" href="./?market=${encodeURIComponent(P.marketId)}">Open ${esc(P.newMarket ? P.newMarket.label : P.marketId)} in Market Intel →</a>`;
+      P = null;
+    } catch (e) {
+      step('Stopped: ' + e.message);
+      $('#loadMsg').innerHTML = '<span class="bad">The load stopped partway. What finished is listed above. Reload, pick this market (it now exists if step one finished), and run the same files again: it updates rather than duplicates.</span>';
+      $('#bCheck').disabled = false;
+    }
+  };
+  syncNew();
+})();
+</script>
+</body>
+</html>
