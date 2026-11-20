@@ -8,9 +8,9 @@ for f in glob.glob(ROOT + '/**/*.html', recursive=True):
     s2 = re.sub(r'((?:href|src)=")((?!https?:|//|data:)[^"?]+\.(?:css|js))(\?v=[^"]*)?"', lambda m: f'{m.group(1)}{m.group(2)}?v={V}"', s)
     s2 = re.sub(r"window\.WB_BUILD = '[^']*'", f"window.WB_BUILD = '{V}'", s2)
     if s2 != s: open(f, 'w', encoding='utf-8').write(s2)
-# wb.js passes its own version on to the shared chrome stylesheet
-p = ROOT + '/shared/wb.js'; s = open(p).read()
-s = re.sub(r"add\(ROOT \+ 'shared/wb-chrome\.css(\?v=[^']*)?'\)", f"add(ROOT + 'shared/wb-chrome.css?v={V}')", s)
-s = s.replace("scriptSrc.replace(/shared\\/wb\\.js.*$/, '')", "scriptSrc.replace(/shared\\/wb\\.js.*$/, '')")
-open(p, 'w').write(s)
+# wb.js passes its own version on to the shared chrome stylesheet (Canopy's copy and the Demo's own copy)
+for p in (ROOT + '/shared/wb.js', ROOT + '/intel-demo/shared/wb.js'):
+  s = open(p).read()
+  s = re.sub(r"add\(ROOT \+ 'shared/wb-chrome\.css(\?v=[^']*)?'\)", f"add(ROOT + 'shared/wb-chrome.css?v={V}')", s)
+  open(p, 'w').write(s)
 print('stamped', V)

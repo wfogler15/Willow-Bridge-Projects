@@ -1,0 +1,266 @@
+/* Willow Bridge Canopy: app shell shared by every tab (top bar, market strip, sign-in, toast).
+   wb.js loads this on every page, including the tools that carry their own stylesheets. */
+:root{
+  --wb-font:Aptos,"Segoe UI Variable Text","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+  --wb-font-display:"Aptos Display",Aptos,"Segoe UI Variable Display","Segoe UI","Inter Display",Inter,system-ui,sans-serif;
+  /* Willow Bridge brand book */
+  --wb-midnight:#1D1247; --wb-purple:#432890; --wb-lilac:#C7C9FE; --wb-greentea:#CCECC3; --wb-forest:#102930;
+  --wb-breeze:#F9EEC4; --wb-brick:#722525; --wb-sand:#C2B8AF; --wb-cloud:#FBFBF9;
+  /* working neutrals */
+  --wb-ink:#1D1247; --wb-ink-2:#433C63; --wb-muted:#6E6886; --wb-faint:#9C97AE;
+  --wb-rule:#E3E0DB; --wb-rule-2:#EEECE8; --wb-surface:#FFFFFF; --wb-ground:#F3F2EF; --wb-sunk:#F8F7F4;
+  --wb-hover:#F7F6FB; --wb-selected:#EFEFFE;
+  /* type scale (dense) */
+  --wb-fs-xs:11.5px; --wb-fs-sm:12px; --wb-fs:13px; --wb-fs-md:14px; --wb-fs-lg:17px; --wb-fs-xl:22px; --wb-fs-2xl:28px;
+  /* charts: categorical then sequential */
+  --wb-c1:#1D1247; --wb-c2:#432890; --wb-c3:#8C8FE6; --wb-c4:#5E9B57; --wb-c5:#C2B8AF; --wb-c6:#D9B84A; --wb-c7:#722525;
+  --wb-nav-h:48px;
+}
+
+/* ---------- top bar ---------- */
+.wb-nav{position:sticky;top:0;z-index:5000;height:var(--wb-nav-h);display:flex;align-items:center;gap:26px;padding:0 24px 0 24px;border-bottom:1px solid rgba(255,255,255,.08);
+  background:var(--wb-midnight);color:#fff;font:13px/1.4 var(--wb-font);box-sizing:border-box;-webkit-font-smoothing:antialiased}
+.wb-nav *{box-sizing:border-box}
+.wb-nav a{color:inherit;text-decoration:none}
+.wb-nav .brand{display:flex;align-items:center;gap:10px;white-space:nowrap;font:600 15px/1 var(--wb-font-display);letter-spacing:-.005em}
+.wb-nav .brand img{width:22px;height:22px;filter:brightness(0) invert(1)}
+.wb-nav nav{display:flex;height:100%;overflow-x:auto;scrollbar-width:none}
+.wb-nav nav a{display:flex;align-items:center;padding:0 13px;font-size:14px;transition:color .12s;color:rgba(255,255,255,.72);border-bottom:2px solid transparent;white-space:nowrap}
+.wb-nav nav a:hover{color:#fff}
+.wb-nav nav a.on{color:#fff;font-weight:600;border-bottom-color:#fff}
+.wb-nav .right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.wb-nav .ctl{height:30px;display:inline-flex;align-items:center;gap:7px;padding:0 10px;border-radius:6px;border:1px solid rgba(255,255,255,.16);
+  background:rgba(255,255,255,.06);color:#fff;font:13px var(--wb-font);cursor:pointer;white-space:nowrap}
+.wb-nav .ctl{transition:background .12s,border-color .12s}
+.wb-nav .ctl:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28)}
+.wb-nav .ctl:active{background:rgba(255,255,255,.2)}
+.wb-nav .ctl:focus-visible,.wb-nav nav a:focus-visible,.wb-nav .me>button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.wb-nav .ctl[aria-pressed="true"]{background:#fff;color:var(--wb-midnight);border-color:#fff}
+.wb-nav .ctl svg{width:12px;height:12px;flex:none}
+.wb-nav .mkt-wrap{position:relative}
+.wb-nav select.ctl{appearance:none;-webkit-appearance:none;padding-right:28px;
+  background:rgba(255,255,255,.06) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='none' stroke='%23FFFFFF' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M2 3.5 5 6.5l3-3'/%3E%3C/svg%3E") right 10px center no-repeat}
+.wb-nav select.ctl option{color:#16142B}
+.wb-nav .me{position:relative}
+.wb-nav .me>button{width:30px;height:30px;border-radius:50%;border:0;background:var(--wb-lilac);color:var(--wb-midnight);font:600 12px var(--wb-font);cursor:pointer}
+.wb-nav .menu{position:absolute;right:0;top:38px;min-width:220px;background:#fff;color:var(--wb-ink);border:1px solid var(--wb-rule);border-radius:8px;
+  box-shadow:0 10px 30px rgba(22,20,43,.18);padding:6px;display:none}
+.wb-nav .menu.open{display:block}
+.wb-nav .menu .who{padding:8px 10px 10px;color:var(--wb-muted);font-size:13px;border-bottom:1px solid var(--wb-rule-2);margin-bottom:4px}
+.wb-nav .menu button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 10px;border-radius:5px;font:13px var(--wb-font);color:var(--wb-ink);cursor:pointer}
+.wb-nav .menu button:hover{background:var(--wb-ground)}
+/* auto-hiding app bar (Market intel) */
+.wb-nav.autohide{transition:transform .2s ease}
+.wb-nav.autohide.hid{transform:translateY(-100%)}
+@media (prefers-reduced-motion:reduce){.wb-nav.autohide{transition:none}}
+@media (max-width:900px){.wb-nav{gap:12px;padding:0 12px}.wb-nav .brand span{display:none}.wb-nav .strip-btn span{display:none}}
+
+/* ---------- market strip (inline on Home, drops down from the bar on tool pages) ---------- */
+.wb-strip{background:var(--wb-surface);border-bottom:1px solid var(--wb-rule);display:grid;grid-template-columns:repeat(var(--n,2),minmax(0,1fr));
+  font:13px/1.35 var(--wb-font);color:var(--wb-ink);-webkit-font-smoothing:antialiased;font-feature-settings:"tnum" 1,"lnum" 1}
+.wb-strip *{box-sizing:border-box}
+.wb-strip.drop{position:fixed;left:0;right:0;top:var(--wb-nav-h);z-index:4990;box-shadow:0 12px 28px rgba(22,20,43,.14);display:none}
+.wb-strip.drop.open{display:grid}
+.wb-strip .m{display:grid;grid-template-columns:76px 1.5fr 1fr 1fr 1.35fr 1.35fr;align-items:center;gap:10px;padding:10px 22px}
+.wb-strip .m+.m{border-left:1px solid var(--wb-rule)}
+.wb-strip .m.dim{opacity:.45}
+.wb-strip .nm{font:600 14px var(--wb-font-display)}
+.wb-strip .nm small{display:block;font:400 12px var(--wb-font);color:var(--wb-faint);margin-top:1px}
+.wb-strip .v{font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.wb-strip .v span{font-weight:400;color:var(--wb-muted);font-size:12px;margin-left:4px}
+.wb-strip .l{font-size:12px;color:var(--wb-muted);white-space:nowrap}
+@media (max-width:1100px){.wb-strip{grid-template-columns:1fr}.wb-strip .m+.m{border-left:0;border-top:1px solid var(--wb-rule)}}
+@media (max-width:700px){.wb-strip .m{grid-template-columns:repeat(3,minmax(0,1fr))}.wb-strip .nm{grid-column:1/-1}}
+
+/* ---------- sign-in ---------- */
+.wb-login{position:fixed;inset:0;z-index:6000;display:grid;place-items:center;padding:16px;font:14px/1.45 var(--wb-font);color:var(--wb-ink);background:var(--wb-midnight)}
+.wb-login *{box-sizing:border-box}
+.wb-login .card{width:min(380px,100%);background:#fff;border-radius:10px;padding:30px}
+.wb-login img{width:34px;height:34px}
+.wb-login h1{font:600 22px/1.2 var(--wb-font-display);margin:14px 0 4px;color:var(--wb-ink)}
+.wb-login p{color:var(--wb-muted);margin:0 0 18px;font-size:14px}
+.wb-login form{display:flex;flex-direction:column;gap:10px}
+.wb-login form[hidden]{display:none}
+.wb-login .input{border:1px solid var(--wb-rule);background:#fff;border-radius:6px;padding:9px 11px;font:inherit;width:100%}
+.wb-login .input:focus{outline:2px solid rgba(67,40,144,.25);border-color:var(--wb-purple)}
+.wb-login .btn{border:1px solid var(--wb-rule);background:#fff;border-radius:6px;padding:9px 12px;cursor:pointer;color:var(--wb-ink-2);font:600 13px var(--wb-font)}
+.wb-login .btn.primary{background:var(--wb-midnight);color:#fff;border-color:var(--wb-midnight)}
+.wb-login .msg{font-size:13px;margin-top:12px}
+.wb-login .msg.err{color:#8A2E2E}
+
+.wb-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:7000;background:var(--wb-midnight);color:#fff;padding:9px 14px;border-radius:6px;
+  font:13px var(--wb-font);box-shadow:0 6px 20px rgba(22,20,43,.3);opacity:0;transition:opacity .2s;pointer-events:none}
+.wb-toast.show{opacity:1}
+
+/* ---------- sub-bar: one slim white row under the app bar ----------
+   Left: the page's own tabs (or, on pages without tabs, a short title and one line of context). Right: the page's actions.
+   44px tall, hairline underneath; nothing else. */
+.wb-band{background:#fff;border-bottom:1px solid var(--wb-rule);color:var(--wb-ink);font:var(--wb-fs)/1.4 var(--wb-font);-webkit-font-smoothing:antialiased;padding:0 24px;position:relative;z-index:40}
+.wb-band *{box-sizing:border-box}
+.wb-band .in{display:flex;align-items:center;gap:14px;height:44px;min-width:0}
+.wb-band .top{display:contents}
+.wb-band .top>div:first-child{order:1;display:flex;align-items:baseline;gap:10px;min-width:0;overflow:hidden}
+.wb-band .eyebrow{display:none}
+.wb-band h1{margin:0;font:600 var(--wb-fs-md)/1.2 var(--wb-font-display);color:var(--wb-ink);white-space:nowrap;letter-spacing:0}
+.wb-band .lede{margin:0;color:var(--wb-muted);font-size:var(--wb-fs);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wb-band:has(.tabs) .top>div:first-child{display:none}
+.wb-band .tabs{order:2;display:flex;align-items:stretch;gap:2px;height:44px;overflow-x:auto;scrollbar-width:none;margin:0;min-width:0}
+.wb-band .tabs button,.wb-band .tabs a{flex:none;border:0;background:none;color:var(--wb-muted);font:var(--wb-fs) var(--wb-font);padding:0 10px;cursor:pointer;
+  border-bottom:2px solid transparent;border-top:2px solid transparent;transition:color .12s,border-color .12s;text-decoration:none;display:flex;align-items:center}
+.wb-band .tabs>:first-child{margin-left:-10px}
+.wb-band .tabs button:hover,.wb-band .tabs a:hover{color:var(--wb-ink)}
+.wb-band .tabs .on,.wb-band .tabs .active,.wb-band .tabs [aria-selected="true"]{color:var(--wb-ink);font-weight:600;border-bottom-color:var(--wb-midnight)}
+.wb-band .tabs button:focus-visible{outline:2px solid var(--wb-purple);outline-offset:-4px}
+.wb-band .acts{order:3;margin-left:auto;display:flex;gap:8px;align-items:center;flex:none}
+.wb-band .figs{display:none}
+/* buttons and fields in the sub-bar: same as the page buttons, a touch shorter */
+.wb-band .b{height:28px;display:inline-flex;align-items:center;gap:6px;padding:0 11px;border-radius:6px;border:1px solid #D3CEC7;background:#fff;
+  color:var(--wb-ink);font:600 var(--wb-fs-sm) var(--wb-font);cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .12s,border-color .12s,transform .06s}
+.wb-band .b:hover{background:var(--wb-sunk);border-color:#BDB6AD}
+.wb-band .b:active{background:#EDEBE6;transform:translateY(1px)}
+.wb-band .b.primary{background:var(--wb-midnight);border-color:var(--wb-midnight);color:#fff}
+.wb-band .b.primary:hover{background:#2B1D63;border-color:#2B1D63}
+.wb-band .b.primary:active{background:#140C33}
+.wb-band .b[aria-pressed="true"]{background:var(--wb-midnight);border-color:var(--wb-midnight);color:#fff}
+.wb-band .b:focus-visible{outline:none;box-shadow:0 0 0 2px #fff,0 0 0 4px var(--wb-purple)}
+.wb-band .fld{height:28px;border:1px solid #D3CEC7;border-radius:6px;background:#fff;padding:0 9px;font:var(--wb-fs-sm) var(--wb-font);color:var(--wb-ink);min-width:0}
+.wb-band .fld:focus{outline:none;border-color:var(--wb-purple);box-shadow:0 0 0 3px rgba(67,40,144,.14)}
+@media (max-width:700px){.wb-band{padding:0 12px}.wb-band .lede{display:none}}
+/* tool pages bring their own h1/eyebrow rules; the band keeps its own */
+.wb-band .eyebrow{text-transform:none;letter-spacing:normal;font-weight:400;font-size:var(--wb-fs-sm)}
+.wb-band h1{text-transform:none;letter-spacing:-.015em}
+/* per-tab market picker: a plain drop-down (markets come from core.markets) */
+.wb-mkt{appearance:none;-webkit-appearance:none;flex:none;height:26px;padding:0 18px 0 0;border:0;border-bottom:1px solid var(--wb-rule);border-radius:0;
+  background:transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%231D1247' stroke-width='1.3'/%3E%3C/svg%3E") no-repeat right 2px center;
+  font:600 13px var(--wb-font);color:var(--wb-ink);cursor:pointer;max-width:220px}
+.wb-mkt:hover{border-bottom-color:var(--wb-ink)}
+.wb-mkt:focus-visible{outline:2px solid var(--wb-purple);outline-offset:2px}
+.wb-mkt option{font-weight:400;color:var(--wb-ink)}
+
+/* =====================================================================
+   Minimal direction (Oct 2026): white ground, hairlines, text tabs, one accent.
+   Less on screen, each thing intentional. Market intel keeps its own design;
+   only the app bar here touches it.
+   ===================================================================== */
+:root{--wb-ground:#FFFFFF;--wb-sunk:#FAFAFB;--wb-rule:#E6E4EC;--wb-rule-2:#EFEEF3;--wb-muted:#6B6683;--wb-ink-2:#4A4560}
+.wb-nav{background:#fff;color:var(--wb-ink);border-bottom:1px solid var(--wb-rule);gap:30px;padding:0 32px}
+.wb-nav .brand{font:600 15px/1 var(--wb-font-display);letter-spacing:-.01em}
+.wb-nav .brand img{filter:none}
+.wb-nav nav a{color:var(--wb-muted);padding:0 12px;font-size:14px;border-bottom:0}
+.wb-nav nav a:hover{color:var(--wb-ink)}
+.wb-nav nav a.on{color:var(--wb-ink);font-weight:600;border-bottom:0}
+.wb-nav .ctl{border:0;background:none;color:var(--wb-muted);padding:0 4px;font-size:13px}
+.wb-nav .ctl:hover{background:none;color:var(--wb-ink);border:0}
+.wb-nav .ctl:active{background:none}
+.wb-nav .ctl[aria-pressed="true"]{background:none;color:var(--wb-ink);font-weight:600}
+.wb-nav .ctl:focus-visible,.wb-nav nav a:focus-visible,.wb-nav .me>button:focus-visible{outline:2px solid var(--wb-purple)}
+.wb-nav .me>button{background:#EEEDF4;color:var(--wb-ink)}
+.wb-strip.drop{box-shadow:0 1px 0 var(--wb-rule),0 16px 32px rgba(22,20,43,.08)}
+
+/* sub-bar: same white, text tabs */
+.wb-band{padding:0 32px;border-bottom:1px solid var(--wb-rule)}
+.wb-band .in{height:46px;gap:22px}
+.wb-band .tabs{gap:22px;height:46px}
+.wb-band .tabs button,.wb-band .tabs a{padding:0;font-size:14px;border-bottom-width:1.5px}
+.wb-band .tabs>:first-child{margin-left:0}
+.wb-band .tabs .on,.wb-band .tabs .active,.wb-band .tabs [aria-selected="true"]{font-weight:600;border-bottom-color:var(--wb-ink)}
+.wb-band .b{border-color:transparent;background:none;color:var(--wb-ink-2);font-weight:500;font-size:13px;padding:0 8px}
+.wb-band .b:hover{background:var(--wb-sunk);border-color:transparent;color:var(--wb-ink)}
+.wb-band .b:active{background:#F0EFF4}
+.wb-band .b.primary{background:var(--wb-midnight);color:#fff;padding:0 12px}
+.wb-band .b.primary:hover{background:#2B1D63;color:#fff}
+.wb-band .fld{border-color:var(--wb-rule)}
+
+
+/* property history drawer (WB.propertyHistory): one asset over time */
+.wb-hist[hidden]{display:none}
+.wb-hist{position:fixed;inset:0;z-index:12000}
+.wb-hist-veil{position:absolute;inset:0;background:rgba(29,18,71,.18)}
+.wb-hist-panel{position:absolute;top:0;right:0;bottom:0;width:min(460px,100%);background:#fff;border-left:1px solid var(--wb-rule);
+  box-shadow:-12px 0 32px rgba(16,10,40,.12);display:flex;flex-direction:column;font:var(--wb-fs) var(--wb-font);color:var(--wb-ink)}
+.wb-hist-panel header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:20px 24px 14px;border-bottom:1px solid var(--wb-rule)}
+.wb-hist-panel .wbh-eyebrow{font-size:var(--wb-fs-sm);color:var(--wb-muted);margin-bottom:2px}
+.wb-hist-panel h2{margin:0;font:600 19px/1.25 var(--wb-font-display);color:var(--wb-ink)}
+.wb-hist-panel .wbh-sub{margin:3px 0 0;color:var(--wb-muted);font-size:var(--wb-fs)}
+.wb-hist-panel .wbh-x{border:0;background:none;font-size:22px;line-height:1;color:var(--wb-muted);cursor:pointer;padding:2px 6px;border-radius:4px}
+.wb-hist-panel .wbh-x:hover{color:var(--wb-ink)}
+.wb-hist-panel .wbh-x:focus-visible{outline:2px solid var(--wb-purple);outline-offset:2px}
+.wb-hist-body{overflow:auto;padding:16px 24px 28px;outline:none}
+.wb-hist-panel *{text-transform:none;letter-spacing:normal}
+.wb-hist .wbh-facts dl,.wb-hist dl{margin:0}
+.wb-hist .wbh-facts>div{min-width:0}
+.wb-hist .wbh-facts{display:flex;flex-wrap:wrap;gap:6px 28px;margin:0 0 14px}
+.wb-hist .wbh-facts dt{font-size:var(--wb-fs-sm);color:var(--wb-muted)}
+.wb-hist .wbh-facts dd{margin:1px 0 0;font-weight:600;font-variant-numeric:tabular-nums}
+.wb-hist .wbh-sum{margin:0 0 18px;padding-bottom:14px;border-bottom:1px solid var(--wb-rule-2);line-height:1.5;color:var(--wb-ink-2)}
+.wb-hist .wbh-tl{list-style:none;margin:0;padding:0}
+.wb-hist .wbh-tl li{display:grid;grid-template-columns:76px 1fr;gap:12px;padding:10px 0;border-bottom:1px solid var(--wb-rule-2)}
+.wb-hist .wbh-tl li:last-child{border-bottom:0}
+.wb-hist .wbh-tl .wbh-d{color:var(--wb-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.wb-hist .wbh-tl b{font-weight:600}
+.wb-hist .wbh-tl p{margin:2px 0 0;color:var(--wb-ink-2);line-height:1.45;overflow-wrap:anywhere}
+.wb-hist .wbh-tl a{display:inline-block;margin-top:3px;color:var(--wb-purple);text-decoration:none;font-size:var(--wb-fs-sm)}
+.wb-hist .wbh-tl a:hover{text-decoration:underline}
+.wb-hist .wbh-tl li.k-sold b{color:var(--wb-ink)}
+.wb-hist .wbh-empty{color:var(--wb-muted)}
+/* a plain text link that opens the drawer, used on every page */
+.wb-hlink{border:0;background:none;padding:0;font:inherit;color:var(--wb-purple);cursor:pointer;text-decoration:none}
+.wb-hlink:hover{text-decoration:underline}
+.wb-hlink:focus-visible{outline:2px solid var(--wb-purple);outline-offset:2px}
+.wb-hist .wbh-tl li>*,.wb-hist .wbh-tl p,.wb-hist .wbh-tl b,.wb-hist .wbh-sum,.wb-hist .wbh-facts dd{font-family:var(--wb-font);font-size:var(--wb-fs);white-space:normal}
+.wb-hist .wbh-tl .wbh-d{white-space:nowrap}
+.wb-hist .wbh-tl a{font-size:var(--wb-fs-sm)}
+
+/* =====================================================================
+   Polish pass (Oct 22 2026): small touches, shared by every tab.
+   Motion is opacity/short slides only and switches off for reduced motion.
+   ===================================================================== */
+/* nav: a hairline under the current tab, a faint one on hover */
+.wb-nav nav a{position:relative}
+.wb-nav nav a::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;border-radius:2px 2px 0 0;background:var(--wb-ink);
+  transform:scaleX(0);opacity:0;transition:transform .2s ease,opacity .2s ease}
+.wb-nav nav a:hover::after{transform:scaleX(.5);opacity:.25}
+.wb-nav nav a.on::after{transform:scaleX(1);opacity:1}
+.wb-nav .brand{transition:opacity .15s}
+.wb-nav .brand:hover{opacity:.8}
+
+/* selection, focus, scrollbars */
+::selection{background:var(--wb-lilac);color:var(--wb-midnight)}
+:where(a,button,select,input,textarea,[tabindex]):focus-visible{outline:2px solid var(--wb-purple);outline-offset:2px}
+*{scrollbar-width:thin;scrollbar-color:#CFCBDA transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#D6D3E0;border-radius:10px;border:3px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:#B9B4C9;background-clip:padding-box;border:3px solid transparent}
+::-webkit-scrollbar-track{background:transparent}
+
+/* page content eases in */
+@keyframes wb-in{from{opacity:0}to{opacity:1}}
+@keyframes wb-up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes wb-slide{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+main.page{animation:wb-in .35s ease backwards}
+
+/* sign-in: the first screen anyone sees */
+.wb-login{background:radial-gradient(1200px 700px at 50% 38%,#2E1E6E 0%,var(--wb-midnight) 62%)}
+.wb-login .card{box-shadow:0 30px 80px rgba(6,2,24,.45),0 2px 6px rgba(6,2,24,.2);animation:wb-up .45s ease backwards;padding:34px 32px 30px}
+.wb-login h1{letter-spacing:-.015em}
+.wb-login .btn{transition:background .15s,border-color .15s,transform .06s}
+.wb-login .btn.primary:hover{background:#2B1D63;border-color:#2B1D63}
+.wb-login .btn:active{transform:translateY(1px)}
+.wb-login .input{transition:border-color .15s,box-shadow .15s}
+.wb-login .input:focus{outline:none;box-shadow:0 0 0 3px rgba(67,40,144,.16)}
+
+/* property history drawer slides in */
+.wb-hist:not([hidden]) .wb-hist-veil{animation:wb-in .2s ease backwards}
+.wb-hist:not([hidden]) .wb-hist-panel{animation:wb-slide .25s cubic-bezier(.2,.8,.2,1) backwards}
+
+/* toast rises */
+.wb-toast{transition:opacity .2s,transform .2s;transform:translate(-50%,6px)}
+.wb-toast.show{transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  main.page,.wb-login .card,.wb-hist:not([hidden]) .wb-hist-veil,.wb-hist:not([hidden]) .wb-hist-panel{animation:none}
+  .wb-nav nav a::after,.wb-toast{transition:none}
+}
+/* demo mode (?present=1): hide the other tabs and the account chip */
+.wb-nav.present nav,.wb-nav.present .me{display:none}
+.wb-nav.present .brand{pointer-events:none}

@@ -4,7 +4,7 @@
 /* Demo: keep the legacy markup hidden until loader.js has built the new shell; show the Willow Bridge mark while loading */
 html:not(.wbi-ready) .app { visibility: hidden !important; }
 html:not(.wbi-ready) body::before { content: ''; position: fixed; inset: 0; z-index: 8998; background: #FBFBF9; }
-html:not(.wbi-ready) body::after { content: ''; position: fixed; left: 50%; top: 50%; z-index: 8999; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 14px; background: url(../shared/wb-mark.png) center / cover no-repeat; animation: wbl-breathe 1.6s ease-in-out infinite; box-shadow: 0 0 0 0 rgba(67,40,144,.35); }
+html:not(.wbi-ready) body::after { content: ''; position: fixed; left: 50%; top: 50%; z-index: 8999; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 14px; background: url(shared/wb-mark.png) center / cover no-repeat; animation: wbl-breathe 1.6s ease-in-out infinite; box-shadow: 0 0 0 0 rgba(67,40,144,.35); }
 html:not(.wbi-ready) body:has(.wb-login)::before, html:not(.wbi-ready) body:has(.wb-login)::after { display: none; }
 @keyframes wbl-breathe { 0%, 100% { transform: scale(.94); box-shadow: 0 0 0 0 rgba(67,40,144,.28); } 50% { transform: scale(1); box-shadow: 0 0 0 14px rgba(67,40,144,0); } }
 @keyframes wbl-spin { to { transform: rotate(360deg); } }
@@ -8947,7 +8947,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611201130">
+<link rel="stylesheet" href="shared/wb-chrome.css?v=202611201143">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -8992,7 +8992,7 @@ body { background:#fff; color:var(--ink-1); }
   background:radial-gradient(900px 260px at 88% -30%, rgba(122,96,214,.38), transparent 62%), linear-gradient(135deg, #1D1247 0%, #241662 100%);
   box-shadow:0 1px 2px rgba(29,18,71,.12), 0 10px 30px rgba(29,18,71,.10); }
 .wbi-hero-deco { position:absolute; inset:0; border-radius:inherit; overflow:hidden; pointer-events:none; }
-.wbi-hero-deco::after { content:""; position:absolute; right:-36px; top:-48px; width:240px; height:240px; background:url("../shared/wb-mark.png") center/contain no-repeat;
+.wbi-hero-deco::after { content:""; position:absolute; right:-36px; top:-48px; width:240px; height:240px; background:url("shared/wb-mark.png") center/contain no-repeat;
   filter:brightness(0) invert(1); opacity:.06; }
 .wbi-head { position:relative; padding:0; background:none; }
 .wbi-head-row { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
@@ -9207,15 +9207,15 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="../shared/wb.js?v=202611201130"></script>
-<script src="../shared/legacy-db.js?v=202611201130"></script>
-<script>window.WB_BUILD = '202611201130';</script>
-<link rel="stylesheet" href="demo.css?v=202611201130">
+<script src="shared/wb.js?v=202611201143"></script>
+<script src="shared/legacy-db.js?v=202611201143"></script>
+<script>window.WB_BUILD = '202611201143';</script>
+<link rel="stylesheet" href="demo.css?v=202611201143">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
-<script src="access.js?v=202611201130"></script>
-<script src="loader.js?v=202611201130"></script>
+<script src="access.js?v=202611201143"></script>
+<script src="loader.js?v=202611201143"></script>
 
 
 

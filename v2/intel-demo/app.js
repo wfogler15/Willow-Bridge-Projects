@@ -9906,7 +9906,7 @@ function exportCompSetPdf() {
   const subline = [meta.submarkets.length === 1 ? meta.submarkets[0] : meta.submarkets.length + ' submarkets', props.length + ' properties', n0(meta.units) + ' units',
     meta.vintageMin ? (meta.vintageMin === meta.vintageMax ? meta.vintageMin : meta.vintageMin + '–' + meta.vintageMax) : null].filter(Boolean).join('  ·  ');
   const source = 'Source: CoStar' + (asOf ? ', ' + asOf : '') + '. Averages weighted by units. Concessions shown as weeks free.';
-  const head = (kicker, compact) => `<header${compact ? ' class="cmp"' : ''}><div><p class="k">${E(kicker)}</p><h1>${E(cs.name)}</h1><p class="sub">${E(subline)}${deal ? '  ·  Subject: ' + E(deal.name) : ''}</p></div><img src="../shared/wb-mark.png" alt=""></header>`;
+  const head = (kicker, compact) => `<header${compact ? ' class="cmp"' : ''}><div><p class="k">${E(kicker)}</p><h1>${E(cs.name)}</h1><p class="sub">${E(subline)}${deal ? '  ·  Subject: ' + E(deal.name) : ''}</p></div><img src="shared/wb-mark.png" alt=""></header>`;
   const foot = (n) => `<footer><span>${E(source)}</span><span>Willow Bridge · ${E(today)} · ${n}</span></footer>`;
 
   const kpi = (l, v, s) => `<div class="kpi"><p class="l">${l}</p><p class="v">${v}</p>${s ? `<p class="s">${s}</p>` : ''}</div>`;

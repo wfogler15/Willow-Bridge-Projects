@@ -24,7 +24,7 @@
     localStorage.setItem('market', id);
     if (window.WB && WB.getMarket() !== id) WB.setMarket(id);   // keep this tab's market toggle in step
     // show the loading mark straight away so the old market doesn't sit on screen while the next one loads
-    try { overlay.innerHTML = `<div class="wbl" role="status" aria-live="polite"><div class="wbl-mark"><img src="../shared/wb-mark.png" alt=""><i></i></div><div class="wbl-t">Loading ${(MARKETS && MARKETS[id]) || id}</div></div>`; document.body.appendChild(overlay); } catch (e) {}
+    try { overlay.innerHTML = `<div class="wbl" role="status" aria-live="polite"><div class="wbl-mark"><img src="shared/wb-mark.png" alt=""><i></i></div><div class="wbl-t">Loading ${(MARKETS && MARKETS[id]) || id}</div></div>`; document.body.appendChild(overlay); } catch (e) {}
     const u = new URL(location.href); u.searchParams.set('market', id); location.href = u.toString();
   };
   const overlay = document.createElement('div');
@@ -45,7 +45,7 @@
     if (!MARKETS[market]) market = markets.length ? markets.find((m) => m.id === 'denver')?.id || markets[0].id : 'denver';
     localStorage.setItem('market', market);
     WB.showMarket(market);
-    overlay.innerHTML = `<div class="wbl" role="status" aria-live="polite"><div class="wbl-mark"><img src="../shared/wb-mark.png" alt=""><i></i></div><div class="wbl-t">Loading ${MARKETS[market]}</div></div>`;
+    overlay.innerHTML = `<div class="wbl" role="status" aria-live="polite"><div class="wbl-mark"><img src="shared/wb-mark.png" alt=""><i></i></div><div class="wbl-t">Loading ${MARKETS[market]}</div></div>`;
     document.body.appendChild(overlay);
 
     const t0 = performance.now();
@@ -55,7 +55,7 @@
       WB.fetchAll('market', 'rp_property_data', 'realpage_id,data', (x) => x.eq('market_id', market).order('realpage_id')),
       WB.fetchAll('market', 'rp_trends', 'geography,data', (x) => x.eq('market_id', market)),
       // the same building over time: each time it was marketed (Pipeline) and each sale (Sale Comps)
-      WB.fetchAll('pipeline', 'deals', 'id,property_id,stage,kind,first_seen,name', (x) => x.eq('market_id', market).is('merged_into', null).not('property_id', 'is', null)).catch(() => []),
+      Promise.resolve([]),   // deals are Canopy-only: the Demo shows sale history from comps, not pursuits
       WB.fetchAll('comps', 'sale_comps', 'property_id,sale_date,sale_price,price_per_unit,cap_rate,cap_rate_t12,buyer', (x) => x.eq('market_id', market).eq('comp_type', 'investment').not('property_id', 'is', null)).catch(() => []),
     ]);
     if (mrow.error) throw mrow.error;
