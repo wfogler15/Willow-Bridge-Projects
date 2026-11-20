@@ -38,6 +38,8 @@
     const { data: mlist, error: mErr } = await sb.schema('core').from('markets').select('id,label,title,active:config->active').order('id');
     if (mErr) throw mErr;
     const markets = (mlist || []).filter((m) => m.active === true);
+    // on the list, but their market hasn't been uploaded yet (e.g. a new region's analyst): start at the upload page
+    if (!markets.length) { location.replace('upload.html'); return; }
     MARKETS = Object.fromEntries(markets.map((m) => [m.id, (m.label || m.id).split(',')[0]]));
     const q = new URLSearchParams(location.search);
     const shared = WB.getMarket();

@@ -52,13 +52,13 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202611201143');
+    add(ROOT + 'shared/wb-chrome.css?v=202611201202');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
 
   // ---------- market context shared across tabs ----------
-  let MARKETS = [];   // [{id, label, short}]
+  let MARKETS = []; let ACCESS = [];   // [{id, label, short}]
   const shortName = (label, id) => String(label || id || '').split(',')[0];
   // Each tab keeps its own market (no app-wide switch). The toggle is a small segmented control a page places where it wants.
   let PAGE = 'home', SINGLE = false;
@@ -232,13 +232,16 @@
   async function ready(active, opts = {}) {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return loginScreen();
-    // Approved list check: the markets table only answers members.
-    const { data, error } = await sb.schema('core').from('markets').select('id,label,active:config->active,center:config->center').order('id');
-    if (error || !data || data.length === 0) {
+    // Approved list check (Demo): on the access list = at least one row in core.market_access (RLS returns only your own).
+    // A person can be on the list before their market exists (granted a market that hasn't been uploaded yet).
+    const { data: acc, error: aErr } = await sb.schema('core').from('market_access').select('market_id,role');
+    if (aErr || !acc || acc.length === 0) {
       await sb.auth.signOut();
       return loginScreen(`${session.user.email} isn't on the access list. Ask Will to add you.`, true);
     }
-    MARKETS = data.filter((m) => m.active !== false).map((m) => ({ id: m.id, label: m.label, short: shortName(m.label, m.id), center: Array.isArray(m.center) ? m.center : null }));
+    const { data } = await sb.schema('core').from('markets').select('id,label,active:config->active,center:config->center').order('id');
+    ACCESS = acc;
+    MARKETS = (data || []).filter((m) => m.active !== false).map((m) => ({ id: m.id, label: m.label, short: shortName(m.label, m.id), center: Array.isArray(m.center) ? m.center : null }));
     renderNav(active, session.user, opts);
     return { sb, user: session.user };
   }
@@ -328,5 +331,5 @@
   }
 
   window.WB = { sb, ready, band, marketToggle, fig, strip: () => loadStrip(), propertyHistory, closeHistory, marketLabel: (id) => (MARKETS.find((m) => m.id === id) || {}).short || (id ? id[0].toUpperCase() + id.slice(1) : id),
-    marketCenter: (id) => (MARKETS.find((m) => m.id === id) || {}).center || null, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
+    get access() { return ACCESS; }, marketCenter: (id) => (MARKETS.find((m) => m.id === id) || {}).center || null, fetchAll, toast, esc, fmt, median, ROOT, SB_URL, getMarket, setMarket, activeMarket, showMarket, get markets() { return MARKETS; } };
 })();

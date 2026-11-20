@@ -101,3 +101,9 @@ end $$;
 -- Add a person (they then sign in on the dashboard with that email: password or emailed code):
 --   insert into core.market_access (email, market_id, role, note) values ('jacob@willowbridgepc.com', 'fort_lauderdale', 'edit', 'Florida analyst');
 -- Remove:  delete from core.market_access where email = 'jacob@willowbridgepc.com';
+
+-- 4) (added Nov 20, later) A person granted a market that isn't loaded yet can create that one market with their first upload.
+create or replace function core.granted_market(p_market text) returns boolean language sql stable security definer set search_path to '' as $$
+  select exists (select 1 from core.market_access a where lower(a.email) = lower(coalesce(auth.jwt() ->> 'email', '')) and a.market_id = p_market and a.role in ('edit','admin')) $$;
+drop policy if exists ma_admin_ins on core.markets;
+create policy ma_admin_ins on core.markets for insert to authenticated with check (core.is_admin() or core.granted_market(id));

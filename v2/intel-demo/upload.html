@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Upload market data · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611201143">
+<link rel="stylesheet" href="shared/wb.css?v=202611201202">
 <style>
   .page{max-width:1100px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -36,8 +36,8 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="shared/wb.js?v=202611201143"></script>
-<script src="market-upload.js?v=202611201143"></script>
+<script src="shared/wb.js?v=202611201202"></script>
+<script src="market-upload.js?v=202611201202"></script>
 </head>
 <body>
 <main class="page">
@@ -90,12 +90,22 @@
   const roles = acc || []; const isAdmin = roles.some((a) => a.market_id === '*' && a.role === 'admin');
   const canEdit = (id) => roles.some((a) => (a.market_id === '*' || a.market_id === id) && a.role !== 'view');
   const editable = markets.filter((m) => m.config && m.config.active !== false && canEdit(m.id));
-  if (!editable.length && !isAdmin) { $('.page').innerHTML = '<h1 class="t">Upload market data</h1><p class="lead">Your login can view data but not upload it. Ask Will for edit access to your market.</p>'; return; }
-  $('#mkt').innerHTML = editable.map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('') + (isAdmin ? '<option value="__new">New market…</option>' : '');
+  // markets you were granted that haven't been uploaded yet (a new region): you create them with your first upload
+  const pretty = (id) => id.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  const pending = [...new Set(roles.filter((a) => a.market_id !== '*' && a.role !== 'view' && !markets.some((m) => m.id === a.market_id)).map((a) => a.market_id))];
+  if (!editable.length && !isAdmin && !pending.length) { $('.page').innerHTML = '<h1 class="t">Upload market data</h1><p class="lead">Your login can view data but not upload it. Ask Will for edit access to your market.</p>'; return; }
+  $('#mkt').innerHTML = pending.map((id) => `<option value="__new:${esc(id)}">New market: ${esc(pretty(id))}</option>`).join('')
+    + editable.map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('') + (isAdmin ? '<option value="__new">New market…</option>' : '');
   if (q.get('market') && markets.some((m) => m.id === q.get('market'))) $('#mkt').value = q.get('market');
   if (q.get('new') && isAdmin) $('#mkt').value = '__new';
   if (q.get('market')) $('#back').href = './?market=' + encodeURIComponent(q.get('market'));
-  const syncNew = () => { $('#newFields').hidden = $('#mkt').value !== '__new'; invalidate(); };
+  const isNew = () => $('#mkt').value.startsWith('__new');
+  const syncNew = () => {
+    const v = $('#mkt').value; $('#newFields').hidden = !isNew();
+    const fixed = v.startsWith('__new:') ? v.slice(6) : null;   // a granted market: its id is set by the grant
+    $('#nmId').readOnly = !!fixed; if (fixed) { $('#nmId').value = fixed; if (!$('#nmLabel').value) $('#nmLabel').value = pretty(fixed); }
+    invalidate();
+  };
   $('#mkt').onchange = syncNew;
   ['#nmLabel', '#nmId', '#nmState'].forEach((s) => $(s).addEventListener('input', invalidate));
 
@@ -124,7 +134,7 @@
     }
     // a new market's name and state come from the CoStar file
     const cp = files.find((f) => f.type === 'costar_props' && f.parsed);
-    if (cp && $('#mkt').value === '__new') {
+    if (cp && isNew()) {
       const mn = cp.parsed.marketName || '';
       if (!$('#nmLabel').value) $('#nmLabel').value = mn;
       if (!$('#nmState').value) $('#nmState').value = (cp.parsed.rows[0] && cp.parsed.rows[0].state) || (mn.split(',')[1] || '').trim();
@@ -178,11 +188,12 @@
     try {
       const parsed = combined();
       let marketId = $('#mkt').value, newMarket = null;
-      if (marketId === '__new') {
+      if (marketId.startsWith('__new')) {
         const id = $('#nmId').value.trim().toLowerCase(), label = $('#nmLabel').value.trim(), state = $('#nmState').value.trim().toUpperCase();
         if (!/^[a-z][a-z0-9_]{1,30}$/.test(id)) throw new Error('Short id: lowercase letters, numbers or _ (e.g. slc)');
         if (!label) throw new Error('Give the market a name');
         if (markets.some((m) => m.id === id)) throw new Error(`A market with id "${id}" already exists`);
+        if (!isAdmin && !pending.includes(id)) throw new Error('You can only create the market you were given access to');
         if (!parsed.costar_props) throw new Error('A new market needs the CoStar property export');
         const msa = parsed.rp_monthly ? parsed.rp_monthly.msa : parsed.rp_annual ? parsed.rp_annual.msa : null;
         newMarket = U.newMarketConfig({ id, label, state, title: `${label.split(',')[0]} MSA`, msa: msa ? msa.replace(/,\s*[A-Z-]+$/, '') : null, costarRows: parsed.costar_props.rows });
