@@ -103,6 +103,7 @@
         unitsStudio: int(r['Number of Studio Units']), units1Bed: int(r['Number of 1 Bedroom Units']), units2Bed: int(r['Number of 2 Bedroom Units']),
         units3Bed: int(r['Number of 3 Bedroom Units']), units4Bed: int(r['Number of 4 Bedroom Units']),
         architect: str(r['Architect Name']), affordable: str(r['Affordable Type']), rentType: str(r['Rent Type']),
+        rba: num(r['RBA']), elevators: int(r['Number of Elevators']), parkingSpaces: int(r['Number of Parking Spaces']), parkingRatio: num(r['Parking Ratio']), material: str(r['Construction Material']),
         yearRenovated: int(r['Year Renovated']), constructionBegin: str(r['Construction Begin']), preLeasing: num(r['Pre-Leasing']),
         lastSaleDate: isoDate(r['Last Sale Date']) ? isoDate(r['Last Sale Date']) + ' 00:00:00' : null, lastSalePrice: num(r['Last Sale Price']),
         county: str(r['County Name']), costarAsOf: asOf,

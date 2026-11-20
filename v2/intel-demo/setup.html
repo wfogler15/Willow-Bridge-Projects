@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Set up submarkets and product types · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611201340">
+<link rel="stylesheet" href="shared/wb.css?v=202611201355">
 <style>
   .page{max-width:1240px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -50,8 +50,8 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="shared/wb.js?v=202611201340"></script>
-<script src="market-setup.js?v=202611201340"></script>
+<script src="shared/wb.js?v=202611201355"></script>
+<script src="market-setup.js?v=202611201355"></script>
 </head>
 <body>
 <main class="page">
@@ -73,6 +73,7 @@
     </table>
     <div class="rules">
       <label>Flag within (units/acre of the Garden line)<input class="input" id="rB" type="number" min="0"></label>
+      <label>Only review properties with at least (units)<input class="input" id="rU" type="number" min="0"></label>
       <button class="btn primary" id="bPT">Classify</button>
     </div>
     <div id="ptOut" hidden>
@@ -127,9 +128,16 @@
     $('#title').textContent = `Set up ${M.label.split(',')[0]}`;
     $('#back').href = './?market=' + encodeURIComponent(M.id);
     const out = []; for (let from = 0; ; from += 1000) {
-      const { data, error } = await sb.schema('core').from('properties').select('id,costar_id,name,address,city,lat,lng,units,stories,acres,style,status,costar_submarket,attrs').eq('market_id', M.id).eq('source', 'costar').range(from, from + 999);
+      const { data, error } = await sb.schema('core').from('properties').select('id,costar_id,realpage_id,name,address,city,lat,lng,units,stories,acres,land_sf,avg_unit_sf,year_built,style,status,costar_submarket,attrs').eq('market_id', M.id).eq('source', 'costar').range(from, from + 999);
       if (error) throw error; out.push(...data); if (data.length < 1000) break;
     }
+    // RealPage parking type for linked properties (structured vs surface is the cleanest Garden / Mid-Rise signal)
+    const pkBy = new Map();
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await sb.schema('market').from('rp_property_data').select('realpage_id,pk:data->>pk').eq('market_id', M.id).not('data->>pk', 'is', null).range(from, from + 999);
+      if (error) { console.warn('parking', error); break; } data.forEach((r) => pkBy.set(String(r.realpage_id), r.pk)); if (data.length < 1000) break;
+    }
+    out.forEach((p) => { if (p.realpage_id) p.parking = pkBy.get(String(p.realpage_id)) || null; });
     props = out.map((p) => Object.assign(p, { wbSub: (p.attrs || {}).wbSubmarket || p.costar_submarket || '', wbType: (p.attrs || {}).wbProductType || null }));
     fillRules(S.normRules((M.config || {}).product_rules));
     // submarkets in use
@@ -165,7 +173,7 @@
   const TYPES = ['Garden', 'Mid-Rise', 'High-Rise'];
   function fillRules(r) {
     $('#gLo').value = r.garden.lo; $('#gHi').value = r.garden.hi; $('#gCap').value = r.garden.cap;
-    $('#mHi').value = r.mid.hi; $('#mCap').value = r.mid.cap; $('#hHi').value = r.high.hi; $('#rB').value = r.borderline;
+    $('#mHi').value = r.mid.hi; $('#mCap').value = r.mid.cap; $('#hHi').value = r.high.hi; $('#rB').value = r.borderline; $('#rU').value = r.reviewMin;
     syncLows();
   }
   function syncLows() { $('#mLo').value = +$('#gHi').value + 1; $('#hLo').value = +$('#mHi').value + 1; }
@@ -173,8 +181,9 @@
   $('#bPT').onclick = () => {
     const rules = S.normRules({ garden: { lo: +$('#gLo').value, hi: +$('#gHi').value, cap: +$('#gCap').value },
       mid: { lo: +$('#gHi').value + 1, hi: +$('#mHi').value, cap: +$('#mCap').value },
-      high: { lo: +$('#mHi').value + 1, hi: +$('#hHi').value }, borderline: +$('#rB').value });
-    PT = props.map((p) => { const c = S.classify(p, rules); return { p, c, pick: c.type, current: p.wbType || p.style || '' }; });
+      high: { lo: +$('#mHi').value + 1, hi: +$('#hHi').value }, borderline: +$('#rB').value, reviewMin: +$('#rU').value });
+    const cs = S.classifyAll(props, rules);
+    PT = props.map((p, i) => { const c = cs[i]; return { p, c, pick: c.type, current: p.wbType || p.style || '' }; });
     PT.rules = rules; ptFilter = PT.some((r) => r.c.flag) ? 'review' : 'changed'; renderPT();
   };
   function renderPT() {

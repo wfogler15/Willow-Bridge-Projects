@@ -10,7 +10,7 @@
   //   Garden     5–45 units/acre, height cap 4 stories (5 on occasion, surface parked); also townhome / single-family / BTR
   //   Mid-Rise   46–115 units/acre, height cap 10 stories (at 5 stories or fewer the density implies structured parking)
   //   High-Rise  116+ units/acre, above the Mid-Rise cap
-  const DEFAULT_RULES = { garden: { lo: 5, hi: 45, cap: 4 }, mid: { lo: 46, hi: 115, cap: 10 }, high: { lo: 116, hi: 1000 }, borderline: 3 };
+  const DEFAULT_RULES = { garden: { lo: 5, hi: 45, cap: 4 }, mid: { lo: 46, hi: 115, cap: 10 }, high: { lo: 116, hi: 1000 }, borderline: 3, reviewMin: 100 };
   function normRules(r) {
     const R = JSON.parse(JSON.stringify(DEFAULT_RULES));
     if (!r) return R;
@@ -18,15 +18,26 @@
     if (r.midMaxStories != null) R.mid.cap = +r.midMaxStories;
     for (const k of ['garden', 'mid', 'high']) if (r[k]) Object.assign(R[k], r[k]);
     if (r.borderline != null) R.borderline = +r.borderline;
+    if (r.reviewMin != null) R.reviewMin = +r.reviewMin;
     return R;
   }
 
   const num = (v) => (v == null || v === '' || isNaN(+v) ? null : +v);
+  function far(p) {
+    const land = num(p.land_sf) || (num(p.acres) ? num(p.acres) * 43560 : null); if (!land) return null;
+    const rba = num(p.attrs && p.attrs.rba); if (rba) return rba / land;
+    const u = num(p.units), sf = num(p.avg_unit_sf); return u && sf ? (u * sf * 1.15) / land : null;   // rentable SF + ~15% common area
+  }
   function density(p) { const u = num(p.units), a = num(p.acres); return u && a && a > 0 ? u / a : null; }
 
   /** → { type, density, flag (string|null), why }. Flags only cases where the answer could go either way:
       a flag that can't change the type (e.g. a very dense 4-story is Mid-Rise whatever its acreage) is left out. */
   function classify(p, rules) {
+    const out = classifyRaw(p, rules), R = normRules(rules), u = num(p.units);
+    if (out.flag && u != null && u < R.reviewMin) { out.small = out.flag; out.flag = null; }
+    return out;
+  }
+  function classifyRaw(p, rules) {
     const R = normRules(rules);
     const st = num(p.stories), d = density(p), style = (p.style || '').toLowerCase();
     const D = d == null ? null : Math.round(d);
@@ -34,23 +45,64 @@
     const res = (type, flag, w) => ({ type, density: d, flag: flag || null, why: w || why });
     if (/town|single-family|single family|build-to-rent|btr/.test(style)) return res('Garden', null, p.style);
 
-    // data that can't be right: flag, but still give the best answer
-    if (d != null && d < R.garden.lo && (st == null || st <= 5)) return res('Garden', `Only ${d.toFixed(1)} units/ac: the acreage is probably wrong, and the real density decides Garden vs Mid-Rise`);
-
-    // height decides above the Garden range
+    // height decides above 5 stories
     if (st != null && st > R.mid.cap) return res('High-Rise');
     if (st != null && st > 5) return res('Mid-Rise');
+    if (st == null && d == null && !p.parking) return res(p.style || 'Garden', 'No stories or acreage: kept CoStar\'s style');
 
-    // 5 stories or fewer: density decides (Mid-Rise density at this height means a wrap or podium)
-    if (d == null) {
-      if (st == null) return res(p.style || 'Garden', 'No stories or acreage: kept CoStar\'s style');
-      if (st <= 3) return res('Garden', null, `${st} stories, no acreage`);
-      return res(st <= R.garden.cap ? 'Garden' : 'Mid-Rise', `${st} stories with no acreage: Garden or wrap can't be told apart`);
+    // 5 stories or fewer: Garden vs Mid-Rise (wrap / podium). Each piece of evidence votes; only real disagreement is flagged.
+    const G = [], M = []; let g = 0, m = 0;
+    const vote = (side, w, txt) => { if (side === 'G') { g += w; G.push(txt); } else { m += w; M.push(txt); } };
+    const pk = (p.parking || (p.attrs && p.attrs.rpParking) || '').toLowerCase();
+    if (/structure|subterranean|podium|garage deck/.test(pk)) vote('M', 3, 'structured parking (RealPage)');
+    else if (pk === 'ground' || pk === 'surface') vote('G', 2, 'surface parking (RealPage)');
+    else if (pk === 'individual') vote('G', 1, 'individual garages (RealPage)');
+    const badAcres = d != null && d < R.garden.lo;
+    if (d != null && !badAcres) {
+      const edge = d - (R.garden.hi + 0.5), near = Math.abs(edge) <= R.borderline + 0.5;
+      vote(edge < 0 ? 'G' : 'M', near ? 0.5 : 2, `${D} units/ac`);
     }
-    const type = d <= R.garden.hi ? 'Garden' : 'Mid-Rise';
-    if (Math.abs(d - (R.garden.hi + 0.5)) <= R.borderline + 0.5) return res(type, `${D} units/ac is right at the Garden / Mid-Rise line`);
-    if (st === 5 && type === 'Garden') return res(type, '5 stories at Garden density (surface parked is rare): confirm');
-    return res(type, null);
+    const f = far(p);
+    if (f != null && !badAcres) { if (f <= 1.1) vote('G', 1, `FAR ${f.toFixed(2)}`); else if (f >= 1.5) vote('M', 1, `FAR ${f.toFixed(2)}`); }
+    const el = num(p.attrs && p.attrs.elevators);
+    if (el > 0 && (st == null || st >= 3)) vote('M', 1, `${el} elevator${el > 1 ? 's' : ''}`);
+    if (st === 5) vote('M', 0.5, 'Garden is rarely 5 stories');
+    const ev = [...M, ...G].join(', ');
+    const w2 = `${st == null ? 'stories unknown' : st + ' stories'}${ev ? ': ' + ev : ''}`;
+    const score = m - g;
+    if (!G.length && !M.length) {
+      if (badAcres) return res('Garden', `Only ${d.toFixed(1)} units/ac: the acreage is probably wrong, and nothing else settles it`, w2);
+      if (st != null && st <= 3) return res('Garden', null, w2 + ' (no other data)');
+      return res(st != null && st <= R.garden.cap ? 'Garden' : 'Mid-Rise', `${st} stories with no acreage or parking data: Garden or wrap can't be told apart`, w2);
+    }
+    let type = score > 0 ? 'Mid-Rise' : 'Garden';
+    // physical evidence is thin: let rent break the tie (it's what the YOC comps care about)
+    if (Math.abs(score) < 0.5 && !(g >= 2 && m >= 2) && p.rentHint) return res(p.rentHint.side === 'G' ? 'Garden' : 'Mid-Rise', null, `${w2}; ${p.rentHint.txt}`);
+    if (badAcres && Math.abs(score) < 1) return res(type, `Only ${d.toFixed(1)} units/ac: the acreage is probably wrong, and nothing else settles it`, w2);
+    if (g >= 2 && m >= 2) return res(type, `Evidence disagrees: ${M.join(', ')} vs ${G.join(', ')}`, w2);
+    if (Math.abs(score) < 0.5 || g + m < 1) return res(type, d != null && Math.abs(d - (R.garden.hi + 0.5)) <= R.borderline + 0.5 ? `${D} units/ac is right at the Garden / Mid-Rise line, and nothing else settles it` : 'Not enough to call it: confirm', w2);
+    return res(type, null, w2);
+  }
+
+  /** Classify a whole market. Rent per SF breaks ties: a market-rate 3–5 story whose rent sits clearly
+      with one type's median (same submarket, same vintage band) gets one vote toward that type. */
+  function classifyAll(props, rules) {
+    props.forEach((p) => { delete p.rentHint; });
+    const first = props.map((p) => classify(p, rules));
+    const rent = (p) => num(p.attrs && p.attrs.avgAskingSF);
+    const market = (p) => !/afford/i.test((p.attrs && p.attrs.rentType) || '') && /exist/i.test(p.status || 'Existing');
+    const key = (p) => `${(p.attrs && p.attrs.wbSubmarket) || p.costar_submarket || ''}|${num(p.year_built) >= 2010 ? 'new' : 'old'}`;
+    const grp = {};
+    props.forEach((p, i) => { const r = first[i]; if (r.flag || r.type === 'High-Rise' || !market(p) || !rent(p)) return; (grp[key(p) + '|' + r.type] = grp[key(p) + '|' + r.type] || []).push(rent(p)); });
+    const med = (a) => { const b = [...a].sort((x, y) => x - y); return b[b.length >> 1]; };
+    props.forEach((p, i) => {
+      const st = num(p.stories); if (st != null && st > 5) return; if (!market(p) || !rent(p)) return;
+      const g = grp[key(p) + '|Garden'], m = grp[key(p) + '|Mid-Rise']; if (!g || !m || g.length < 4 || m.length < 4) return;
+      const mg = med(g), mm = med(m), r = rent(p); if (Math.abs(mm - mg) / Math.min(mg, mm) < 0.1) return;
+      const toG = Math.abs(r - mg) < Math.abs(r - mm);
+      p.rentHint = { side: toG ? 'G' : 'M', txt: `$${r.toFixed(2)}/SF rent is closer to ${toG ? 'Garden' : 'Mid-Rise'} here ($${(toG ? mg : mm).toFixed(2)} vs $${(toG ? mm : mg).toFixed(2)})` };
+    });
+    return props.map((p) => classify(p, rules));
   }
 
   // ---------- submarkets ----------
@@ -157,6 +209,6 @@
     return Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
   }
 
-  const api = { DEFAULT_RULES, normRules, classify, density, assignSubmarkets, inheritSubmarket, parseName };
+  const api = { DEFAULT_RULES, normRules, classify, classifyAll, density, far, assignSubmarkets, inheritSubmarket, parseName };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.WBSetup = api;
 })(typeof window !== 'undefined' ? window : globalThis);
