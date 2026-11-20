@@ -17,7 +17,9 @@
     return addEv(type, fn, opts);
   };
 
-  let MARKETS = {};
+  let MARKETS = {}, MARKET_STATE = {};
+  const STATE_NAMES = { AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', DC: 'District of Columbia', FL: 'Florida', GA: 'Georgia', HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland', MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri', MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey', NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming' };
+  const stateName = (id) => { const s = (MARKET_STATE[id] || '').trim(); return STATE_NAMES[s.toUpperCase()] || s; };
   // Switch markets from Settings: remember the choice, reload with that market's data
   window.wbSwitchMarket = function (id) {
     if (!id || id === (window.__WBD && window.__WBD.market)) return;
@@ -35,7 +37,7 @@
     const { sb, user } = await WB.ready('intel', { marketMode: 'single', navAutoHide: false, present: true, brand: 'Willow Bridge Market Intel · Demo' });
     window.__WB_SALE_SCOPE = true;   // Sale Comps view uses the same scope as the Canopy Sale Comps page
     // active markets drive the Settings picker; adding a market = a row in core.markets with config.active = true + its data
-    const { data: mlist, error: mErr } = await sb.schema('core').from('markets').select('id,label,title,active:config->active').order('id');
+    const { data: mlist, error: mErr } = await sb.schema('core').from('markets').select('id,label,title,active:config->active,state:config->>state').order('id');
     if (mErr) throw mErr;
     const markets = (mlist || []).filter((m) => m.active === true);
     // a market they edit hasn't been uploaded yet (e.g. a new region's analyst): start at the upload page (once per visit)
@@ -48,6 +50,7 @@
     }
     const myEdit = acc.find((a) => a.market_id !== '*' && a.role !== 'view' && markets.some((m) => m.id === a.market_id));
     MARKETS = Object.fromEntries(markets.map((m) => [m.id, (m.label || m.id).split(',')[0]]));
+    MARKET_STATE = Object.fromEntries(markets.map((m) => [m.id, m.state || ((m.label || '').split(',')[1] || '').trim()]));
     const q = new URLSearchParams(location.search);
     const shared = WB.getMarket();
     let market = q.get('market') || (myEdit && myEdit.market_id) || 'denver';   // regional people open on the market they edit   // Demo: the URL decides (keeps the per-market storage namespace in step)
@@ -273,7 +276,6 @@
       const bar = document.createElement('div'); bar.className = 'wbi-navacts'; bar.appendChild(acts); right.prepend(bar);
     }
     const cur = window.__WBD && window.__WBD.market;
-    const ST = { denver: ['CO', 'Colorado'], phoenix: ['AZ', 'Arizona'] };
     const top2 = document.createElement('div'); top2.className = 'wbi-railtop';
     const mlab = (id) => `${MARKETS[id]} MSA`;
     top2.innerHTML = `<div class="wbi-mktdd">
@@ -283,7 +285,7 @@
         </button>
         <div class="wbi-mktdd-menu" role="listbox" aria-label="Market" hidden>
           ${Object.keys(MARKETS).map((id) => `<button type="button" role="option" data-m="${id}" aria-selected="${id === cur}" class="${id === cur ? 'on' : ''}">
-            <span class="nm">${mlab(id)}</span><span class="st">${ST[id] ? ST[id][1] : ''}</span>
+            <span class="nm">${mlab(id)}</span><span class="st">${String(stateName(id)).replace(/[&<>"]/g, "")}</span>
             <svg class="ck" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`).join('')}
         </div>
       </div>`;
