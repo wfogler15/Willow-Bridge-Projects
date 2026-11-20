@@ -38,12 +38,19 @@
     const { data: mlist, error: mErr } = await sb.schema('core').from('markets').select('id,label,title,active:config->active').order('id');
     if (mErr) throw mErr;
     const markets = (mlist || []).filter((m) => m.active === true);
-    // on the list, but their market hasn't been uploaded yet (e.g. a new region's analyst): start at the upload page
-    if (!markets.length) { location.replace('upload.html'); return; }
+    // a market they edit hasn't been uploaded yet (e.g. a new region's analyst): start at the upload page (once per visit)
+    const acc = WB.access || [];
+    const isAdm = acc.some((a) => a.market_id === '*' && a.role === 'admin');
+    const pendingMine = acc.filter((a) => a.market_id !== '*' && a.role !== 'view' && !markets.some((m) => m.id === a.market_id));
+    if (!markets.length || (!isAdm && pendingMine.length && !sessionStorage.getItem('wb_upload_prompted'))) {
+      try { sessionStorage.setItem('wb_upload_prompted', '1'); } catch (e) {}
+      location.replace('upload.html'); return;
+    }
+    const myEdit = acc.find((a) => a.market_id !== '*' && a.role !== 'view' && markets.some((m) => m.id === a.market_id));
     MARKETS = Object.fromEntries(markets.map((m) => [m.id, (m.label || m.id).split(',')[0]]));
     const q = new URLSearchParams(location.search);
     const shared = WB.getMarket();
-    let market = q.get('market') || 'denver';   // Demo: the URL decides (keeps the per-market storage namespace in step)
+    let market = q.get('market') || (myEdit && myEdit.market_id) || 'denver';   // regional people open on the market they edit   // Demo: the URL decides (keeps the per-market storage namespace in step)
     if (!MARKETS[market]) market = markets.length ? markets.find((m) => m.id === 'denver')?.id || markets[0].id : 'denver';
     localStorage.setItem('market', market);
     WB.showMarket(market);
