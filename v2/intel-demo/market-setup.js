@@ -6,39 +6,51 @@
   'use strict';
 
   // ---------- product type ----------
-  // Willow Bridge standard (Will, Nov 2026):
-  //   Garden     5–45 units/acre, up to 4 stories (5 on occasion: surface parked), plus townhome / single-family / BTR
-  //   Mid-Rise   46–115 units/acre, up to 10 stories (at 5 stories or fewer it needs structured parking, which the density implies)
-  //   High-Rise  116+ units/acre, 11+ stories
-  const DEFAULT_RULES = { gardenMaxDensity: 45, midMaxStories: 10, borderline: 5, minPlausibleDensity: 5 };
+  // Willow Bridge standard (Will's table, Nov 2026). Density = units ÷ acres.
+  //   Garden     5–45 units/acre, height cap 4 stories (5 on occasion, surface parked); also townhome / single-family / BTR
+  //   Mid-Rise   46–115 units/acre, height cap 10 stories (at 5 stories or fewer the density implies structured parking)
+  //   High-Rise  116+ units/acre, above the Mid-Rise cap
+  const DEFAULT_RULES = { garden: { lo: 5, hi: 45, cap: 4 }, mid: { lo: 46, hi: 115, cap: 10 }, high: { lo: 116, hi: 1000 }, borderline: 3 };
+  function normRules(r) {
+    const R = JSON.parse(JSON.stringify(DEFAULT_RULES));
+    if (!r) return R;
+    if (r.gardenMaxDensity != null) R.garden.hi = +r.gardenMaxDensity;   // older saved shape
+    if (r.midMaxStories != null) R.mid.cap = +r.midMaxStories;
+    for (const k of ['garden', 'mid', 'high']) if (r[k]) Object.assign(R[k], r[k]);
+    if (r.borderline != null) R.borderline = +r.borderline;
+    return R;
+  }
 
   const num = (v) => (v == null || v === '' || isNaN(+v) ? null : +v);
   function density(p) { const u = num(p.units), a = num(p.acres); return u && a && a > 0 ? u / a : null; }
 
-  /** → { type, density, flag (string|null), why } */
+  /** → { type, density, flag (string|null), why }. Flags only cases where the answer could go either way:
+      a flag that can't change the type (e.g. a very dense 4-story is Mid-Rise whatever its acreage) is left out. */
   function classify(p, rules) {
-    const R = Object.assign({}, DEFAULT_RULES, rules || {});
+    const R = normRules(rules);
     const st = num(p.stories), d = density(p), style = (p.style || '').toLowerCase();
-    const dTxt = d == null ? 'no acreage' : `${Math.round(d)} units/ac`;
-    const sTxt = st == null ? 'no story count' : `${st} ${st === 1 ? 'story' : 'stories'}`;
-    const why = `${sTxt}, ${dTxt}`;
-    if (/town|single-family|single family|build-to-rent|btr/.test(style)) return { type: 'Garden', density: d, flag: null, why: `${p.style}` };
-    if (st == null && d == null) return { type: p.style || 'Garden', density: d, flag: 'No story count or acreage: kept CoStar\'s style', why };
-    if (st != null && st > R.midMaxStories) {
-      return { type: 'High-Rise', density: d, flag: d != null && d <= R.gardenMaxDensity ? `${st} stories but only ${Math.round(d)} units/ac: check the acreage` : null, why };
+    const D = d == null ? null : Math.round(d);
+    const why = `${st == null ? 'stories unknown' : st + (st === 1 ? ' story' : ' stories')}, ${D == null ? 'no acreage' : D + ' units/ac'}`;
+    const res = (type, flag, w) => ({ type, density: d, flag: flag || null, why: w || why });
+    if (/town|single-family|single family|build-to-rent|btr/.test(style)) return res('Garden', null, p.style);
+
+    // data that can't be right: flag, but still give the best answer
+    if (d != null && d < R.garden.lo && (st == null || st <= 5)) return res('Garden', `Only ${d.toFixed(1)} units/ac: the acreage is probably wrong, and the real density decides Garden vs Mid-Rise`);
+
+    // height decides above the Garden range
+    if (st != null && st > R.mid.cap) return res('High-Rise');
+    if (st != null && st > 5) return res('Mid-Rise');
+
+    // 5 stories or fewer: density decides (Mid-Rise density at this height means a wrap or podium)
+    if (d == null) {
+      if (st == null) return res(p.style || 'Garden', 'No stories or acreage: kept CoStar\'s style');
+      if (st <= 3) return res('Garden', null, `${st} stories, no acreage`);
+      return res(st <= R.garden.cap ? 'Garden' : 'Mid-Rise', `${st} stories with no acreage: Garden or wrap can't be told apart`);
     }
-    if (st != null && st > 5) {
-      return { type: 'Mid-Rise', density: d, flag: d != null && d <= R.gardenMaxDensity ? `${st} stories but only ${Math.round(d)} units/ac: check the acreage` : null, why };
-    }
-    // 5 stories or fewer (or stories unknown): density decides
-    if (d == null) return { type: st != null && st <= 4 ? 'Garden' : 'Mid-Rise', density: d, flag: 'No acreage: decided on stories alone', why };
-    let type = d <= R.gardenMaxDensity ? 'Garden' : 'Mid-Rise', flag = null;
-    if (d < R.minPlausibleDensity) flag = `Only ${d.toFixed(1)} units/ac: the acreage may be wrong`;
-    else if (Math.abs(d - R.gardenMaxDensity) <= R.borderline) flag = `${Math.round(d)} units/ac is right at the Garden / Mid-Rise line`;
-    else if (st === 5 && type === 'Garden') flag = '5-story at Garden density (surface parked is rare): confirm';
-    else if (st == null) flag = 'No story count: decided on density alone';
-    else if (d > 175 && st <= 5) flag = `${Math.round(d)} units/ac at ${st} stories is unusually dense: check the acreage`;
-    return { type, density: d, flag, why };
+    const type = d <= R.garden.hi ? 'Garden' : 'Mid-Rise';
+    if (Math.abs(d - (R.garden.hi + 0.5)) <= R.borderline + 0.5) return res(type, `${D} units/ac is right at the Garden / Mid-Rise line`);
+    if (st === 5 && type === 'Garden') return res(type, '5 stories at Garden density (surface parked is rare): confirm');
+    return res(type, null);
   }
 
   // ---------- submarkets ----------
@@ -145,6 +157,6 @@
     return Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
   }
 
-  const api = { DEFAULT_RULES, classify, density, assignSubmarkets, inheritSubmarket, parseName };
+  const api = { DEFAULT_RULES, normRules, classify, density, assignSubmarkets, inheritSubmarket, parseName };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.WBSetup = api;
 })(typeof window !== 'undefined' ? window : globalThis);
