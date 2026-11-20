@@ -91,6 +91,8 @@
     // physical evidence is thin: let rent break the tie (it's what the YOC comps care about)
     if (Math.abs(score) < 0.5 && !(g >= 2 && m >= 2) && p.rentHint) return res(p.rentHint.side === 'G' ? 'Garden' : 'Mid-Rise', null, `${w2}; ${p.rentHint.txt}`);
     if (badAcres && Math.abs(score) < 1) return res(type, `Only ${d.toFixed(1)} units/ac: the acreage is probably wrong, and nothing else settles it`, w2);
+    // a 4-over-1 podium hides its garage under the courtyard, so the land math reads it as surface parked
+    if (type === 'Garden' && st === 5 && d != null && d > R.garden.hi && !/RealPage/.test(G.join())) return res(type, `5 stories at ${D} units/ac: surface parking fits on paper, but this could be 4 floors over a podium garage`, w2);
     if (g >= 2 && m >= 2) return res(type, `Evidence disagrees: ${M.join(', ')} vs ${G.join(', ')}`, w2);
     if (Math.abs(score) < 0.5 || g + m < 1) return res(type, d != null && Math.abs(d - (R.garden.hi + 0.5)) <= R.borderline + 0.5 ? `${D} units/ac is right at the Garden / Mid-Rise line, and nothing else settles it` : 'Not enough to call it: confirm', w2);
     return res(type, null, w2);
