@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Upload market data · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611201212">
+<link rel="stylesheet" href="shared/wb.css?v=202611201220">
 <style>
   .page{max-width:1100px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -33,17 +33,32 @@
   #log{font:12px/1.6 ui-monospace,Consolas,monospace;color:var(--ink-2);white-space:pre-wrap;margin-top:12px}
   .warn{color:#8A5A00;margin:6px 0}
   .acts{display:flex;gap:10px;margin-top:14px;align-items:center}
+  #welcome{margin-bottom:8px}
+  .wsteps{margin:0 0 18px;padding-left:20px;max-width:820px;line-height:1.6;color:var(--ink-2)}
+  .wsteps li{margin:0 0 6px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="shared/wb.js?v=202611201212"></script>
-<script src="market-upload.js?v=202611201212"></script>
+<script src="shared/wb.js?v=202611201220"></script>
+<script src="market-upload.js?v=202611201220"></script>
 </head>
 <body>
 <main class="page">
   <p><a class="link" id="back" href="./">← Back to Market Intel</a></p>
+  <section id="welcome" hidden>
+    <h1 class="t">Welcome to Willow Bridge Market Intel</h1>
+    <p class="lead">Your market, <b id="wMkt"></b>, isn't loaded yet. Load it once and the dashboard opens on it from then on.</p>
+    <ol class="wsteps">
+      <li><b>Pull four exports</b> from CoStar and RealPage: CoStar properties, CoStar sale comps, RealPage monthly property time series, RealPage annual market performance. <a class="link" href="docs/market-data-pull-manual.pdf" target="_blank" rel="noopener">How to pull them (PDF)</a></li>
+      <li><b>Drop all four below.</b> They're recognised automatically; split CoStar exports are fine.</li>
+      <li><b>Check, then Load.</b> You'll see what will be added before anything is written.</li>
+    </ol>
+    <p class="lead">After that you can view every market, and change only yours.</p>
+  </section>
+  <div id="plainHead">
   <h1 class="t">Upload market data</h1>
   <p class="lead">Drop the CoStar and RealPage exports for one market. Nothing is written until you review the check and press Load.</p>
+  </div>
 
   <section class="step">
     <h2><b>1</b>Market</h2>
@@ -104,6 +119,9 @@
     const v = $('#mkt').value; $('#newFields').hidden = !isNew();
     const fixed = v.startsWith('__new:') ? v.slice(6) : null;   // a granted market: its id is set by the grant
     $('#nmId').readOnly = !!fixed; if (fixed) { $('#nmId').value = fixed; if (!$('#nmLabel').value) $('#nmLabel').value = pretty(fixed); }
+    // first time in for a market that isn't loaded yet: a short welcome in place of the plain header
+    const welcome = !!fixed && !isAdmin; $('#welcome').hidden = !welcome; $('#plainHead').hidden = welcome;
+    if (welcome) { $('#wMkt').textContent = pretty(fixed); $('#back').hidden = !markets.length; }
     invalidate();
   };
   $('#mkt').onchange = syncNew;

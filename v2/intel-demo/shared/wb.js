@@ -52,7 +52,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202611201212');
+    add(ROOT + 'shared/wb-chrome.css?v=202611201220');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
@@ -177,8 +177,8 @@
       el.innerHTML = `
         <div class="card">
           <img src="${ROOT}shared/wb-mark.png" alt="">
-          <h1>Willow Bridge Canopy</h1>
-          <p>Sign in with your Willow Bridge email and password, or leave the password blank to get a code by email.</p>
+          <h1>Willow Bridge Market Intel</h1>
+          <p>Sign in with your Willow Bridge email. Leave the password blank and we'll email you a code.</p>
           <form id="wb-f1">
             <input class="input" type="email" name="email" required placeholder="you@willowbridgepc.com" autocomplete="email">
             <input class="input" type="password" name="password" placeholder="Password (leave blank to get an emailed code)" autocomplete="current-password">
