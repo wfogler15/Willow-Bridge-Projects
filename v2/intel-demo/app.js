@@ -15742,6 +15742,9 @@ function renderSettingsModal() {
           : ''}
       </div>
 
+      <div class="detail-section-title">People and access</div>
+      <div id="wb-access" style="margin-bottom:22px;"></div>
+
       <div class="detail-section-title">Sync</div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
         <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${syncState.enabled ? (syncState.status === 'error' ? 'var(--negative)' : (syncState.status === 'syncing' ? 'var(--warn)' : 'var(--positive)')) : 'var(--ink-4)'};"></span>
@@ -15754,6 +15757,7 @@ function renderSettingsModal() {
 
     </div>
   `;
+  if (window.wbRenderAccess) window.wbRenderAccess();   // People and access (access.js)
 }
 function openSettingsModal() {
   modalState.settingsOpen = true;
