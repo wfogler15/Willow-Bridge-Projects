@@ -228,6 +228,36 @@
     return Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
   }
 
-  const api = { DEFAULT_RULES, normRules, classify, classifyAll, density, far, surfaceFit, assignSubmarkets, inheritSubmarket, parseName };
+  /** One row per CoStar submarket with a suggested Willow Bridge submarket, from the property-level matches.
+      → [{ cs, ids: [prop ids], cities: [[city, n]], guess, sure (bool), why }] */
+  function crosswalk(props, names, res, saved) {
+    const list = new Set(names), by = new Map();
+    for (const p of props) { const k = p.costar_submarket || '(none)'; if (!by.has(k)) by.set(k, []); by.get(k).push(p); }
+    const out = [];
+    for (const [cs, ps] of by) {
+      const cities = Object.entries(ps.reduce((t, p) => { if (p.city) t[p.city] = (t[p.city] || 0) + 1; return t; }, {})).sort((a, b) => b[1] - a[1]);
+      const tally = (f) => { const t = {}; ps.forEach((p) => { const r = res.get(p.id); if (r && f(r) && list.has(r.submarket)) t[r.submarket] = (t[r.submarket] || 0) + 1; }); return Object.entries(t).sort((a, b) => b[1] - a[1]); };
+      const sure = tally((r) => r.confidence === 'exact' || r.confidence === 'high'), any = tally((r) => r.confidence !== 'none');
+      const nSure = sure.reduce((t, x) => t + x[1], 0);
+      let row = { cs, ids: ps.map((p) => p.id), cities, guess: '', sure: false, why: 'No match: choose one, or mark it as split' };
+      if (saved && saved[cs] && (list.has(saved[cs]) || saved[cs] === SPLIT)) row = Object.assign(row, { guess: saved[cs], sure: true, why: 'Saved before' });
+      else if (list.has(cs)) row = Object.assign(row, { guess: cs, sure: true, why: 'Same name as CoStar\'s' });
+      else if (tokenTwin(cs, names)) row = Object.assign(row, { guess: tokenTwin(cs, names), sure: true, why: 'Same words as CoStar\'s name' });
+      else if (sure.length && nSure >= Math.max(3, ps.length * 0.3) && sure[0][1] / nSure >= 0.8) row = Object.assign(row, { guess: sure[0][0], sure: true, why: `${sure[0][1]} of the ${nSure} properties matched by name or city are in ${sure[0][0]}` });
+      else if (sure.length > 1 && nSure >= Math.max(3, ps.length * 0.3) && sure[1][1] >= 2) row = Object.assign(row, { guess: SPLIT, why: `Matched properties fall in ${sure.slice(0, 3).map((x) => `${x[0]} (${x[1]})`).join(', ')}: probably splits` });
+      else if (sure.length) row = Object.assign(row, { guess: sure[0][0], why: `Suggestion: only ${nSure} of ${ps.length} properties matched, ${sure[0][1]} in ${sure[0][0]}` });
+      else if (any.length) row = Object.assign(row, { guess: '', why: `No name or city match. Nearest neighbours lean ${any[0][0]}, but that's a weak guess` });
+      out.push(row);
+    }
+    return out.sort((a, b) => (a.sure - b.sure) || b.ids.length - a.ids.length);
+  }
+  const SPLIT = '__split';
+  /** "North Phoenix" ↔ "Phoenix-North": same words in any order */
+  function tokenTwin(cs, names) {
+    const t = (x) => norm(x).split(' ').filter((w) => w && w !== 'city').sort().join(' '); const k = t(cs);
+    const hit = names.filter((n) => t(n) === k); return hit.length === 1 ? hit[0] : null;
+  }
+
+  const api = { crosswalk, SPLIT, DEFAULT_RULES, normRules, classify, classifyAll, density, far, surfaceFit, assignSubmarkets, inheritSubmarket, parseName };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.WBSetup = api;
 })(typeof window !== 'undefined' ? window : globalThis);

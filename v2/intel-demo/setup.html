@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Set up submarkets and product types · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611201412">
+<link rel="stylesheet" href="shared/wb.css?v=202611201421">
 <style>
   .page{max-width:1240px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -21,6 +21,7 @@
   .rtbl th span{font-weight:400}
   .rtbl td{padding:3px 14px 3px 0}
   .rtbl .input{width:90px}
+  .h3{font-size:15px;font-weight:600;margin:0 0 10px}
   .std{font-size:13px;color:var(--ink-2);line-height:1.6;margin:0 0 14px;max-width:900px}
   .std b{color:var(--ink)}
   .figs{margin:14px 0 12px}
@@ -50,8 +51,8 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="shared/wb.js?v=202611201412"></script>
-<script src="market-setup.js?v=202611201412"></script>
+<script src="shared/wb.js?v=202611201421"></script>
+<script src="market-setup.js?v=202611201421"></script>
 </head>
 <body>
 <main class="page">
@@ -90,20 +91,28 @@
   <section id="tab-sm" hidden>
     <div class="two">
       <div>
-        <p class="std" style="margin-top:0"><b>Your submarket list.</b> One name per line. Names like "Phoenix-Biltmore" (city, then area) or plain city names ("Tempe") match best. Properties the dashboard is sure about are assigned automatically; the rest come back as suggestions for you to confirm.</p>
+        <p class="std" style="margin-top:0"><b>Your submarket list.</b> One name per line, only submarkets inside the area you pulled from CoStar. Next you'll map each CoStar submarket to one of yours; where a CoStar submarket covers two of yours, mark it as split and assign those properties one by one.</p>
         <textarea class="input" id="smList" placeholder="Phoenix-Arcadia&#10;Phoenix-Biltmore&#10;Scottsdale-Old Town&#10;Tempe"></textarea>
         <div id="drop2" tabindex="0" role="button">Or drop an Excel/CSV: a list of names, or a property list with <b>PropertyID</b> and <b>Submarket</b> columns (used as-is)</div>
         <input id="pick2" type="file" accept=".xlsx,.xls,.csv" hidden>
-        <div class="acts"><button class="btn primary" id="bSM">Match properties</button><button class="btn" id="kSM">Keep CoStar's submarkets</button><span class="msg" id="mSM0"></span></div>
+        <div class="acts"><button class="btn primary" id="bSM">Map submarkets</button><button class="btn" id="kSM">Keep CoStar's submarkets</button><span class="msg" id="mSM0"></span></div>
       </div>
       <div><p class="std" style="margin-top:0"><b>In use now</b> <span class="muted" id="curNote"></span></p><div class="cur" id="cur"></div></div>
     </div>
+    <div id="cwOut" hidden style="margin-top:22px">
+      <h3 class="h3">1. Map CoStar's submarkets to yours</h3>
+      <div id="cwFigs"></div>
+      <div class="filters" id="cwFilt"></div>
+      <div class="tblwrap"><table class="tbl" id="cwTbl"></table></div>
+    </div>
     <div id="smOut" hidden style="margin-top:22px">
-      <div id="smFigs"></div>
+      <h3 class="h3">2. Assign properties in split submarkets</h3>
+      <p class="muted" id="smNote" style="font-size:13px;margin:-4px 0 10px"></p>
       <div class="filters" id="smFilt"></div>
       <div class="tblwrap"><table class="tbl" id="smTbl"></table></div>
-      <div class="acts"><select id="bulkSel" class="input"></select><button class="btn" id="bulk">Set checked rows</button><span style="flex:1"></span><button class="btn" id="xSM">Download as Excel</button><button class="btn primary" id="sSM">Save submarkets</button><span class="msg" id="mSM"></span></div>
+      <div class="acts"><select id="bulkSel" class="input"></select><button class="btn" id="bulk">Set checked rows</button></div>
     </div>
+    <div class="acts" id="smSave" hidden><button class="btn" id="xSM">Download as Excel</button><span style="flex:1"></span><span class="msg" id="mSM"></span><button class="btn primary" id="sSM">Save submarkets</button></div>
   </section>
 </main>
 <script>
@@ -256,47 +265,77 @@
   $('#kSM').onclick = async () => {
     const ch = new Map(props.filter((p) => p.wbSub !== p.costar_submarket).map((p) => [p.id, p.costar_submarket]));
     const m = $('#mSM0'); m.className = 'msg';
-    try { await saveAttrs(ch, 'wbSubmarket', (d, t) => { m.textContent = `Saving ${d} of ${t}…`; }); await saveConfig({ wb_submarkets: [...new Set(props.map((p) => p.costar_submarket).filter(Boolean))].sort() }); props.forEach((p) => { p.wbSub = p.costar_submarket; }); m.className = 'msg ok'; m.textContent = 'Using CoStar\'s submarkets.'; loadMarket(); }
+    try { await saveAttrs(ch, 'wbSubmarket', (d, t) => { m.textContent = `Saving ${d} of ${t}…`; }); const subs = [...new Set(props.map((p) => p.costar_submarket).filter(Boolean))].sort(); await saveConfig({ wb_submarkets: subs, submarket_map: Object.fromEntries(subs.map((x) => [x, x])) }); props.forEach((p) => { p.wbSub = p.costar_submarket; }); m.className = 'msg ok'; m.textContent = 'Using CoStar\'s submarkets.'; loadMarket(); }
     catch (e) { m.className = 'msg bad'; m.textContent = e.message; }
   };
+  let CW = [], cwFilter = 'review';
+  const lite = () => props.map((p) => ({ id: p.id, costar_id: p.costar_id, name: p.name, address: p.address, city: p.city, lat: p.lat, lng: p.lng, costar_submarket: p.costar_submarket, current: p.wbSub }));
   $('#bSM').onclick = () => {
     names = [...new Set($('#smList').value.split('\n').map((s) => s.trim()).filter(Boolean))];
     if (names.length < 2) { $('#mSM0').className = 'msg bad'; $('#mSM0').textContent = 'Add at least two submarket names.'; return; }
-    const res = S.assignSubmarkets(props.map((p) => ({ id: p.id, costar_id: p.costar_id, name: p.name, address: p.address, city: p.city, lat: p.lat, lng: p.lng, costar_submarket: p.costar_submarket, current: p.wbSub })), names, exact);
-    SM = props.map((p) => { const r = res.get(p.id); return { p, r, pick: r.submarket, checked: false }; });
-    // a suggestion that isn't on the list (kept from before) is still pickable
-    smFilter = SM.some((x) => x.r.confidence === 'low' || x.r.confidence === 'none') ? 'review' : 'all'; renderSM();
+    const L = lite(), res = S.assignSubmarkets(L, names, exact);
+    CW = S.crosswalk(L, names, res, (M.config || {}).submarket_map).map((r) => Object.assign(r, { pick: r.guess }));
+    SM = props.map((p) => { const r = res.get(p.id); const ok = names.includes(r.submarket); return { p, r: ok ? r : { submarket: '', confidence: 'none', why: 'No match' }, pick: ok ? r.submarket : '', checked: false }; });
+    // a property list (PropertyID + Submarket) is exact: those properties keep their listed submarket even inside a mapped CoStar submarket
+    cwFilter = CW.some((r) => !r.sure) ? 'review' : 'all'; render();
   };
+  const SPLIT = S.SPLIT;
+  const splitIds = () => new Set(CW.filter((r) => r.pick === SPLIT).flatMap((r) => r.ids));
+  function finalPick(x, split) {
+    if (exact && exact.has(String(x.p.costar_id))) return exact.get(String(x.p.costar_id));
+    const row = CW.find((r) => r.cs === (x.p.costar_submarket || '(none)'));
+    if (row && row.pick && row.pick !== SPLIT) return row.pick;
+    if (split.has(x.p.id)) return x.pick || x.p.wbSub;
+    return x.p.wbSub;   // CoStar submarket not mapped yet: keep what it has
+  }
+  function render() { renderCW(); renderSM(); $('#smSave').hidden = false; }
+  function renderCW() {
+    const need = CW.filter((r) => !r.sure), split = CW.filter((r) => r.pick === SPLIT), open = CW.filter((r) => !r.pick);
+    const nProps = (a) => a.reduce((t, r) => t + r.ids.length, 0);
+    $('#cwFigs').innerHTML = `<div class="figs"><div class="fig"><div class="v">${n(CW.length - need.length)}</div><div class="l">Mapped confidently</div></div><div class="fig"><div class="v">${n(need.length)}</div><div class="l">Need your call</div></div><div class="fig"><div class="v">${n(split.length)}</div><div class="l">Split (${n(nProps(split))} properties)</div></div><div class="fig"><div class="v">${n(open.length)}</div><div class="l">Not chosen yet</div></div></div>`;
+    const F = { review: ['Need your call', need], all: ['All', CW] };
+    $('#cwFilt').innerHTML = Object.entries(F).map(([k, [l, a]]) => `<button data-f="${k}" class="${k === cwFilter ? 'on' : ''}">${l} (${a.length})</button>`).join('');
+    $$('#cwFilt button').forEach((b) => (b.onclick = () => { cwFilter = b.dataset.f; renderCW(); }));
+    const opts = [...names].sort();
+    $('#cwTbl').innerHTML = `<thead><tr><th>CoStar submarket</th><th>Properties</th><th>Cities</th><th>Willow Bridge</th><th>Why</th></tr></thead><tbody>${F[cwFilter][1].map((r) => `<tr>
+      <td class="nm">${esc(r.cs)}</td><td>${n(r.ids.length)}</td><td class="muted">${esc(r.cities.slice(0, 3).map(([c, k]) => `${c} ${k}`).join(', '))}</td>
+      <td><select data-cs="${esc(r.cs)}"><option value=""${!r.pick ? ' selected' : ''}>Choose…</option>${opts.map((o) => `<option${o === r.pick ? ' selected' : ''}>${esc(o)}</option>`).join('')}<option value="${SPLIT}"${r.pick === SPLIT ? ' selected' : ''}>Splits: assign by property</option></select></td>
+      <td class="why">${r.sure ? '<span class="tag h">Sure</span> ' : r.why === 'Set by hand' ? '' : '<span class="tag r">Check</span> '}${esc(r.why)}</td></tr>`).join('')}</tbody>`;
+    $$('#cwTbl select').forEach((s) => (s.onchange = () => { const r = CW.find((x) => x.cs === s.dataset.cs); r.pick = s.value; r.why = 'Set by hand'; renderCW(); renderSM(); }));
+    $('#cwOut').hidden = false;
+  }
   function renderSM() {
-    const opts = [...new Set([...names, ...SM.map((x) => x.pick)])].filter(Boolean).sort();
-    const rev = SM.filter((x) => x.r.confidence === 'low' || x.r.confidence === 'none');
-    const sure = SM.filter((x) => x.r.confidence === 'high' || x.r.confidence === 'exact');
-    const chg = SM.filter((x) => x.pick !== x.p.wbSub);
-    $('#smFigs').innerHTML = `<div class="figs"><div class="fig"><div class="v">${n(sure.length)}</div><div class="l">Matched confidently</div></div><div class="fig"><div class="v">${n(rev.length)}</div><div class="l">Need your call</div></div><div class="fig"><div class="v">${n(chg.length)}</div><div class="l">Different from now</div></div><div class="fig"><div class="v">${n(opts.length)}</div><div class="l">Submarkets</div></div></div>`;
-    const F = { review: ['Need your call', rev], changed: ['Different from now', chg], all: ['All', SM] };
-    $('#smFilt').innerHTML = Object.entries(F).map(([k, [l, a]]) => `<button data-f="${k}" class="${k === smFilter ? 'on' : ''}">${l} (${a.length})</button>`).join('') + '<span class="sp"></span><span class="muted" style="font-size:12px">Sorted by CoStar submarket so neighbours sit together</span>';
-    $$('#smFilt button').forEach((b) => (b.onclick = () => { smFilter = b.dataset.f; renderSM(); }));
-    const rows = F[smFilter][1].slice().sort((a, b) => (a.p.costar_submarket || '').localeCompare(b.p.costar_submarket || '') || (a.p.name || '').localeCompare(b.p.name || ''));
-    $('#smTbl').innerHTML = `<thead><tr><th><input type="checkbox" id="all" aria-label="Check all shown"></th><th>Property</th><th>Address</th><th>City</th><th>CoStar submarket</th><th>Now</th><th>Willow Bridge</th><th>Why</th></tr></thead><tbody>${rows.map((x) => `<tr class="${x.pick !== x.p.wbSub ? 'chg' : ''}">
+    const ids = splitIds(); const rows = SM.filter((x) => ids.has(x.p.id)).sort((a, b) => (a.p.costar_submarket || '').localeCompare(b.p.costar_submarket || '') || (a.p.name || '').localeCompare(b.p.name || ''));
+    $('#smOut').hidden = !rows.length; if (!rows.length) return;
+    const opts = [...names].sort(), blank = rows.filter((x) => !x.pick).length;
+    $('#smNote').textContent = `${rows.length} properties in ${CW.filter((r) => r.pick === SPLIT).length} split CoStar submarkets. Suggestions come from names, cities and nearest neighbours${blank ? `; ${blank} have none yet` : ''}. Check rows and use "Set checked rows" for groups.`;
+    $('#smTbl').innerHTML = `<thead><tr><th><input type="checkbox" id="all" aria-label="Check all shown"></th><th>Property</th><th>Address</th><th>City</th><th>CoStar submarket</th><th>Now</th><th>Willow Bridge</th><th>Why</th></tr></thead><tbody>${rows.map((x) => `<tr>
       <td><input type="checkbox" data-c="${x.p.id}"${x.checked ? ' checked' : ''}></td><td class="nm">${esc(x.p.name)}</td><td>${esc(x.p.address)}</td><td>${esc(x.p.city)}</td><td>${esc(x.p.costar_submarket)}</td><td>${esc(x.p.wbSub)}</td>
-      <td><select data-id="${x.p.id}">${opts.map((o) => `<option${o === x.pick ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></td>
-      <td class="why">${x.r.confidence === 'high' || x.r.confidence === 'exact' ? '<span class="tag h">Sure</span> ' : x.r.why === 'Set by hand' ? '' : '<span class="tag r">Check</span> '}${esc(x.r.why)}</td></tr>`).join('')}</tbody>`;
+      <td><select data-id="${x.p.id}"><option value=""${!x.pick ? ' selected' : ''}>Choose…</option>${opts.map((o) => `<option${o === x.pick ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select></td>
+      <td class="why">${x.r.why === 'Set by hand' ? '' : x.r.confidence === 'high' || x.r.confidence === 'exact' ? '<span class="tag h">Sure</span> ' : '<span class="tag r">Check</span> '}${esc(x.r.why)}</td></tr>`).join('')}</tbody>`;
     $$('#smTbl select').forEach((s) => (s.onchange = () => { const x = SM.find((y) => y.p.id === s.dataset.id); x.pick = s.value; x.r = { submarket: s.value, confidence: 'exact', why: 'Set by hand' }; }));
     $$('#smTbl [data-c]').forEach((c) => (c.onchange = () => { SM.find((y) => y.p.id === c.dataset.c).checked = c.checked; }));
     $('#all').onchange = (e) => { rows.forEach((x) => { x.checked = e.target.checked; }); renderSM(); };
     $('#bulkSel').innerHTML = opts.map((o) => `<option>${esc(o)}</option>`).join('');
-    $('#smOut').hidden = false;
   }
   $('#bulk').onclick = () => { const v = $('#bulkSel').value; let k = 0; SM.forEach((x) => { if (x.checked) { x.pick = v; x.r = { submarket: v, confidence: 'exact', why: 'Set by hand' }; x.checked = false; k++; } }); renderSM(); $('#mSM').className = 'msg'; $('#mSM').textContent = k ? `${k} set to ${v}` : 'Check some rows first'; };
-  $('#xSM').onclick = () => xlsx(SM.map((x) => ({ PropertyID: x.p.costar_id, Property: x.p.name, Address: x.p.address, City: x.p.city, 'CoStar submarket': x.p.costar_submarket, Now: x.p.wbSub, Submarket: x.pick, Confidence: x.r.confidence, Why: x.r.why })), `${M.id}_submarkets.xlsx`);
+  $('#xSM').onclick = () => {
+    const sp = splitIds(); const ws1 = XLSX.utils.json_to_sheet(CW.map((r) => ({ 'CoStar submarket': r.cs, Properties: r.ids.length, Cities: r.cities.map(([c, k]) => `${c} ${k}`).join(', '), 'Willow Bridge': r.pick === SPLIT ? 'Splits' : r.pick, Why: r.why })));
+    const ws2 = XLSX.utils.json_to_sheet(SM.map((x) => ({ PropertyID: x.p.costar_id, Property: x.p.name, Address: x.p.address, City: x.p.city, 'CoStar submarket': x.p.costar_submarket, Now: x.p.wbSub, Submarket: finalPick(x, sp) })));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws1, 'Mapping'); XLSX.utils.book_append_sheet(wb, ws2, 'Properties'); XLSX.writeFile(wb, `${M.id}_submarkets.xlsx`);
+  };
   $('#sSM').onclick = async () => {
-    const ch = new Map(SM.filter((x) => x.pick !== x.p.wbSub).map((x) => [x.p.id, x.pick]));
-    $('#sSM').disabled = true; const m = $('#mSM'); m.className = 'msg';
+    const sp = splitIds(), m = $('#mSM');
+    const open = CW.filter((r) => !r.pick).length, blank = SM.filter((x) => sp.has(x.p.id) && !x.pick).length;
+    const ch = new Map(); SM.forEach((x) => { const v = finalPick(x, sp); if (v && v !== x.p.wbSub) ch.set(x.p.id, v); });
+    $('#sSM').disabled = true; m.className = 'msg';
     try {
       await saveAttrs(ch, 'wbSubmarket', (d, t) => { m.textContent = `Saving ${d} of ${t}…`; });
-      await saveConfig({ wb_submarkets: [...new Set(SM.map((x) => x.pick).filter(Boolean))].sort() });
-      SM.forEach((x) => { x.p.wbSub = x.pick; });
-      m.className = 'msg ok'; m.textContent = `Saved ${ch.size} submarkets. The dashboard uses them next time it loads.`; renderSM();
+      SM.forEach((x) => { if (ch.has(x.p.id)) x.p.wbSub = ch.get(x.p.id); });
+      const map = {}; CW.forEach((r) => { if (r.pick) map[r.cs] = r.pick; });
+      await saveConfig({ wb_submarkets: [...new Set(props.map((p) => p.wbSub).filter(Boolean))].sort(), submarket_map: map });
+      m.className = 'msg ok'; m.textContent = `Saved ${ch.size} submarkets and the mapping.${open ? ` ${open} CoStar submarket${open > 1 ? 's' : ''} not chosen kept their current submarket.` : ''}${blank ? ` ${blank} split propert${blank > 1 ? 'ies' : 'y'} with no choice kept theirs.` : ''}`;
+      render();
     } catch (e) { m.className = 'msg bad'; m.textContent = 'Stopped: ' + e.message + '. What saved is kept; press Save again to finish.'; }
     $('#sSM').disabled = false;
   };

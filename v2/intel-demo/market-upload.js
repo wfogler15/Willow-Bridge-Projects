@@ -379,8 +379,10 @@
         const custom = known.filter((k) => k.attrs && k.attrs.wbSubmarket && k.attrs.wbSubmarket !== k.costar_submarket);
         if (S && custom.length) {
           const cl = known.map((k) => ({ lat: k.lat, lng: k.lng, sub: k.attrs && k.attrs.wbSubmarket }));
-          inserts.forEach((r) => { const s = S.inheritSubmarket(r, cl); if (s) r.attrs.wbSubmarket = s; });
-          P.warnings.push(`${inserts.length} new properties were given a Willow Bridge submarket from their nearest neighbours. Check them in Set up submarkets and product types.`);
+          // the saved CoStar → Willow Bridge mapping places them exactly; only CoStar submarkets marked as split (or new ones) fall back to neighbours
+          const map = (mk && mk.config && mk.config.submarket_map) || {}; let byNb = 0;
+          inserts.forEach((r) => { const m = map[r.costar_submarket]; if (m && m !== S.SPLIT) { r.attrs.wbSubmarket = m; return; } const s = S.inheritSubmarket(r, cl); if (s) { r.attrs.wbSubmarket = s; byNb++; } });
+          if (byNb) P.warnings.push(`${byNb} new propert${byNb === 1 ? 'y was' : 'ies were'} given a Willow Bridge submarket from the nearest neighbours (their CoStar submarket splits or is new). Check them in Set up submarkets and product types.`);
         }
       }
       // refresh of an existing market: what changed, hand edits the new data replaces, properties missing from this file
