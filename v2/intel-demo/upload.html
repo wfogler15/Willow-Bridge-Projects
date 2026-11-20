@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Upload market data · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611201302">
+<link rel="stylesheet" href="shared/wb.css?v=202611201318">
 <style>
   .page{max-width:1100px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -33,6 +33,7 @@
   #log{font:12px/1.6 ui-monospace,Consolas,monospace;color:var(--ink-2);white-space:pre-wrap;margin-top:12px}
   .warn{color:#8A5A00;margin:6px 0}
   .acts{display:flex;gap:10px;margin-top:14px;align-items:center}
+  .h3{font:600 15px/1.3 var(--font-display);color:var(--ink);margin:22px 0 6px}
   #welcome{margin-bottom:8px}
   .wb-hero{background:#1D1247;color:#fff;border-radius:14px;padding:34px 38px 32px;margin:6px 0 18px;position:relative;overflow:hidden}
   .wb-hero::after{content:"";position:absolute;right:-60px;top:-80px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(129,104,214,.45),rgba(29,18,71,0) 70%)}
@@ -57,9 +58,9 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="shared/wb.js?v=202611201302"></script>
-<script src="market-setup.js?v=202611201302"></script>
-<script src="market-upload.js?v=202611201302"></script>
+<script src="shared/wb.js?v=202611201318"></script>
+<script src="market-setup.js?v=202611201318"></script>
+<script src="market-upload.js?v=202611201318"></script>
 </head>
 <body>
 <main class="page">
@@ -268,6 +269,25 @@
       if (out.length) h.push(`<details><summary>Left out (${out.length})</summary>${list(out, [['Property', (r) => r.name], ['CoStar id', (r) => r.id], ['Why', (r) => r.reason]])}</details>`);
       if (x.inserts.length) h.push(`<details><summary>New properties (${x.inserts.length})</summary>${list(x.inserts, [['Property', (r) => r.name], ['Address', (r) => r.address], ['City', (r) => r.city], ['Status', (r) => r.status], ['Units', (r) => r.units], ['Built', (r) => r.year_built], ['Submarket', (r) => r.costar_submarket]])}</details>`);
     }
+    if (P.props && P.props.changes) {
+      const c = P.props.changes, nm = (u) => esc((u.patch || u).name);
+      const pctTxt = (x) => (x > 0 ? '+' : '') + (x * 100).toFixed(0) + '%';
+      h.push(`<h3 class="h3">What changed since the last upload</h3><div class="figs"><div class="fig"><div class="v">${n(c.delivered.length)}</div><div class="l">Delivered</div></div><div class="fig"><div class="v">${n(c.started.length)}</div><div class="l">Broke ground</div></div><div class="fig"><div class="v">${n(c.newProps.length)}</div><div class="l">New to the list</div></div><div class="fig"><div class="v">${n(c.rentMoves.length)}</div><div class="l">Asking rent moved 5%+</div></div><div class="fig"><div class="v">${n(c.occMoves.length)}</div><div class="l">Occupancy moved 3+ pts</div></div></div>`);
+      if (c.delivered.length) h.push(`<details><summary>Delivered (${c.delivered.length})</summary>${list(c.delivered, [['Property', (u) => u.patch.name], ['Units', (u) => u.patch.units], ['Built', (u) => u.patch.year_built]])}</details>`);
+      if (c.started.length) h.push(`<details><summary>Broke ground (${c.started.length})</summary>${list(c.started, [['Property', (u) => u.patch.name], ['Units', (u) => u.patch.units], ['Delivery', (u) => u.patch.year_built]])}</details>`);
+      if (c.rentMoves.length) h.push(`<details><summary>Asking rent moved 5%+ (${c.rentMoves.length})</summary>${list(c.rentMoves.sort((a, b) => b.change - a.change), [['Property', (u) => u.patch.name], ['Was $/SF', (u) => (+u.from).toFixed(2)], ['Now $/SF', (u) => (+u.to).toFixed(2)], ['Change', (u) => pctTxt(u.change)]])}</details>`);
+      if (c.occMoves.length) h.push(`<details><summary>Occupancy moved 3+ points (${c.occMoves.length})</summary>${list(c.occMoves, [['Property', (u) => u.patch.name], ['Was', (u) => u.from.toFixed(1) + '%'], ['Now', (u) => u.to.toFixed(1) + '%']])}</details>`);
+    }
+    if (P.props && P.props.overrides && P.props.overrides.length) {
+      const ov = P.props.overrides, rep = ov.filter((o) => o.replaced.length), kept = ov.filter((o) => o.keptOcc);
+      h.push(`<h3 class="h3">Hand edits</h3><p>New data replaces hand edits on <b>${n(rep.length)}</b> properties. Willow Bridge submarket and product type are never replaced.${kept.length ? ` On <b>${n(kept.length)}</b>, your hand-entered occupancy is higher than CoStar's new figure, so yours stays.` : ''}</p>`);
+      h.push(`<details><summary>See them</summary>${list(ov, [['Property', (o) => o.name], ['Replaced by new data', (o) => o.replaced.join(', ') || '—'], ['Kept', (o) => (o.keptOcc ? `Your ${o.keptOcc.mine.toFixed(1)}% occupancy over CoStar's ${o.keptOcc.costar.toFixed(1)}%` : '')]])}</details>`);
+    }
+    if (P.props && P.props.missing && P.props.missing.length) {
+      const ms = P.props.missing;
+      h.push(`<h3 class="h3">On file but not in this upload (${n(ms.length)})</h3><p>These weren't in the file, so they still show last time's numbers. They may have been demolished, converted, or just fallen outside the filters. ${isAdmin ? 'Tick any to remove from the dashboard (they can be restored, and future uploads will skip them). The rest are kept.' : 'They\'re kept. Ask Will if any should be removed.'}</p>`);
+      h.push(`<details${ms.length <= 15 ? ' open' : ''}><summary>The list</summary><div class="tblwrap"><table class="tbl"><thead><tr>${isAdmin ? '<th><input type="checkbox" id="rmAll" aria-label="Tick all"></th>' : ''}<th>Property</th><th>Address</th><th>City</th><th>Status</th><th>Units</th><th>Built</th></tr></thead><tbody>${ms.map((m) => `<tr>${isAdmin ? `<td><input type="checkbox" class="rmChk" value="${esc(m.id)}"></td>` : ''}<td>${esc(m.name)}</td><td>${esc(m.address)}</td><td>${esc(m.city)}</td><td>${esc(m.status)}</td><td>${n(m.units)}</td><td>${esc(m.year_built)}</td></tr>`).join('')}</tbody></table></div></details>`);
+    }
     if (P.rp) h.push(`<p><b>RealPage:</b> ${n(P.rp.props.length)} properties, ${n(P.rp.matched)} matched to a CoStar property, ${n(P.rp.unmatched)} RealPage-only (kept for submarket figures). Data as of ${esc(P.rp.asOf || '?')}.</p>`);
     if (P.trends) h.push(`<p><b>RealPage trends:</b> ${n(P.trends.count)} geographies (${esc(Object.keys(P.trends.geos).join(', '))}).</p>`);
     if (P.sales) {
@@ -275,6 +295,7 @@
       if (P.sales.inserts.length) h.push(`<details><summary>New sale comps (${P.sales.inserts.length})</summary>${list(P.sales.inserts, [['Property', (r) => r.name], ['Date', (r) => r.sale_date], ['Price', (r) => (r.sale_price ? '$' + n(r.sale_price) : '')], ['Units', (r) => r.units], ['Built', (r) => r.year_built], ['Buyer', (r) => r.buyer], ['Portfolio', (r) => (r.portfolio ? 'Yes' : '')]])}</details>`);
     }
     $('#preview').innerHTML = h.join('');
+    const all = document.getElementById('rmAll'); if (all) all.onchange = () => document.querySelectorAll('.rmChk').forEach((c) => { c.checked = all.checked; });
     $('#sPreview').hidden = false; $('#loadMsg').textContent = ''; $('#bLoad').disabled = false;
     $('#sPreview').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -284,9 +305,10 @@
     $('#bLoad').disabled = true; $('#bCheck').disabled = true;
     const log = $('#log'); log.textContent = '';
     const step = (s) => { log.textContent += s + '\n'; };
+    P.removeMissing = [...document.querySelectorAll('.rmChk:checked')].map((c) => c.value);
     try {
       const out = await U.commit(sb, P, { user: user.email, onStep: step, period: U.currentPeriod() });
-      step(`Done: ${out.inserted} new and ${out.updated} updated properties, ${out.rp} RealPage properties, ${out.trends} trend geographies, ${out.sales} sale comps.`);
+      step(`Done: ${out.inserted} new and ${out.updated} updated properties${out.removed ? `, ${out.removed} removed` : ''}, ${out.rp} RealPage properties, ${out.trends} trend geographies, ${out.sales} sale comps.`);
       $('#loadMsg').innerHTML = P.newMarket
         ? `<b>Next: <a class="link" href="setup.html?market=${encodeURIComponent(P.marketId)}">set up submarkets and product types →</a></b> &nbsp; or <a class="link" href="./?market=${encodeURIComponent(P.marketId)}">open ${esc(P.newMarket.label)} in Market Intel</a>`
         : `<a class="link" href="./?market=${encodeURIComponent(P.marketId)}">Open in Market Intel →</a>`;

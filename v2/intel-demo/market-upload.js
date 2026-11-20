@@ -288,6 +288,54 @@
       if (error) throw error; out.push(...data); if (data.length < 1000) break;
     } return out;
   }
+  // ---------- quarterly refresh helpers ----------
+  const pct = (a, b) => (a && b ? (b - a) / a : null);
+  /** What moved since the last upload: deliveries, starts, rent and occupancy moves. */
+  function summarizeChanges(updates, inserts) {
+    const out = { delivered: [], started: [], newProps: inserts.slice(), rentMoves: [], occMoves: [] };
+    for (const u of updates) {
+      const b = u.before || {}, ba = b.attrs || {}, na = u.patch.attrs || {};
+      const was = b.status || '', now = u.patch.status || '';
+      if (/under/i.test(was) && /exist/i.test(now)) out.delivered.push(u);
+      else if (/propos|plan/i.test(was) && /under/i.test(now)) out.started.push(u);
+      const r = pct(ba.avgAskingSF, na.avgAskingSF); if (r != null && Math.abs(r) >= 0.05) out.rentMoves.push(Object.assign({ change: r, from: ba.avgAskingSF, to: na.avgAskingSF }, u));
+      if (ba.vacancy != null && na.vacancy != null && Math.abs(na.vacancy - ba.vacancy) >= 3) out.occMoves.push(Object.assign({ from: 100 - ba.vacancy, to: 100 - na.vacancy }, u));
+    }
+    return out;
+  }
+  // hand edits (market.property_overrides) use the dashboard's field names; this maps a parsed CoStar row onto them
+  function legacyView(r) {
+    return Object.assign({}, r.attrs || {}, { name: r.name, address: r.address, city: r.city, zip: r.zip, units: r.units, yearBuilt: r.year_built, monthBuilt: r.month_built,
+      stories: r.stories, avgUnitSF: r.avg_unit_sf, class: r.class, starRating: r.star_rating, developer: r.developer, owner: r.owner, propertyManager: r.manager, status: r.status });
+  }
+  const KEEP_EDITS = new Set(['submarket', 'style']);   // Willow Bridge taxonomy: never replaced by an upload
+  /** New data replaces hand edits, except taxonomy and a hand-entered occupancy that's higher than CoStar's new one.
+      A hand edit stays where CoStar has no value for that field. → [{ property_id, name, edits (new, or null to clear), replaced: [fields], keptOcc }] */
+  async function planOverrides(sb, updates) {
+    if (!updates.length) return [];
+    const byId = new Map(updates.map((u) => [u.id, u]));
+    const rows = (await Promise.all(chunk([...byId.keys()], 300).map((c) => sb.schema('market').from('property_overrides').select('property_id,edits').in('property_id', c))))
+      .flatMap((r) => { if (r.error) throw r.error; return r.data; });
+    const out = [];
+    for (const o of rows) {
+      const u = byId.get(o.property_id); if (!u || !o.edits) continue;
+      const fresh = legacyView(Object.assign({}, u.patch, { costar_id: u.costar_id }));
+      const next = {}, replaced = []; let keptOcc = null;
+      for (const [k, v] of Object.entries(o.edits)) {
+        if (k.startsWith('_')) { next[k] = v; continue; }
+        if (KEEP_EDITS.has(k)) { next[k] = v; continue; }
+        const nv = fresh[k];
+        if (nv == null || nv === '') { next[k] = v; continue; }   // CoStar has nothing for it: keep the hand value
+        if (k === 'vacancy' && v != null && +v < +nv) { next[k] = v; keptOcc = { mine: 100 - v, costar: 100 - nv }; continue; }
+        replaced.push(k);
+      }
+      if (!replaced.length) { if (keptOcc) out.push({ property_id: o.property_id, name: u.patch.name, edits: null, keep: true, replaced, keptOcc }); continue; }
+      const left = Object.keys(next).filter((k) => !k.startsWith('_'));
+      out.push({ property_id: o.property_id, name: u.patch.name, edits: left.length ? next : null, replaced, keptOcc });
+    }
+    return out;
+  }
+
   /** Compare parsed files with the database. Reads only. → plan (shown as the preview, then passed to commit). */
   async function plan(sb, { marketId, newMarket, parsed, asOf }) {
     const P = { asOf: asOf || null, marketId, newMarket: newMarket || null, props: null, rp: null, trends: null, sales: null, warnings: [] };
@@ -296,7 +344,7 @@
     // properties
     if (parsed.costar_props) {
       const [existing, removed] = await Promise.all([
-        ids.length ? Promise.all(chunk(ids, 300).map((c) => sb.schema('core').from('properties').select('id,costar_id,market_id,realpage_id,owner,attrs').in('costar_id', c))).then((rs) => rs.flatMap((r) => { if (r.error) throw r.error; return r.data; })) : [],
+        ids.length ? Promise.all(chunk(ids, 300).map((c) => sb.schema('core').from('properties').select('id,costar_id,market_id,realpage_id,owner,status,name,attrs').in('costar_id', c))).then((rs) => rs.flatMap((r) => { if (r.error) throw r.error; return r.data; })) : [],
         ids.length ? Promise.all(chunk(ids, 300).map((c) => sb.schema('core').from('properties_removed').select('costar_id').in('costar_id', c))).then((rs) => rs.flatMap((r) => { if (r.error) throw r.error; return r.data; })) : [],
       ]);
       const ex = new Map(existing.map((e) => [e.costar_id, e])); const rem = new Set(removed.map((r) => r.costar_id));
@@ -313,7 +361,7 @@
         const patch = Object.assign({}, r, { attrs });
         if (e.attrs && e.attrs.owner_since) delete patch.owner;
         delete patch.costar_id;
-        updates.push({ id: e.id, costar_id: r.costar_id, patch });
+        updates.push({ id: e.id, costar_id: r.costar_id, patch, before: e });
       }
       let notInFile = 0;
       if (!newMarket) {
@@ -334,7 +382,16 @@
           P.warnings.push(`${inserts.length} new properties were given a Willow Bridge submarket from their nearest neighbours. Check them in Set up submarkets and product types.`);
         }
       }
-      P.props = { inserts, updates, removedSkips, otherMarket, skipped: parsed.costar_props.skipped, notInFile };
+      // refresh of an existing market: what changed, hand edits the new data replaces, properties missing from this file
+      let missing = [], changes = null, overrides = [];
+      if (!newMarket) {
+        const idSet = new Set(ids);
+        const onFile = await all(sb, 'core', 'properties', 'id,costar_id,name,address,city,status,units,year_built', (q) => q.eq('market_id', marketId).eq('source', 'costar'));
+        missing = onFile.filter((x) => !idSet.has(x.costar_id));
+        changes = summarizeChanges(updates, inserts);
+        overrides = await planOverrides(sb, updates);
+      }
+      P.props = { inserts, updates, removedSkips, otherMarket, skipped: parsed.costar_props.skipped, notInFile, missing, changes, overrides };
       if (otherMarket.length) P.warnings.push(`${otherMarket.length} properties already sit in another market (${[...new Set(otherMarket.map((o) => o.market))].join(', ')}); they'll be updated in place, and their market follows their location.`);
     }
     // RealPage
@@ -394,6 +451,25 @@
         chk(await S('core').from('properties').update(Object.assign({}, u.patch, { updated_by: who })).eq('id', u.id));
         idByCostar.set(u.costar_id, u.id); i++; out.updated++;
       }
+    }
+    if (P.props && P.props.overrides && P.props.overrides.length) {
+      onStep('Replacing hand edits with the new data');
+      for (const o of P.props.overrides) {
+        if (o.keep) continue;
+        if (o.edits) chk(await S('market').from('property_overrides').update({ edits: o.edits }).eq('property_id', o.property_id));
+        else chk(await S('market').from('property_overrides').delete().eq('property_id', o.property_id));
+      }
+    }
+    if (P.props && P.removeMissing && P.removeMissing.length) {
+      // same as the cleanups: the row moves to core.properties_removed (restorable) and future uploads skip its CoStar id
+      onStep(`Removing ${P.removeMissing.length} properties that aren't in this upload`);
+      for (const c of chunk(P.removeMissing, 100)) {
+        const full = chk(await S('core').from('properties').select('*').in('id', c));
+        const rows = full.map((r) => { const x = Object.assign({}, r); delete x.geom; x.attrs = Object.assign({}, x.attrs || {}, { _removed: { reason: 'Not in the upload of ' + asOf, by: who, at: new Date().toISOString() } }); return x; });
+        chk(await S('core').from('properties_removed').insert(rows));
+        chk(await S('core').from('properties').delete().in('id', c));
+      }
+      out.removed = P.removeMissing.length;
     }
     if (P.rp) {
       // property ids for the matched CoStar ids (covers properties loaded earlier)
