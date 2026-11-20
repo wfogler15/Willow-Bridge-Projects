@@ -28,6 +28,15 @@
     const rba = num(p.attrs && p.attrs.rba); if (rba) return rba / land;
     const u = num(p.units), sf = num(p.avg_unit_sf); return u && sf ? (u * sf * 1.15) / land : null;   // rentable SF + ~15% common area
   }
+  /** surface stalls that fit on (land − building footprint) per unit: 55% usable, 350 SF per stall incl. aisles */
+  function surfaceFit(p) {
+    const a = p.attrs || {}, fl = num(a.floorSF), u = num(p.units);
+    const land = num(p.land_sf) || (num(p.acres) ? num(p.acres) * 43560 : null); if (!fl || !land || !u) return null;
+    let foot = fl * (num(a.buildings) || 1); if (foot > land) foot = fl;
+    const rba = num(a.rba), st = num(p.stories); if (rba && st) foot = Math.min(foot, (rba / st) * 1.1);   // footprint can't exceed building area ÷ stories
+    if (foot > land) return null;
+    return (land - foot) * 0.55 / 350 / u;
+  }
   function density(p) { const u = num(p.units), a = num(p.acres); return u && a && a > 0 ? u / a : null; }
 
   /** → { type, density, flag (string|null), why }. Flags only cases where the answer could go either way:
@@ -60,12 +69,15 @@
     const badAcres = d != null && d < R.garden.lo;
     if (d != null && !badAcres) {
       const edge = d - (R.garden.hi + 0.5), near = Math.abs(edge) <= R.borderline + 0.5;
-      vote(edge < 0 ? 'G' : 'M', near ? 0.5 : 2, `${D} units/ac`);
+      vote(edge < 0 ? 'G' : 'M', near ? 0.5 : Math.abs(edge) <= 10 ? 1 : 2, `${D} units/ac`);
     }
     const f = far(p);
     if (f != null && !badAcres) { if (f <= 1.1) vote('G', 1, `FAR ${f.toFixed(2)}`); else if (f >= 1.5) vote('M', 1, `FAR ${f.toFixed(2)}`); }
+    // could the cars surface-park on the land left after the building footprint?
+    const fit = M.length && /RealPage/.test(M[0]) ? null : surfaceFit(p);   // RealPage structured parking already answers it (could be underground)
+    if (fit != null && !badAcres) { if (fit >= 0.8) vote('G', 2.5, `room to surface park ${fit.toFixed(1)} cars/unit`); else if (fit <= 0.5) vote('M', 2.5, `room to surface park only ${fit.toFixed(1)} cars/unit`); }
     const el = num(p.attrs && p.attrs.elevators);
-    if (el > 0 && (st == null || st >= 3)) vote('M', 1, `${el} elevator${el > 1 ? 's' : ''}`);
+    if (el > 0 && (st == null || st >= 3)) vote('M', 0.5, `${el} elevator${el > 1 ? 's' : ''}`);
     if (st === 5) vote('M', 0.5, 'Garden is rarely 5 stories');
     const ev = [...M, ...G].join(', ');
     const w2 = `${st == null ? 'stories unknown' : st + ' stories'}${ev ? ': ' + ev : ''}`;
@@ -209,6 +221,6 @@
     return Object.entries(tally).sort((a, b) => b[1] - a[1])[0][0];
   }
 
-  const api = { DEFAULT_RULES, normRules, classify, classifyAll, density, far, assignSubmarkets, inheritSubmarket, parseName };
+  const api = { DEFAULT_RULES, normRules, classify, classifyAll, density, far, surfaceFit, assignSubmarkets, inheritSubmarket, parseName };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.WBSetup = api;
 })(typeof window !== 'undefined' ? window : globalThis);
