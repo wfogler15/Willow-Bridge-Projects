@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Upload market data · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="../shared/wb-mark.png">
-<link rel="stylesheet" href="../shared/wb.css?v=202611201105">
+<link rel="stylesheet" href="../shared/wb.css?v=202611201120">
 <style>
   .page{max-width:1100px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -36,8 +36,8 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202611201105"></script>
-<script src="market-upload.js?v=202611201105"></script>
+<script src="../shared/wb.js?v=202611201120"></script>
+<script src="market-upload.js?v=202611201120"></script>
 </head>
 <body>
 <main class="page">
@@ -85,9 +85,15 @@
   const { data: markets, error: mErr } = await sb.schema('core').from('markets').select('id,label,config').order('label');
   if (mErr) { $('#checkMsg').textContent = mErr.message; return; }
   const q = new URLSearchParams(location.search);
-  $('#mkt').innerHTML = markets.filter((m) => m.config && m.config.active !== false).map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('') + '<option value="__new">New market…</option>';
+  // what this login may upload to: markets it can edit; only admins add markets (enforced in the database too)
+  const { data: acc } = await sb.schema('core').from('market_access').select('market_id,role').eq('email', user.email.toLowerCase());
+  const roles = acc || []; const isAdmin = roles.some((a) => a.market_id === '*' && a.role === 'admin');
+  const canEdit = (id) => roles.some((a) => (a.market_id === '*' || a.market_id === id) && a.role !== 'view');
+  const editable = markets.filter((m) => m.config && m.config.active !== false && canEdit(m.id));
+  if (!editable.length && !isAdmin) { $('.page').innerHTML = '<h1 class="t">Upload market data</h1><p class="lead">Your login can view data but not upload it. Ask Will for edit access to your market.</p>'; return; }
+  $('#mkt').innerHTML = editable.map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('') + (isAdmin ? '<option value="__new">New market…</option>' : '');
   if (q.get('market') && markets.some((m) => m.id === q.get('market'))) $('#mkt').value = q.get('market');
-  if (q.get('new')) $('#mkt').value = '__new';
+  if (q.get('new') && isAdmin) $('#mkt').value = '__new';
   if (q.get('market')) $('#back').href = './?market=' + encodeURIComponent(q.get('market'));
   const syncNew = () => { $('#newFields').hidden = $('#mkt').value !== '__new'; invalidate(); };
   $('#mkt').onchange = syncNew;
