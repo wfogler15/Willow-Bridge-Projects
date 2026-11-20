@@ -10,7 +10,7 @@
   //   Garden     5–45 units/acre, height cap 4 stories (5 on occasion, surface parked); also townhome / single-family / BTR
   //   Mid-Rise   46–115 units/acre, height cap 10 stories (at 5 stories or fewer the density implies structured parking)
   //   High-Rise  116+ units/acre, above the Mid-Rise cap
-  const DEFAULT_RULES = { garden: { lo: 5, hi: 45, cap: 4 }, mid: { lo: 46, hi: 115, cap: 10 }, high: { lo: 116, hi: 1000 }, borderline: 3, reviewMin: 100 };
+  const DEFAULT_RULES = { garden: { lo: 5, hi: 51, cap: 4 }, mid: { lo: 52, hi: 115, cap: 10 }, podiumWatch: 45, high: { lo: 116, hi: 1000 }, borderline: 3, reviewMin: 100 };
   function normRules(r) {
     const R = JSON.parse(JSON.stringify(DEFAULT_RULES));
     if (!r) return R;
@@ -19,6 +19,7 @@
     for (const k of ['garden', 'mid', 'high']) if (r[k]) Object.assign(R[k], r[k]);
     if (r.borderline != null) R.borderline = +r.borderline;
     if (r.reviewMin != null) R.reviewMin = +r.reviewMin;
+    if (r.podiumWatch != null) R.podiumWatch = +r.podiumWatch;
     return R;
   }
 
@@ -31,12 +32,15 @@
   /** surface stalls that fit on (land − building footprint) per unit: 55% usable, 350 SF per stall incl. aisles */
   function surfaceFit(p) {
     const a = p.attrs || {}, fl = num(a.floorSF), u = num(p.units);
-    const land = num(p.land_sf) || (num(p.acres) ? num(p.acres) * 43560 : null); if (!fl || !land || !u) return null;
-    let foot = fl * (num(a.buildings) || 1); if (foot > land) foot = fl;
-    const rba = num(a.rba), st = num(p.stories); if (rba && st) foot = Math.min(foot, (rba / st) * 1.1);   // footprint can't exceed building area ÷ stories
+    const land = num(p.land_sf) || (num(p.acres) ? num(p.acres) * 43560 : null); if (!(fl || num(a.rba)) || !land || !u) return null;
+    // footprint = building area ÷ stories (CoStar's floor plate and building count are often inconsistent); floor plate only as fallback
+    const rba = num(a.rba), st = num(p.stories);
+    let foot = rba && st ? rba / st : fl * (num(a.buildings) || 1); if (foot > land) foot = fl;
     if (foot > land) return null;
     return (land - foot) * 0.55 / 350 / u;
   }
+  /** built in the last 10 years (or under construction): the product that drives the YOC comps, and where low-density podiums show up */
+  function recent(p) { const y = num(p.year_built); return y == null ? !/exist/i.test(p.status || '') : y >= new Date().getFullYear() - 10; }
   function density(p) { const u = num(p.units), a = num(p.acres); return u && a && a > 0 ? u / a : null; }
 
   /** → { type, density, flag (string|null), why }. Flags only cases where the answer could go either way:
@@ -89,11 +93,12 @@
     }
     let type = score > 0 ? 'Mid-Rise' : 'Garden';
     // physical evidence is thin: let rent break the tie (it's what the YOC comps care about)
-    if (Math.abs(score) < 0.5 && !(g >= 2 && m >= 2) && p.rentHint) return res(p.rentHint.side === 'G' ? 'Garden' : 'Mid-Rise', null, `${w2}; ${p.rentHint.txt}`);
+    if (Math.abs(score) < 0.5 && !(g >= 2 && m >= 2 && Math.abs(score) < 1.5) && p.rentHint) return res(p.rentHint.side === 'G' ? 'Garden' : 'Mid-Rise', null, `${w2}; ${p.rentHint.txt}`);
     if (badAcres && Math.abs(score) < 1) return res(type, `Only ${d.toFixed(1)} units/ac: the acreage is probably wrong, and nothing else settles it`, w2);
     // a 4-over-1 podium hides its garage under the courtyard, so the land math reads it as surface parked
-    if (type === 'Garden' && st === 5 && d != null && d > R.garden.hi && !/RealPage/.test(G.join())) return res(type, `5 stories at ${D} units/ac: surface parking fits on paper, but this could be 4 floors over a podium garage`, w2);
-    if (g >= 2 && m >= 2) return res(type, `Evidence disagrees: ${M.join(', ')} vs ${G.join(', ')}`, w2);
+    // 3 and 5 stories (2-over-1, 4-over-1) are the podium heights; 4-story at this density is usually surface parked
+    if (type === 'Garden' && (st === 3 || st === 5) && d != null && d > R.podiumWatch && recent(p) && !/RealPage/.test(G.join())) return res(type, `${st} stories at ${D} units/ac: surface parking fits on paper, but this could be ${st - 1} floor${st > 2 ? 's' : ''} over a podium garage`, w2);
+    if (g >= 2 && m >= 2 && Math.abs(score) < 1.5) return res(type, `Evidence disagrees: ${M.join(', ')} vs ${G.join(', ')}`, w2);
     if (Math.abs(score) < 0.5 || g + m < 1) return res(type, d != null && Math.abs(d - (R.garden.hi + 0.5)) <= R.borderline + 0.5 ? `${D} units/ac is right at the Garden / Mid-Rise line, and nothing else settles it` : 'Not enough to call it: confirm', w2);
     return res(type, null, w2);
   }
