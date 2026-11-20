@@ -185,7 +185,7 @@
         realpage_id: id,
         attrs: { name: str(r['Name']), address: str(r['Address']), city: str(r['City']), lat: num(r['Latitude']), lng: num(r['Longitude']), units: int(r['Total Units']), submarket: str(r['Submarket']) },
         data: clean({ nm: str(r['Name']), la: num(r['Latitude']), ln: num(r['Longitude']), yr: str(r['Year Built']), un: int(r['Total Units']),
-          ow: str(r['Property Owner']), mg: str(r['Management']), st: str(r['Property Style']), sm: str(r['Submarket']),
+          ow: str(r['Property Owner']), mg: str(r['Management']), st: str(r['Property Style']), sm: str(r['Submarket']), pk: str(r['Parking Type']),
           cM: str(r['Asset Class In Market']), cS: str(r['Asset Class In Submarket']) }),
       });
     }
@@ -306,8 +306,10 @@
         const e = ex.get(r.costar_id);
         if (!e) { inserts.push(r); continue; }
         if (e.market_id !== marketId) otherMarket.push({ row: r, market: e.market_id });
-        // keep what the dashboard owns: owner after a recorded sale, attrs we don't map (owner_since, hand notes)
+        // keep what the dashboard owns: owner after a recorded sale, attrs we don't map (owner_since, hand notes),
+        // and the Willow Bridge taxonomy (submarket, product type): a refresh only updates CoStar's own fields
         const attrs = Object.assign({}, e.attrs || {}, r.attrs);
+        for (const k of ['wbSubmarket', 'wbProductType']) { if (e.attrs && e.attrs[k] != null) attrs[k] = e.attrs[k]; else if (k === 'wbProductType') delete attrs[k]; }
         const patch = Object.assign({}, r, { attrs });
         if (e.attrs && e.attrs.owner_since) delete patch.owner;
         delete patch.costar_id;
@@ -317,6 +319,20 @@
       if (!newMarket) {
         const { count } = await sb.schema('core').from('properties').select('id', { count: 'exact', head: true }).eq('market_id', marketId).eq('source', 'costar');
         notInFile = Math.max(0, (count || 0) - updates.length);
+      }
+      // a market already set up: new properties get its product type rules and their neighbours' Willow Bridge submarket
+      if (!newMarket && inserts.length) {
+        const { data: mk } = await sb.schema('core').from('markets').select('config').eq('id', marketId).single();
+        const S = root.WBSetup || (typeof require === 'function' ? require('./market-setup.js') : null);
+        const rules = mk && mk.config && mk.config.product_rules;
+        if (S && rules) inserts.forEach((r) => { r.attrs.wbProductType = S.classify(r, rules).type; });
+        const known = await all(sb, 'core', 'properties', 'lat,lng,costar_submarket,attrs', (q) => q.eq('market_id', marketId).eq('source', 'costar'));
+        const custom = known.filter((k) => k.attrs && k.attrs.wbSubmarket && k.attrs.wbSubmarket !== k.costar_submarket);
+        if (S && custom.length) {
+          const cl = known.map((k) => ({ lat: k.lat, lng: k.lng, sub: k.attrs && k.attrs.wbSubmarket }));
+          inserts.forEach((r) => { const s = S.inheritSubmarket(r, cl); if (s) r.attrs.wbSubmarket = s; });
+          P.warnings.push(`${inserts.length} new properties were given a Willow Bridge submarket from their nearest neighbours. Check them in Set up submarkets and product types.`);
+        }
       }
       P.props = { inserts, updates, removedSkips, otherMarket, skipped: parsed.costar_props.skipped, notInFile };
       if (otherMarket.length) P.warnings.push(`${otherMarket.length} properties already sit in another market (${[...new Set(otherMarket.map((o) => o.market))].join(', ')}); they'll be updated in place, and their market follows their location.`);

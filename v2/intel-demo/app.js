@@ -1479,6 +1479,8 @@ function computeWbProductType(p) {
   if (addrKey && WB_OVERRIDES.productType && WB_OVERRIDES.productType[addrKey]) {
     return WB_OVERRIDES.productType[addrKey];
   }
+  // Priority 1b: the market's Willow Bridge product type, set in Set up submarkets and product types (density + stories)
+  if (p.wbProductType) return p.wbProductType;
   // Priority 2: stories-only heuristic
   const stories = parseInt(p.stories);
   if (!isNaN(stories)) {
@@ -15724,7 +15726,10 @@ function renderSettingsModal() {
       <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
         Load new CoStar and RealPage exports for a market, or add a new market. You review a check before anything is written.
       </div>
-      <button class="modal-btn" style="color:var(--accent-text);background:var(--bg-2);border-color:var(--line);margin-bottom:22px;" onclick="location.href='upload.html?market='+encodeURIComponent(ACTIVE_MARKET)">↑ Upload data</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;">
+        <button class="modal-btn" style="color:var(--accent-text);background:var(--bg-2);border-color:var(--line);" onclick="location.href='upload.html?market='+encodeURIComponent(ACTIVE_MARKET)">↑ Upload data</button>
+        <button class="modal-btn" style="color:var(--accent-text);background:var(--bg-2);border-color:var(--line);" onclick="location.href='setup.html?market='+encodeURIComponent(ACTIVE_MARKET)">Set up submarkets and product types</button>
+      </div>
 
       <div class="detail-section-title">Appearance</div>
       <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
