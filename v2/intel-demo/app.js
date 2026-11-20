@@ -1578,12 +1578,14 @@ function matchesClass(p) {
 function extraFiltersMatch(p) { return typeof window.pxExtraMatch === 'function' ? window.pxExtraMatch(p) : true; }
 // One status for the whole dashboard: Property Index's status reads and writes the left panel's Status.
 // 'Proposed' is the one value only Property Index offers, so it's kept as a flag on top.
+// Property Index opens on Existing only (proposed deals that may never happen shouldn't lead the list).
+// Until someone picks a status, the dashboard-wide 'all' reads as Existing here and nowhere else.
 (function () {
   let proposed = false;
   Object.defineProperty(state, 'propStatus', {
     configurable: true, enumerable: true,
-    get() { return proposed ? 'Proposed' : state.status; },
-    set(v) { if (v === 'Proposed') { proposed = true; } else { proposed = false; state.status = v || 'all'; } }
+    get() { return proposed ? 'Proposed' : (state.status === 'all' && !state.statusChosen ? 'Existing' : state.status); },
+    set(v) { state.statusChosen = true; if (v === 'Proposed') { proposed = true; } else { proposed = false; state.status = v || 'all'; } }
   });
 })();
 // Human-readable label for the active class selection (for facets/exports).
@@ -3044,7 +3046,7 @@ function attachFilterEvents() {
     c.addEventListener('click', () => {
       document.querySelectorAll('#filter-status .chip').forEach(x => x.classList.remove('active'));
       c.classList.add('active');
-      state.status = c.dataset.value;
+      state.status = c.dataset.value; state.statusChosen = true;
       renderAll();
     });
   });
@@ -3115,7 +3117,7 @@ function attachFilterEvents() {
     state.classes = new Set();   // back to the default: all classes
     // the filter bar's extra filters are part of the same filter set, so Reset clears them too
     if (window.PX) { const P = window.PX; P.near = null; ['yr', 'units', 'usf', 'askSF', 'askU', 'effSF', 'occ', 'stories'].forEach(k => { P[k] = [null, null]; }); P.concW = null; }
-    state.status = 'all';
+    state.status = 'all'; state.statusChosen = false;
     state.minUnitSF = 0;
     state.productTypes.clear();
     state.cities.clear();
@@ -22300,7 +22302,7 @@ function activateCompSet(id) {
   state.cities.clear();
   state.productTypes.clear();
   state.classes.clear();   // comp set scope rules; show all classes within it
-  state.status = 'all';
+  state.status = 'all'; state.statusChosen = true;   // a comp set shows every status it holds
   state.minUnitSF = 0;
   state.compSetSelection.clear();
   // Reset chip UIs
@@ -22318,6 +22320,7 @@ function activateCompSet(id) {
 
 function exitCompSet() {
   state.activeCompSetId = null;
+  if (state.status === 'all') state.statusChosen = false;   // back to the Index's Existing default
   state.compSetMode = 'off';
   updateCompSetBanner();
   renderCompSetList();
