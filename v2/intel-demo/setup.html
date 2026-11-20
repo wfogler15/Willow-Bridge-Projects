@@ -5,9 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Set up submarkets and product types · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611201434">
+<link rel="stylesheet" href="shared/wb.css?v=202611201440">
 <style>
   .page{max-width:1240px}
+  .steps{display:flex;gap:0;margin:2px 0 26px;padding:0;list-style:none;border:1px solid var(--rule-2);border-radius:10px;overflow:hidden;max-width:860px}
+  .steps li{flex:1;display:flex;align-items:center;gap:10px;padding:12px 16px;font-size:13px;color:var(--muted);border-right:1px solid var(--rule-2);background:var(--surface)}
+  .steps li:last-child{border-right:0}
+  .steps .dot{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:600 12px var(--font);border:1px solid var(--rule-3);color:var(--muted);background:var(--surface)}
+  .steps li.done .dot{background:#E5F4E4;border-color:#E5F4E4;color:#2F6B3A}
+  .steps li.now{color:var(--ink);font-weight:600}
+  .steps li.now .dot{border-color:var(--ink);color:var(--ink)}
+  .steps li b{display:block;font-weight:inherit}
+  .steps li small{display:block;font-size:11px;font-weight:400;color:var(--muted);margin-top:1px}
+  .panel{border:1px solid var(--rule-2);border-radius:10px;padding:18px 20px;background:var(--surface);margin:0 0 18px}
+  .panel-h{font:600 14px var(--font-display);color:var(--ink);margin:0 0 12px}
+  .rgrid{display:grid;grid-template-columns:auto minmax(0,1fr);gap:28px;align-items:start}
+  .opts{display:grid;gap:12px;align-content:start}
+  .opt{display:grid;grid-template-columns:80px minmax(0,1fr);gap:12px;align-items:center;font-size:13px;color:var(--ink-2)}
+  .opt small{display:block;color:var(--muted);font-size:12px;margin-top:2px;line-height:1.4}
+  .opt .input{width:80px}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--rule-2)}
+  .bar .sp{flex:1}
+  .next{display:flex;align-items:center;gap:14px;border:1px solid #CFE6CD;background:#F3FAF2;border-radius:10px;padding:14px 18px;margin:16px 0 0;font-size:14px;color:var(--ink)}
+  .next .sp{flex:1}
+  .finish{border:1px solid var(--rule-2);border-radius:12px;padding:26px 28px;margin:26px 0 0;background:linear-gradient(135deg,#1E1A44,#2A2360);color:#fff}
+  .finish h2{font:600 22px var(--font-display);margin:0 0 6px;color:#fff}
+  .finish p{margin:0 0 16px;color:#D9D5F2;font-size:14px;line-height:1.5;max-width:720px}
+  .finish .btn.primary{background:#fff;color:#1E1A44;border-color:#fff}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
   .lead{color:var(--muted);margin:0 0 22px;max-width:820px;line-height:1.5}
   .tabs{display:flex;gap:26px;border-bottom:1px solid var(--rule-2);margin:0 0 20px}
@@ -16,13 +40,13 @@
   .rules{display:flex;flex-wrap:wrap;gap:14px 26px;align-items:flex-end;margin:4px 0 16px}
   .rules label{display:flex;flex-direction:column;gap:4px;font-size:var(--fs-sm);color:var(--muted)}
   .rules .input{width:110px}
-  .rtbl{border-collapse:collapse;margin:4px 0 14px;font-size:var(--fs-sm)}
+  .rtbl{border-collapse:collapse;margin:0;font-size:var(--fs-sm)}
   .rtbl th{text-align:left;font-weight:600;color:var(--muted);padding:4px 14px 6px 0;vertical-align:bottom}
   .rtbl th span{font-weight:400}
   .rtbl td{padding:3px 14px 3px 0}
   .rtbl .input{width:90px}
   .h3{font-size:15px;font-weight:600;margin:0 0 10px}
-  .std{font-size:13px;color:var(--ink-2);line-height:1.6;margin:0 0 14px;max-width:900px}
+  .std{font-size:13px;color:var(--ink-2);line-height:1.6;margin:0 0 16px;max-width:900px}
   .std b{color:var(--ink)}
   .figs{margin:14px 0 12px}
   .filters{display:flex;gap:18px;margin:6px 0 8px;align-items:center;flex-wrap:wrap}
@@ -39,65 +63,75 @@
   .tag.r{background:#F9EEDA;color:#7A4E00}
   .tag.h{background:#E5F4E4;color:#2F6B3A}
   .acts{display:flex;gap:10px;margin-top:14px;align-items:center;flex-wrap:wrap}
-  textarea.input{width:100%;max-width:520px;height:180px;padding:8px;font:13px/1.5 var(--font)}
-  .two{display:grid;grid-template-columns:minmax(0,520px) minmax(0,1fr);gap:32px;align-items:start}
+  textarea.input{width:100%;height:200px;padding:10px;font:13px/1.5 var(--font)}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:28px;align-items:start}
   .cur{font-size:13px;color:var(--ink-2);line-height:1.7;columns:2;column-gap:24px}
   .msg{font-size:13px}
   .bad{color:#9A2B2B}
   .ok{color:#2F6B3A}
-  #drop2{border:1px dashed var(--rule-3);border-radius:8px;padding:14px;text-align:center;color:var(--muted);cursor:pointer;margin-top:10px;font-size:13px;max-width:520px}
+  #drop2{border:1px dashed var(--rule-3);border-radius:8px;padding:12px;text-align:center;color:var(--muted);cursor:pointer;margin-top:10px;font-size:13px}
   #drop2.over{background:var(--hover);border-color:var(--purple)}
   [hidden]{display:none!important}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="shared/wb.js?v=202611201434"></script>
-<script src="market-setup.js?v=202611201434"></script>
+<script src="shared/wb.js?v=202611201440"></script>
+<script src="market-setup.js?v=202611201440"></script>
 </head>
 <body>
 <main class="page">
   <p><a class="link" id="back" href="./">← Back to Market Intel</a></p>
   <h1 class="t" id="title">Set up submarkets and product types</h1>
   <p class="lead">Willow Bridge classifies properties its own way. The dashboard shows these by default, and anyone can flip to CoStar's version. Nothing changes until you press Save, and you can rerun this anytime.</p>
-  <div class="row" style="margin:-8px 0 18px"><label class="muted" style="font-size:13px">Market <select id="mkt" class="input" style="margin-left:6px"></select></label></div>
+  <div class="row" id="mktRow" style="margin:-8px 0 18px"><label class="muted" style="font-size:13px">Market <select id="mkt" class="input" style="margin-left:6px"></select></label></div>
+  <ol class="steps" id="steps">
+    <li data-s="up"><span class="dot">1</span><span><b>Upload data</b><small>CoStar and RealPage</small></span></li>
+    <li data-s="pt"><span class="dot">2</span><span><b>Product types</b><small>Rules, then review</small></span></li>
+    <li data-s="sm"><span class="dot">3</span><span><b>Submarkets</b><small>Map CoStar's to yours</small></span></li>
+    <li data-s="go"><span class="dot">4</span><span><b>Open your market</b><small>In Market Intel</small></span></li>
+  </ol>
   <nav class="tabs"><button data-t="pt" class="on">Product type</button><button data-t="sm">Submarkets</button></nav>
 
   <section id="tab-pt">
-    <p class="std"><b>Willow Bridge standard.</b> Garden: up to 51 units/acre and 4 stories (5 on occasion, surface parked), plus townhomes, single-family and build-to-rent. Mid-Rise: up to 10 stories; at 5 stories or fewer it needs structured parking (wrap or podium). High-Rise: 11+ stories. For 3–5 story buildings the page also weighs RealPage parking type, whether surface parking fits on the land, building area and elevators. Edit the rules for your market and save them before you classify.</p>
-    <table class="rtbl">
-      <thead><tr><th>Product type</th><th>Density low<br><span>units/acre</span></th><th>Density high<br><span>units/acre</span></th><th>Height cap<br><span>stories</span></th></tr></thead>
-      <tbody>
-        <tr><td>Garden</td><td><input class="input" id="gLo" type="number" min="0"></td><td><input class="input" id="gHi" type="number" min="1"></td><td><input class="input" id="gCap" type="number" min="1"></td></tr>
-        <tr><td>Mid-Rise</td><td><input class="input" id="mLo" type="number" disabled></td><td><input class="input" id="mHi" type="number" min="1"></td><td><input class="input" id="mCap" type="number" min="5"></td></tr>
-        <tr><td>High-Rise</td><td><input class="input" id="hLo" type="number" disabled></td><td><input class="input" id="hHi" type="number" min="1"></td><td class="muted">none</td></tr>
-      </tbody>
-    </table>
-    <div class="rules">
-      <label>Flag within (units/acre of the Garden line)<input class="input" id="rB" type="number" min="0"></label>
-      <label>Check 3 and 5 story Garden built in the last 10 years for podiums above (units/acre)<input class="input" id="rP" type="number" min="0"></label>
-      <label>Only review properties with at least (units)<input class="input" id="rU" type="number" min="0"></label>
-      <button class="btn" id="bRS">Save rules for this market</button>
-      <button class="btn primary" id="bPT">Classify</button>
-      <span class="msg" id="mRS"></span>
+    <p class="std"><b>Willow Bridge standard.</b> Garden is up to 51 units/acre and 4 stories, surface parked, plus townhomes, single-family and build-to-rent. Mid-Rise is up to 10 stories; at 5 stories or fewer it has structured parking (wrap or podium). High-Rise is 11+ stories. For 3–5 story buildings the page also weighs RealPage parking type, whether surface parking fits on the land, building area and elevators.</p>
+    <div class="panel">
+      <div class="panel-h">Rules for this market</div>
+      <div class="rgrid">
+        <table class="rtbl">
+          <thead><tr><th>Product type</th><th>Density low<br><span>units/acre</span></th><th>Density high<br><span>units/acre</span></th><th>Height cap<br><span>stories</span></th></tr></thead>
+          <tbody>
+            <tr><td>Garden</td><td><input class="input" id="gLo" type="number" min="0"></td><td><input class="input" id="gHi" type="number" min="1"></td><td><input class="input" id="gCap" type="number" min="1"></td></tr>
+            <tr><td>Mid-Rise</td><td><input class="input" id="mLo" type="number" disabled></td><td><input class="input" id="mHi" type="number" min="1"></td><td><input class="input" id="mCap" type="number" min="5"></td></tr>
+            <tr><td>High-Rise</td><td><input class="input" id="hLo" type="number" disabled></td><td><input class="input" id="hHi" type="number" min="1"></td><td class="muted">none</td></tr>
+          </tbody>
+        </table>
+        <div class="opts">
+          <label class="opt"><input class="input" id="rB" type="number" min="0"><span>Flag band<small>Units/acre either side of the Garden line that go to review when nothing else settles it</small></span></label>
+          <label class="opt"><input class="input" id="rP" type="number" min="0"><span>Podium check<small>3 and 5 story Garden built in the last 10 years above this density go to review</small></span></label>
+          <label class="opt"><input class="input" id="rU" type="number" min="0"><span>Review floor<small>Properties under this many units are typed but never flagged</small></span></label>
+        </div>
+      </div>
+      <div class="bar"><button class="btn primary" id="bPT">Classify</button><button class="btn" id="bRS">Save rules</button><span class="msg" id="mRS"></span></div>
     </div>
     <div id="ptOut" hidden>
       <div id="ptFigs"></div>
       <div class="filters" id="ptFilt"></div>
       <div class="tblwrap"><table class="tbl" id="ptTbl"></table></div>
-      <div class="acts"><button class="btn primary" id="sPT">Save product types</button><button class="btn" id="xPT">Download as Excel</button><span class="msg" id="mPT"></span></div>
+      <div class="bar"><button class="btn primary" id="sPT">Save product types</button><button class="btn" id="xPT">Download as Excel</button><span class="msg" id="mPT"></span></div>
+      <div class="next" id="ptNext" hidden><span>Product types saved.</span><span class="sp"></span><button class="btn primary" id="goSM">Next: submarkets →</button></div>
     </div>
   </section>
 
   <section id="tab-sm" hidden>
     <div class="two">
-      <div>
+      <div class="panel" style="margin:0">
         <p class="std" style="margin-top:0"><b>Your submarket list.</b> One name per line, only submarkets inside the area you pulled from CoStar. Next you'll map each CoStar submarket to one of yours; where a CoStar submarket covers two of yours, mark it as split and assign those properties one by one.</p>
         <textarea class="input" id="smList" placeholder="Phoenix-Arcadia&#10;Phoenix-Biltmore&#10;Scottsdale-Old Town&#10;Tempe"></textarea>
         <div id="drop2" tabindex="0" role="button">Or drop an Excel/CSV: a list of names, or a property list with <b>PropertyID</b> and <b>Submarket</b> columns (used as-is)</div>
         <input id="pick2" type="file" accept=".xlsx,.xls,.csv" hidden>
-        <div class="acts"><button class="btn primary" id="bSM">Map submarkets</button><button class="btn" id="kSM">Keep CoStar's submarkets</button><span class="msg" id="mSM0"></span></div>
+        <div class="bar"><button class="btn primary" id="bSM">Map submarkets</button><button class="btn" id="kSM">Keep CoStar's instead</button><span class="msg" id="mSM0"></span></div>
       </div>
-      <div><p class="std" style="margin-top:0"><b>In use now</b> <span class="muted" id="curNote"></span></p><div class="cur" id="cur"></div></div>
+      <div class="panel" style="margin:0"><p class="std" style="margin-top:0"><b>CoStar's submarkets in your data</b> <span class="muted" id="curNote"></span></p><div class="cur" id="cur"></div></div>
     </div>
     <div id="cwOut" hidden style="margin-top:22px">
       <h3 class="h3">1. Map CoStar's submarkets to yours</h3>
@@ -112,8 +146,13 @@
       <div class="tblwrap"><table class="tbl" id="smTbl"></table></div>
       <div class="acts"><select id="bulkSel" class="input"></select><button class="btn" id="bulk">Set checked rows</button></div>
     </div>
-    <div class="acts" id="smSave" hidden><button class="btn" id="xSM">Download as Excel</button><span style="flex:1"></span><span class="msg" id="mSM"></span><button class="btn primary" id="sSM">Save submarkets</button></div>
+    <div class="bar" id="smSave" hidden><button class="btn primary" id="sSM">Save submarkets</button><button class="btn" id="xSM">Download as Excel</button><span class="msg" id="mSM"></span></div>
   </section>
+  <div class="finish" id="finish" hidden>
+    <h2 id="finT">Your market is set up</h2>
+    <p id="finP">Product types and submarkets are saved. Market Intel now opens on your market with the Willow Bridge versions. You can come back here anytime from Settings.</p>
+    <a class="btn primary" id="finGo" href="./">Open Market Intel →</a>
+  </div>
 </main>
 <script>
 (async () => {
@@ -131,10 +170,27 @@
   const q = new URLSearchParams(location.search);
   $('#mkt').innerHTML = markets.map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('');
   if (q.get('market') && markets.some((m) => m.id === q.get('market'))) $('#mkt').value = q.get('market');
-  $$('.tabs button').forEach((b) => (b.onclick = () => { $$('.tabs button').forEach((x) => x.classList.toggle('on', x === b)); $('#tab-pt').hidden = b.dataset.t !== 'pt'; $('#tab-sm').hidden = b.dataset.t !== 'sm'; }));
+  $$('.tabs button').forEach((b) => (b.onclick = () => showTab(b.dataset.t)));
   if (q.get('tab') === 'sm') $$('.tabs button')[1].click();
 
   let M = null, props = [];
+  // ---------- progress ----------
+  let justSaved = false;
+  function updateSteps() {
+    const cfg = M.config || {};
+    const st = { up: props.length > 0, pt: !!cfg.product_rules && props.some((p) => p.wbType), sm: (!!cfg.submarket_map && props.every((p) => cfg.submarket_map[p.costar_submarket || '(none)'])) || (!cfg.submarket_map && props.some((p) => p.wbSub && p.wbSub !== p.costar_submarket)) };
+    st.go = st.up && st.pt && st.sm && justSaved;
+    const order = ['up', 'pt', 'sm', 'go']; const now = order.find((k) => !st[k]);
+    $$('#steps li').forEach((li) => { const k = li.dataset.s; li.classList.toggle('done', !!st[k]); li.classList.toggle('now', k === now); li.querySelector('.dot').textContent = st[k] ? '✓' : String(order.indexOf(k) + 1); });
+    const name = M.label.split(',')[0];
+    $('#finT').textContent = `${name} is set up`; $('#finGo').href = './?market=' + encodeURIComponent(M.id); $('#finGo').textContent = `Open ${name} in Market Intel →`;
+    $('#finish').hidden = !(st.up && st.pt && st.sm && justSaved);
+    // first-time setup: they haven't been in Market Intel yet, so no "back" until the market is set up
+    $('#back').parentElement.hidden = !(st.pt && st.sm); $('#back').textContent = '← Market Intel';
+    if (!$('#finish').hidden) $('#finish').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  function showTab(t) { $$('.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.t === t)); $('#tab-pt').hidden = t !== 'pt'; $('#tab-sm').hidden = t !== 'sm'; }
+  $('#goSM').onclick = () => { showTab('sm'); window.scrollTo({ top: $('.tabs').offsetTop - 80, behavior: 'smooth' }); };
   async function loadMarket() {
     M = markets.find((m) => m.id === $('#mkt').value);
     $('#title').textContent = `Set up ${M.label.split(',')[0]}`;
@@ -158,6 +214,7 @@
     $('#curNote').textContent = same ? `(CoStar's, ${Object.keys(t).length} submarkets)` : `(${Object.keys(t).length} Willow Bridge submarkets)`;
     $('#cur').innerHTML = Object.entries(t).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => `<div>${esc(k || '—')} <span class="muted">${v}</span></div>`).join('');
     if (!$('#smList').value && !same) $('#smList').value = Object.keys(t).sort().join('\n');
+    $('#mktRow').hidden = markets.length < 2; updateSteps();
     $('#ptOut').hidden = true; $('#smOut').hidden = true;
   }
   $('#mkt').onchange = () => loadMarket().catch((e) => alert(e.message));
@@ -232,7 +289,8 @@
       await saveAttrs(ch, 'wbProductType', (d, t) => { m.textContent = `Saving ${d} of ${t}…`; });
       await saveConfig({ product_rules: PT.rules });
       PT.forEach((r) => { r.p.wbType = r.pick; r.current = r.pick; });
-      m.className = 'msg ok'; m.textContent = `Saved ${ch.size} product types. The dashboard uses them next time it loads.`; renderPT();
+      m.className = 'msg ok'; m.textContent = `Saved ${ch.size} product types.`; renderPT();
+      justSaved = true; updateSteps(); $('#ptNext').hidden = !$('#finish').hidden;
     } catch (e) { m.className = 'msg bad'; m.textContent = 'Stopped: ' + e.message + '. What saved is kept; press Save again to finish.'; }
     $('#sPT').disabled = false;
   };
@@ -265,7 +323,7 @@
   $('#kSM').onclick = async () => {
     const ch = new Map(props.filter((p) => p.wbSub !== p.costar_submarket).map((p) => [p.id, p.costar_submarket]));
     const m = $('#mSM0'); m.className = 'msg';
-    try { await saveAttrs(ch, 'wbSubmarket', (d, t) => { m.textContent = `Saving ${d} of ${t}…`; }); const subs = [...new Set(props.map((p) => p.costar_submarket).filter(Boolean))].sort(); await saveConfig({ wb_submarkets: subs, submarket_map: Object.fromEntries(subs.map((x) => [x, x])) }); props.forEach((p) => { p.wbSub = p.costar_submarket; }); m.className = 'msg ok'; m.textContent = 'Using CoStar\'s submarkets.'; loadMarket(); }
+    try { await saveAttrs(ch, 'wbSubmarket', (d, t) => { m.textContent = `Saving ${d} of ${t}…`; }); const subs = [...new Set(props.map((p) => p.costar_submarket).filter(Boolean))].sort(); await saveConfig({ wb_submarkets: subs, submarket_map: Object.fromEntries(subs.map((x) => [x, x])) }); props.forEach((p) => { p.wbSub = p.costar_submarket; }); m.className = 'msg ok'; m.textContent = 'Using CoStar\'s submarkets.'; justSaved = true; M.config = Object.assign({}, M.config, { submarket_map: Object.fromEntries(subs.map((x) => [x, x])) }); loadMarket(); }
     catch (e) { m.className = 'msg bad'; m.textContent = e.message; }
   };
   let CW = [], cwFilter = 'review';
@@ -334,7 +392,8 @@
       SM.forEach((x) => { if (ch.has(x.p.id)) x.p.wbSub = ch.get(x.p.id); });
       const map = {}; CW.forEach((r) => { if (r.pick) map[r.cs] = r.pick; });
       await saveConfig({ wb_submarkets: [...new Set(props.map((p) => p.wbSub).filter(Boolean))].sort(), submarket_map: map });
-      m.className = 'msg ok'; m.textContent = `Saved ${ch.size} submarkets and the mapping.${open ? ` ${open} CoStar submarket${open > 1 ? 's' : ''} not chosen kept their current submarket.` : ''}${blank ? ` ${blank} split propert${blank > 1 ? 'ies' : 'y'} with no choice kept theirs.` : ''}`;
+      if (!open && !blank) { justSaved = true; updateSteps(); }
+      m.className = 'msg ok'; m.textContent = `Saved ${ch.size} submarkets and the mapping.${open ? ` ${open} CoStar submarket${open > 1 ? 's' : ''} not chosen kept their current submarket.` : ''}${blank ? ` ${blank} split propert${blank > 1 ? 'ies' : 'y'} with no choice kept theirs.` : ''}${open || blank ? ' Finish those and save again to complete setup.' : ''}`;
       render();
     } catch (e) { m.className = 'msg bad'; m.textContent = 'Stopped: ' + e.message + '. What saved is kept; press Save again to finish.'; }
     $('#sSM').disabled = false;

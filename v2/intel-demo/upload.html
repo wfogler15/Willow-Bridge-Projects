@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Upload market data · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611201434">
+<link rel="stylesheet" href="shared/wb.css?v=202611201440">
 <style>
   .page{max-width:1100px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -50,17 +50,22 @@
   .wb-after{color:var(--muted);margin:14px 0 28px}
   .wb-loading{font-size:14px;color:var(--ink-2);border-top:1px solid var(--ink);padding:14px 0 0}
   body.welcome #stepMarket{display:none}
+  body.welcome #back{display:none}
   body.welcome .step{border-top:0;padding-top:8px}
   body.welcome .step>h2 b{display:none}
   body.welcome .step:not(#sPreview)>h2{display:none}
   body.welcome #drop{padding:56px 20px;font-size:15px;border-width:2px}
   @media (max-width:900px){.wb-cards{grid-template-columns:1fr}}
+  .loaded{display:flex;align-items:center;gap:18px;border:1px solid #CFE6CD;background:#F3FAF2;border-radius:10px;padding:16px 20px;margin:16px 0 0}
+  .loaded>div{flex:1;font-size:14px;color:var(--ink);line-height:1.5}
+  .loaded b{display:block;font-size:15px}
+  .loaded span{color:var(--ink-2)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="shared/wb.js?v=202611201434"></script>
-<script src="market-setup.js?v=202611201434"></script>
-<script src="market-upload.js?v=202611201434"></script>
+<script src="shared/wb.js?v=202611201440"></script>
+<script src="market-setup.js?v=202611201440"></script>
+<script src="market-upload.js?v=202611201440"></script>
 </head>
 <body>
 <main class="page">
@@ -309,9 +314,12 @@
     try {
       const out = await U.commit(sb, P, { user: user.email, onStep: step, period: U.currentPeriod() });
       step(`Done: ${out.inserted} new and ${out.updated} updated properties${out.removed ? `, ${out.removed} removed` : ''}, ${out.rp} RealPage properties, ${out.trends} trend geographies, ${out.sales} sale comps.`);
-      $('#loadMsg').innerHTML = P.newMarket
-        ? `<b>Next: <a class="link" href="setup.html?market=${encodeURIComponent(P.marketId)}">set up submarkets and product types →</a></b> &nbsp; or <a class="link" href="./?market=${encodeURIComponent(P.marketId)}">open ${esc(P.newMarket.label)} in Market Intel</a>`
-        : `<a class="link" href="./?market=${encodeURIComponent(P.marketId)}">Open in Market Intel →</a>`;
+      $('#loadMsg').innerHTML = '';
+      const done = document.createElement('div'); done.className = 'loaded';
+      done.innerHTML = P.newMarket
+        ? `<div><b>${esc(P.newMarket.label.split(',')[0])} is loaded.</b><span>Next, set its product types and submarkets the Willow Bridge way. It takes about 10 minutes.</span></div><a class="btn primary" href="setup.html?market=${encodeURIComponent(P.marketId)}">Set up product types and submarkets →</a>`
+        : `<div><b>Loaded.</b><span>${out.inserted} new and ${out.updated} updated properties.</span></div><a class="btn primary" href="./?market=${encodeURIComponent(P.marketId)}">Open in Market Intel →</a>`;
+      log.after(done); done.scrollIntoView({ behavior: 'smooth', block: 'center' });
       P = null;
     } catch (e) {
       step('Stopped: ' + e.message);
