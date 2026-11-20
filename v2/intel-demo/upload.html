@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Upload market data · Willow Bridge Market Intel</title>
+<title>Upload market data · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="../shared/wb-mark.png">
-<link rel="stylesheet" href="../shared/wb.css?v=202611201058">
+<link rel="stylesheet" href="../shared/wb.css?v=202611201105">
 <style>
   .page{max-width:1100px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -21,6 +21,7 @@
   #drop strong{color:var(--ink)}
   .files{margin-top:14px}
   .files .tbl{width:100%;table-layout:auto}
+  .files .tbl td{white-space:normal}
   .files .tbl td,.files .tbl th{text-align:left}
   .bad{color:#9A2B2B}
   .ok{color:#2F6B3A}
@@ -35,11 +36,12 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="../shared/wb.js?v=202611201058"></script>
-<script src="market-upload.js?v=202611201058"></script>
+<script src="../shared/wb.js?v=202611201105"></script>
+<script src="market-upload.js?v=202611201105"></script>
 </head>
 <body>
 <main class="page">
+  <p><a class="link" id="back" href="./">← Back to Market Intel</a></p>
   <h1 class="t">Upload market data</h1>
   <p class="lead">Drop the CoStar and RealPage exports for one market. Nothing is written until you review the check and press Load.</p>
 
@@ -75,7 +77,7 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const n = (v) => (v == null ? '—' : Number(v).toLocaleString('en-US'));
-  const { sb, user } = await WB.ready('intel');
+  const { sb, user } = await WB.ready('intel', { marketMode: 'single', present: true, brand: 'Willow Bridge Market Intel · Demo' });
   const U = window.WBUpload;
   const TYPE_LABEL = { costar_props: 'CoStar properties', costar_sales: 'CoStar sale comps', rp_monthly: 'RealPage monthly property time series', rp_annual: 'RealPage annual market performance' };
 
@@ -86,6 +88,7 @@
   $('#mkt').innerHTML = markets.filter((m) => m.config && m.config.active !== false).map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('') + '<option value="__new">New market…</option>';
   if (q.get('market') && markets.some((m) => m.id === q.get('market'))) $('#mkt').value = q.get('market');
   if (q.get('new')) $('#mkt').value = '__new';
+  if (q.get('market')) $('#back').href = './?market=' + encodeURIComponent(q.get('market'));
   const syncNew = () => { $('#newFields').hidden = $('#mkt').value !== '__new'; invalidate(); };
   $('#mkt').onchange = syncNew;
   ['#nmLabel', '#nmId', '#nmState'].forEach((s) => $(s).addEventListener('input', invalidate));

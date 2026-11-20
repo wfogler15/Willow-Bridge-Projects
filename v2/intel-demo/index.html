@@ -6661,6 +6661,9 @@ tbody tr,
           <button class="topbar-action-btn" id="settings-btn" title="Sync status, account, appearance, and other dashboard settings" onclick="openSettingsModal()">
             <span style="font-size:13px;line-height:1;">⚙</span> SETTINGS
           </button>
+          <button class="topbar-action-btn" id="upload-btn" title="Upload CoStar and RealPage exports, or add a new market" onclick="location.href='upload.html?market='+encodeURIComponent((window.__WBD&&window.__WBD.market)||'')">
+            <span style="font-size:13px;line-height:1;">↑</span> UPLOAD DATA
+          </button>
         </div>
         <!-- Sync status + editor identity now live inside the Settings modal
              (Sync / Account sections) rather than the topbar. The hidden
@@ -8947,7 +8950,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611201058">
+<link rel="stylesheet" href="../shared/wb-chrome.css?v=202611201105">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9207,14 +9210,14 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="../shared/wb.js?v=202611201058"></script>
-<script src="../shared/legacy-db.js?v=202611201058"></script>
-<script>window.WB_BUILD = '202611201058';</script>
-<link rel="stylesheet" href="demo.css?v=202611201058">
+<script src="../shared/wb.js?v=202611201105"></script>
+<script src="../shared/legacy-db.js?v=202611201105"></script>
+<script>window.WB_BUILD = '202611201105';</script>
+<link rel="stylesheet" href="demo.css?v=202611201105">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.0.22/leaflet-maplibre-gl.js"></script>
-<script src="loader.js?v=202611201058"></script>
+<script src="loader.js?v=202611201105"></script>
 
 
 
