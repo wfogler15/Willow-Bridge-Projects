@@ -924,3 +924,112 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 #view-yoc .yx-cs-cell { background:#f4f1fb; }
 #view-yoc .yx-cs-tag { font:600 10px/1 var(--x-font); letter-spacing:.08em; text-transform:uppercase; color:var(--x-purple, #432890); margin-bottom:4px; }
 #view-yoc .yx-cs-cell .yoc-sm-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:220px; }
+
+/* ---------- Comp Sets tab (compsets.js) ---------- */
+#view-compsets .csx { display: flex; flex-direction: column; gap: 16px; font-family: var(--x-font); color: var(--x-ink); }
+.csx-card { background: var(--x-card); border-radius: var(--x-radius); box-shadow: var(--x-shadow); }
+.csx-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; padding: 20px 22px 14px; }
+.csx-h { font: 600 18px/1.25 var(--x-font); margin: 0; letter-spacing: -.01em; }
+.csx-sub { font: 400 13px/1.5 var(--x-font); color: var(--x-ink-3); margin-top: 4px; max-width: 720px; }
+.csx-acts { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.csx-in { height: 38px; padding: 0 12px; border: 1px solid #d9d6e4; border-radius: 9px; font: 400 13.5px var(--x-font); color: var(--x-ink); background: #fff; }
+.csx-in:focus { outline: none; border-color: var(--x-purple); box-shadow: 0 0 0 3px rgba(67,40,144,.12); }
+.csx-q { width: 220px; }
+.csx-tw { overflow-x: auto; padding: 0 22px 18px; }
+.csx-t { width: 100%; border-collapse: collapse; font: 400 13px/1.35 var(--x-font); }
+.csx-t th { text-align: left; font: 600 11px/1 var(--x-font); letter-spacing: .06em; text-transform: uppercase; color: var(--x-ink-3); padding: 10px 10px; border-bottom: 1px solid var(--x-line); white-space: nowrap; }
+.csx-t td { padding: 12px 10px; border-bottom: 1px solid #f0eef5; vertical-align: middle; text-align: left; }
+.csx-t th, .csx-t td { text-align: left; }
+.csx-t th.r, .csx-t td.r { text-align: right; }
+.csx-mem td.rk, .csx-mem th.rk, .csx-mem td.x { text-align: center; }
+.csx-t .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.csx-t td.nm b { font-weight: 600; }
+.csx-t td small, .csx-t td.up small { display: block; color: var(--x-ink-3); font-size: 12px; margin-top: 2px; }
+.csx-lib tbody tr { cursor: pointer; }
+.csx-lib tbody tr:hover td { background: #f7f6fb; }
+.csx-tag { display: inline-block; margin-left: 8px; padding: 2px 7px; border-radius: 999px; font: 600 10.5px/1.4 var(--x-font); vertical-align: 1px; }
+.csx-tag.on { background: #ece8fb; color: var(--x-purple); }
+.csx-tag.warn { background: #fdf1dc; color: #8a5a00; }
+.csx-none { color: var(--x-ink-3); padding: 14px 10px; }
+.csx-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 36px 22px 40px; text-align: center; color: var(--x-ink-3); font-size: 13.5px; }
+.csx-empty b { color: var(--x-ink); font-size: 15px; }
+.csx-empty .yx-btn { margin-top: 8px; }
+.csx-empty.sm { padding: 26px 22px 30px; }
+/* new set */
+.csx-create { border: 1px solid #dcd6f3; }
+.csx-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; padding: 0 22px; }
+.csx-f { display: flex; flex-direction: column; gap: 6px; font: 600 12px var(--x-font); color: var(--x-ink-2); }
+.csx-f em { font-style: normal; font-weight: 400; color: var(--x-ink-3); }
+.csx-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 16px 22px 0; }
+.csx-opt { display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--x-line); border-radius: 10px; padding: 12px 14px; cursor: pointer; }
+.csx-opt.on { border-color: var(--x-purple); box-shadow: 0 0 0 3px rgba(67,40,144,.08); }
+.csx-opt input { margin-top: 2px; accent-color: var(--x-purple); }
+.csx-opt b { display: block; font: 600 13.5px var(--x-font); }
+.csx-opt small { display: block; font-size: 12px; color: var(--x-ink-3); margin-top: 2px; }
+.csx-bar { display: flex; align-items: center; gap: 10px; padding: 16px 22px 20px; }
+.csx-msg { font-size: 12.5px; color: var(--x-ink-3); }
+/* workspace */
+.csx-wshead { align-items: flex-start; }
+.csx-ttl { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.csx-back { align-self: flex-start; background: none; border: 0; padding: 0 0 4px; font: 500 12.5px var(--x-font); color: var(--x-purple); cursor: pointer; }
+.csx-title { font: 600 22px/1.2 var(--x-font); letter-spacing: -.01em; color: var(--x-ink); border: 1px solid transparent; border-radius: 8px; padding: 2px 6px; margin-left: -7px; max-width: 640px; background: transparent; }
+.csx-desc { font: 400 13.5px var(--x-font); color: var(--x-ink-3); border: 1px solid transparent; border-radius: 8px; padding: 3px 6px; margin-left: -7px; max-width: 640px; background: transparent; }
+.csx-title:hover, .csx-desc:hover { border-color: #e3e0ec; }
+.csx-title:focus, .csx-desc:focus { outline: none; border-color: var(--x-purple); background: #fff; }
+.csx-save { font: 500 12.5px var(--x-font); color: var(--x-ink-3); white-space: nowrap; }
+.csx-save.ok { color: #2f6b3a; }
+.csx-save.warn { color: #8a5a00; }
+.csx-save.bad { color: #a3332b; }
+.csx-save button { background: none; border: 0; padding: 0 0 0 6px; font: 600 12.5px var(--x-font); color: var(--x-purple); cursor: pointer; }
+.csx-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 1px solid var(--x-line); border-bottom: 1px solid var(--x-line); }
+.csx-kpis > div { padding: 14px 22px; border-right: 1px solid var(--x-line); display: flex; flex-direction: column; gap: 3px; }
+.csx-kpis > div:last-child { border-right: 0; }
+.csx-kpis span { font: 600 11px/1 var(--x-font); letter-spacing: .06em; text-transform: uppercase; color: var(--x-ink-3); }
+.csx-kpis b { font: 600 20px/1.2 var(--x-font); font-variant-numeric: tabular-nums; }
+.csx-kpis b i { font-style: normal; font-size: 13px; font-weight: 500; color: var(--x-ink-3); }
+.csx-kpis em { font-style: normal; font-size: 12px; color: var(--x-ink-3); }
+.csx-scope { margin: 14px 22px 0; padding: 10px 14px; background: #f4f1fd; border-radius: 9px; font-size: 13px; color: var(--x-ink-2); }
+.csx-scope button { background: none; border: 0; padding: 0 0 0 6px; font: 600 13px var(--x-font); color: var(--x-purple); cursor: pointer; }
+.csx-addbar { display: flex; align-items: center; gap: 12px; padding: 16px 22px 10px; }
+.csx-addl { font: 600 13px var(--x-font); }
+.csx-add { padding: 0 22px 12px; }
+.csx-ta { position: relative; flex: 1; max-width: 520px; }
+.csx-ta .csx-in { width: 100%; }
+.csx-ta-list { position: absolute; z-index: 30; left: 0; right: 0; top: 42px; background: #fff; border: 1px solid #e3e0ec; border-radius: 10px; box-shadow: 0 10px 30px rgba(29,18,71,.14); padding: 4px; max-height: 340px; overflow: auto; }
+.csx-ta-list button { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 7px; padding: 8px 10px; cursor: pointer; font: 400 13px var(--x-font); color: var(--x-ink); }
+.csx-ta-list button:hover { background: #f4f1fd; }
+.csx-ta-list small { display: block; color: var(--x-ink-3); font-size: 12px; margin-top: 1px; }
+.csx-nearrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.csx-ck { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--x-ink-2); }
+.csx-ck input, .csx-cand input { accent-color: var(--x-purple); }
+.csx-cands { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 6px 14px; margin-top: 12px; max-height: 320px; overflow: auto; padding: 2px; }
+.csx-cand { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 6px 4px; border-radius: 7px; cursor: pointer; }
+.csx-cand:hover { background: #f7f6fb; }
+.csx-cand small { display: block; color: var(--x-ink-3); font-size: 12px; }
+.csx-near .csx-bar { padding: 12px 0 4px; }
+.csx-hint { margin: 0 22px 12px; font-size: 12.5px; color: var(--x-ink-3); }
+.csx-hint.warn { color: #8a5a00; margin-top: -4px; }
+.csx-add .csx-hint { margin: 10px 0 0; }
+.csx-mem td.rk, .csx-mem th.rk { width: 28px; color: var(--x-ink-3); text-align: center; }
+.csx-pname { background: none; border: 0; padding: 0; font: 600 13px var(--x-font); color: var(--x-ink); cursor: pointer; text-align: left; }
+.csx-pname:hover { color: var(--x-purple); text-decoration: underline; }
+.csx-st { color: #8a5a00; font-weight: 600; }
+.csx-mem td.x { width: 32px; text-align: center; }
+.csx-rm { width: 26px; height: 26px; border: 0; border-radius: 7px; background: none; color: var(--x-ink-3); font-size: 17px; line-height: 1; cursor: pointer; }
+.csx-rm:hover { background: #fbeceb; color: #a3332b; }
+/* the set's analysis panel, moved under the workspace: edit happens above, so its own Edit Set button goes */
+#csx-intel-slot #cs-manage-btn, #csx-intel-slot .cs-map-note { display: none !important; }
+#csx-intel-slot > #cs-intel > .panel { border-radius: var(--x-radius); box-shadow: var(--x-shadow); border: 0; }
+/* active set pill in the page header, on every tab */
+.csx-pill { display: inline-flex; align-items: center; gap: 2px; margin-top: 10px; padding: 3px 4px 3px 10px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); border-radius: 999px; font: 500 12.5px var(--x-font); color: #fff; }
+.csx-pill[hidden] { display: none; }
+.csx-pill-k { opacity: .7; margin-right: 6px; }
+.csx-pill button { background: none; border: 0; color: #fff; font: 600 12.5px var(--x-font); cursor: pointer; padding: 3px 6px; border-radius: 999px; }
+.csx-pill button:hover { background: rgba(255,255,255,.14); }
+.csx-pill-x { font-size: 15px !important; line-height: 1; width: 24px; }
+@media (max-width: 1100px) { .csx-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .csx-opts, .csx-form { grid-template-columns: minmax(0, 1fr); } }
+/* old comp set entry points: everything now starts in the Comp Sets tab */
+#cs-toggle-build, #cs-new-map, #cs-side-build-state, .mm-build { display: none !important; }
+.px-q .px-cs { font-weight: 600; color: var(--x-purple); }
+.csx-manage { display: block; margin-top: 8px; background: none; border: 0; padding: 0; font: 500 12.5px var(--x-font); color: var(--x-purple); cursor: pointer; }
+#csx-intel-slot .kpi-row.kpi-8 { display: none !important; }   /* same figures as the workspace strip above */

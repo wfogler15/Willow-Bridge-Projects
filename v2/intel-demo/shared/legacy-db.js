@@ -355,5 +355,15 @@
     storage: { from: () => ({ download: async () => fail({ message: 'not available' }), upload: async () => fail({ message: 'not available' }) }) },
     linkDealCompSet: (oppLegacyId, setLegacyId) => linkCompSet(setLegacyId || null, oppLegacyId),
     _internals: { dealToOpp, oppToDeal, compRowToLegacy, legacyToCompRow },
+    // Comp Sets tab: explicit saves only, so they go straight to the database even in the read-only Demo
+    // (read-only exists to stop the old layer re-pushing cached records on load; a button press is not that)
+    compSets: {
+      async save(set) {
+        // set.id is stable (legacy id, or the uuid for sets made elsewhere); findCompSet matches either
+        await H.comp_sets_upsert({ id: set.id, name: set.name, description: set.description || '', property_ids: set.propertyIds || [] });
+        const f = await findCompSet(set.id); return f ? f.id : null;
+      },
+      async remove(set) { await H.comp_sets_remove({ id: set.id }); },
+    },
   };
 })();

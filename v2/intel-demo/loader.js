@@ -123,7 +123,8 @@
 
     const s = document.createElement('script');
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
-    s.onload = () => { try { buildShell(); sentenceCase(); } finally { document.documentElement.classList.add('wbi-ready'); requestAnimationFrame(() => overlay.remove()); } document.addEventListener('click', scLater, true); };
+    s.onload = () => { const c = document.createElement('script'); c.src = 'compsets.js?v=' + (window.WB_BUILD || '1'); c.onload = c.onerror = start; document.body.appendChild(c); };
+    const start = () => { try { buildShell(); sentenceCase(); } finally { document.documentElement.classList.add('wbi-ready'); requestAnimationFrame(() => overlay.remove()); } document.addEventListener('click', scLater, true); };
     s.onerror = () => { overlay.textContent = 'The dashboard code failed to load. Reload the page.'; };
     document.body.appendChild(s);
   }
@@ -146,7 +147,7 @@
     const ttl = document.createElement('div'); ttl.className = 'wbi-rail-title'; ttl.textContent = (window.__WBD && window.__WBD.title) || 'Market Intel';
     mkt.append(ttl, WB.marketToggle()); rail.appendChild(mkt);
     const tabBy = Object.fromEntries($$('.tab', tabs).map((t) => [t.dataset.view, t]));
-    [['Market', ['overview', 'trends', 'submarkets', 'properties']], ['Supply', ['absorption', 'pipeline']], ['Underwriting', ['yoc', 'salecomps', 'opportunities']]]
+    [['Market', ['overview', 'trends', 'submarkets', 'properties']], ['Supply', ['absorption', 'pipeline']], ['Underwriting', ['compsets', 'yoc', 'salecomps', 'opportunities']]]
       .forEach(([label, ids]) => {
         const h = document.createElement('div'); h.className = 'wbi-rail-h'; h.textContent = label; rail.appendChild(h);
         ids.forEach((id) => { if (tabBy[id]) { rail.appendChild(tabBy[id]); delete tabBy[id]; } });
@@ -160,6 +161,7 @@
       properties: '<path d="M3 4h10M3 8h10M3 12h10"/><circle cx="3" cy="4" r=".4"/>',
       absorption: '<path d="M2.5 13.5h11"/><path d="M4 11V8M7 11V5.5M10 11V7M13 11V3.5"/>',
       pipeline: '<path d="M3 13.5V6.5l5-3.5 5 3.5v7"/><path d="M6.5 13.5v-4h3v4"/>',
+      compsets: '<rect x="2.5" y="3" width="4.5" height="4.5" rx="1"/><rect x="9" y="3" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9.5" width="4.5" height="4.5" rx="1"/><path d="M11.25 9.5v4.5M9 11.75h4.5"/>',
       yoc: '<rect x="3" y="2.5" width="10" height="11" rx="1.5"/><path d="M5.5 5.5h5M5.5 8.5h1M8 8.5h1M10.5 8.5h0M5.5 11h1M8 11h1"/>',
       salecomps: '<path d="M8.5 2.5h4.5v4.5l-6 6-4.5-4.5z"/><circle cx="10.6" cy="5" r=".9"/>',
       opportunities: '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/>'
@@ -250,12 +252,13 @@
       cancelAnimationFrame(rq);
       rq = requestAnimationFrame(() => {
         const on = items.map(([n, g]) => [n, valueOf(g)]).filter(([n, v]) => n === 'Taxonomy' ? v !== 'Willow Bridge' : !['All', 'None'].includes(v));
+        const shown = on.filter(([n]) => n !== 'Comp set');   // the active set has its own pill in the header
         $('.n', fbtn).textContent = on.length ? String(on.length) : '';
-        const base = on.length ? on.map(([n, v]) => n === 'Taxonomy' ? v + ' taxonomy' : n === 'Unit size' ? 'Units ' + v : n + ' ' + v).join(' · ') : 'All properties';
+        const base = shown.length ? shown.map(([n, v]) => n === 'Taxonomy' ? v + ' taxonomy' : n === 'Unit size' ? 'Units ' + v : n + ' ' + v).join(' · ') : (on.length ? '' : 'All properties');
         const act = $('.tab.active', rail);
         // YOC matrix: say which comps feed it (Class A built in the last 10 years, or all), plus the 600 SF floor
         sumEl.textContent = act && act.dataset.view === 'yoc' && typeof yocCompLabel === 'function'
-          ? 'Comps: ' + yocCompLabel() + ' · min ' + yocState.minAvgUnitSf + ' SF avg unit' + (on.length ? ' · ' + base : '')
+          ? 'Comps: ' + yocCompLabel() + ' · min ' + yocState.minAvgUnitSf + ' SF avg unit' + (shown.length ? ' · ' + base : '')
           : base;
       });
     };

@@ -23192,6 +23192,8 @@ function txRenderBoard() {
   const SENT = [['', 'status'], ['of', 'type'], ['', 'class'], ['in', 'loc'], ['built', 'yr'], ['', 'size'], ['at', 'rent'], ['', 'perf']];
   function sentence() {
     let any = false;
+    const csOn = state.compSetMode === 'viewing' && state.activeCompSetId && compSets[state.activeCompSetId];
+    const csLead = csOn ? `<b class="px-cs">Comp set ${E(compSets[state.activeCompSetId].name)}</b> <i>·</i> ` : '';
     const html = SENT.map(([lead, k], i) => {
       const [t, on] = TOK[k](); if (on && k !== 'status') any = true;
       const sep = i === 0 ? '' : (i === 2 || i >= 5 ? '<i>,</i> ' : ' ');
@@ -23199,7 +23201,7 @@ function txRenderBoard() {
       if (k === 'status' && bar.classList.contains('px-onmap')) return '<b class="px-lead">Properties</b>';
       return `${sep}${lead ? `<i>${lead}</i> ` : ''}<button type="button" class="px-tok${on ? ' on' : ''}${openK === k ? ' open' : ''}" data-k="${k}">${E(t)}</button>`;
     }).join('');
-    return html + (any ? ` <button type="button" class="px-reset">Reset</button>` : '');
+    return csLead + html + (any ? ` <button type="button" class="px-reset">Reset</button>` : '');
   }
   function summary(rows) {
     const wa = (f) => { let s = 0, w = 0; rows.forEach(p => { const v = f(p); if (v != null && !isNaN(v) && p.units) { s += v * p.units; w += p.units; } }); return w ? s / w : null; };
@@ -23214,7 +23216,7 @@ function txRenderBoard() {
       cell('Occupancy', o != null ? o.toFixed(1) + '%' : '—', '') +
       cell('Concessions', w != null ? w.toFixed(1) + ' wks' : '—', '') +
       cell('Median vintage', med || '—', '') +
-      `<button type="button" class="px-build" ${rows.length ? '' : 'disabled'}><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>Save results as comp set</button>`;
+      `<button type="button" class="px-build" ${rows.length ? '' : 'disabled'}><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M8 3v10M3 8h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>New comp set from these results</button>`;
   }
   let lastRows = [];
   window.pxPaint = () => { try { paintBar(); } catch (e) {} };
@@ -23227,13 +23229,8 @@ function txRenderBoard() {
     const bb = bar.querySelector('.px-build');
     if (bb) {
       if (building || viewing) bb.style.display = 'none';
-      bb.addEventListener('click', () => {
-        state.compSetMode = 'building';
-        state.compSetSelection.clear();
-        lastRows.forEach(p => state.compSetSelection.add(p.id));
-        updateCompSetUI(); rerender();
-        const n = document.getElementById('cs-selection-count'); if (n) n.textContent = state.compSetSelection.size + ' SELECTED';
-      });
+      // comp sets are built in the Comp Sets tab: start a new set from these results there
+      bb.addEventListener('click', () => { if (typeof window.wbOpenCompSets === 'function') window.wbOpenCompSets({ create: true, from: 'index' }); });
     }
   }
   // keep the bar in step with any other re-render (status toggle, search, rail filters)
