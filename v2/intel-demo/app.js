@@ -3433,7 +3433,7 @@ function renderOverview() {
           }
         }
       },
-      layout: { padding: { top: 8, right: 12 } },
+      layout: { padding: { top: 8, right: 48 } },   // room for the value printed past the longest bar
       scales: {
         x: { ...AXIS_COMMON, ticks: { ...AXIS_COMMON.ticks, callback: v => '$' + v.toFixed(2) } },
         y: { ...AXIS_COMMON, grid: { display: false }, ticks: { ...AXIS_COMMON.ticks, font: { size: 11.5, family: "'Inter Tight', sans-serif", weight: '500' } } }
@@ -7375,7 +7375,7 @@ function renderCompSetIntel() {
       <div class="panel">
         <div class="panel-header" style="gap:14px;flex-wrap:wrap;">
           <div>
-            <div class="panel-title">Comp Set · <em>${escapeHTML(cs.name)}</em></div>
+            <div class="panel-title">${document.body.dataset.wbView === 'compsets' ? 'Analysis' : `Comp Set · <em>${escapeHTML(cs.name)}</em>`}</div>
             <div class="panel-sub">Empty set · click properties on the map to add them${compSetDealName(cs) ? ' · Tied to ' + escapeHTML(compSetDealName(cs)) : ''}</div>
           </div>
           <div class="cs-actions">${actions}</div>
@@ -7427,7 +7427,7 @@ function renderCompSetIntel() {
     <div class="panel">
       <div class="panel-header" style="gap:14px;flex-wrap:wrap;">
         <div style="min-width:0;">
-          <div class="panel-title">Comp Set · <em>${escapeHTML(cs.name)}</em></div>
+          <div class="panel-title">${document.body.dataset.wbView === 'compsets' ? 'Analysis' : `Comp Set · <em>${escapeHTML(cs.name)}</em>`}</div>
           <div class="panel-sub">${subBits}</div>
         </div>
         <div class="cs-actions">
@@ -14402,7 +14402,7 @@ function renderSubmarkets() {
       options: {
         indexAxis: 'y',
         responsive: true, maintainAspectRatio: false,
-        layout: { padding: { right: 8 } },
+        layout: { padding: { right: 44 } },
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => basis === 'mo' ? `${fmtRent(ctx.parsed.x)} / month` : `${fmtRent(ctx.parsed.x)} / SF` } } },
         scales: {
           x: { ...AXIS_COMMON, grace: '10%', ticks: { ...AXIS_COMMON.ticks, callback: v => basis === 'mo' ? '$' + Math.round(v).toLocaleString('en-US') : '$' + v.toFixed(2) } },

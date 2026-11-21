@@ -26,7 +26,7 @@
     const ex = ps.filter((p) => p.status === 'Existing');
     return { n: ps.length, units: ps.reduce((s, p) => s + (p.units || 0), 0), ask: wa((p) => p.avgAskingSF), askU: wa((p) => p.avgAskingUnit), eff: wa((p) => p.avgEffectiveSF),
       occ: (() => { let s = 0, w = 0; ex.forEach((p) => { const o = occOf(p); if (o != null && p.units) { s += o * p.units; w += p.units; } }); return w ? s / w : null; })(),
-      wks: wa(wksOf), yr: yrs.length ? (yrs[0] === yrs[yrs.length - 1] ? String(yrs[0]) : `${yrs[0]}–${yrs[yrs.length - 1]}`) : '—',
+      sf: wa((p) => p.avgUnitSF), wks: wa(wksOf), yr: yrs.length ? (yrs[0] === yrs[yrs.length - 1] ? String(yrs[0]) : `${yrs[0]}–${yrs[yrs.length - 1]}`) : '—',
       uc: ps.filter((p) => p.status !== 'Existing').length };
   }
 
@@ -59,7 +59,7 @@
 
   // ---------- open / close ----------
   function openSet(id) {
-    UI.open = id; UI.add = ''; UI.near = null; UI.confirmDel = false; UI.creating = false;
+    UI.open = id; UI.add = ''; UI.near = null; UI.confirmDel = false; UI.menu = false; UI.creating = false;
     if (state.activeCompSetId !== id || state.compSetMode !== 'viewing') activateCompSet(id); else render();
     goTab();
   }
@@ -77,9 +77,9 @@
       const ps = membersOf(cs, map), s = stats(ps), active = state.compSetMode === 'viewing' && state.activeCompSetId === cs.id;
       return `<tr data-id="${E(cs.id)}">
         <td class="nm"><b>${E(cs.name)}</b>${active ? '<span class="csx-tag on">In use</span>' : ''}${!cs.uuid ? '<span class="csx-tag warn">This browser only</span>' : ''}${cs.description ? `<small>${E(cs.description)}</small>` : ''}</td>
-        <td class="r">${s.n}</td><td class="r">${s.units.toLocaleString()}</td><td class="r">${money(s.ask)}</td><td class="r">${money(s.eff)}</td>
-        <td class="r">${pct(s.occ)}</td><td class="r">${wks(s.wks)}</td><td class="r">${s.yr}</td>
-        <td class="up">${day(cs.updatedAt)}${who(cs.updatedBy || cs.createdBy) && who(cs.updatedBy || cs.createdBy) !== 'Anonymous' ? `<small>${E(who(cs.updatedBy || cs.createdBy))}</small>` : ''}</td></tr>`;
+        <td class="r">${s.n}</td><td class="r">${s.units.toLocaleString()}</td><td class="r">${s.yr}</td><td class="r">${money(s.ask)}</td><td class="r">${money(s.eff)}</td>
+        <td class="r">${pct(s.occ)}</td><td class="r">${wks(s.wks)}</td>
+        <td class="up" title="${E(cs.updatedBy || cs.createdBy || '')}">${day(cs.updatedAt)}</td><td class="go" aria-hidden="true">›</td></tr>`;
     }).join('');
     return `
       ${UI.creating ? creator() : ''}
@@ -89,8 +89,8 @@
           <div class="csx-acts">${total > 6 ? `<input class="csx-in csx-q" placeholder="Search sets…" value="${E(UI.q)}">` : ''}${UI.creating ? '' : '<button type="button" class="yx-btn yx-btn-primary csx-new">New comp set</button>'}</div>
         </header>
         ${total ? `<div class="csx-tw"><table class="csx-t csx-lib">
-          <thead><tr><th>Set</th><th class="r">Properties</th><th class="r">Units</th><th class="r">Asking $/SF</th><th class="r">Effective $/SF</th><th class="r">Occupancy</th><th class="r">Weeks free</th><th class="r">Built</th><th>Updated</th></tr></thead>
-          <tbody>${rows || `<tr><td colspan="9" class="csx-none">No sets match "${E(UI.q)}"</td></tr>`}</tbody></table></div>`
+          <thead><tr><th>Set</th><th class="r">Properties</th><th class="r">Units</th><th class="r">Built</th><th class="r">Asking $/SF</th><th class="r">Effective $/SF</th><th class="r">Occupancy</th><th class="r">Weeks free</th><th>Updated</th><th></th></tr></thead>
+          <tbody>${rows || `<tr><td colspan="10" class="csx-none">No sets match "${E(UI.q)}"</td></tr>`}</tbody></table></div>`
         : `<div class="csx-empty"><b>No comp sets yet</b><span>Start one from scratch, from your Property Index results, or from the properties near a site.</span>${UI.creating ? '' : '<button type="button" class="yx-btn yx-btn-primary csx-new">New comp set</button>'}</div>`}
       </section>`;
   }
@@ -126,7 +126,7 @@
     touch(compSets[id]);
     openSet(id);
     if (from === 'near') { UI.add = 'near'; render(); setTimeout(() => { const i = view.querySelector('.csx-near-q'); if (i) i.focus(); }, 50); }
-    else if (from === 'empty') { UI.add = 'search'; render(); setTimeout(() => { const i = view.querySelector('.csx-add-q'); if (i) i.focus(); }, 50); }
+    else if (from === 'empty') { setTimeout(() => { const i = view.querySelector('.csx-add-q'); if (i) i.focus(); }, 50); }
   }
 
   // ---------- workspace ----------
@@ -148,8 +148,14 @@
           </div>
           <div class="csx-acts">
             <div class="csx-savebox">${saveLabel(cs)}</div>
-            <button type="button" class="yx-btn csx-dup">Duplicate</button>
-            ${UI.confirmDel ? '<button type="button" class="yx-btn csx-del2">Delete for everyone?</button><button type="button" class="yx-btn csx-del-no">Keep</button>' : '<button type="button" class="yx-btn csx-del">Delete</button>'}
+            <div class="csx-menuwrap">
+              <button type="button" class="yx-btn csx-menubtn" aria-haspopup="menu" aria-expanded="${UI.menu ? 'true' : 'false'}">⚙ Actions</button>
+              <div class="csx-menu" role="menu" ${UI.menu ? '' : 'hidden'}>
+                ${UI.confirmDel
+                  ? `<div class="csx-menuq">Delete “${E(cs.name)}” for everyone in ${E((window.__WBD && window.__WBD.title) || 'this market')}?</div><div class="csx-menurow"><button type="button" class="yx-btn csx-del2">Delete</button><button type="button" class="yx-btn csx-del-no">Keep</button></div>`
+                  : `<button type="button" role="menuitem" class="csx-dup">Duplicate set</button><button type="button" role="menuitem" class="csx-csv">Download CSV</button><button type="button" role="menuitem" class="csx-pdf">Download PDF</button><div class="csx-menusep"></div><button type="button" role="menuitem" class="csx-del danger">Delete set…</button>`}
+              </div>
+            </div>
           </div>
         </header>
         <div class="csx-kpis">
@@ -158,20 +164,35 @@
           <div><span>Effective</span><b>${money(s.eff)}<i>/SF</i></b><em>unit-weighted</em></div>
           <div><span>Occupancy</span><b>${pct(s.occ)}</b><em>existing only</em></div>
           <div><span>Concessions</span><b>${wks(s.wks)}<i> wks</i></b><em>free, unit-weighted</em></div>
-          <div><span>Built</span><b>${s.yr}</b><em>&nbsp;</em></div>
+          <div><span>Built</span><b>${s.yr}</b><em>${s.sf ? Math.round(s.sf).toLocaleString() + ' SF avg unit' : '&nbsp;'}</em></div>
         </div>
-        <div class="csx-scope">This set is in use across the dashboard: every tab and the YOC matrix show just these comps. <button type="button" class="csx-stop">Stop using it</button></div>
+        ${yocCheck(ps)}
         <div class="csx-addbar">
-          <span class="csx-addl">Add properties</span>
-          <div class="yx-seg csx-addseg"><button type="button" data-a="search" class="${UI.add === 'search' ? 'active' : ''}">Search</button><button type="button" data-a="near" class="${UI.add === 'near' ? 'active' : ''}">Near a site</button><button type="button" data-a="map" class="${UI.add === 'map' ? 'active' : ''}">On the map</button></div>
+          <div class="csx-ta csx-addta"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-add-q" placeholder="Add a property by name or address…" aria-label="Add a property"><div class="csx-ta-list" hidden></div></div>
+          <button type="button" class="yx-btn csx-addbtn${UI.add === 'near' ? ' on' : ''}" data-a="near">Add near a site</button>
+          <button type="button" class="yx-btn csx-addbtn${UI.add === 'map' ? ' on' : ''}" data-a="map">Pick on the map</button>
         </div>
-        ${UI.add === 'search' ? addSearch() : UI.add === 'near' ? addNear(cs, map) : UI.add === 'map' ? '<div class="csx-hint">Click any property on the map below to add it; click a comp to remove it.</div>' : ''}
+        ${UI.add === 'near' ? addNear(cs, map) : UI.add === 'map' ? '<div class="csx-hint csx-maphint">Click any property on the map below to add it; click a comp to remove it. <button type="button" class="csx-tomap">Go to map ↓</button></div>' : ''}
         ${ps.length ? `<div class="csx-tw"><table class="csx-t csx-mem">
           <thead><tr><th class="rk">#</th><th>Property</th><th>Submarket</th><th>Type</th><th class="r">Units</th><th class="r">Built</th><th class="r">Asking $/SF</th><th class="r">Effective $/SF</th><th class="r">Occupancy</th><th class="r">Weeks free</th><th></th></tr></thead>
-          <tbody>${rows}</tbody></table></div>` : '<div class="csx-empty sm"><b>No properties yet</b><span>Use Search, Near a site or the map to add comps.</span></div>'}
+          <tbody>${rows}</tbody></table></div>` : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
         ${missing > 0 ? `<div class="csx-hint warn">${missing} propert${missing === 1 ? 'y' : 'ies'} in this set ${missing === 1 ? 'isn’t' : 'aren’t'} in the current data (removed or filtered out by a data load).</div>` : ''}
       </section>
       <div id="csx-intel-slot"></div>`;
+  }
+  // what the YOC matrix says each product type needs, next to what these comps actually get
+  function yocCheck(ps) {
+    if (typeof requiredPsfRent !== 'function' || typeof YOC_PRODUCT_COLUMNS === 'undefined' || typeof yocState === 'undefined') return '';
+    const col = (p) => (typeof yocColumnFor === 'function' ? yocColumnFor(p.style) : p.style);
+    const cells = YOC_PRODUCT_COLUMNS.map((prod) => {
+      let req = null; try { req = requiredPsfRent(prod, sfFor(prod)); } catch (e) {}
+      const g = ps.filter((p) => p.status === 'Existing' && p.avgAskingSF && col(p) === prod);
+      let a = 0, w = 0; g.forEach((p) => { a += p.avgAskingSF * (p.units || 0); w += p.units || 0; }); const ask = w ? a / w : null;
+      const gap = req && ask ? (ask / req - 1) * 100 : null;
+      return `<div class="csx-yc"><span>${E(prod)}</span><b>${req == null ? '—' : '$' + req.toFixed(2)}<i>/SF required</i></b>
+        <em>${ask == null ? 'No existing ' + E(prod.toLowerCase()) + ' comps in the set' : `Comps ask $${ask.toFixed(2)} · <strong class="${gap >= 0 ? 'ok' : 'bad'}">${gap >= 0 ? '+' : '−'}${Math.abs(gap).toFixed(0)}%</strong> ${gap >= 0 ? 'above' : 'below'} required`}</em></div>`;
+    }).join('');
+    return `<div class="csx-yoc"><div class="csx-yoch"><b>YOC matrix check</b><span>Required rent at the matrix's current ${(yocState.targetYoc * 100).toFixed(2)}% target YOC, against these comps' unit-weighted asking rent (existing only)</span><button type="button" class="csx-toyoc">Open YOC matrix →</button></div><div class="csx-ycs">${cells}</div></div>`;
   }
   function addSearch() {
     return `<div class="csx-add"><div class="csx-ta"><input class="csx-in csx-add-q" placeholder="Search a property by name or address…" value=""><div class="csx-ta-list" hidden></div></div></div>`;
@@ -194,8 +215,8 @@
         <label class="csx-ck"><input type="checkbox" class="csx-nex" ${UI.nearExisting ? 'checked' : ''}> Existing only</label>
         <select class="csx-in csx-nyr"><option value="">Any vintage</option>${[2000, 2010, 2015, 2018, 2020].map((y) => `<option value="${y}" ${String(UI.nearYear) === String(y) ? 'selected' : ''}>Built ${y}+</option>`).join('')}</select>
       </div>
-      ${anchor ? (cands.length ? `<div class="csx-cands">${cands.map((x) => `<label class="csx-cand"><input type="checkbox" value="${E(x.p.id)}" checked><span><b>${E(x.p.name || x.p.address)}</b><small>${x.d.toFixed(1)} mi · ${(x.p.units || 0)} units · ${x.p.yearBuilt || '—'} · ${money(x.p.avgAskingSF)}/SF</small></span></label>`).join('')}</div>
-        <div class="csx-bar"><button type="button" class="yx-btn yx-btn-primary csx-near-add">Add ${cands.length} checked</button><span class="csx-msg">Untick any you don’t want.</span></div>`
+      ${anchor ? (cands.length ? `<div class="csx-candhead"><span>${cands.length} within ${UI.radius} mi of ${E(anchor.name)}, nearest first</span><button type="button" class="csx-all">Select all</button></div><div class="csx-cands">${cands.map((x) => `<label class="csx-cand"><input type="checkbox" value="${E(x.p.id)}"><span><b>${E(x.p.name || x.p.address)}</b><small>${x.d.toFixed(1)} mi · ${(x.p.units || 0)} units · ${x.p.yearBuilt || '—'} · ${money(x.p.avgAskingSF)}/SF</small></span></label>`).join('')}</div>
+        <div class="csx-bar"><button type="button" class="yx-btn yx-btn-primary csx-near-add" disabled>Add checked</button><button type="button" class="yx-btn csx-near-x">Close</button></div>`
         : '<div class="csx-hint">Nothing else within that radius with these filters.</div>') : '<div class="csx-hint">Pick the subject (or any building near the site), then choose a radius.</div>'}
     </div>`;
   }
@@ -244,31 +265,40 @@
     const d = $('.csx-desc'); d.onchange = () => { cs.description = d.value.trim(); touch(cs); };
     [t, d].forEach((i) => (i.onkeydown = (e) => { if (e.key === 'Enter') i.blur(); }));
     const r = $('.csx-retry'); if (r) r.onclick = () => saveNow(cs);
-    $('.csx-dup').onclick = () => {
+    const dp = $('.csx-dup'); if (dp) dp.onclick = () => { UI.menu = false;
       let name = cs.name + ' (copy)', k = 2; while (Object.values(compSets).some((s) => s.name === name)) name = `${cs.name} (copy ${k++})`;
       const id = 'cs-' + Date.now(); compSets[id] = { id, name, description: cs.description || '', propertyIds: [...(cs.propertyIds || [])], createdAt: Date.now(), updatedAt: Date.now() };
       touch(compSets[id]); openSet(id);
     };
+    const mb = $('.csx-menubtn'); if (mb) mb.onclick = (e) => { e.stopPropagation(); UI.menu = !UI.menu; UI.confirmDel = false; render(); };
+    const menu = $('.csx-menu'); if (menu) menu.onclick = (e) => e.stopPropagation();
+    if (UI.menu) setTimeout(() => document.addEventListener('click', function off() { document.removeEventListener('click', off); if (UI.menu) { UI.menu = false; UI.confirmDel = false; render(); } }), 0);
+    const cv = $('.csx-csv'); if (cv) cv.onclick = () => { UI.menu = false; render(); try { exportCompSetCsv(); } catch (e) { console.error(e); } };
+    const pd = $('.csx-pdf'); if (pd) pd.onclick = () => { UI.menu = false; render(); try { exportCompSetPdf(); } catch (e) { console.error(e); } };
     const del = $('.csx-del'); if (del) del.onclick = () => { UI.confirmDel = true; render(); };
-    const no = $('.csx-del-no'); if (no) no.onclick = () => { UI.confirmDel = false; render(); };
+    const no = $('.csx-del-no'); if (no) no.onclick = () => { UI.confirmDel = false; UI.menu = false; render(); };
     const yes = $('.csx-del2'); if (yes) yes.onclick = async () => {
       yes.disabled = true; yes.textContent = 'Deleting…';
       try { if (cs.uuid && window.LegacyDB && LegacyDB.compSets) await LegacyDB.compSets.remove(cs); }
       catch (e) { yes.disabled = false; yes.textContent = 'Couldn’t delete: ' + (e.message || e); return; }
       if (state.activeCompSetId === cs.id) exitCompSet();
-      delete compSets[cs.id]; try { saveCompSets(); renderCompSetList(); } catch (e) {} UI.open = null; UI.confirmDel = false; render();
+      delete compSets[cs.id]; try { saveCompSets(); renderCompSetList(); } catch (e) {} UI.open = null; UI.confirmDel = false; UI.menu = false; render();
     };
-    $('.csx-stop').onclick = () => { exitCompSet(); UI.open = null; render(); };
-    $$('.csx-addseg button').forEach((b) => (b.onclick = () => { UI.add = UI.add === b.dataset.a ? '' : b.dataset.a; render(); const i = $(UI.add === 'search' ? '.csx-add-q' : '.csx-near-q'); if (i && !UI.near) i.focus(); }));
+    const toMap = () => { const m = document.getElementById('csx-intel-slot'); if (m) m.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    $$('.csx-addbtn').forEach((b) => (b.onclick = () => { UI.add = UI.add === b.dataset.a ? '' : b.dataset.a; render(); const i = $('.csx-near-q'); if (UI.add === 'near' && i && !UI.near) i.focus(); if (UI.add === 'map') toMap(); }));
+    const tm = $('.csx-tomap'); if (tm) tm.onclick = toMap;
+    const ty = $('.csx-toyoc'); if (ty) ty.onclick = () => { const t = document.querySelector('.tab[data-view="yoc"]'); if (t) t.click(); window.scrollTo({ top: 0 }); };
     const inSet = () => new Set((cs.propertyIds || []).map(String));
     const aq = $('.csx-add-q'); if (aq) typeahead(aq, (p) => { if (!p) return; cs.propertyIds = [...(cs.propertyIds || []), p.id]; touch(cs); refresh(); setTimeout(() => { const i = $('.csx-add-q'); if (i) i.focus(); }, 30); }, inSet);
     const nq = $('.csx-near-q'); if (nq) typeahead(nq, (p) => { if (!p || p.lat == null) return; UI.near = { id: p.id, name: p.name || p.address, lat: p.lat, lng: p.lng }; render(); });
+    const nx = $('.csx-near-x'); if (nx) nx.onclick = () => { UI.add = ''; UI.near = null; render(); };
     const rad = $('.csx-rad'); if (rad) rad.onchange = () => { UI.radius = parseFloat(rad.value); render(); };
     const nex = $('.csx-nex'); if (nex) nex.onchange = () => { UI.nearExisting = nex.checked; render(); };
     const nyr = $('.csx-nyr'); if (nyr) nyr.onchange = () => { UI.nearYear = nyr.value; render(); };
     const na = $('.csx-near-add'); if (na) {
-      const sync = () => { const k = $$('.csx-cand input:checked').length; na.textContent = `Add ${k} checked`; na.disabled = !k; };
+      const sync = () => { const k = $$('.csx-cand input:checked').length; na.textContent = k ? `Add ${k} to the set` : 'Add checked'; na.disabled = !k; const a = $('.csx-all'); if (a) a.textContent = k && k === $$('.csx-cand input').length ? 'Clear' : 'Select all'; };
       $$('.csx-cand input').forEach((c) => (c.onchange = sync));
+      const sa = $('.csx-all'); if (sa) sa.onclick = () => { const on = sa.textContent === 'Select all'; $$('.csx-cand input').forEach((c) => { c.checked = on; }); sync(); };
       na.onclick = () => { const add = [...$$('.csx-cand input:checked')].map((c) => { const p = byId().get(c.value); return p ? p.id : c.value; }); if (!add.length) return; cs.propertyIds = [...(cs.propertyIds || []), ...add]; touch(cs); UI.add = ''; UI.near = null; refresh(); };
     }
     $$('.csx-rm').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const pid = b.closest('tr').dataset.pid; cs.propertyIds = (cs.propertyIds || []).filter((x) => String(x) !== String(pid)); touch(cs); refresh(); }));
@@ -311,7 +341,7 @@
 
   // the view switch: render on entry; keep the analysis panel parked when leaving
   const _ra = renderActive;
-  renderActive = function () { if (getActiveView() === 'compsets') { render(); return; } return _ra.apply(this, arguments); };
+  renderActive = function () { document.body.dataset.wbView = getActiveView(); if (getActiveView() === 'compsets') { render(); return; } return _ra.apply(this, arguments); };
   window.renderActive = renderActive;
 
   // reopen the set named in the address once the sets have loaded
@@ -325,6 +355,26 @@
     };
     go();
   })();
+  // every pop-up says which comp set it's showing; a property card says so only if that property is in the set
+  // mark the property card's own header, so any other pop-up that reuses the same container isn't mistaken for it
+  if (typeof openDetail === 'function') { const _od = openDetail; openDetail = function (pid) { const r = _od.apply(this, arguments); const h = document.querySelector('#modal-content .modal-header'); if (h) h.dataset.prop = String(pid); tagModals(); return r; }; window.openDetail = openDetail; }
+  function tagModals() {
+    const on = state.compSetMode === 'viewing' && state.activeCompSetId && compSets[state.activeCompSetId];
+    document.querySelectorAll('.modal .modal-header').forEach((h) => {
+      let t = h.querySelector('.csx-mtag');
+      const modal = h.closest('.modal');
+      const isCard = !!h.dataset.prop;
+      const cs = on && compSets[state.activeCompSetId];
+      const show = cs && (!isCard || (cs.propertyIds || []).some((x) => String(x) === h.dataset.prop));
+      if (!show) { if (t) t.remove(); return; }
+      const txt = isCard ? `In comp set ${cs.name}` : `Comp set ${cs.name} · ${(cs.propertyIds || []).length} properties`;
+      if (t && t.dataset.txt === txt) return;
+      if (!t) { t = document.createElement('div'); t.className = 'csx-mtag'; const title = h.querySelector('.modal-title'); const host = title ? title.parentElement : h.firstElementChild || h; host.appendChild(t); }
+      t.dataset.txt = txt; t.innerHTML = `<span>${isCard ? 'In comp set' : 'Comp set'}</span>${E(cs.name)}${isCard ? '' : ` · ${(cs.propertyIds || []).length}`}`;
+    });
+  }
+  let tq = 0; new MutationObserver(() => { cancelAnimationFrame(tq); tq = requestAnimationFrame(tagModals); }).observe(document.body, { childList: true, subtree: true });
+
   // Filters panel keeps the quick picker; building and editing happen in the tab
   const pk = document.getElementById('cs-picker');
   if (pk && !document.getElementById('csx-manage')) {

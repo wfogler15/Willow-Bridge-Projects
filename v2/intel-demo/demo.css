@@ -1033,3 +1033,46 @@ html body #view-yoc .yx-ops-sel { height: 26px; line-height: 26px; }
 .px-q .px-cs { font-weight: 600; color: var(--x-purple); }
 .csx-manage { display: block; margin-top: 8px; background: none; border: 0; padding: 0; font: 500 12.5px var(--x-font); color: var(--x-purple); cursor: pointer; }
 #csx-intel-slot .kpi-row.kpi-8 { display: none !important; }   /* same figures as the workspace strip above */
+/* Comp Sets polish */
+body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { display: none !important; }
+.csx-lib td.go { width: 18px; color: #c4bfd6; font-size: 18px; text-align: right; }
+.csx-lib tbody tr:hover td.go { color: var(--x-purple); }
+.csx-lib td.up { white-space: nowrap; color: var(--x-ink-2); }
+.csx-addbar { gap: 10px; }
+.csx-addta { position: relative; flex: 1; max-width: 560px; }
+.csx-addta svg { position: absolute; left: 12px; top: 12px; width: 15px; height: 15px; fill: none; stroke: var(--x-ink-3); stroke-width: 1.6; stroke-linecap: round; pointer-events: none; }
+.csx-addta .csx-in { padding-left: 34px; }
+.csx-addbtn.on { border-color: var(--x-purple) !important; color: var(--x-purple) !important; background: #f4f1fd !important; }
+.csx-near { margin: 0 22px 14px; padding: 14px 16px; border: 1px solid var(--x-line); border-radius: 10px; background: #fbfaff; }
+.csx-candhead { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 12.5px; color: var(--x-ink-3); }
+.csx-candhead button, .csx-tomap { background: none; border: 0; padding: 0; font: 600 12.5px var(--x-font); color: var(--x-purple); cursor: pointer; }
+.csx-cands { margin-top: 8px; }
+.csx-maphint { display: flex; gap: 10px; align-items: center; }
+.csx-del { background: none; border: 0; padding: 0 4px; font: 500 13px var(--x-font); color: var(--x-ink-3); cursor: pointer; }
+.csx-del:hover { color: #a3332b; }
+.csx-del2 { color: #a3332b !important; border-color: #f0c9c5 !important; }
+.csx-yoc { margin: 16px 22px 0; border: 1px solid var(--x-line); border-radius: 10px; }
+.csx-yoch { display: flex; align-items: baseline; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--x-line); font-size: 12.5px; color: var(--x-ink-3); flex-wrap: wrap; }
+.csx-yoch b { color: var(--x-ink); font-size: 13px; }
+.csx-yoch .csx-toyoc { margin-left: auto; background: none; border: 0; padding: 0; font: 600 12.5px var(--x-font); color: var(--x-purple); cursor: pointer; }
+.csx-ycs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.csx-yc { padding: 12px 14px; border-right: 1px solid var(--x-line); display: flex; flex-direction: column; gap: 3px; }
+.csx-yc:last-child { border-right: 0; }
+.csx-yc span { font: 600 11px/1 var(--x-font); letter-spacing: .06em; text-transform: uppercase; color: var(--x-ink-3); }
+.csx-yc b { font: 600 18px/1.2 var(--x-font); font-variant-numeric: tabular-nums; }
+.csx-yc b i { font-style: normal; font-size: 12px; font-weight: 500; color: var(--x-ink-3); margin-left: 3px; }
+.csx-yc em { font-style: normal; font-size: 12.5px; color: var(--x-ink-2); }
+.csx-yc strong.ok { color: #2f6b3a; } .csx-yc strong.bad { color: #a3332b; }
+.csx-menuwrap { position: relative; }
+.csx-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 220px; background: #fff; border: 1px solid #e3e0ec; border-radius: 10px; box-shadow: 0 12px 32px rgba(29,18,71,.16); padding: 6px; }
+.csx-menu[hidden] { display: none; }
+.csx-menu > button { display: block; width: 100%; text-align: left; background: none; border: 0; border-radius: 7px; padding: 9px 10px; font: 500 13px var(--x-font); color: var(--x-ink); cursor: pointer; }
+.csx-menu > button:hover { background: #f4f1fd; }
+.csx-menu > button.danger { color: #a3332b; }
+.csx-menu > button.danger:hover { background: #fbeceb; }
+.csx-menusep { height: 1px; background: var(--x-line); margin: 4px 2px; }
+.csx-menuq { padding: 8px 10px 10px; font-size: 13px; color: var(--x-ink-2); line-height: 1.45; max-width: 260px; }
+.csx-menurow { display: flex; gap: 8px; padding: 0 10px 8px; }
+.csx-menurow .csx-del2 { background: #a3332b !important; border-color: #a3332b !important; color: #fff !important; }
+.csx-mtag { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.24); color: #fff; font: 600 12px var(--x-font); }
+.csx-mtag span { opacity: .7; font-weight: 500; }
