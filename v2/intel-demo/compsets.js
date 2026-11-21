@@ -75,24 +75,24 @@
     const total = Object.keys(compSets).length;
     const rows = sets.map((cs) => {
       const ps = membersOf(cs, map), s = stats(ps), active = state.compSetMode === 'viewing' && state.activeCompSetId === cs.id;
-      return `<tr data-id="${E(cs.id)}">
-        <td class="nm"><b>${E(cs.name)}</b>${active ? '<span class="csx-tag on">In use</span>' : ''}${!cs.uuid ? '<span class="csx-tag warn">This browser only</span>' : ''}${cs.description ? `<small>${E(cs.description)}</small>` : ''}</td>
-        <td class="r">${s.n}</td><td class="r">${s.units.toLocaleString()}</td><td class="r">${s.yr}</td><td class="r">${money(s.ask)}</td><td class="r">${money(s.eff)}</td>
-        <td class="r">${pct(s.occ)}</td><td class="r">${wks(s.wks)}</td>
-        <td class="up" title="${E(cs.updatedBy || cs.createdBy || '')}">${day(cs.updatedAt)}</td><td class="go" aria-hidden="true">›</td></tr>`;
+      return `<tr data-id="${E(cs.id)}" class="csx-row">
+        <td><div class="csx-nm">${E(cs.name)}${active ? '<span class="csx-tag on">In use</span>' : ''}${!cs.uuid ? '<span class="csx-tag warn">This browser only</span>' : ''}</div>${cs.description ? `<div class="csx-addr">${E(cs.description)}</div>` : ''}</td>
+        <td class="num">${s.n}</td><td class="num">${s.units.toLocaleString()}</td><td class="num">${s.yr}</td><td class="num">${money(s.ask)}</td><td class="num">${money(s.eff)}</td>
+        <td class="num">${pct(s.occ)}</td><td class="num">${wks(s.wks)}</td>
+        <td title="${E(cs.updatedBy || cs.createdBy || '')}">${day(cs.updatedAt)}</td></tr>`;
     }).join('');
     return `
       ${UI.creating ? creator() : ''}
-      <section class="csx-card">
-        <header class="csx-head">
-          <div><h2 class="csx-h">Comp sets</h2><div class="csx-sub">${total ? `${total} saved for ${E((window.__WBD && window.__WBD.title) || 'this market')}. Open one to edit it and use it across the dashboard.` : 'Build a set for each deal you underwrite: the YOC matrix and every tab can then run on just those comps.'}</div></div>
+      <div class="panel">
+        <div class="panel-header">
+          <div><div class="panel-title">Saved comp sets</div><div class="panel-sub">${total ? `${total} for ${E((window.__WBD && window.__WBD.title) || 'this market')} · open one to edit it and run the dashboard on it` : 'One set per deal you underwrite · the YOC matrix and every tab can then run on just those comps'}</div></div>
           <div class="csx-acts">${total > 6 ? `<input class="csx-in csx-q" placeholder="Search sets…" value="${E(UI.q)}">` : ''}${UI.creating ? '' : '<button type="button" class="yx-btn yx-btn-primary csx-new">New comp set</button>'}</div>
-        </header>
-        ${total ? `<div class="csx-tw"><table class="csx-t csx-lib">
-          <thead><tr><th>Set</th><th class="r">Properties</th><th class="r">Units</th><th class="r">Built</th><th class="r">Asking $/SF</th><th class="r">Effective $/SF</th><th class="r">Occupancy</th><th class="r">Weeks free</th><th>Updated</th><th></th></tr></thead>
-          <tbody>${rows || `<tr><td colspan="10" class="csx-none">No sets match "${E(UI.q)}"</td></tr>`}</tbody></table></div>`
-        : `<div class="csx-empty"><b>No comp sets yet</b><span>Start one from scratch, from your Property Index results, or from the properties near a site.</span>${UI.creating ? '' : '<button type="button" class="yx-btn yx-btn-primary csx-new">New comp set</button>'}</div>`}
-      </section>`;
+        </div>
+        ${total ? `<div class="panel-body tight"><div class="table-scroll"><table class="csx-table">
+          <thead><tr><th>Set</th><th class="num">Properties</th><th class="num">Units</th><th class="num">Built</th><th class="num">Asking $/SF</th><th class="num">Effective $/SF</th><th class="num">Occupancy</th><th class="num">Weeks free</th><th>Updated</th></tr></thead>
+          <tbody>${rows || `<tr><td colspan="9" class="csx-none">No sets match "${E(UI.q)}"</td></tr>`}</tbody></table></div></div>`
+        : `<div class="csx-empty"><b>No comp sets yet</b><span>Start one from scratch, from the properties near a site, or from your Property Index results.</span>${UI.creating ? '' : '<button type="button" class="yx-btn yx-btn-primary csx-new">New comp set</button>'}</div>`}
+      </div>`;
   }
 
   // ---------- new set ----------
@@ -100,23 +100,25 @@
   function creator() {
     const n = idxRows().length;
     const opt = (k, t, s) => `<label class="csx-opt${UI.from === k ? ' on' : ''}"><input type="radio" name="csx-from" value="${k}" ${UI.from === k ? 'checked' : ''}><span><b>${t}</b><small>${s}</small></span></label>`;
-    return `<section class="csx-card csx-create">
-      <header class="csx-head"><div><h2 class="csx-h">New comp set</h2><div class="csx-sub">Name it, choose where to start, then add or remove properties.</div></div></header>
-      <div class="csx-form">
-        <label class="csx-f"><span>Name</span><input class="csx-in csx-nm" placeholder="e.g. Littleton Equine" maxlength="80"></label>
-        <label class="csx-f"><span>Deal or site <em>optional</em></span><input class="csx-in csx-ds" placeholder="e.g. 8025 S Santa Fe Dr · 393 units" maxlength="120"></label>
+    return `<div class="panel csx-create">
+      <div class="panel-header"><div><div class="panel-title">New comp set</div><div class="panel-sub">Name it, choose where to start, then add or remove properties</div></div></div>
+      <div class="panel-body">
+        <div class="csx-form">
+          <label class="csx-f"><span>Name</span><input class="csx-in csx-nm-in" placeholder="e.g. Littleton Equine" maxlength="80"></label>
+          <label class="csx-f"><span>Deal or site <em>optional</em></span><input class="csx-in csx-ds" placeholder="e.g. 8025 S Santa Fe Dr · 393 units" maxlength="120"></label>
+        </div>
+        <div class="csx-opts">
+          ${opt('empty', 'Start empty', 'Add properties by search or radius next')}
+          ${opt('near', 'Properties near a site', 'Pick a property or site, then a radius')}
+          ${opt('index', `Property Index results${n ? ` (${n})` : ''}`, n ? 'Everything your current Index filters show' : 'Set filters in the Property Index first')}
+        </div>
+        <div class="csx-bar"><button type="button" class="yx-btn yx-btn-primary csx-make">Create comp set</button><button type="button" class="yx-btn csx-cancel">Cancel</button><span class="csx-msg"></span></div>
       </div>
-      <div class="csx-opts">
-        ${opt('empty', 'Start empty', 'Add properties by search or from a radius next')}
-        ${opt('near', 'Properties near a site', 'Pick a property or site, then a radius')}
-        ${opt('index', `Property Index results${n ? ` (${n})` : ''}`, n ? 'Everything your current Index filters show' : 'Set filters in the Property Index first')}
-      </div>
-      <div class="csx-bar"><button type="button" class="yx-btn yx-btn-primary csx-make">Create comp set</button><button type="button" class="yx-btn csx-cancel">Cancel</button><span class="csx-msg"></span></div>
-    </section>`;
+    </div>`;
   }
   function create() {
-    const name = (view.querySelector('.csx-nm').value || '').trim(), msg = view.querySelector('.csx-msg');
-    if (!name) { msg.textContent = 'Name the set first.'; view.querySelector('.csx-nm').focus(); return; }
+    const name = (view.querySelector('.csx-nm-in').value || '').trim(), msg = view.querySelector('.csx-msg');
+    if (!name) { msg.textContent = 'Name the set first.'; view.querySelector('.csx-nm-in').focus(); return; }
     if (Object.values(compSets).some((s) => s.name.toLowerCase() === name.toLowerCase())) { msg.textContent = 'A set with that name already exists.'; return; }
     const from = (view.querySelector('input[name=csx-from]:checked') || {}).value || 'empty';
     if (from === 'index' && !idxRows().length) { msg.textContent = 'The Property Index has no results to start from.'; return; }
@@ -131,19 +133,20 @@
 
   // ---------- workspace ----------
   function workspace(cs) {
-    const map = byId(), ps = membersOf(cs, map), s = stats(ps);
+    const map = byId(), ps = membersOf(cs, map);
     const missing = (cs.propertyIds || []).length - ps.length;
     const rows = ps.map((p, i) => `<tr data-pid="${E(p.id)}">
-        <td class="rk">${i + 1}</td><td class="nm"><button type="button" class="csx-pname">${E(p.name || p.address)}</button><small>${E(p.address || '')}${p.status !== 'Existing' ? ` · <span class="csx-st">${E(p.status === 'Under Construction' ? 'UC' : p.status)}</span>` : ''}</small></td>
-        <td>${E(p.submarket || '')}</td><td>${E(p.style || '')}</td><td class="r">${(p.units || 0).toLocaleString()}</td><td class="r">${p.yearBuilt || '—'}</td>
-        <td class="r">${money(p.avgAskingSF)}</td><td class="r">${money(p.avgEffectiveSF)}</td><td class="r">${pct(occOf(p))}</td><td class="r">${wks(wksOf(p))}</td>
-        <td class="x"><button type="button" class="csx-rm" title="Remove from set" aria-label="Remove ${E(p.name)}">×</button></td></tr>`).join('');
+        <td class="csx-rk">${i + 1}</td><td><button type="button" class="csx-pname">${E(p.name || p.address)}</button><div class="csx-addr">${E(p.address || '')}${p.status !== 'Existing' ? ` · <span class="csx-st">${E(p.status === 'Under Construction' ? (typeof isPlannedProposed === 'function' && isPlannedProposed(p) ? 'Proposed' : 'Under construction') : p.status)}</span>` : ''}</div></td>
+        <td>${E(p.submarket || '')}</td><td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td class="num">${p.yearBuilt || '—'}</td>
+        <td class="num">${money(p.avgAskingSF)}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num">${pct(occOf(p))}</td><td class="num">${wks(wksOf(p))}</td>
+        <td class="csx-x"><button type="button" class="csx-rm" title="Remove from set" aria-label="Remove ${E(p.name)}">×</button></td></tr>`).join('');
     return `
-      <section class="csx-card">
-        <header class="csx-head csx-wshead">
+      <div class="csx-crumb"><button type="button" class="csx-back">← All comp sets</button></div>
+      ${yocCheck(ps)}
+      <div class="panel">
+        <div class="panel-header csx-wshead">
           <div class="csx-ttl">
-            <button type="button" class="csx-back">← All comp sets</button>
-            <input class="csx-title" value="${E(cs.name)}" aria-label="Set name" maxlength="80">
+            <input class="csx-title panel-title" value="${E(cs.name)}" aria-label="Set name" maxlength="80">
             <input class="csx-desc" value="${E(cs.description || '')}" placeholder="Add the deal or site this set is for" aria-label="Deal or site" maxlength="120">
           </div>
           <div class="csx-acts">
@@ -157,42 +160,58 @@
               </div>
             </div>
           </div>
-        </header>
-        <div class="csx-kpis">
-          <div><span>Properties</span><b>${s.n}</b><em>${s.units.toLocaleString()} units${s.uc ? ` · ${s.uc} not yet existing` : ''}</em></div>
-          <div><span>Asking</span><b>${money(s.ask)}<i>/SF</i></b><em>${s.askU != null ? '$' + Math.round(s.askU).toLocaleString() + '/mo' : ''}</em></div>
-          <div><span>Effective</span><b>${money(s.eff)}<i>/SF</i></b><em>unit-weighted</em></div>
-          <div><span>Occupancy</span><b>${pct(s.occ)}</b><em>existing only</em></div>
-          <div><span>Concessions</span><b>${wks(s.wks)}<i> wks</i></b><em>free, unit-weighted</em></div>
-          <div><span>Built</span><b>${s.yr}</b><em>${s.sf ? Math.round(s.sf).toLocaleString() + ' SF avg unit' : '&nbsp;'}</em></div>
         </div>
-        ${yocCheck(ps)}
         <div class="csx-addbar">
           <div class="csx-ta csx-addta"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-add-q" placeholder="Add a property by name or address…" aria-label="Add a property"><div class="csx-ta-list" hidden></div></div>
-          <button type="button" class="yx-btn csx-addbtn${UI.add === 'near' ? ' on' : ''}" data-a="near">Add near a site</button>
-          <button type="button" class="yx-btn csx-addbtn${UI.add === 'map' ? ' on' : ''}" data-a="map">Pick on the map</button>
+          <div class="toggle-group csx-addtg"><button type="button" class="toggle-btn csx-addbtn${UI.add === 'near' ? ' active' : ''}" data-a="near">Near a site</button><button type="button" class="toggle-btn csx-addbtn${UI.add === 'map' ? ' active' : ''}" data-a="map">On the map</button></div>
         </div>
         ${UI.add === 'near' ? addNear(cs, map) : UI.add === 'map' ? '<div class="csx-hint csx-maphint">Click any property on the map below to add it; click a comp to remove it. <button type="button" class="csx-tomap">Go to map ↓</button></div>' : ''}
-        ${ps.length ? `<div class="csx-tw"><table class="csx-t csx-mem">
-          <thead><tr><th class="rk">#</th><th>Property</th><th>Submarket</th><th>Type</th><th class="r">Units</th><th class="r">Built</th><th class="r">Asking $/SF</th><th class="r">Effective $/SF</th><th class="r">Occupancy</th><th class="r">Weeks free</th><th></th></tr></thead>
-          <tbody>${rows}</tbody></table></div>` : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
+        ${ps.length ? `<div class="panel-body tight"><div class="table-scroll"><table class="csx-table">
+          <thead><tr><th class="csx-rk">#</th><th>Property</th><th>Submarket</th><th>Product type</th><th class="num">Units</th><th class="num">Built</th><th class="num">Asking $/SF</th><th class="num">Effective $/SF</th><th class="num">Occupancy</th><th class="num">Weeks free</th><th></th></tr></thead>
+          <tbody>${rows}</tbody></table></div></div>` : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
         ${missing > 0 ? `<div class="csx-hint warn">${missing} propert${missing === 1 ? 'y' : 'ies'} in this set ${missing === 1 ? 'isn’t' : 'aren’t'} in the current data (removed or filtered out by a data load).</div>` : ''}
-      </section>
+      </div>
       <div id="csx-intel-slot"></div>`;
   }
-  // what the YOC matrix says each product type needs, next to what these comps actually get
+  // the set's headline figures go in the page header band, like every other tab's KPIs
+  function heroKpis(cs) {
+    const slot = document.querySelector('.wbi-hero-kpis'), hero = document.querySelector('.wbi-hero') || (slot && slot.parentElement);
+    const old = document.getElementById('csx-hero'); if (old) old.remove();
+    if (!slot) return;
+    if (cs) {
+      const s = stats(membersOf(cs)), k = (l, v, u, sub) => `<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}${u ? `<span class="unit">${u}</span>` : ''}</div><div class="kpi-sub">${sub}</div></div>`;
+      const row = document.createElement('div'); row.className = 'kpi-row'; row.id = 'csx-hero';
+      row.innerHTML = k('Properties', s.n, '', `${s.units.toLocaleString()} units${s.uc ? ` · ${s.uc} not yet existing` : ''}`)
+        + k('Asking / SF', s.ask == null ? '—' : '$' + s.ask.toFixed(2), '', s.askU != null ? '$' + Math.round(s.askU).toLocaleString() + '/mo · unit-weighted' : 'unit-weighted')
+        + k('Effective / SF', s.eff == null ? '—' : '$' + s.eff.toFixed(2), '', 'Net of concessions')
+        + k('Occupancy', s.occ == null ? '—' : s.occ.toFixed(1), s.occ == null ? '' : '%', 'Existing only')
+        + k('Concessions', wks(s.wks), s.wks == null ? '' : 'wks', 'Weeks free · unit-weighted')
+        + k('Built', s.yr, '', s.sf ? Math.round(s.sf).toLocaleString() + ' SF avg unit' : '&nbsp;');
+      slot.appendChild(row);
+    }
+    const on = () => { if (hero) hero.classList.toggle('has-kpis', !!slot.children.length); };
+    on(); requestAnimationFrame(on); setTimeout(on, 60);   // the shell re-syncs the band on view change; re-assert after it
+  }
+  // what the YOC matrix says each product type needs, next to what these comps actually get (cards shaped like the YOC tab's)
   function yocCheck(ps) {
     if (typeof requiredPsfRent !== 'function' || typeof YOC_PRODUCT_COLUMNS === 'undefined' || typeof yocState === 'undefined') return '';
     const col = (p) => (typeof yocColumnFor === 'function' ? yocColumnFor(p.style) : p.style);
-    const cells = YOC_PRODUCT_COLUMNS.map((prod) => {
+    const target = (yocState.targetYoc * 100).toFixed(2) + '%';
+    const cards = YOC_PRODUCT_COLUMNS.map((prod) => {
       let req = null; try { req = requiredPsfRent(prod, sfFor(prod)); } catch (e) {}
       const g = ps.filter((p) => p.status === 'Existing' && p.avgAskingSF && col(p) === prod);
       let a = 0, w = 0; g.forEach((p) => { a += p.avgAskingSF * (p.units || 0); w += p.units || 0; }); const ask = w ? a / w : null;
-      const gap = req && ask ? (ask / req - 1) * 100 : null;
-      return `<div class="csx-yc"><span>${E(prod)}</span><b>${req == null ? '—' : '$' + req.toFixed(2)}<i>/SF required</i></b>
-        <em>${ask == null ? 'No existing ' + E(prod.toLowerCase()) + ' comps in the set' : `Comps ask $${ask.toFixed(2)} · <strong class="${gap >= 0 ? 'ok' : 'bad'}">${gap >= 0 ? '+' : '−'}${Math.abs(gap).toFixed(0)}%</strong> ${gap >= 0 ? 'above' : 'below'} required`}</em></div>`;
+      const ratio = req && ask ? ask / req : null, gap = ratio == null ? null : (ratio - 1) * 100;
+      const fill = ratio == null ? 0 : Math.max(4, Math.min(100, ratio * 100));
+      return `<div class="panel csx-ycard">
+        <div class="csx-ych"><b>${E(prod)}</b><span>${g.length} existing comp${g.length === 1 ? '' : 's'}</span></div>
+        <div class="csx-yck">Rent needed for ${target} YOC</div>
+        <div class="csx-ycv">${req == null ? '—' : '$' + req.toFixed(2)}<span>/SF</span></div>
+        <div class="csx-ycbar"><i class="${gap == null ? '' : gap >= 0 ? 'ok' : 'bad'}" style="width:${fill}%"></i></div>
+        <div class="csx-ycs">${ask == null ? `No existing ${E(prod.toLowerCase())} comps in this set` : `Comps ask <b>$${ask.toFixed(2)}</b> · <b class="${gap >= 0 ? 'ok' : 'bad'}">${Math.abs(gap).toFixed(0)}% ${gap >= 0 ? 'above' : 'below'}</b> what's needed`}</div>
+      </div>`;
     }).join('');
-    return `<div class="csx-yoc"><div class="csx-yoch"><b>YOC matrix check</b><span>Required rent at the matrix's current ${(yocState.targetYoc * 100).toFixed(2)}% target YOC, against these comps' unit-weighted asking rent (existing only)</span><button type="button" class="csx-toyoc">Open YOC matrix →</button></div><div class="csx-ycs">${cells}</div></div>`;
+    return `<div class="csx-ygrid">${cards}<div class="panel csx-ycard csx-ynote"><div class="csx-ych"><b>From the YOC matrix</b></div><div class="csx-ycs">Required rent uses the matrix's current costs, ${target} target and operating assumptions. Comps are this set's existing properties, unit-weighted.</div><button type="button" class="yx-btn csx-toyoc">Open YOC matrix →</button></div></div>`;
   }
   function addSearch() {
     return `<div class="csx-add"><div class="csx-ta"><input class="csx-in csx-add-q" placeholder="Search a property by name or address…" value=""><div class="csx-ta-list" hidden></div></div></div>`;
@@ -240,7 +259,7 @@
     if (UI.open && !compSets[UI.open]) UI.open = null;
     const cs = UI.open && compSets[UI.open];
     view.innerHTML = `<div class="csx">${cs ? workspace(cs) : library()}</div>`;
-    wire(cs);
+    wire(cs); heroKpis(cs);
     // the set's analysis (map, snapshot, fees, concessions, unit mix, positioning, sales, underwriting) lives under the workspace
     let intel = document.getElementById('cs-intel'); const slot = document.getElementById('csx-intel-slot');
     if (!intel && slot) { intel = document.createElement('div'); intel.id = 'cs-intel'; }   // the Demo's Index rebuild dropped the original container
@@ -251,13 +270,13 @@
   }
   function wire(cs) {
     const $ = (s) => view.querySelector(s), $$ = (s) => view.querySelectorAll(s);
-    $$('.csx-new').forEach((b) => (b.onclick = () => { UI.creating = true; UI.from = 'empty'; render(); setTimeout(() => { const i = $('.csx-nm'); if (i) i.focus(); }, 30); }));
+    $$('.csx-new').forEach((b) => (b.onclick = () => { UI.creating = true; UI.from = 'empty'; render(); setTimeout(() => { const i = $('.csx-nm-in'); if (i) i.focus(); }, 30); }));
     const q = $('.csx-q'); if (q) q.oninput = () => { UI.q = q.value; const pos = q.selectionStart; render(); const n = $('.csx-q'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
-    $$('.csx-lib tbody tr[data-id]').forEach((tr) => (tr.onclick = () => openSet(tr.dataset.id)));
+    $$('.csx-table tbody tr[data-id]').forEach((tr) => (tr.onclick = () => openSet(tr.dataset.id)));
     if (UI.creating && !cs) {
       $$('input[name=csx-from]').forEach((r) => (r.onchange = () => { UI.from = r.value; $$('.csx-opt').forEach((o) => o.classList.toggle('on', o.querySelector('input').checked)); }));
       $('.csx-make').onclick = create; $('.csx-cancel').onclick = () => { UI.creating = false; render(); };
-      $('.csx-nm').onkeydown = (e) => { if (e.key === 'Enter') create(); };
+      $('.csx-nm-in').onkeydown = (e) => { if (e.key === 'Enter') create(); };
     }
     if (!cs) return;
     $('.csx-back').onclick = () => { UI.open = null; render(); };
@@ -341,7 +360,7 @@
 
   // the view switch: render on entry; keep the analysis panel parked when leaving
   const _ra = renderActive;
-  renderActive = function () { document.body.dataset.wbView = getActiveView(); if (getActiveView() === 'compsets') { render(); return; } return _ra.apply(this, arguments); };
+  renderActive = function () { document.body.dataset.wbView = getActiveView(); if (getActiveView() === 'compsets') { render(); return; } const o = document.getElementById('csx-hero'); if (o) o.remove(); return _ra.apply(this, arguments); };
   window.renderActive = renderActive;
 
   // reopen the set named in the address once the sets have loaded
