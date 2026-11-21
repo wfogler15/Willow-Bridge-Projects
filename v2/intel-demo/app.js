@@ -14778,6 +14778,8 @@ function renderModal() {
           <span class="badge badge-class${p.class}">Class ${p.class}</span>
           <span class="badge badge-${p.status === 'Existing' ? 'existing' : 'construction'}">${p.status === 'Under Construction' ? (isPlannedProposed(p) ? 'Proposed' : 'Under Construction') : p.status}</span>
           ${p.affordable ? `<span class="badge badge-affordable">${escapeHTML(p.affordable)}</span>` : ''}
+          ${!editing && p.style ? `<span class="badge badge-meta">${escapeHTML(p.style)}</span>` : ''}
+          ${!editing && p.submarket ? `<span class="badge badge-meta">${escapeHTML(p.submarket)}</span>` : ''}
         </div>
       </div>
       <div class="modal-actions">
@@ -14797,6 +14799,7 @@ function renderModal() {
     <div class="modal-body">
       ${editing ? '<div class="edit-notice">Edit mode · changes save to the cloud, override CoStar values throughout the dashboard, and sync to every teammate.</div>' : ''}
 
+      ${editing ? `
       <div class="detail-section-title" style="margin-top:4px;">Property Vitals</div>
       <div class="detail-grid">
         ${cell('Units', p.units, fmt.int, 'units', 'number')}
@@ -14887,6 +14890,21 @@ function renderModal() {
         ${cell('Concessions %', p.concessions, fmt.pct, 'concessions', 'number')}
         ${cell('Pre-Leasing %', p.preLeasing, fmt.pct, 'preLeasing', 'number')}
       </div>
+      ` : (() => {
+        // At a glance (view mode): rent per SF leads, monthly underneath; concessions in weeks free, not %
+        const mo = (v) => v == null ? '' : '$' + Math.round(v).toLocaleString() + '/mo';
+        const wk = p.concessions == null ? null : p.concessions / 100 * 52;
+        const built = p.yearBuilt ? (p.monthBuilt ? fmt.monthYear(p.monthBuilt, p.yearBuilt) : String(p.yearBuilt)) : '—';
+        const g = (k, v, unit, sub) => `<div class="pcg-c"><div class="pcg-k">${k}</div><div class="pcg-v">${v}${unit ? `<i>${unit}</i>` : ''}</div><div class="pcg-s">${sub || '&nbsp;'}</div></div>`;
+        return `<div class="pcg">
+          ${g('Asking', p.avgAskingSF != null ? '$' + p.avgAskingSF.toFixed(2) : '—', p.avgAskingSF != null ? '/SF' : '', mo(p.avgAskingUnit))}
+          ${g('Effective', p.avgEffectiveSF != null ? '$' + p.avgEffectiveSF.toFixed(2) : '—', p.avgEffectiveSF != null ? '/SF' : '', mo(p.avgEffectiveUnit))}
+          ${g('Occupancy', occ != null ? occ.toFixed(1) + '%' : '—', '', p.vacancy != null ? p.vacancy.toFixed(1) + '% vacant' : '')}
+          ${g('Concessions', wk != null ? wk.toFixed(1) : '—', wk != null ? ' wks free' : '', wk ? 'on a 12-mo lease' : (wk === 0 ? 'none offered' : ''))}
+          ${g('Units', p.units != null ? fmt.int(p.units) : '—', '', p.avgUnitSF ? fmt.int(p.avgUnitSF) + ' SF avg' : '')}
+          ${g('Built', built, '', [p.stories ? p.stories + ' stories' : '', p.preLeasing != null && p.status !== 'Existing' ? fmt.pct(p.preLeasing) + ' pre-leased' : ''].filter(Boolean).join(' · '))}
+        </div>`;
+      })()}
 
       ${(() => {
         // Lease-Up Performance section — only renders when the property was
@@ -15185,7 +15203,7 @@ function renderModal() {
           <div class="detail-label">Last Sale</div>
           <div class="detail-value" style="font-size:13px;">${escapeHTML(p.lastSaleDate ? p.lastSaleDate.split(' ')[0] : '—')}</div>
         </div>
-        ${cell('Last Sale Price', p.lastSalePrice, fmt.money, 'lastSalePrice', 'number')}
+        <div style="grid-column:span 2;display:grid;">${cell('Last Sale Price', p.lastSalePrice, fmt.money, 'lastSalePrice', 'number')}</div>
         <div class="detail-cell" style="grid-column:span 2;">
           <div class="detail-label">Market</div>
           <div class="detail-value" style="font-size:13px;">${escapeHTML(p.market || '—')}</div>

@@ -1076,3 +1076,15 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-menurow .csx-del2 { background: #a3332b !important; border-color: #a3332b !important; color: #fff !important; }
 .csx-mtag { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.24); color: #fff; font: 600 12px var(--x-font); }
 .csx-mtag span { opacity: .7; font-weight: 500; }
+/* property card: at-a-glance band and calmer sections */
+#modal-content .pcg { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--x-line); border-radius: 12px; margin: 4px 0 8px; overflow: hidden; }
+#modal-content .pcg-c { padding: 14px 16px; border-right: 1px solid var(--x-line); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+#modal-content .pcg-c:last-child { border-right: 0; }
+#modal-content .pcg-k { font: 600 11px/1 var(--x-font); letter-spacing: .06em; text-transform: uppercase; color: var(--x-ink-3); }
+#modal-content .pcg-v { font: 600 22px/1.2 var(--x-font); color: var(--x-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#modal-content .pcg-v i { font-style: normal; font-size: 13px; font-weight: 500; color: var(--x-ink-3); }
+#modal-content .pcg-s { font-size: 12px; color: var(--x-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 900px) { #modal-content .pcg { grid-template-columns: repeat(3, minmax(0, 1fr)); } #modal-content .pcg-c:nth-child(3) { border-right: 0; } #modal-content .pcg-c:nth-child(-n+3) { border-bottom: 1px solid var(--x-line); } }
+#modal-content .badge-meta { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.22); color: #fff; }
+#modal-content .detail-section-title { font: 600 11px/1 var(--x-font); letter-spacing: .07em; text-transform: uppercase; color: var(--x-ink-3); border-bottom: 0; padding-bottom: 0; margin: 26px 0 10px; }
+#modal-content .detail-grid { border-top: 1px solid var(--x-line) !important; border-radius: 12px; }
