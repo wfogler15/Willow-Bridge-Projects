@@ -1684,3 +1684,8 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 #modal-content .detail-grid > .detail-cell:nth-child(4n) { border-right: 0; }
 #modal-content .detail-grid > .detail-cell:nth-child(4n+1) { padding-left: 0; }
 #modal-content .detail-grid > .detail-cell:nth-child(n+5) { border-top: 1px solid var(--x-line); }
+/* glance row: 7 figures (Units, Year Built, Occupancy, Avg Unit Size, Asking, Effective, Concessions) */
+#modal-content .pcg { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+#modal-content .pcg-c { padding: 14px 12px; }
+#modal-content .pcg-v { font-size: 20px; }
+@media (max-width: 900px) { #modal-content .pcg { grid-template-columns: repeat(4, minmax(0, 1fr)); } #modal-content .pcg-c { border-bottom: 0 !important; border-right: 1px solid var(--x-line) !important; } #modal-content .pcg-c:nth-child(4n) { border-right: 0 !important; } #modal-content .pcg-c:nth-child(-n+4) { border-bottom: 1px solid var(--x-line) !important; } #modal-content .pcg-c:nth-child(4n+1) { padding-left: 0; } }

@@ -14977,12 +14977,13 @@ function renderModal() {
         const built = p.yearBuilt ? (p.monthBuilt ? fmt.monthYear(p.monthBuilt, p.yearBuilt) : String(p.yearBuilt)) : '—';
         const g = (k, v, unit, sub) => `<div class="pcg-c"><div class="pcg-k">${k}</div><div class="pcg-v">${v}${unit ? `<i>${unit}</i>` : ''}</div><div class="pcg-s">${sub || '&nbsp;'}</div></div>`;
         return `<div class="pcg">
+          ${g('Units', p.units != null ? fmt.int(p.units) : '—', '', p.stories ? p.stories + ' stories' : '')}
+          ${g('Year Built', built, '', p.preLeasing != null && p.status !== 'Existing' ? fmt.pct(p.preLeasing) + ' pre-leased' : '')}
+          ${g('Occupancy', occ != null ? occ.toFixed(1) + '%' : '—', '', p.vacancy != null ? p.vacancy.toFixed(1) + '% vacant' : '')}
+          ${g('Avg Unit Size', p.avgUnitSF ? fmt.int(p.avgUnitSF) : '—', p.avgUnitSF ? ' SF' : '', '')}
           ${g('Asking', p.avgAskingSF != null ? '$' + p.avgAskingSF.toFixed(2) : '—', p.avgAskingSF != null ? '/SF' : '', mo(p.avgAskingUnit))}
           ${g('Effective', p.avgEffectiveSF != null ? '$' + p.avgEffectiveSF.toFixed(2) : '—', p.avgEffectiveSF != null ? '/SF' : '', mo(p.avgEffectiveUnit))}
-          ${g('Occupancy', occ != null ? occ.toFixed(1) + '%' : '—', '', p.vacancy != null ? p.vacancy.toFixed(1) + '% vacant' : '')}
-          ${g('Concessions', wk != null ? wk.toFixed(1) : '—', wk != null ? ' wks free' : '', wk ? 'on a 12-mo lease' : (wk === 0 ? 'none offered' : ''))}
-          ${g('Units', p.units != null ? fmt.int(p.units) : '—', '', p.avgUnitSF ? fmt.int(p.avgUnitSF) + ' SF avg' : '')}
-          ${g('Built', built, '', [p.stories ? p.stories + ' stories' : '', p.preLeasing != null && p.status !== 'Existing' ? fmt.pct(p.preLeasing) + ' pre-leased' : ''].filter(Boolean).join(' · '))}
+          ${g('Concessions', wk != null ? wk.toFixed(1) : '—', wk != null ? ' wks' : '', wk ? 'free on a 12-mo lease' : (wk === 0 ? 'none offered' : ''))}
         </div>`;
       })()}
 
