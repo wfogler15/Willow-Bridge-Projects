@@ -2502,6 +2502,7 @@ async function pullCompSetsFromCloud() {
       propertyIds: Array.isArray(row.property_ids) ? row.property_ids : [],
       dealId: row.deal_id || null,   // the pipeline deal this set is tied to (one set per deal)
       uuid: row.uuid || null,
+      settings: (row.data && row.data.settings) || {},   // baseline submarket etc. (Comp Sets tab)
       createdBy: row.editor_name,
       createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
       updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now()

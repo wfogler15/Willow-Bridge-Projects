@@ -251,7 +251,7 @@
         const ids = members.filter((m) => m.comp_set_id === s.id).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)).map((m) => legacyPropId(m.property_id));
         const id = s.legacy_id || s.id;
         return { id, uuid: s.id, deal_id: s.deal_id || null, market: c.market, name: s.name, description: s.description, property_ids: ids, editor_name: s.updated_by,
-          created_at: s.created_at, updated_at: s.updated_at, data: { id, name: s.name, description: s.description || '', propertyIds: ids, dealId: s.deal_id || null } };
+          created_at: s.created_at, updated_at: s.updated_at, data: { id, name: s.name, description: s.description || '', propertyIds: ids, dealId: s.deal_id || null, settings: s.settings || {} } };
       });
     },
     async comp_sets_upsert(row) {
@@ -266,10 +266,10 @@
       let setId;
       if (found) {
         setId = found.id;
-        const { error } = await S('market').from('comp_sets').update({ name: row.name, description: row.description || null }).eq('id', setId); if (error) throw error;
+        const { error } = await withSettings(row, (extra) => S('market').from('comp_sets').update({ name: row.name, description: row.description || null, ...extra }).eq('id', setId)); if (error) throw error;
         const { error: e2 } = await S('market').from('comp_set_members').delete().eq('comp_set_id', setId); if (e2) throw e2;
       } else {
-        const { data, error } = await S('market').from('comp_sets').insert({ market_id: c.market, name: row.name, description: row.description || null, legacy_id: String(row.id) }).select('id').single();
+        const { data, error } = await withSettings(row, (extra) => S('market').from('comp_sets').insert({ market_id: c.market, name: row.name, description: row.description || null, legacy_id: String(row.id), ...extra }).select('id').single());
         if (error) throw error; setId = data.id;
       }
       // deal link: written only when the caller says so (undefined = leave as is). One set per deal.
@@ -300,6 +300,13 @@
     if (isUuid(k)) { const { data } = await S('comps').from('sale_comps').select('id').eq('id', k).limit(1); if (data && data[0]) return data[0]; }
     const { data } = await S('comps').from('sale_comps').select('id').contains('legacy', { legacy_id: k }).limit(1);
     return data && data[0];
+  }
+  // comp_sets.settings arrives with tools/supabase/20261123_comp_sets_settings.sql; until it's run, save without it
+  async function withSettings(row, run) {
+    if (row.settings === undefined || window.__WB_CS_NO_SETTINGS) return run({});
+    const r = await run({ settings: row.settings || {} });
+    if (r.error && /settings/i.test(r.error.message || '')) { window.__WB_CS_NO_SETTINGS = true; return run({}); }
+    return r;
   }
   async function findCompSet(legacyId) {
     const k = String(legacyId);
@@ -367,7 +374,7 @@
     compSets: {
       async save(set) {
         // set.id is stable (legacy id, or the uuid for sets made elsewhere); findCompSet matches either
-        await H.comp_sets_upsert({ id: set.id, name: set.name, description: set.description || '', property_ids: set.propertyIds || [] });
+        await H.comp_sets_upsert({ id: set.id, name: set.name, description: set.description || '', property_ids: set.propertyIds || [], settings: set.settings || {} });
         const f = await findCompSet(set.id); return f ? f.id : null;
       },
       async remove(set) { await H.comp_sets_remove({ id: set.id }); },

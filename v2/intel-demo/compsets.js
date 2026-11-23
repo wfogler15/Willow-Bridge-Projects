@@ -270,6 +270,57 @@
     UI.upd = null; refresh();
   }
 
+  // ---------- baseline submarket: inventory for the pipeline ratio, and the RealPage section ----------
+  const BLKEY = 'wb_cs_baseline_v1';
+  const blLocal = () => { try { return JSON.parse(localStorage.getItem(BLKEY) || '{}'); } catch (e) { return {}; } };
+  function smOptions() { const c = {}; all().forEach((p) => { if (p.submarket) c[p.submarket] = (c[p.submarket] || 0) + 1; }); return Object.keys(c).sort(); }
+  function autoBaseline(ps) { const c = {}; ps.forEach((p) => { if (p.submarket) c[p.submarket] = (c[p.submarket] || 0) + (p.units || 1); }); return Object.entries(c).sort((a, b) => b[1] - a[1]).map((x) => x[0])[0] || null; }
+  function baselineOf(cs, ps) { const b = (cs.settings && cs.settings.baseline) || blLocal()[cs.id]; return { name: b || autoBaseline(ps), picked: !!b }; }
+  function setBaseline(cs, name) {
+    cs.settings = { ...(cs.settings || {}), baseline: name || undefined }; if (!name) delete cs.settings.baseline;
+    const m = blLocal(); if (name) m[cs.id] = name; else delete m[cs.id]; try { localStorage.setItem(BLKEY, JSON.stringify(m)); } catch (e) {}
+    touch(cs); render();
+  }
+  function baselineBlock(cs, ps) {
+    const bl = baselineOf(cs, ps); if (!bl.name) return '';
+    const inSm = all().filter((p) => p.submarket === bl.name), u = (a) => a.reduce((s, p) => s + (p.units || 0), 0);
+    const exU = u(inSm.filter((p) => p.status === 'Existing')), ucU = u(inSm.filter((p) => p.status !== 'Existing' && !isProposed(p))), prU = u(inSm.filter((p) => p.status !== 'Existing' && isProposed(p)));
+    const luU = u(inSm.filter((p) => p.status === 'Existing' && phaseOf(p) === 'lease'));
+    const r = (n) => (exU ? ((n / exU) * 100).toFixed(1) + '%' : '—');
+    const k = (l, v, sub) => `<div class="csx-blk"><span>${l}</span><b>${v}</b><small>${sub}</small></div>`;
+    // RealPage: blended for the submarket (same blend the Trends tab uses)
+    let rp = '';
+    const f = typeof getRpForecastForWbSubmarket === 'function' ? getRpForecastForWbSubmarket(bl.name) : null;
+    const Y = typeof CURRENT_YEAR !== 'undefined' ? CURRENT_YEAR : new Date().getFullYear();
+    if (f && f[Y]) {
+      const c = f[Y], pv = f[Y - 1] || {}, nx = f[Y + 1] || {}, f3 = f[Y + 3] || {}, s3 = [1, 2, 3].reduce((a, i) => a + ((f[Y + i] || {}).sp || 0), 0), d3 = [1, 2, 3].reduce((a, i) => a + ((f[Y + i] || {}).dm || 0), 0);
+      const g = (x) => (x == null ? '—' : (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(1) + '%');
+      const sfU = (rent) => { const a = stats(inSm.filter((p) => p.status === 'Existing')).sf; return rent && a ? '$' + (rent / a).toFixed(2) + '/SF · ' : ''; };
+      rp = `<div class="csx-rp"><div class="csx-rph"><b>RealPage · ${E(bl.name)}</b><span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || '')} · ${Y} is the current year</span></div>
+        <div class="csx-blks">
+          ${k('Effective rent', c.eR ? `${sfU(c.eR)}$${Math.round(c.eR).toLocaleString()}/mo` : '—', `${g(c.yR)} vs ${Y - 1} · ${g(nx.yR)} forecast ${Y + 1}`)}
+          ${k('Occupancy', c.oc != null ? (c.oc * 100).toFixed(1) + '%' : '—', `${f3.oc != null ? (f3.oc * 100).toFixed(1) + '% forecast ' + (Y + 3) : '&nbsp;'}`)}
+          ${k('Inventory', c.eu ? Math.round(c.eu).toLocaleString() + ' units' : '—', 'RealPage existing units')}
+          ${k(`Supply ${Y}`, c.sp != null ? Math.round(c.sp).toLocaleString() : '—', `demand ${c.dm != null ? Math.round(c.dm).toLocaleString() : '—'}${c.eu && c.sp ? ' · ' + ((c.sp / c.eu) * 100).toFixed(1) + '% of inventory' : ''}`)}
+          ${k(`Next 3 years`, s3 ? Math.round(s3).toLocaleString() + ' delivered' : '—', `${d3 ? Math.round(d3).toLocaleString() + ' absorbed' : '&nbsp;'}${s3 && d3 ? ' · ' + (d3 / s3).toFixed(2) + '× demand/supply' : ''}`)}
+        </div></div>`;
+    } else rp = `<div class="csx-hint">No RealPage coverage mapped to ${E(bl.name)}.</div>`;
+    return `<div class="panel csx-bl">
+      <div class="panel-header"><div><div class="panel-title">Submarket baseline</div><div class="panel-sub">Pipeline is measured against this submarket's existing inventory; RealPage figures are for the same submarket</div></div>
+        <div class="csx-acts"><select class="csx-in csx-blsel" aria-label="Baseline submarket">${smOptions().map((o) => `<option${o === bl.name ? ' selected' : ''}>${E(o)}</option>`).join('')}</select>${bl.picked ? '' : '<span class="csx-save">Auto: where most of the set’s units are</span>'}</div></div>
+      <div class="panel-body">
+        <div class="csx-blks">
+          ${k('Existing inventory', exU.toLocaleString() + ' units', `${inSm.filter((p) => p.status === 'Existing').length} properties in ${E(bl.name)} (CoStar)`)}
+          ${k('Under construction', ucU.toLocaleString() + ' units', `${r(ucU)} of inventory`)}
+          ${k('Proposed', prU.toLocaleString() + ' units', `${r(prU)} of inventory`)}
+          ${k('UC + proposed', (ucU + prU).toLocaleString() + ' units', `${r(ucU + prU)} of inventory`)}
+          ${k('In lease-up', luU.toLocaleString() + ' units', `${r(luU)} of inventory`)}
+        </div>
+        ${rp}
+        ${window.__WB_CS_NO_SETTINGS ? '<div class="csx-hint warn">The baseline choice is kept in this browser until the database update (comp_sets.settings) is run.</div>' : ''}
+      </div></div>`;
+  }
+
   // ---------- section tables ----------
   function sections(cs, ps) {
     const ex = ps.filter((p) => phaseOf(p) === 'exist'), lu = ps.filter((p) => phaseOf(p) === 'lease'), pi = ps.filter((p) => phaseOf(p) === 'pipe');
@@ -297,8 +348,8 @@
     }
     if (pi.length) {
       const uc = pi.filter((p) => !isProposed(p)), pr = pi.filter(isProposed), u = (a) => a.reduce((s, p) => s + (p.units || 0), 0);
-      const base = ex.concat(lu).reduce((s, p) => s + (p.units || 0), 0);
-      const rel = (n) => (base ? ` (${((n / base) * 100).toFixed(0)}% of the set's existing units)` : '');
+      const bl = baselineOf(cs, ps).name, base = bl ? all().filter((p) => p.submarket === bl && p.status === 'Existing').reduce((s, p) => s + (p.units || 0), 0) : 0;
+      const rel = (n) => (base ? ` (${((n / base) * 100).toFixed(1)}% of ${E(bl)} inventory)` : '');
       out += sec('Pipeline', [uc.length ? `${u(uc).toLocaleString()} units under construction${rel(u(uc))}` : '', pr.length ? `${u(pr).toLocaleString()} proposed${rel(u(pr))}` : ''].filter(Boolean).join(' · '),
         '<thead><tr><th>Property</th><th>Stage</th><th>Product type</th><th class="num">Units</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>',
         [...uc, ...pr].map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td><span class="csx-st">${isProposed(p) ? 'Proposed' : 'Under construction'}</span></td><td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`, 9)).join(''));
@@ -339,6 +390,7 @@
         ${ps.length ? `<div class="panel-body tight csx-secs">${sections(cs, ps)}</div>` : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
         ${missing > 0 ? `<div class="csx-hint warn">${missing} propert${missing === 1 ? 'y' : 'ies'} in this set ${missing === 1 ? 'isn’t' : 'aren’t'} in the current data (removed or filtered out by a data load).</div>` : ''}
       </div>
+      ${ps.length ? baselineBlock(cs, ps) : ''}
       <div id="csx-intel-slot"></div>`;
   }
   // the set's headline figures go in the page header band, like every other tab's KPIs
@@ -501,6 +553,7 @@
       na.onclick = () => { const add = [...$$('.csx-cand input:checked')].map((c) => { const p = byId().get(c.value); return p ? p.id : c.value; }); if (!add.length) return; cs.propertyIds = [...(cs.propertyIds || []), ...add]; touch(cs); UI.add = ''; UI.near = null; refresh(); };
     }
     $$('.csx-rm').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const pid = b.closest('tr').dataset.pid; cs.propertyIds = (cs.propertyIds || []).filter((x) => String(x) !== String(pid)); touch(cs); refresh(); }));
+    const bs = $('.csx-blsel'); if (bs) bs.onchange = () => setBaseline(cs, bs.value);
     $$('.csx-updbtn').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const pid = b.closest('tr').dataset.pid; UI.upd = UI.upd === pid ? null : pid; render(); const f = view.querySelector('.csx-uf'); if (f) f.scrollIntoView({ block: 'nearest' }); }));
     $$('.csx-uf').forEach((box) => {
       box.querySelector('.csx-uf-x').onclick = () => { UI.upd = null; render(); };

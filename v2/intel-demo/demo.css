@@ -1207,3 +1207,17 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-uf-notes textarea.csx-in { height: auto; padding: 8px 12px; width: 100%; resize: vertical; }
 .csx-uf .csx-bar { margin-top: 14px; }
 .csx-uf .csx-bar { padding: 0; }
+/* Submarket baseline + RealPage */
+.csx-bl { margin-top: 16px; }
+.csx-blks { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1200px) { .csx-blks { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.csx-blk { border: 1px solid #ece9f3; border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; }
+.csx-blk span { font: 600 11px var(--x-font); letter-spacing: .04em; text-transform: uppercase; color: var(--x-ink-3); }
+.csx-blk b { font: 600 18px var(--x-font); color: var(--x-ink); font-variant-numeric: tabular-nums; }
+.csx-blk small { font-size: 12px; color: var(--x-ink-3); }
+.csx-rp { margin-top: 18px; }
+.csx-rph { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin-bottom: 10px; }
+.csx-rph b { font: 600 14px var(--x-font); color: var(--x-ink); }
+.csx-rph span { font-size: 12.5px; color: var(--x-ink-3); }
+.csx-bl .csx-blsel { height: 34px; min-width: 220px; }
+.csx-bl .csx-hint { margin: 12px 0 0; }
