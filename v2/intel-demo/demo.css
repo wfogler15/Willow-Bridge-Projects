@@ -1693,3 +1693,5 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .wbi-mktdd-home { display: block; padding: 8px 10px 9px; margin-bottom: 4px; border-bottom: 1px solid rgb(232,230,238); font: 600 13px/1.2 Aptos, 'Segoe UI', sans-serif; color: #432890; text-decoration: none; border-radius: 8px 8px 0 0; }
 .wbi-mktdd-home:hover { background: #f4f2fa; }
 .wbi-mktdd-home::before { content: "← "; }
+/* concessions: CoStar's figure is shown lighter than one the team has checked */
+.conc-costar { color: var(--ink-3, #6E6886); }

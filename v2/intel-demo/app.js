@@ -7689,6 +7689,16 @@ function maybeOfferPhoenixPurge() {
 // downstream: the implied percentage, the monthly discount, and the implied
 // effective rent. Overrides live alongside the fee schedule in the same
 // per-property record, so they sync through the existing comp_fees path.
+// Weeks free to show anywhere: the team's checked figure when there is one, otherwise CoStar's
+// (CoStar's concession % badly understates lease-up specials, e.g. Aventine Littleton 0.4% vs 2 months free).
+function concWeeks(p) { try { const c = concessionStats(p); return c.weeksFree == null ? null : c.weeksFree; } catch (e) { return p.concessions == null ? null : p.concessions / 100 * 52; } }
+function concSource(p) { try { return concessionStats(p).source; } catch (e) { return p.concessions == null ? 'none' : 'costar'; } }
+function concCellHTML(p) {
+  const w = concWeeks(p); if (w == null) return '&mdash;';
+  const src = concSource(p);
+  return src === 'entered' ? `<span title="Checked by the team">${w.toFixed(1)} wks</span>` : `<span class="conc-costar" title="CoStar's figure; often understates current specials">${w.toFixed(1)} wks</span>`;
+}
+window.concWeeks = concWeeks;
 function concessionStats(p) {
   const rec = getFees(p.id);
   const entered = wbNum(rec.weeksFree);
@@ -8438,7 +8448,7 @@ function renderCsPositioning(props) {
         <td class="num">${dSF == null ? '&mdash;' : (dSF > 0 ? '+' : '') + '$' + Math.abs(dSF).toFixed(2)}</td>
         <td class="num cs-secondary">${fmt.money(p.avgEffectiveUnit)}</td>
         <td class="num">${occ == null ? '&mdash;' : occ.toFixed(1) + '%'}</td>
-        <td class="num">${p.concessions == null ? '&mdash;' : (p.concessions / 100 * 52).toFixed(1) + ' wks'}</td>
+        <td class="num">${concCellHTML(p)}</td>
       </tr>`;
   }).join('');
 
@@ -10461,7 +10471,7 @@ function renderProperties() {
         <td class="num">${fmt.money2(p.avgAskingSF)}</td>
         <td class="num">${fmt.money(p.avgEffectiveUnit)}</td>
         <td class="num">${fmt.money2(p.avgEffectiveSF)}</td>
-        <td class="num">${p.concessions == null ? '—' : (p.concessions / 100 * 52).toFixed(1) + ' wks'}</td>
+        <td class="num">${concCellHTML(p)}</td>
       </tr>
     `;}).join('');
 
@@ -14973,7 +14983,7 @@ function renderModal() {
       ` : (() => {
         // At a glance (view mode): rent per SF leads, monthly underneath; concessions in weeks free, not %
         const mo = (v) => v == null ? '' : '$' + Math.round(v).toLocaleString() + '/mo';
-        const wk = p.concessions == null ? null : p.concessions / 100 * 52;
+        const wk = concWeeks(p), wkSrc = concSource(p);
         const built = p.yearBuilt ? (p.monthBuilt ? fmt.monthYear(p.monthBuilt, p.yearBuilt) : String(p.yearBuilt)) : '—';
         const g = (k, v, unit, sub) => `<div class="pcg-c"><div class="pcg-k">${k}</div><div class="pcg-v">${v}${unit ? `<i>${unit}</i>` : ''}</div><div class="pcg-s">${sub || '&nbsp;'}</div></div>`;
         return `<div class="pcg">
@@ -14983,7 +14993,7 @@ function renderModal() {
           ${g('Avg Unit Size', p.avgUnitSF ? fmt.int(p.avgUnitSF) : '—', p.avgUnitSF ? ' SF' : '', '')}
           ${g('Asking', p.avgAskingSF != null ? '$' + p.avgAskingSF.toFixed(2) : '—', p.avgAskingSF != null ? '/SF' : '', mo(p.avgAskingUnit))}
           ${g('Effective', p.avgEffectiveSF != null ? '$' + p.avgEffectiveSF.toFixed(2) : '—', p.avgEffectiveSF != null ? '/SF' : '', mo(p.avgEffectiveUnit))}
-          ${g('Concessions', wk != null ? wk.toFixed(1) : '—', wk != null ? ' wks' : '', wk ? 'free (12-mo)' : (wk === 0 ? 'none offered' : ''))}
+          ${g('Concessions', wk != null ? wk.toFixed(1) : '—', wk != null ? ' wks' : '', wk ? (wkSrc === 'entered' ? 'free · checked' : 'free · CoStar') : (wk === 0 ? 'none offered' : ''))}
         </div>`;
       })()}
 
@@ -18868,7 +18878,7 @@ function openSubmarketOccupancyDetail(submarket) {
         <td class="num" style="font-weight:700;color:${occColor(occ)};">${occ == null ? '—' : occ.toFixed(1) + '%'}</td>
         <td class="num">${fmt.money(p.avgAskingUnit)}</td>
         <td class="num">${p.avgAskingSF == null ? '—' : '$' + p.avgAskingSF.toFixed(2)}</td>
-        <td class="num">${p.concessions == null ? '—' : (p.concessions / 100 * 52).toFixed(1) + ' wks'}</td>
+        <td class="num">${concCellHTML(p)}</td>
       </tr>
     `;
   }).join('');
@@ -23066,7 +23076,7 @@ function txRenderBoard() {
     Object.defineProperty(PX, k, { configurable: true, enumerable: true, get: () => state[sk], set: v => { state[sk] = v; } });
   });
   const occOf = p => p.vacancy == null ? null : 100 - p.vacancy;
-  const wksOf = p => p.concessions == null ? null : p.concessions / 100 * 52;
+  const wksOf = p => concWeeks(p);
   const inR = (v, r) => (r[0] == null || (v != null && v >= r[0])) && (r[1] == null || (v != null && v <= r[1]));
   const miles = (a, b) => L.latLng(a.lat, a.lng).distanceTo([b.lat, b.lng]) / 1609.34;
   window.pxDistance = p => (PX.near && p.lat != null) ? miles(PX.near, p) : null;
@@ -23756,7 +23766,7 @@ function txRenderBoard() {
   let all = [], inView = [], sortK = 'units', sortDir = -1, showAll = false, ring = null;
   let picking = false; const picked = new Set(); let pickLayer = null;
   const occOf = p => p.vacancy == null ? null : 100 - p.vacancy;
-  const wksOf = p => p.concessions == null ? null : p.concessions / 100 * 52;
+  const wksOf = p => concWeeks(p);
   const stat = p => isPlannedProposed(p) ? 'Proposed' : p.status === 'Under Construction' ? 'UC' : 'Existing';
   const COLS = [
     ['name', 'Property', p => p.name || '', 'txt'],
@@ -24454,7 +24464,7 @@ function txRenderBoard() {
   const MKT = () => (window.__WBD && window.__WBD.title) || 'Market';
   const wa = (rows, f, w = p => p.units) => { let s = 0, n = 0; rows.forEach(p => { const v = f(p), x = w(p); if (v != null && !isNaN(v) && x) { s += v * x; n += x; } }); return n ? s / n : null; };
   const occOf = p => p.vacancy == null ? null : 100 - p.vacancy;
-  const wksOf = p => p.concessions == null ? null : p.concessions / 100 * 52;
+  const wksOf = p => concWeeks(p);
   const sfOf = p => p.avgUnitSF || (p.avgAskingUnit && p.avgAskingSF ? p.avgAskingUnit / p.avgAskingSF : null);
   const median = a => { a = a.filter(v => v != null).sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : null; };
   const isProp = p => typeof isPlannedProposed === 'function' && isPlannedProposed(p);
