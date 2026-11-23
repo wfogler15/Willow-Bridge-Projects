@@ -347,56 +347,98 @@
   }
   const gPct = (x) => (x == null ? '—' : (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(1) + '%');
   const gCls = (x) => (x == null ? '' : x >= 0 ? 'up' : 'dn');
+  // ---------- submarket: four story cards (supply pressure, rent, occupancy, supply vs demand) + year table on demand ----------
+  function spark(pts, Y, opt) {
+    // pts: [[year, value]], solid through Y, dashed after; optional reference line
+    const W = 280, H = 64, P = 4, v = pts.filter((x) => x[1] != null);
+    if (v.length < 2) return '';
+    const xs = v.map((x) => x[0]), ys = v.map((x) => x[1]).concat(opt && opt.ref != null ? [opt.ref] : []);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), lo = Math.min(...ys), hi = Math.max(...ys), pad = (hi - lo) * 0.12 || 1;
+    const X = (x) => P + ((x - x0) / (x1 - x0 || 1)) * (W - P * 2), Yv = (y) => H - P - ((y - (lo - pad)) / (hi - lo + pad * 2)) * (H - P * 2);
+    const path = (a) => a.map((x, k) => (k ? 'L' : 'M') + X(x[0]).toFixed(1) + ',' + Yv(x[1]).toFixed(1)).join('');
+    const hist = v.filter((x) => x[0] <= Y), fc = v.filter((x) => x[0] >= Y), cur = v.find((x) => x[0] === Y);
+    const area = hist.length > 1 ? path(hist) + `L${X(hist[hist.length - 1][0]).toFixed(1)},${H - P}L${X(hist[0][0]).toFixed(1)},${H - P}Z` : '';
+    return `<svg class="csx-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      ${opt && opt.ref != null ? `<line x1="${P}" x2="${W - P}" y1="${Yv(opt.ref).toFixed(1)}" y2="${Yv(opt.ref).toFixed(1)}" class="ref"/><text x="${W - P}" y="${(Yv(opt.ref) - 3).toFixed(1)}" text-anchor="end" class="reft">${E(opt.refLabel || '')}</text>` : ''}
+      ${area ? `<path d="${area}" class="area"/>` : ''}<path d="${path(hist)}" class="hist"/>${fc.length > 1 ? `<path d="${path(fc)}" class="fc"/>` : ''}
+      ${cur ? `<circle cx="${X(cur[0]).toFixed(1)}" cy="${Yv(cur[1]).toFixed(1)}" r="3.2" class="dot"/>` : ''}
+</svg><div class="csx-spax"><span>${x0}</span><span>${x1}</span></div>`;
+  }
+  function sdBars(f, Y, yrs) {
+    const W = 280, H = 64, P = 4, rows = yrs.map((y) => [y, (f[y] || {}).sp || 0, (f[y] || {}).dm || 0]);
+    const mx = Math.max(1, ...rows.map((r) => Math.max(r[1], Math.abs(r[2])))), bw = (W - P * 2) / rows.length;
+    const Hh = (n) => (Math.max(0, n) / mx) * (H - 16);
+    return `<svg class="csx-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${rows.map(([y, sp, dm], k) => {
+      const x = P + k * bw, f2 = y > Y ? ' f' : '';
+      return `<rect x="${(x + bw * 0.14).toFixed(1)}" y="${(H - 12 - Hh(sp)).toFixed(1)}" width="${(bw * 0.34).toFixed(1)}" height="${Hh(sp).toFixed(1)}" class="sp${f2}"/><rect x="${(x + bw * 0.52).toFixed(1)}" y="${(H - 12 - Hh(dm)).toFixed(1)}" width="${(bw * 0.34).toFixed(1)}" height="${Hh(dm).toFixed(1)}" class="dm${f2}"/>`;
+    }).join('')}</svg><div class="csx-spax"><span>${rows[0][0]}</span><span class="cy">${Y} now</span><span>${rows[rows.length - 1][0]}</span></div>`;
+  }
   function baselineBlock(cs, ps) {
     const bl = baselineOf(cs, ps); if (!bl.name) return '';
-    const inSm = all().filter((p) => p.submarket === bl.name), u = (a) => a.reduce((s, p) => s + (p.units || 0), 0);
-    const exP = inSm.filter((p) => p.status === 'Existing');
-    const exU = u(exP), ucU = u(inSm.filter((p) => p.status !== 'Existing' && !isProposed(p) && !isStalled(p))), prU = u(inSm.filter((p) => p.status !== 'Existing' && isProposed(p)));
+    const inSm = all().filter((p) => p.submarket === bl.name), u = (a) => a.reduce((x, p) => x + (p.units || 0), 0);
+    const exP = inSm.filter((p) => p.status === 'Existing'), exU = u(exP);
+    const ucU = u(inSm.filter((p) => p.status !== 'Existing' && !isProposed(p) && !isStalled(p))), prU = u(inSm.filter((p) => p.status !== 'Existing' && isProposed(p))), stU = u(inSm.filter((p) => p.status !== 'Existing' && isStalled(p)));
     const luU = u(exP.filter((p) => phaseOf(p) === 'lease'));
-    const pr = (n) => (exU ? (n / exU) * 100 : null);
-    const setEx = ps.filter((p) => phaseOf(p) !== 'pipe'), setU = u(setEx), sLu = u(ps.filter((p) => phaseOf(p) === 'lease'));
-    const pAll = ps.filter((p) => phaseOf(p) === 'pipe').concat(autoPipe(cs, ps));
-    const sUc = u(pAll.filter((p) => !isProposed(p) && !isStalled(p))), sPr = u(pAll.filter((p) => isProposed(p))), sSt = u(pAll.filter((p) => isStalled(p)));
-    const stU = u(inSm.filter((p) => p.status !== 'Existing' && isStalled(p)));
-    const sp = (n) => (setU ? ((n / setU) * 100).toFixed(1) + '%' : '—'), mp = (n) => { const v = pr(n); return v == null ? '—' : v.toFixed(1) + '%'; };
-    const mrow = (l, a, b, cls, pipeRow) => `<tr class="${cls || ''}"><th>${l}</th><td class="num">${intC(a)}</td><td class="num csx-pc2">${cls === 'tot' || pipeRow ? '' : sp(a)}</td><td class="num csx-gap">${intC(b)}</td><td class="num csx-pc2">${cls === 'tot' ? '' : mp(b)}</td></tr>`;
-    const outside = ps.filter((p) => p.submarket !== bl.name);
-    const supply = `<div class="csx-smcol"><h4>Supply against inventory <i class="csx-srctag cs">CoStar</i></h4>
-      <table class="csx-mini"><thead><tr><th></th><th class="num" colspan="2">This set</th><th class="num csx-gap" colspan="2">${E(bl.name)}</th></tr></thead><tbody>
-        ${mrow('Existing units', setU, exU, 'tot')}
-        ${mrow('of which in lease-up', sLu, luU, 'sub')}
-        <tr class="grp"><th colspan="5">Pipeline</th></tr>
-        ${mrow('Under construction', sUc, ucU, 'sum', 1)}${mrow('Proposed', sPr, prU, 'sub', 1)}${mrow('Stalled', sSt, stU, 'sub', 1)}${mrow('Worst case, all of it', sUc + sPr + sSt, ucU + prU + stU, 'sum', 1)}
-      </tbody></table>
-      <small class="csx-src2">Percentages are of existing units. The set’s pipeline is what’s in its submarkets plus anything you added, less what you removed. The submarket column counts every property CoStar places in ${E(bl.name)}${outside.length ? `; ${outside.length === 1 ? E(outside[0].name) + ' is' : outside.length + ' of the set’s properties are'} outside it${outside.length > 1 ? ` (${outside.slice(0, 3).map((p) => E(p.name)).join(', ')}${outside.length > 3 ? '…' : ''})` : ` (${E(outside[0].submarket || 'no submarket')})`}` : ''}. Lease-up: delivered in the last 12 months, or the last 30 and under 95% occupied.</small></div>`;
+    const pc = (n) => (exU ? (n / exU) * 100 : 0), worst = pc(ucU + prU + stU);
+    const scale = Math.max(10, Math.ceil((worst * 1.15) / 5) * 5);   // bar axis in % of inventory
+    const seg = (n, cls, label) => (n ? `<i class="${cls}" style="width:${((pc(n) / scale) * 100).toFixed(2)}%" title="${E(label)}: ${intC(n)} units, ${pc(n).toFixed(1)}% of inventory"></i>` : '');
+    const outside = ps.filter((p) => p.submarket !== bl.name).length;
+    const cardSupply = `<div class="csx-sc2">
+      <div class="csx-sc2-h"><span>Supply pressure</span><i class="csx-srctag cs">CoStar</i></div>
+      <div class="csx-sc2-v">${pc(ucU).toFixed(1)}<u>%</u></div>
+      <div class="csx-sc2-s">of ${E(bl.name)}’s ${intC(exU)} units are under construction</div>
+      <div class="csx-sbar"><div class="trk">${seg(ucU, 'uc', 'Under construction')}${seg(prU, 'pr', 'Proposed')}${seg(stU, 'st', 'Stalled')}</div><div class="ticks"><span>0%</span><span>${scale / 2}%</span><span>${scale}%</span></div></div>
+      <div class="csx-sc2-k"><span><i class="uc"></i>${intC(ucU)} UC</span><span><i class="pr"></i>${intC(prU)} proposed</span>${stU ? `<span><i class="st"></i>${intC(stU)} stalled</span>` : ''}</div>
+      <div class="csx-sc2-f">Worst case <b>${worst.toFixed(1)}%</b> of inventory${luU ? ` · ${intC(luU)} units leasing up now` : ''}</div>
+    </div>`;
     const R = rpFor(bl.name);
-    let rp;
+    let cards = cardSupply, table = '';
     if (R) {
       const { f, Y, c, fy, cum, avg, s3, d3 } = R, avgSf = stats(exP).sf;
+      const yrsAll = Object.keys(f).map(Number).filter((y) => y >= Y - 7 && y <= Y + 4).sort((a, b) => a - b);
+      const rentPts = yrsAll.map((y) => [y, (f[y] || {}).eR]), occPts = yrsAll.map((y) => [y, (f[y] || {}).oc != null ? f[y].oc * 100 : null]);
+      const tag = '<i class="csx-srctag rp">RealPage</i>';
+      cards += `<div class="csx-sc2">
+          <div class="csx-sc2-h"><span>Effective rent</span>${tag}</div>
+          <div class="csx-sc2-v">${c.eR && avgSf ? '$' + (c.eR / avgSf).toFixed(2) + '<u>/SF</u>' : '$' + intC(c.eR) + '<u>/mo</u>'}</div>
+          <div class="csx-sc2-s">${c.eR && avgSf ? '$' + intC(c.eR) + '/mo at ' + intC(avgSf) + ' SF avg · ' : ''}<b class="${gCls(c.yR)}">${gPct(c.yR)}</b> in ${Y}</div>
+          ${spark(rentPts, Y)}
+          <div class="csx-sc2-f">Forecast <b class="${gCls(avg)}">${gPct(avg)}/yr</b> ${Y + 1}–${Y + 3}${cum != null ? ` · ${gPct(cum)} cumulative` : ''}</div>
+        </div>
+        <div class="csx-sc2">
+          <div class="csx-sc2-h"><span>Occupancy</span>${tag}</div>
+          <div class="csx-sc2-v">${c.oc != null ? (c.oc * 100).toFixed(1) + '<u>%</u>' : '—'}</div>
+          <div class="csx-sc2-s">${(f[Y - 1] || {}).oc != null && c.oc != null ? `${((c.oc - f[Y - 1].oc) * 10000 >= 0 ? '+' : '−')}${Math.abs(Math.round((c.oc - f[Y - 1].oc) * 10000))} bps vs ${Y - 1}` : '&nbsp;'}</div>
+          ${spark(occPts, Y, { ref: 95, refLabel: '95% stabilized' })}
+          <div class="csx-sc2-f">${fy[2].oc != null ? `<b>${(fy[2].oc * 100).toFixed(1)}%</b> forecast for ${Y + 3}` : '&nbsp;'}</div>
+        </div>
+        <div class="csx-sc2">
+          <div class="csx-sc2-h"><span>Supply vs demand</span>${tag}</div>
+          <div class="csx-sc2-v">${d3 && s3 ? (d3 / s3).toFixed(2) + '<u>×</u>' : '—'}</div>
+          <div class="csx-sc2-s">${s3 ? `${intC(d3)} absorbed vs ${intC(s3)} delivered, ${Y + 1}–${Y + 3}` : '&nbsp;'}</div>
+          ${sdBars(f, Y, yrsAll.filter((y) => y >= Y - 3))}
+          <div class="csx-sc2-k"><span><i class="sp"></i>Delivered</span><span><i class="dm"></i>Absorbed</span><span class="lt">lighter = forecast</span></div>
+        </div>`;
       const yrs = [Y - 3, Y - 2, Y - 1, Y, Y + 1, Y + 2, Y + 3, Y + 4].filter((y) => f[y]);
       const row = (l, fn) => `<tr><th>${l}</th>${yrs.map((y) => { const v = fn(f[y] || {}); return `<td class="${y > Y ? 'fc' : y === Y ? 'cy' : ''} ${v.c || ''}">${v.t}</td>`; }).join('')}</tr>`;
-      rp = `<div class="csx-smcol csx-smrp"><h4>Forecast <i class="csx-srctag rp">RealPage</i> <span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || bl.name)}</span></h4>
-        <div class="csx-rpk">
-          <div><span>Effective rent ${Y}</span><b>$${Math.round(c.eR || 0).toLocaleString()}<u>/mo</u></b><small>${c.eR && avgSf ? '$' + (c.eR / avgSf).toFixed(2) + '/SF at avg unit size' : ''}</small></div>
-          <div><span>Occupancy</span><b>${c.oc != null ? (c.oc * 100).toFixed(1) + '<u>%</u>' : '—'}</b><small>${fy[2].oc != null ? (fy[2].oc * 100).toFixed(1) + '% in ' + (Y + 3) : ''}</small></div>
-          <div><span>Rent growth ${Y}</span><b class="${gCls(c.yR)}">${gPct(c.yR)}</b><small>YoY vs ${Y - 1}</small></div>
-          <div><span>Forecast ${Y + 1}–${Y + 3}</span><b class="${gCls(avg)}">${gPct(avg)}<u>/yr</u></b><small>${cum != null ? gPct(cum) + ' cumulative' : ''}</small></div>
-          <div><span>Supply ${Y + 1}–${Y + 3}</span><b>${intC(s3)}</b><small>${d3 && s3 ? `${intC(d3)} absorbed · ${(d3 / s3).toFixed(2)}×` : ''}</small></div>
-        </div>
+      table = `<details class="csx-stalled csx-smyrs"${UI.smYrs ? ' open' : ''}><summary>Year by year · RealPage ${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || '')} <i>▾</i></summary>
         <div class="table-scroll"><table class="csx-rpt"><thead><tr><th></th>${yrs.map((y) => `<th class="${y > Y ? 'fc' : y === Y ? 'cy' : ''}">${y}${y > Y ? '<i>F</i>' : ''}</th>`).join('')}</tr></thead><tbody>
-          ${row('Effective rent', (r) => ({ t: r.eR ? '$' + Math.round(r.eR).toLocaleString() : '—' }))}
+          ${row('Effective rent', (r) => ({ t: r.eR ? '$' + intC(r.eR) : '—' }))}
           ${row('Occupancy', (r) => ({ t: r.oc != null ? (r.oc * 100).toFixed(1) + '%' : '—' }))}
-          ${row('Rent growth YoY', (r) => ({ t: gPct(r.yR), c: gCls(r.yR) }))}
+          ${row('Rent growth', (r) => ({ t: gPct(r.yR), c: gCls(r.yR) }))}
           ${row('Supply', (r) => ({ t: r.sp != null ? intC(r.sp) : '—' }))}
           ${row('Demand', (r) => ({ t: r.dm != null ? intC(r.dm) : '—' }))}
-        </tbody></table></div></div>`;
-    } else rp = `<div class="csx-smcol csx-smrp"><h4>Forecast <i class="csx-srctag rp">RealPage</i></h4><div class="csx-hint">No RealPage coverage mapped to ${E(bl.name)}.</div></div>`;
-    return `<section class="panel csx-sec csx-bl">
-      <div class="csx-sech" id="csx-s-sm"><div class="csx-sect"><i></i><b>Submarket</b><select class="csx-in csx-blsel" aria-label="Baseline submarket">${smOptions().map((o) => `<option value="${E(o)}"${o === bl.name ? ' selected' : ''}>${E(o)}${o === bl.name && !bl.picked ? ' (auto)' : ''}</option>`).join('')}</select></div><span class="csx-fresh">The baseline for pipeline share and RealPage</span></div>
-      <div class="csx-smgrid">${supply}${rp}</div>
+        </tbody></table></div></details>`;
+    } else cards += `<div class="csx-sc2 csx-sc2-none"><div class="csx-sc2-h"><span>RealPage</span><i class="csx-srctag rp">RealPage</i></div><div class="csx-sc2-s">No RealPage coverage mapped to ${E(bl.name)}.</div></div>`;
+    return `<section class="panel csx-sec csx-bl csx-bl2">
+      <div class="csx-sech" id="csx-s-sm"><div class="csx-sect"><i></i><b>Submarket</b><select class="csx-in csx-blsel" aria-label="Submarket">${smOptions().map((o) => `<option value="${E(o)}"${o === bl.name ? ' selected' : ''}>${E(o)}${o === bl.name && !bl.picked ? ' (auto)' : ''}</option>`).join('')}</select></div>
+        <span class="csx-fresh">${outside ? `${outside} of the set’s properties sit outside ${E(bl.name)}` : `All of the set’s properties are in ${E(bl.name)}`}</span></div>
+      <div class="csx-sc2grid">${cards}</div>
+      ${table}
       ${window.__WB_CS_NO_SETTINGS ? '<div class="csx-hint warn">The submarket choice is kept in this browser until the database update (comp_sets.settings) is run.</div>' : ''}
     </section>`;
   }
+
 
   // ---------- pipeline auto-pulled from the set's submarkets (removable per set) ----------
   const PXKEY = 'wb_cs_pipeex_v1';
@@ -643,7 +685,7 @@
   const shortCo = (x) => String(x || '').replace(/\s*\(.*?\)\s*/g, ' ').split(/;|\s\/\s/)[0].replace(/,?\s+(LLC|L\.L\.C\.|Inc\.?|LP|L\.P\.)$/i, '').trim() || '—';
   function salesSection(cs, ps) {
     if (!SC.pool) salePool(); saleLinks(cs);
-    const head = (extra, line) => `<section class="panel csx-sec csx-sec-sc">${panelHead('csx-s-sc', 'sc', 'Sale comps', null, line, null, extra)}`;
+    const head = (extra, line) => `<section class="panel csx-sec csx-sec-sc">${panelHead('csx-s-sc', 'sc', 'Sale comps', null, /Loading/.test(line || '') ? line : '', null, extra)}`;
     if (!SC.pool || SC.linkLoad[cs.id]) return head('', '<span class="csx-none2">Loading sales…</span>') + '</section>';
     const L = saleList(cs, ps), g = setGeo(ps);
     const inv = L.rows.filter((x) => x.comp_type === 'investment'), land = L.rows.filter((x) => x.comp_type === 'land');
@@ -668,7 +710,7 @@
     const ipu = avg(inv.map(perUnit).filter((v) => v != null)), cap = avg(inv.map(capOf).filter(Boolean)), lpu = avg(land.map(perUnit).filter((v) => v != null));
     const line = sumLine([[String(inv.length), inv.length === 1 ? 'investment sale' : 'investment sales'], [String(land.length), land.length === 1 ? 'land sale' : 'land sales']])
       + `<span class="csx-fresh">${L.curated ? 'Your list' : `Auto-picked: within ${g ? g.r.toFixed(1) : '—'} mi of the set, investment in the last 3 years (50+ units), land in the last 4 · add or remove one to keep it as yours`}</span>`;
-    const extra = `<div class="csx-scacts">${L.curated ? '<button type="button" class="csx-link csx-sreset">Reset to auto</button>' : ''}<button type="button" class="yx-btn csx-sbrowse">+ Add</button><div class="csx-ta csx-sadd"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-sadd-q" placeholder="Add a sale by name or address…" aria-label="Add a sale"><div class="csx-ta-list" hidden></div></div></div>`;
+    const extra = `<div class="csx-scacts">${L.curated ? '<button type="button" class="csx-link csx-sreset">Reset to auto</button>' : `<span class="csx-autonote" title="Within ${g ? g.r.toFixed(1) : '—'} mi of the set: investment sales in the last 3 years (50+ units), land in the last 4. Add or remove one to keep the list as yours.">Auto-picked</span>`}<button type="button" class="yx-btn csx-sbrowse">+ Add</button><div class="csx-ta csx-sadd"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-sadd-q" placeholder="Add a sale by name or address…" aria-label="Add a sale"><div class="csx-ta-list" hidden></div></div></div>`;
     return head(extra, line) + strip('Investment sales', inv.length, [[kUSD(I_.pu), '/unit'], [I_.psf ? '$' + Math.round(I_.psf) : '—', '/SF'], [I_.cap ? I_.cap.toFixed(2) + '%' : '—', 'avg cap'], [intC(I_.units), 'avg units'], [I_.yr ? Math.round(I_.yr) : '—', 'avg vintage']]) + `<div class="table-scroll">${invT}</div>`
       + strip('Land sales', land.length, [[kUSD(L_.pu), '/door'], [L_.lsf ? '$' + L_.lsf.toFixed(2) : '—', '/land SF'], [L_.ac ? L_.ac.toFixed(2) : '—', 'avg acres'], [L_.den ? L_.den.toFixed(0) : '—', 'avg units/ac'], [mUSD(L_.price), 'avg price']]) + `<div class="table-scroll">${landT}</div>${SC.err ? `<div class="csx-hint warn">${E(SC.err)}</div>` : ''}</section>`;
   }
@@ -1023,6 +1065,7 @@
     const vs = $('.csx-vel'); if (vs) vs.onchange = () => { cs.settings = { ...(cs.settings || {}), vel: +vs.value }; touch(cs); render(); };
     const sd = $('.csx-stl'); if (sd) sd.ontoggle = () => { UI.stalledOpen = sd.open; };
     const prd = $('.csx-prop'); if (prd) prd.ontoggle = () => { UI.propOpen = prd.open; };
+    const smy = $('.csx-smyrs'); if (smy) smy.ontoggle = () => { UI.smYrs = smy.open; };
     const pinHead = () => { const h = view.querySelector('.csx-headp'), n = h && h.querySelector('.csx-nav'); if (!h || !n) return; h.style.top = (56 - (h.offsetHeight - n.offsetHeight)) + 'px'; };
     pinHead(); requestAnimationFrame(pinHead);
     if (!window.__csxPinRz) { window.__csxPinRz = true; window.addEventListener('resize', () => { const h = document.querySelector('#view-compsets .csx-headp'), n = h && h.querySelector('.csx-nav'); if (h && n) h.style.top = (56 - (h.offsetHeight - n.offsetHeight)) + 'px'; }); }

@@ -7304,7 +7304,9 @@ function compSetProperties(setId) {
   return cs.propertyIds
     .map(id => byId[String(id)])
     .filter(Boolean)
-    .map(applyUserEdits);
+    .map(applyUserEdits)
+    // proposed and stalled projects live only in the Comp Sets tab's Pipeline drop-downs, not in the analysis
+    .filter(p => !(p.status !== 'Existing' && (isPlannedProposed(p) || /stall/i.test(p.pipelineStage || ''))));
 }
 
 // Unit-weighted average — the right default for rent and SF across a set,
@@ -10316,7 +10318,7 @@ function renderProperties() {
     data = getFiltered();
     const proposed = RAW_DATA.map(applyUserEdits).filter(p => {
       if (!isPlannedProposed(p)) return false;
-      if (pxSetIds) return pxSetIds.has(String(p.id));   // a comp set in view: only its members, like getFiltered()
+      if (pxSetIds) return false;   // a comp set in view: its proposed projects show only under the Proposed toggle
       if (!matchesClass(p)) return false;
       if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
       if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
