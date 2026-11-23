@@ -1977,7 +1977,7 @@ function wbSaveNote(msg, bad) {
 }
 function wbStampMeta(rec, fields, src) {
   rec._meta = rec._meta || {};
-  const by = (window.WB && WB.user && WB.user.email) || (syncState && syncState.editorName) || '';
+  const by = (window.__WBD && window.__WBD.user && window.__WBD.user.email) || (syncState && syncState.editorName) || '';
   fields.forEach((f) => { rec._meta[f] = { at: Date.now(), by, src: src || 'Hand entry' }; });
   return rec;
 }

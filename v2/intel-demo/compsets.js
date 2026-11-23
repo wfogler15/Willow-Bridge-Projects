@@ -30,9 +30,19 @@
       uc: ps.filter((p) => p.status !== 'Existing').length };
   }
 
+  // the signed-in user (loader keeps it on __WBD.user; the editor name is the same email)
+  function wbMe() { return (window.__WBD && window.__WBD.user && window.__WBD.user.email) || (typeof syncState !== 'undefined' && syncState.editorName) || ''; }
+  const me = () => String(wbMe()).toLowerCase();
+  // who can write in this market (core.market_access: admin '*', or edit/admin on the market)
+
+  function canEdit() {
+    const acc = ((typeof WB !== "undefined" && WB.access) || []).filter((a) => !a.email || String(a.email).toLowerCase() === me()), mk = (window.__WBD && window.__WBD.market) || '';
+    if (!acc.length) return true;   // not loaded (tests, older shell): let the database decide
+    return acc.some((a) => a.role !== 'view' && (a.market_id === mk || (a.market_id === '*' && a.role === 'admin')));
+  }
   // ---------- saving ----------
   const timers = {};
-  function touch(cs) { cs.updatedAt = Date.now(); cs.updatedBy = (window.WB && WB.user && WB.user.email) || cs.updatedBy; try { saveCompSets(); } catch (e) {} queueSave(cs); }
+  function touch(cs) { if (!canEdit()) { UI.save[cs.id] = 'view'; paintSave(cs); return; } cs.updatedAt = Date.now(); cs.updatedBy = wbMe() || cs.updatedBy; try { saveCompSets(); } catch (e) {} queueSave(cs); }
   function queueSave(cs) { UI.save[cs.id] = 'pending'; paintSave(cs); clearTimeout(timers[cs.id]); timers[cs.id] = setTimeout(() => saveNow(cs), 700); }
   // one save at a time per set, so quick edits can't race and insert the set twice
   const chain = {};
@@ -47,6 +57,7 @@
   }
   function saveLabel(cs) {
     const s = UI.save[cs.id];
+    if (!canEdit() || s === 'view') return '<span class="csx-save">View only in this market</span>';
     if (s === 'pending' || s === 'saving') return '<span class="csx-save">Saving…</span>';
     if (s && s.startsWith('error:')) return `<span class="csx-save bad">Not saved: ${E(s.slice(6))} <button type="button" class="csx-retry">Retry</button></span>`;
     if (!cs.uuid) return '<span class="csx-save warn">Only in this browser <button type="button" class="csx-retry">Save to database</button></span>';
@@ -124,7 +135,7 @@
     if (from === 'index' && !idxRows().length) { msg.textContent = 'The Property Index has no results to start from.'; return; }
     const id = 'cs-' + Date.now();
     compSets[id] = { id, name, description: (view.querySelector('.csx-ds').value || '').trim(), propertyIds: from === 'index' ? idxRows().map((p) => p.id) : [],
-      createdBy: (window.WB && WB.user && WB.user.email) || '', createdAt: Date.now(), updatedAt: Date.now() };
+      createdBy: wbMe() || '', createdAt: Date.now(), updatedAt: Date.now() };
     touch(compSets[id]);
     openSet(id);
     if (from === 'near') { UI.add = 'near'; render(); setTimeout(() => { const i = view.querySelector('.csx-near-q'); if (i) i.focus(); }, 50); }
@@ -256,7 +267,7 @@
     const pid = box.dataset.pid, ph = box.dataset.ph, p = byId().get(String(pid)); if (!p) return;
     const raw = RAW_DATA.find((x) => String(x.id) === String(pid)) || {};
     const at = new Date((box.querySelector('.csx-uf-asof').value || new Date().toISOString().slice(0, 10)) + 'T12:00:00').getTime();
-    const src = box.querySelector('.csx-uf-src').value, by = (window.WB && WB.user && WB.user.email) || (typeof syncState !== 'undefined' && syncState.editorName) || '';
+    const src = box.querySelector('.csx-uf-src').value, by = wbMe() || (typeof syncState !== 'undefined' && syncState.editorName) || '';
     const v = {}; box.querySelectorAll('.csx-uf-f').forEach((i) => { v[i.dataset.f] = i.value; });
     const edits = { ...ed(p) }, ch = [], set = (k, val) => {
       const cur = p[k]; if (val === cur || (val == null && cur == null)) return;
@@ -564,7 +575,7 @@
     if (!num(v.units)) { msg.textContent = 'Enter the unit count.'; return; }
     if (!m) { msg.textContent = 'Place it on the map (drop the pin or paste coordinates).'; return; }
     const ym = (x) => (x ? x.split('-').map(Number) : null), dn = ym(v.done), stt = ym(v.start);
-    const by = (window.WB && WB.user && WB.user.email) || (typeof syncState !== 'undefined' && syncState.editorName) || '';
+    const by = wbMe() || (typeof syncState !== 'undefined' && syncState.editorName) || '';
     const rec = { id: 'wb-' + Date.now(), name: v.name, address: v.address || null, city: v.city || null, units: num(v.units), developer: v.developer || null, style: v.style || null,
       status: v.stage === 'Proposed' || v.stage === 'Stalled' ? 'Under Construction' : 'Under Construction', pipelineStage: v.stage === 'UC' ? 'UC' : v.stage,
       yearBuilt: dn ? dn[0] : null, monthBuilt: dn ? MON[dn[1] - 1] : null, constructionBegin: stt ? MON[stt[1] - 1] + ' ' + stt[0] : null,
@@ -674,7 +685,7 @@
   }
   async function saveSales(cs, ids) {
     if (!cs.uuid) { wbSaveNote('Save the comp set first', true); return false; }
-    const by = (window.WB && WB.user && WB.user.email) || null;
+    const by = wbMe() || null;
     try {
       const old = SC.links[cs.id] || [];
       const drop = old.filter((id) => !ids.includes(id));
@@ -835,6 +846,9 @@
   // ---------- workspace ----------
   // pipeline projects in the set's submarkets join the set automatically; removing one keeps it out
   function syncAutoPipe(cs) {
+    // removals are stored with the set's settings; until that column exists they live in one browser, so only the set's creator auto-adds
+    const mine = !cs.createdBy || String(cs.createdBy).toLowerCase() === me();
+    if (!canEdit() || (window.__WB_CS_NO_SETTINGS && !mine)) return 0;
     const add = autoPipe(cs, membersOf(cs)).map((p) => p.id);
     if (!add.length) return 0;
     cs.propertyIds = [...(cs.propertyIds || []), ...add];

@@ -247,6 +247,7 @@
         WB.fetchAll('market', 'comp_sets', '*', (q) => q.eq('market_id', c.market)),
         WB.fetchAll('market', 'comp_set_members', 'comp_set_id,property_id,sort'),
       ]);
+      if (sets.length && !('settings' in sets[0])) window.__WB_CS_NO_SETTINGS = true;   // column not added yet: per-set settings stay in each browser
       return sets.map((s) => {
         const ids = members.filter((m) => m.comp_set_id === s.id).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)).map((m) => legacyPropId(m.property_id));
         const id = s.legacy_id || s.id;
@@ -266,7 +267,7 @@
       let setId;
       if (found) {
         setId = found.id;
-        const { error } = await withSettings(row, (extra) => S('market').from('comp_sets').update({ name: row.name, description: row.description || null, updated_at: new Date().toISOString(), updated_by: (window.WB && WB.user && WB.user.email) || undefined, ...extra }).eq('id', setId)); if (error) throw error;
+        const { error } = await withSettings(row, (extra) => S('market').from('comp_sets').update({ name: row.name, description: row.description || null, updated_at: new Date().toISOString(), updated_by: (window.__WBD && window.__WBD.user && window.__WBD.user.email) || undefined, ...extra }).eq('id', setId)); if (error) throw error;
         const { error: e2 } = await S('market').from('comp_set_members').delete().eq('comp_set_id', setId); if (e2) throw e2;
       } else {
         const { data, error } = await withSettings(row, (extra) => S('market').from('comp_sets').insert({ market_id: c.market, name: row.name, description: row.description || null, legacy_id: String(row.id), ...extra }).select('id').single());
