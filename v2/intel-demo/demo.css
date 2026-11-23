@@ -1534,3 +1534,8 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-sbcount { margin-right: auto; font-size: 12.5px; color: #77728a; }
 .csx-sbrowse { height: 32px; font-size: 12.5px; }
 @media (max-width: 900px) { .csx-sbbody { grid-template-columns: 1fr; grid-template-rows: 1fr 260px; } }
+.csx-sstrip { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 20px; border-top: 1px solid #efedf4; border-bottom: 1px solid #efedf4; background: #faf9fc; }
+.csx-sstrip > b { font: 650 13.5px var(--x-font); color: var(--x-ink); }
+.csx-sstrip > em { font-style: normal; font: 600 11.5px var(--x-font); color: #4a4560; background: #fff; border: 1px solid #e4e1ec; border-radius: 999px; padding: 1px 8px; margin-right: 8px; }
+.csx-sstrip .csx-sum b { font-size: 14px; }
+.csx-sec-sc .csx-secline + .csx-sstrip { border-top: 0; }
