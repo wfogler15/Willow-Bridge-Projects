@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231400">
+<link rel="stylesheet" href="shared/wb.css?v=202611231404">
 <style>
   .page{max-width:1400px}
   /* ---------- top row: regions + settings ---------- */
@@ -66,11 +66,11 @@
   .ml-head h2 span{font-weight:500;color:var(--faint);margin-left:8px;font-size:16px}
   .ml-find{font:14px var(--font-display);border:1px solid #E6E4EC;border-radius:999px;padding:8px 14px 8px 34px;width:220px;color:var(--ink);outline:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239C97AE' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.5 10.5 14 14'/%3E%3C/svg%3E") no-repeat 12px center/15px}
   .ml-find:focus{border-color:#C9BFF0;box-shadow:0 0 0 3px rgba(67,40,144,.08)}
-  .ml{--cols:minmax(200px,1.6fr) minmax(92px,.75fr) minmax(84px,.65fr) minmax(104px,.75fr) minmax(150px,.95fr) minmax(200px,1.2fr) minmax(150px,.9fr) 14px}
+  .ml{--cols:minmax(190px,1.5fr) minmax(92px,.75fr) minmax(84px,.65fr) minmax(104px,.75fr) minmax(150px,.95fr) minmax(130px,.85fr) minmax(112px,.7fr) minmax(170px,1fr) 14px}
   .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 24px;align-items:center;padding:0 18px}
-  .ml-cols{padding-top:10px;padding-bottom:10px}
+  .ml-cols{padding-top:10px;padding-bottom:10px;align-items:end}
   .ml-cols{border-bottom:1px solid #E6E4EC}
-  .ml-cols button{all:unset;cursor:pointer;font:600 11.5px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+  .ml-cols button{all:unset;cursor:pointer;font:600 11.5px/1.35 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
   .ml-cols button:hover,.ml-cols button.on{color:#432890}
   .ml-cols button.on::after{content:" ↓";letter-spacing:0}
   .ml-cols button.on.asc::after{content:" ↑"}
@@ -96,6 +96,7 @@
   .c-rp{padding-left:20px;border-left:1px solid #EFEEF3}
   .ml-cols .c-rp{border-left:0}
   .c-sd{min-width:0}
+  .ml-s b{font-weight:600}
   .ml-cols button.c-rp{padding-left:21px}
   .ml-uc .bar b{display:block;height:100%;border-radius:999px;background:#8168D6;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
   .ml-uc .pct{font:600 17px/1.2 var(--font-display);font-variant-numeric:tabular-nums;min-width:48px}
@@ -161,7 +162,7 @@
   .hset-acct button:hover{border-color:#C9BFF0}
   @media (max-width:1100px){
     .ml{--cols:minmax(160px,1.5fr) minmax(96px,.9fr) minmax(84px,.75fr) minmax(150px,1.1fr) minmax(230px,1.4fr) 18px}
-    .ml .c-ex,.ml .c-sd{display:none}
+    .ml .c-ex,.ml .c-sd,.ml .c-rf{display:none}
   }
   @media (max-width:720px){
     .hm-hero,.hm-hero.two{padding:26px 22px;display:block}
@@ -172,7 +173,7 @@
     .ml-row{padding:14px 14px;row-gap:10px}
     .ml-row>.c-nm{grid-column:1 / 3}
     .ml-row>.ml-go{grid-column:3;grid-row:1}
-    .ml-row>.c-ex,.ml-row>.c-uc,.ml-row>.c-rp,.ml-row>.c-sd{display:none}
+    .ml-row>.c-ex,.ml-row>.c-uc,.ml-row>.c-rp,.ml-row>.c-rf,.ml-row>.c-sd{display:none}
     .hc-svg{height:180px}
     .ml-find{width:150px}
     .hm-gear span{display:none}
@@ -181,8 +182,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231400"></script>
-<script src="access.js?v=202611231400"></script>
+<script src="shared/wb.js?v=202611231404"></script>
+<script src="access.js?v=202611231404"></script>
 </head>
 <body>
 <main class="page">
@@ -200,7 +201,7 @@
     <div style="padding:10px 18px"><span class="sk" style="width:60%;margin:22px 0"></span><span class="sk" style="width:80%;margin:22px 0"></span><span class="sk" style="width:70%;margin:22px 0"></span></div>
   </section>
   <div class="hm-sig"><img src="shared/wb-mark.png" alt=""><span>Willow Bridge Property Company · Acquisitions &amp; Development</span></div>
-  <p class="hm-foot">Asking, occupancy, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Under construction counts active construction only and is shown as a share of existing units. RealPage rent growth is the metro’s effective rent growth per year (averaged across years where a range is shown): actual over the last three full years, this year, and RealPage’s forecast from here to the end of its forecast. Supply vs demand is RealPage’s forecast deliveries minus its forecast absorption over the same forecast years (positive means more supply than demand), with both totals underneath.</p>
+  <p class="hm-foot">Asking, occupancy, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Under construction counts active construction only and is shown as a share of existing units. Rent growth is RealPage’s metro effective rent growth, averaged per year: actual over the last three full years and RealPage’s forecast to the end of its forecast. Net absorption is RealPage’s forecast of units absorbed over the forecast years, against the new units it expects to deliver in the same years; the percentage is absorption as a share of new supply (100% or more means demand keeps up).</p>
 </main>
 <div class="hset-scrim" id="st-scrim" hidden></div>
 <div class="hset" id="st" role="dialog" aria-modal="true" aria-labelledby="st-title" hidden>
@@ -402,7 +403,7 @@
     hit.onmouseleave = () => { tip.style.opacity = 0; guide.setAttribute('opacity', 0); };
   }
   let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (chartMs.length) drawChart(chartMs, true); }, 120); });
-  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage rent growth', 'c-rp'], ['rpNet', 'Supply vs demand', 'c-sd']];
+  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpHist', 'Rent growth<br>actual', 'c-rp'], ['rpFc', 'Rent growth<br>forecast', 'c-rf'], ['rpDem', 'Net absorption<br>forecast', 'c-sd']];
   const val = (m, k) => k === 'name' ? name(m) : F[m.id][k];
   function ordered(ms) {
     return ms.slice().sort((a, b) => {
@@ -426,16 +427,24 @@
   }
   const yy = (y) => "'" + String(y).slice(2);
   const kU = (v) => v == null ? '—' : Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'K' : String(Math.round(v));
-  function sdCell(f) {
-    if (f.rpNet == null) return '<div class="ml-v" style="color:var(--faint)">—</div><div class="ml-s">&nbsp;</div>';
-    const r = f.rpSup ? f.rpDem / f.rpSup : null;
-    return `<div class="ml-v ${f.rpNet > 0 ? 'dn' : 'up'}">${f.rpNet >= 0 ? '+' : '−'}${kU(Math.abs(f.rpNet))}<i>units</i></div>
-      <div class="ml-s" title="RealPage forecast, ${NOW_Y + 1}–${f.rpLast}: ${int(f.rpSup)} units delivered vs ${int(f.rpDem)} of demand">${kU(f.rpSup)} vs ${kU(f.rpDem)} · ${yy(NOW_Y + 1)}–${String(f.rpLast).slice(2)}</div>`;
+  const none = '<div class="ml-v" style="color:var(--faint)">—</div><div class="ml-s">No RealPage data</div>';
+  const span = (a, b) => `${a}–${String(b).slice(2)}`;
+  // RealPage, actual: average effective rent growth per year over the last three full years, with this year underneath
+  function rpActual(f) {
+    if (f.rpHist == null) return none;
+    return `<div class="ml-v ${f.rpHist >= 0 ? 'up' : 'dn'}">${pct(f.rpHist)}<i>/yr</i></div><div class="ml-s">${span(NOW_Y - 3, NOW_Y - 1)} avg</div>`;
   }
-  function rpCell(f) {
-    if (f.rpFc == null && f.rpNow == null) return '<div class="ml-v" style="color:var(--faint)">—</div><div class="ml-s">No RealPage data</div>';
-    const fig = (v, lab) => `<div><div class="ml-v ${v == null ? '' : v >= 0 ? 'up' : 'dn'}">${pct(v)}</div><div class="ml-s">${lab}</div></div>`;
-    return `<div class="rp3">${fig(f.rpHist, `${yy(NOW_Y - 3)}–${String(NOW_Y - 1).slice(2)}`)}${fig(f.rpNow, String(NOW_Y))}${fig(f.rpFc, `${yy(NOW_Y + 1)}–${String(f.rpLast).slice(2)}`)}</div>`;
+  // RealPage, forecast: average effective rent growth per year to the end of the forecast
+  function rpForecast(f) {
+    if (f.rpFc == null) return none;
+    return `<div class="ml-v ${f.rpFc >= 0 ? 'up' : 'dn'}">${pct(f.rpFc)}<i>/yr</i></div><div class="ml-s">${span(NOW_Y + 1, f.rpLast)} avg</div>`;
+  }
+  // RealPage, forecast net absorption over the forecast years, against the new supply delivering in the same years
+  function sdCell(f) {
+    if (f.rpDem == null) return none;
+    const cover = f.rpSup ? f.rpDem / f.rpSup : null;
+    return `<div class="ml-v">${kU(f.rpDem)}<i>units</i></div>
+      <div class="ml-s" title="RealPage forecast, ${NOW_Y + 1}–${f.rpLast}: ${int(f.rpDem)} units absorbed vs ${int(f.rpSup)} new units delivered">vs ${kU(f.rpSup)} supply${cover != null ? ` · <b class="${cover >= 1 ? 'up' : 'dn'}">${Math.round(cover * 100)}%</b>` : ''}</div>`;
   }
   const CODES = { denver: 'DEN', phoenix: 'PHX', slc: 'SLC', dallas: 'DFW', austin: 'AUS', houston: 'HOU', san_antonio: 'SAT', atlanta: 'ATL', atl: 'ATL', miami: 'MIA', ftl: 'FLL', fort_lauderdale: 'FLL', tampa: 'TPA', orlando: 'MCO', charlotte: 'CLT', clt: 'CLT', raleigh: 'RDU', rdu: 'RDU', nashville: 'BNA', nash: 'BNA', dc: 'DCA', richmond: 'RIC', rva: 'RIC' };
   const codeOf = (m) => (m.config && m.config.code) || CODES[m.id] || name(m).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
@@ -450,7 +459,8 @@
       <div class="c-occ"><div class="ml-v">${f.occ != null ? f.occ.toFixed(1) + '%' : '—'}</div><div class="ml-s">${f.vac != null ? f.vac.toFixed(1) + '% vacant' : '&nbsp;'}</div></div>
             <div class="c-ex"><div class="ml-v">${int(f.exU)}<i>units</i></div><div class="ml-s">${f.exN === 1 ? '1 property' : int(f.exN) + ' properties'}</div></div>
       <div class="c-uc"><div class="ml-uc"><span class="pct">${f.ucPct != null ? f.ucPct.toFixed(1) + '%' : '—'}</span><span class="bar"><b style="width:${w}%;animation-delay:${120 + Math.min(i, 20) * 28}ms"></b></span></div><div class="ml-s">${pl(f.ucU, 'unit')} · ${pl(f.ucN, 'project')}</div></div>
-      <div class="c-rp">${rpCell(f)}</div>
+      <div class="c-rp">${rpActual(f)}</div>
+      <div class="c-rf">${rpForecast(f)}</div>
       <div class="c-sd">${sdCell(f)}</div>
       <span class="ml-go" aria-hidden="true">›</span>
     </a>`;
