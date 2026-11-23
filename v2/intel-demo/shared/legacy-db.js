@@ -368,6 +368,8 @@
       saveEdits: (pid, edits) => H.property_edits_upsert({ property_id: pid, edits: edits || {} }),
       removeEdits: (pid) => H.property_edits_remove({ property_id: pid }),
       saveFees: (pid, fees) => H.comp_fees_upsert({ property_id: pid, fees: fees || {} }),
+      // a project added by hand (not in CoStar yet): core.properties, source 'manual'
+      saveCustomProp: (rec) => H.custom_properties_upsert({ id: rec.id, data: rec }),
     },
     // Comp Sets tab: explicit saves only, so they go straight to the database even in the read-only Demo
     // (read-only exists to stop the old layer re-pushing cached records on load; a button press is not that)

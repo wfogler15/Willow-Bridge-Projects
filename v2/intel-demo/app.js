@@ -10057,7 +10057,10 @@ function exportCompSetPdf() {
     setTimeout(() => { window.print(); document.title = t; }, 150);
   };
   let pending = 0;
-  tiles.eachLayer(l => { pending++; l.once('load', () => { if (--pending <= 0) setTimeout(go, 250); }); });
+  // the base map is either a group of tile layers or one vector (MapLibre) layer
+  if (typeof tiles.eachLayer === 'function') tiles.eachLayer(l => { pending++; l.once('load', () => { if (--pending <= 0) setTimeout(go, 250); }); });
+  else if (typeof tiles.getMaplibreMap === 'function' && tiles.getMaplibreMap()) { const gl = tiles.getMaplibreMap(); gl.once('idle', () => setTimeout(go, 250)); }
+  else if (tiles.once) tiles.once('load', () => setTimeout(go, 250));
   setTimeout(go, 6000);   // don't wait forever on a slow tile
 }
 
