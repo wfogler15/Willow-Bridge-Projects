@@ -744,6 +744,7 @@
     }
     openSaleCompDetail(type, { customId: c.id });
   }
+  window.wbCsCanEdit = () => canEdit();
   window.wbCsOpenSet = () => !!(UI.open && compSets[UI.open]);
   // for the analysis map: phase colours, and the pipeline projects this tab pulls in from the set's submarkets
   window.wbCsPhase = (p) => { const ph = phaseOf(p); return ph === 'pipe' ? (isStalled(p) ? 'stalled' : isProposed(p) ? 'proposed' : 'uc') : ph; };

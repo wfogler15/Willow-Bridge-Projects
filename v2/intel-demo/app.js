@@ -10288,6 +10288,38 @@ function deleteWbDeal() {
 }
 window.deleteWbDeal = deleteWbDeal;
 
+// Property card → Actions → Remove from the dashboard. Explicit, confirmed, straight to the database.
+async function removePropertyFromSystem(id) {
+  const sid = String(id);
+  const p = (typeof RAW_DATA !== 'undefined' ? RAW_DATA : []).find(x => String(x.id) === sid);
+  if (!p) return;
+  if (window.wbCsCanEdit && !window.wbCsCanEdit()) { alert('You have view-only access in this market.'); return; }
+  const manual = !!p._isCustomProp;
+  const msg = manual
+    ? `Delete "${p.name || 'this project'}"?\n\nIt was added by hand, so this deletes it for the whole team. It also comes out of any comp sets.`
+    : `Remove "${p.name || 'this property'}" from the dashboard?\n\nIt's hidden for the whole team and comes out of any comp sets. Future CoStar uploads skip it. An admin can restore it.`;
+  if (!confirm(msg)) return;
+  try {
+    if (!window.LegacyDB || !LegacyDB.direct || !LegacyDB.direct.removeProperty) throw new Error('removing isn’t available');
+    await LegacyDB.direct.removeProperty(sid);
+  } catch (e) {
+    console.error(e);
+    alert('Couldn’t remove it: ' + (e && e.message || e));
+    return;
+  }
+  if (customProperties[sid]) { delete customProperties[sid]; saveCustomProps(); }
+  Object.values(compSets).forEach(cs => { cs.propertyIds = (cs.propertyIds || []).filter(x => String(x) !== sid); });
+  try { saveCompSets(); } catch (e) {}
+  delete userEdits[sid]; delete compFees[sid];
+  try { saveCompFees(); } catch (e) {}
+  for (let i = RAW_DATA.length - 1; i >= 0; i--) if (String(RAW_DATA[i].id) === sid) RAW_DATA.splice(i, 1);
+  closeModal();
+  try { populatePropYearFilter(); } catch (e) {}
+  renderAll();
+  try { wbSaveNote && wbSaveNote(`Removed ${p.name || 'property'}`); } catch (e) {}
+}
+window.removePropertyFromSystem = removePropertyFromSystem;
+
 
 // Order for the Property Index. While a comp set is active, its stored
 // sequence is the team's manual ranking and is the meaningful default —
@@ -14836,7 +14868,9 @@ function renderModal() {
                { label: '✎ Edit Property', action: 'onclick="toggleEditMode()"' },
                p._wbOnly ? { label: '✎ Edit Deal Record', action: `onclick="openWbDealModal('${escapeHTML(String(p.id))}')"`, title: 'Edit every field of this user-added deal' } : null,
                isEdited ? { sep: true } : null,
-               isEdited ? { label: 'Reset to CoStar', action: 'onclick="revertModalEdits()"', warn: true, title: 'Restore original CoStar values' } : null
+               isEdited ? { label: 'Reset to CoStar', action: 'onclick="revertModalEdits()"', warn: true, title: 'Restore original CoStar values' } : null,
+               { sep: true },
+               { label: 'Remove from the dashboard…', action: `onclick="removePropertyFromSystem('${escapeHTML(String(p.id))}')"`, warn: true, title: p._isCustomProp ? 'Delete this hand-added project for the whole team' : 'Hide this CoStar property for the whole team (restorable; future uploads skip it)' }
              ])}
              <button class="modal-close" onclick="closeModal()">CLOSE ×</button>`}
       </div>

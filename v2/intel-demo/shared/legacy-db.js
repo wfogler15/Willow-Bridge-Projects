@@ -373,6 +373,23 @@
       saveCustomProp: (rec) => H.custom_properties_upsert({ id: rec.id, data: rec }),
       saveComp: (type, comp) => H.custom_comps_upsert({ id: comp.id, comp_type: type, data: comp }),
       removeComp: (type, id) => H.custom_comps_remove({ id, comp_type: type }),
+      // Property card "Remove from the dashboard": a hand-added project is deleted outright;
+      // a CoStar property moves to core.properties_removed (restorable, and later uploads skip its CoStar id).
+      // Overrides, fees, snapshots and comp set memberships go with it (cascade); deals, sale comps and parcels just unlink.
+      async removeProperty(legacyId, reason) {
+        const id = await propUuid(legacyId); if (!id) throw new Error('property not found in the database');
+        const { data: row, error: e1 } = await S('core').from('properties').select('*').eq('id', id).single(); if (e1) throw e1;
+        if (row.source !== 'manual') {
+          const who = (window.__WBD && window.__WBD.user && window.__WBD.user.email) || '';
+          const x = Object.assign({}, row); delete x.geom;
+          x.attrs = Object.assign({}, x.attrs || {}, { _removed: { reason: reason || 'Removed from the property card', by: who, at: new Date().toISOString() } });
+          const { error: e2 } = await S('core').from('properties_removed').insert(x);
+          if (e2) { const err = new Error(/row-level security|permission/i.test(e2.message || '') ? 'only an admin can remove CoStar properties right now' : e2.message); err.cause = e2; throw err; }
+        }
+        const { error: e3 } = await S('core').from('properties').delete().eq('id', id); if (e3) throw e3;
+        const c = ctx(); delete c.propByCostar[String(legacyId)]; delete c.costarByProp[id]; if (c.customProps) c.customProps.delete(id);
+        return { source: row.source };
+      },
     },
     // Comp Sets tab: explicit saves only, so they go straight to the database even in the read-only Demo
     // (read-only exists to stop the old layer re-pushing cached records on load; a button press is not that)
