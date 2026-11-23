@@ -649,7 +649,7 @@
     const ipu = avg(inv.map(perUnit).filter((v) => v != null)), cap = avg(inv.map(capOf).filter(Boolean)), lpu = avg(land.map(perUnit).filter((v) => v != null));
     const line = sumLine([[kUSD(ipu), 'per unit, investment'], [cap ? cap.toFixed(2) + '%' : '—', 'avg cap'], [kUSD(lpu), 'per door, land']])
       + `<span class="csx-fresh">${L.curated ? 'Your list' : `Auto-picked: within ${g ? g.r.toFixed(1) : '—'} mi of the set, investment in the last 3 years (50+ units), land in the last 4 · add or remove one to keep it as yours`}</span>`;
-    const extra = `<div class="csx-scacts">${L.curated ? '<button type="button" class="csx-link csx-sreset">Reset to auto</button>' : ''}<div class="csx-ta csx-sadd"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-sadd-q" placeholder="Add a sale by name or address…" aria-label="Add a sale"><div class="csx-ta-list" hidden></div></div></div>`;
+    const extra = `<div class="csx-scacts">${L.curated ? '<button type="button" class="csx-link csx-sreset">Reset to auto</button>' : ''}<button type="button" class="yx-btn csx-sbrowse">+ Add</button><div class="csx-ta csx-sadd"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-sadd-q" placeholder="Add a sale by name or address…" aria-label="Add a sale"><div class="csx-ta-list" hidden></div></div></div>`;
     return head(extra, line) + `<div class="table-scroll">${invT}</div><div class="table-scroll csx-landt">${landT}</div>${SC.err ? `<div class="csx-hint warn">${E(SC.err)}</div>` : ''}</section>`;
   }
   function openSale(id) {
@@ -672,7 +672,74 @@
     UI.addProj = true; render();
     const t = document.getElementById('csx-s-pi'); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' });
   };
+  // ---------- sale comp browser: map + search over every sale in the market ----------
+  const SB = { type: 'all', yrs: 3, rad: 5, minU: 0, q: '', pick: new Set(), map: null, layer: null };
+  function openSaleBrowser(cs, ps) {
+    const old = document.getElementById('csx-sbm'); if (old) old.remove();
+    SB.pick = new Set(); SB.q = ''; const g = setGeo(ps); SB.rad = g ? Math.max(3, Math.ceil(g.r)) : 0;
+    const m = document.createElement('div'); m.id = 'csx-sbm'; m.className = 'csx-modal';
+    m.innerHTML = `<div class="csx-modal-box"><div class="csx-modal-head"><div><b>Add sale comps</b><span>${E(cs.name)}</span></div><button type="button" class="csx-modal-x" aria-label="Close">×</button></div>
+      <div class="csx-sbf">
+        <div class="csx-ta csx-sadd csx-sbq"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in" placeholder="Search name, address, buyer or seller…"></div>
+        <div class="toggle-group csx-sbtype">${[['all', 'All'], ['investment', 'Investment'], ['land', 'Land']].map(([k, l]) => `<button type="button" class="toggle-btn${SB.type === k ? ' active' : ''}" data-t="${k}">${l}</button>`).join('')}</div>
+        <select class="csx-in csx-sbyrs">${[[1, 'Last year'], [2, 'Last 2 years'], [3, 'Last 3 years'], [5, 'Last 5 years'], [0, 'Any date']].map(([v, l]) => `<option value="${v}"${SB.yrs === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+        <select class="csx-in csx-sbrad">${[[1, 'Within 1 mi'], [2, 'Within 2 mi'], [3, 'Within 3 mi'], [5, 'Within 5 mi'], [10, 'Within 10 mi'], [0, 'Anywhere']].map(([v, l]) => `<option value="${v}"${SB.rad === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+        <select class="csx-in csx-sbmin">${[[0, 'Any size'], [50, '50+ units'], [100, '100+ units'], [200, '200+ units']].map(([v, l]) => `<option value="${v}"${SB.minU === v ? ' selected' : ''}>${l}</option>`).join('')}</select>
+      </div>
+      <div class="csx-sbbody"><div class="csx-sblist"></div><div class="csx-sbmap"></div></div>
+      <div class="csx-modal-foot"><span class="csx-sbcount"></span><button type="button" class="yx-btn csx-sbcancel">Cancel</button><button type="button" class="yx-btn yx-btn-primary csx-sbadd" disabled>Add selected</button></div></div>`;
+    document.body.appendChild(m);
+    const close = () => { try { if (SB.map) SB.map.remove(); } catch (e) {} SB.map = null; m.remove(); };
+    m.querySelector('.csx-modal-x').onclick = close; m.querySelector('.csx-sbcancel').onclick = close;
+    m.addEventListener('click', (e) => { if (e.target === m) close(); });
+    document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { document.removeEventListener('keydown', esc); close(); } });
+    const have = () => new Set(saleList(cs, ps).ids);
+    const draw = () => {
+      const now = Date.now(), H = have(), q = SB.q.toLowerCase();
+      const rows = (SC.pool || []).filter((x) => (SB.type === 'all' || x.comp_type === SB.type)
+        && (!SB.yrs || (x.sale_date && (now - new Date(x.sale_date + 'T12:00:00')) / (365.25 * 86400000) <= SB.yrs))
+        && (!SB.minU || (sNum(x.units) || sNum(x.proposed_units) || 0) >= SB.minU)
+        && (!q || [x.name, x.address, x.buyer, x.seller, x.city, x.submarket].join(' ').toLowerCase().includes(q)))
+        .map((x) => ({ x, d: g && x.lat != null ? mi(g.c, x) : null }))
+        .filter((o) => !SB.rad || (o.d != null && o.d <= SB.rad))
+        .sort((a, b) => (a.d == null) - (b.d == null) || (a.d - b.d) || String(b.x.sale_date).localeCompare(String(a.x.sale_date))).slice(0, 300);
+      const list = m.querySelector('.csx-sblist');
+      list.innerHTML = rows.length ? rows.map(({ x, d }) => { const inn = H.has(x.id), on = SB.pick.has(x.id); return `<label class="csx-sbrow${inn ? ' in' : ''}${on ? ' on' : ''}" data-sid="${E(x.id)}">
+          <input type="checkbox" ${inn ? 'checked disabled' : on ? 'checked' : ''}>
+          <span class="csx-sbt"><b>${E(x.name || x.address || '(unnamed)')}</b><small>${x.comp_type === 'land' ? 'Land' : 'Investment'} · ${sMon(x.sale_date)} · ${mUSD(sNum(x.sale_price))}${perUnit(x) ? ' · ' + kUSD(perUnit(x)) + (x.comp_type === 'land' ? '/door' : '/unit') : ''}${x.comp_type === 'land' && sNum(x.acres) ? ' · ' + (+x.acres).toFixed(1) + ' ac' : sNum(x.units) ? ' · ' + intC(sNum(x.units)) + ' units' : ''}</small><small>${E(shortCo(x.buyer))}${d != null ? ' · ' + d.toFixed(1) + ' mi' : ''}${inn ? ' · already in the set' : ''}</small></span></label>`; }).join('')
+        : '<div class="csx-none3">No sales match these filters.</div>';
+      list.querySelectorAll('.csx-sbrow:not(.in)').forEach((r) => (r.querySelector('input').onchange = (e) => { const id = r.dataset.sid; if (e.target.checked) SB.pick.add(id); else SB.pick.delete(id); r.classList.toggle('on', e.target.checked); mark(); foot(); }));
+      list.querySelectorAll('.csx-sbrow').forEach((r) => (r.onmouseenter = () => { const mk = SB.mk && SB.mk[r.dataset.sid]; if (mk) mk.openTooltip(); }));
+      // map
+      if (typeof L === 'undefined') return;
+      if (!SB.map) {
+        SB.map = L.map(m.querySelector('.csx-sbmap'), { zoomControl: true, attributionControl: false });
+        try { (typeof wbLightLayer === 'function' ? wbLightLayer() : L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png')).addTo(SB.map); } catch (e) {}
+        SB.map.setView(g ? [g.c.lat, g.c.lng] : ((window.__WBD && window.__WBD.center) || [39.74, -104.99]), 13);
+        ps.filter((p) => p.lat != null).forEach((p) => L.circleMarker([p.lat, p.lng], { radius: 4, color: '#8a859b', weight: 1, fillColor: '#c9c3dc', fillOpacity: 1 }).bindTooltip(E(p.name || '')).addTo(SB.map));
+        setTimeout(() => SB.map && SB.map.invalidateSize(), 60);
+      }
+      if (SB.layer) SB.layer.remove(); SB.layer = L.layerGroup().addTo(SB.map); SB.mk = {};
+      if (g && SB.rad) L.circle([g.c.lat, g.c.lng], { radius: SB.rad * 1609.34, color: '#432890', weight: 1, dashArray: '4 4', fill: false }).addTo(SB.layer);
+      rows.forEach(({ x }) => { if (x.lat == null) return;
+        const mk = L.circleMarker([x.lat, x.lng], { radius: 7, weight: 2 }).bindTooltip(`<b>${E(x.name || x.address || '')}</b><br>${x.comp_type === 'land' ? 'Land' : 'Investment'} · ${sMon(x.sale_date)} · ${mUSD(sNum(x.sale_price))}`).addTo(SB.layer);
+        mk.on('click', () => { if (H.has(x.id)) return; if (SB.pick.has(x.id)) SB.pick.delete(x.id); else SB.pick.add(x.id); const r = list.querySelector(`[data-sid="${CSS.escape(x.id)}"]`); if (r) { r.querySelector('input').checked = SB.pick.has(x.id); r.classList.toggle('on', SB.pick.has(x.id)); r.scrollIntoView({ block: 'nearest' }); } mark(); foot(); });
+        SB.mk[x.id] = mk; });
+      mark(); foot();
+    };
+    const mark = () => { const H = have(); Object.entries(SB.mk || {}).forEach(([id, mk]) => { const x = (SC.pool || []).find((y) => y.id === id), land = x && x.comp_type === 'land', inn = H.has(id), on = SB.pick.has(id);
+      mk.setStyle({ color: inn ? '#2d7a4b' : on ? '#1d1247' : land ? '#c07a12' : '#432890', fillColor: inn ? '#8bd3a8' : on ? '#432890' : land ? '#f1c27b' : '#b6a8e6', fillOpacity: on || inn ? 1 : 0.75 }); }); };
+    const foot = () => { const n = SB.pick.size, b = m.querySelector('.csx-sbadd'); b.disabled = !n; b.textContent = n ? `Add ${n} to the set` : 'Add selected'; m.querySelector('.csx-sbcount').textContent = `${m.querySelectorAll('.csx-sbrow').length} shown · green = already in the set`; };
+    const qi = m.querySelector('.csx-sbq input'); let t; qi.oninput = () => { clearTimeout(t); t = setTimeout(() => { SB.q = qi.value.trim(); draw(); }, 150); };
+    m.querySelectorAll('.csx-sbtype button').forEach((b) => (b.onclick = () => { SB.type = b.dataset.t; m.querySelectorAll('.csx-sbtype button').forEach((x) => x.classList.toggle('active', x === b)); draw(); }));
+    m.querySelector('.csx-sbyrs').onchange = (e) => { SB.yrs = +e.target.value; draw(); };
+    m.querySelector('.csx-sbrad').onchange = (e) => { SB.rad = +e.target.value; draw(); };
+    m.querySelector('.csx-sbmin').onchange = (e) => { SB.minU = +e.target.value; draw(); };
+    m.querySelector('.csx-sbadd').onclick = async () => { const ids = saleList(cs, ps).ids.concat([...SB.pick]); const b = m.querySelector('.csx-sbadd'); b.disabled = true; b.textContent = 'Saving…'; if (await saveSales(cs, ids)) { close(); render(); } else { b.disabled = false; foot(); } };
+    draw(); setTimeout(() => qi.focus(), 30);
+  }
   function wireSales(cs, ps) {
+    const sbb = view.querySelector('.csx-sbrowse'); if (sbb) sbb.onclick = () => openSaleBrowser(cs, ps);
     const box = view.querySelector('.csx-sec-sc'); if (!box) return;
     const cur = () => saleList(cs, ps).ids;
     box.querySelectorAll('.csx-srm').forEach((b) => (b.onclick = async (e) => { e.stopPropagation(); const ids = cur().filter((id) => id !== b.dataset.sid); if (await saveSales(cs, ids)) render(); }));

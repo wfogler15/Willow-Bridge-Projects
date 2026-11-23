@@ -1509,3 +1509,28 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-salet tr.csx-srow:hover td { background: #f4f2fa; }
 .csx-prop summary { color: #4a4560; }
 @media (max-width: 1300px) { .csx-salet col:nth-child(9) { width: 11% !important; } }
+/* sale comp browser modal */
+.csx-modal { position: fixed; inset: 0; z-index: 10000; background: rgba(20,14,40,.45); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.csx-modal-box { background: #fff; border-radius: 16px; width: min(1400px, 100%); height: min(860px, 100%); display: flex; flex-direction: column; box-shadow: 0 24px 60px rgba(20,14,40,.3); overflow: hidden; }
+.csx-modal-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #efedf4; }
+.csx-modal-head b { font: 650 16px var(--x-font); color: var(--x-ink); margin-right: 10px; }
+.csx-modal-head span { font-size: 13px; color: #77728a; }
+.csx-modal-x { border: 0; background: none; font-size: 24px; line-height: 1; color: #77728a; cursor: pointer; }
+.csx-sbf { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 12px 20px; border-bottom: 1px solid #efedf4; background: #faf9fc; }
+.csx-sbf .csx-in { height: 34px; }
+.csx-sbq { width: 320px; }
+.csx-sbbody { flex: 1; display: grid; grid-template-columns: minmax(340px, 420px) 1fr; min-height: 0; }
+.csx-sblist { overflow-y: auto; border-right: 1px solid #efedf4; }
+.csx-sbrow { display: flex; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #f1eff6; cursor: pointer; align-items: flex-start; }
+.csx-sbrow:hover { background: #f7f6fb; }
+.csx-sbrow.on { background: #f0ecfb; }
+.csx-sbrow.in { opacity: .65; cursor: default; }
+.csx-sbrow input { margin-top: 3px; }
+.csx-sbt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.csx-sbt b { font: 600 13px var(--x-font); color: var(--x-ink); }
+.csx-sbt small { font-size: 12px; color: #6b6680; }
+.csx-sbmap { min-height: 300px; }
+.csx-modal-foot { display: flex; align-items: center; gap: 10px; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid #efedf4; }
+.csx-sbcount { margin-right: auto; font-size: 12.5px; color: #77728a; }
+.csx-sbrowse { height: 32px; font-size: 12.5px; }
+@media (max-width: 900px) { .csx-sbbody { grid-template-columns: 1fr; grid-template-rows: 1fr 260px; } }
