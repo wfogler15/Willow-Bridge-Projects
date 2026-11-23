@@ -327,7 +327,7 @@
   // Willow Bridge palette first (lilac, breeze, land green), then supporting tones
   const LINE = ['#C7C9FE', '#F9E3A0', '#A9E2B4', '#F5A8B8', '#9CC3FF', '#FFFFFF', '#E3B8FF', '#F2B98C'];
   // the Willow Bridge logo, large and faint in the hero's corner
-  const ARCS = `<img class="hm-logo" src="shared/wb-mark.png" alt="" aria-hidden="true">`;
+  const ARCS = '';   // no watermark in the hero (Will, Nov 23)
   function stamps(lv) {
     const per = [...new Set(lv.map((m) => F[m.id].period).filter(Boolean))];
     const bits = [];
