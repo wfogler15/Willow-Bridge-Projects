@@ -1546,3 +1546,44 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .cm-map-key i.k-in.ph-exist { background: #1D1247 !important; }
 .cm-map-key i.k-in.ph-lease { background: #1f8a7a !important; }
 .cm-map-key i.k-in.ph-uc { background: #d08a12 !important; }
+/* ===== workspace header: one card, tabs attached ===== */
+#view-compsets .csx-headp { margin-bottom: 0 !important; border-bottom-left-radius: 0 !important; border-bottom-right-radius: 0 !important; border-bottom: 0 !important; box-shadow: none !important; }
+#view-compsets .csx-headp .csx-slim { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 22px 14px !important; flex-wrap: wrap; }
+#view-compsets .csx-headp .csx-ttl { display: flex; flex-direction: column; gap: 2px; min-width: 260px; flex: 1 1 320px; }
+#view-compsets .csx-headp .csx-title { font: 650 20px var(--x-font) !important; letter-spacing: -.015em; color: var(--x-ink); border: 0; background: transparent; padding: 2px 6px; margin-left: -6px; border-radius: 6px; width: 100%; max-width: 640px; }
+#view-compsets .csx-headp .csx-desc { font-size: 13px; color: #6b6680; border: 0; background: transparent; padding: 2px 6px; margin-left: -6px; border-radius: 6px; width: 100%; max-width: 640px; }
+#view-compsets .csx-headp .csx-title:hover, #view-compsets .csx-headp .csx-desc:hover { background: #f7f6fb; }
+#view-compsets .csx-headp .csx-title:focus, #view-compsets .csx-headp .csx-desc:focus { background: #fff; outline: 1px solid #d9d6e4; }
+.csx-hacts { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+.csx-hacts .csx-addta { width: 320px; }
+.csx-hacts .csx-addta .csx-in { height: 36px; }
+.csx-hacts .csx-addtg .toggle-btn { white-space: nowrap; }
+.csx-hsep { width: 1px; height: 24px; background: #e6e3ee; }
+.csx-hacts .csx-savebox { white-space: nowrap; }
+/* tabs bar joined to the card */
+#view-compsets .csx-nav { position: sticky; top: 56px; z-index: 20; display: flex; gap: 2px; width: auto; max-width: none; margin: 0 0 18px; padding: 0 14px; background: #fff; border: 1px solid #e6e3ee; border-top: 1px solid #efedf4; border-radius: 0 0 14px 14px; box-shadow: 0 1px 2px rgba(29,18,71,.04); backdrop-filter: none; overflow-x: auto; }
+#view-compsets .csx-nav a { padding: 11px 12px 10px; border-radius: 0; border-bottom: 2px solid transparent; color: #4a4560; font: 600 13px var(--x-font); }
+#view-compsets .csx-nav a:hover { background: transparent; color: var(--x-purple); border-bottom-color: #cfc7ea; }
+#view-compsets .csx-nav a.on { color: var(--x-purple); border-bottom-color: var(--x-purple); }
+#view-compsets .csx-headp + .csx-near, #view-compsets .csx-headp .csx-near { margin: 0 22px 14px; }
+@media (max-width: 1100px) { .csx-hacts { justify-content: flex-start; } .csx-hacts .csx-addta { width: 100%; } .csx-hsep { display: none; } }
+#view-compsets .csx > .panel.csx-headp { margin-bottom: 0 !important; border-radius: 14px 14px 0 0 !important; border-bottom: 0 !important; box-shadow: none !important; }
+/* fixed, proportional columns on the comp set tables: spare width goes evenly, long text truncates */
+.csx-fixed { table-layout: fixed; width: 100%; }
+.csx-fixed td, .csx-fixed th { overflow: hidden; text-overflow: ellipsis; }
+.csx-fixed td:first-child { white-space: normal; }
+.csx-fixed td.csx-note { white-space: normal; min-width: 0; max-width: none; }
+@media (max-width: 1450px) { .csx-dense .csx-o { display: table-cell; } }
+/* under 1450px: size columns to content and drop the low-priority ones, instead of squeezing fixed widths */
+@media (max-width: 1450px) {
+  .csx-fixed { table-layout: auto; }
+  .csx-fixed td, .csx-fixed th { white-space: nowrap; }
+  .csx-fixed td:first-child, .csx-fixed td.csx-note { white-space: normal; }
+  .csx-dense .csx-o { display: none; }
+  .csx-fixed td.csx-dev { max-width: 150px; }
+  .csx-fixed td.csx-note { min-width: 180px; }
+}
+.csx-dense th.csx-sortable { cursor: pointer; user-select: none; }
+.csx-dense th.csx-sortable:hover { color: var(--x-purple) !important; }
+.csx-dense th.csx-sortable.on { color: var(--x-ink) !important; }
+.csx-dense th.csx-sortable i { font-style: normal; margin-left: 3px; color: var(--x-purple); }

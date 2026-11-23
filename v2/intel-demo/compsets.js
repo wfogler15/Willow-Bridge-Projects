@@ -422,6 +422,7 @@
   const begunOf = (p) => { const b = ed(p).constructionBegin || p.constructionBegin; if (!b) return null; const d = typeof monthYearToDate === 'function' ? monthYearToDate(String(b).split(' ')[0], +String(b).split(' ').pop()) : null; return d; };
   const intC = (v) => (v == null || isNaN(v) ? '—' : Math.round(v).toLocaleString());
   const wa = (ps, f) => { let a = 0, w = 0; ps.forEach((p) => { const v = f(p); if (v != null && !isNaN(v) && p.units) { a += v * p.units; w += p.units; } }); return w ? a / w : null; };
+  const colg = (w) => `<colgroup>${w.map((x) => `<col style="width:${typeof x === 'number' ? x + '%' : x}">`).join('')}</colgroup>`;
   const sumLine = (items) => `<span class="csx-sum">${items.map(([v, l]) => `<span><b>${v}</b> ${l}</span>`).join('')}</span>`;
   function panelHead(id, key, title, count, note, cards, extra) {
     return `<div class="csx-sech" id="${id}"><div class="csx-sect"><i></i><b>${title}</b>${count != null ? `<em>${count}</em>` : ''}</div>${extra || ''}</div>${note ? `<div class="csx-secline">${note}</div>` : ''}
@@ -466,7 +467,20 @@
     const line = sumLine([[intC(uNow), 'units leasing now' + (uNow ? ` · ${((leased / uNow) * 100).toFixed(0)}% occupied` : '')], [vNow ? vNow.toFixed(0) : '—', 'leases/mo now'], [lastOwn ? monYr(lastOwn) : '—', 'all at 95%, own pace'], [lastV ? monYr(lastV) : '—', `all at 95%, ${V}/mo`]]);
     return `<section class="panel csx-sec csx-sec-lu">${panelHead('csx-s-lu', 'lu', 'Lease-up outlook', cur.length + fut.length, line, null, velSel)}
       ${tl}
-      <div class="table-scroll"><table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Occ.</th><th class="num">Leases/mo</th><th>95% · own pace</th><th>95% · ${V}/mo</th><th class="num">Asking $/SF</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+      <div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${colg([22, 6, 9, 9, 8, 10, 10, 8, 6, 8, '40px', '32px'])}<thead><tr><th class="csx-pc">Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Occ.</th><th class="num">Leases/mo</th><th>95% · own pace</th><th>95% · ${V}/mo</th><th class="num">Asking $/SF</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  }
+  // rent comps sort: newest delivery first unless a header is clicked
+  const RC_COLS = [['name', 'Property', 'csx-pc', (p) => (p.name || '').toLowerCase()], ['owner', 'Owner', 'csx-o', (p) => (p.owner || '').toLowerCase()], ['style', 'Type', '', (p) => p.style || ''],
+    ['stories', 'Stories', 'num csx-o', (p) => p.stories], ['units', 'Units', 'num', (p) => p.units], ['built', 'Built', 'num', (p) => { const d = deliveryOf(p); return d ? +d : p.yearBuilt ? +new Date(p.yearBuilt, 5, 1) : null; }],
+    ['ask', 'Asking $/SF', 'num', (p) => p.avgAskingSF], ['mo', '$/mo', 'num', (p) => p.avgAskingUnit], ['eff', 'Eff. $/SF', 'num', (p) => p.avgEffectiveSF], ['occ', 'Occ.', 'num', (p) => occOf(p)], ['wks', 'Wks free', 'num', (p) => wksOf(p)],
+    ['upd', 'Updated', '', (p) => { const u = lastUpd(p); return u ? u.at : 0; }]];
+  function rcSort(a) {
+    const st = UI.rcSort || { k: 'built', d: -1 }, col = RC_COLS.find((c) => c[0] === st.k) || RC_COLS[5], f = col[3];
+    return [...a].sort((x, y) => { const A = f(x), B = f(y); if (A == null && B == null) return 0; if (A == null) return 1; if (B == null) return -1; return (A < B ? -1 : A > B ? 1 : 0) * st.d; });
+  }
+  function rcHead() {
+    const st = UI.rcSort || { k: 'built', d: -1 };
+    return `<thead><tr>${RC_COLS.map(([k, l, cls]) => `<th class="${cls} csx-sortable${st.k === k ? ' on' : ''}" data-sk="${k}" title="Sort by ${l.toLowerCase()}">${l}<i>${st.k === k ? (st.d < 0 ? '↓' : '↑') : ''}</i></th>`).join('')}<th></th><th></th></tr></thead>`;
   }
   const checked = (a) => `${a.filter(fresh).length} of ${a.length} updated in the last 90 days`;
 
@@ -529,8 +543,8 @@
       const foot = `<tfoot><tr><td>Total / unit-weighted average</td><td class="csx-o"></td><td></td><td class="csx-o"></td><td class="num">${intC(s.units)}</td><td class="num">${yrs.length ? Math.round(wa(ex, (p) => p.yearBuilt)) : '—'}</td><td class="num csx-k">${money(s.ask)}</td><td class="num">${s.askU ? '$' + Math.round(s.askU).toLocaleString() : '—'}</td><td class="num">${money(s.eff)}</td><td class="num">${pct(s.occ)}</td><td class="num">${wks(s.wks)}</td><td colspan="3"></td></tr></tfoot>`;
       const line = sumLine([[money(s.ask), '/SF asking' + (s.askU ? ` ($${Math.round(s.askU).toLocaleString()}/mo)` : '')], [money(s.eff), '/SF effective'], [pct(s.occ), 'occupied'], [wks(s.wks), 'wks free'], [intC(s.units), 'units']]) + `<span class="csx-fresh">${checked(ex)}${ex.some((p) => handWks(p) == null) ? ' · gray weeks free are CoStar’s' : ''}</span>`;
       out += `<section class="panel csx-sec csx-sec-ex">${panelHead('csx-s-ex', 'ex', 'Rent comps', ex.length, line, null)}
-        <div class="table-scroll"><table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Property</th><th class="csx-o">Owner</th><th>Type</th><th class="num csx-o">Stories</th><th class="num">Units</th><th class="num">Built</th><th class="num">Asking $/SF</th><th class="num">$/mo</th><th class="num">Eff. $/SF</th><th class="num">Occ.</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead>
-        <tbody>${ex.sort((a, b) => (b.avgAskingSF || 0) - (a.avgAskingSF || 0)).map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td class="csx-dev csx-o">${E(p.owner || '—')}</td><td>${E(p.style || '')}</td><td class="num csx-o">${p.stories || '—'}</td><td class="num">${intC(p.units)}</td><td class="num">${p.yearBuilt || '—'}</td><td class="num csx-k">${money(p.avgAskingSF)}</td><td class="num">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '—'}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num${occOf(p) != null && occOf(p) < 90 ? ' csx-lo' : ''}">${pct(occOf(p))}</td>${wksCell(p)}${tail(p)}`, 14)).join('')}</tbody>${foot}</table></div></section>`;
+        <div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${colg([21, 13, 7, 5, 5, 5, 7, 7, 7, 6, 6, 7, '40px', '32px'])}${rcHead()}
+        <tbody>${rcSort(ex).map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td class="csx-dev csx-o">${E(p.owner || '—')}</td><td>${E(p.style || '')}</td><td class="num csx-o">${p.stories || '—'}</td><td class="num">${intC(p.units)}</td><td class="num">${p.yearBuilt || '—'}</td><td class="num csx-k">${money(p.avgAskingSF)}</td><td class="num">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '—'}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num${occOf(p) != null && occOf(p) < 90 ? ' csx-lo' : ''}">${pct(occOf(p))}</td>${wksCell(p)}${tail(p)}`, 14)).join('')}</tbody>${foot}</table></div></section>`;
     }
     out += leaseOutlook(cs, lu, pi);
     const addBtn = `<button type="button" class="yx-btn csx-addproj">${UI.addProj ? 'Close' : '+ Add a project'}</button>`;
@@ -547,17 +561,17 @@
         + hero('Next delivery', next ? monYr(deliveryOf(next)) : '—', next ? E(next.name) : '')
         + hero('Stalled', intC(u(st)) + '<u> units</u>', st.length ? `${st.length} not counted above` : 'None marked');
       const acres = (p) => p.acreage || p.acres, den = (p) => (acres(p) && p.units ? p.units / acres(p) : null);
-      const prow = (p) => rowWith(p, `${nameCell(p, E(p.submarket || '') + (p._auto ? ' <span class="csx-chip area" title="Pulled in because it is in one of the set’s submarkets">In area</span>' : ''))}<td class="csx-dev">${E(p.developer || '—')}</td><td>${E(p.style || '')}</td><td class="num">${intC(p.units)}</td><td class="num">${acres(p) ? (+acres(p)).toFixed(1) : '—'}</td><td class="num">${den(p) ? den(p).toFixed(0) : '—'}</td><td>${monYr(begunOf(p))}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 12);
-      const head = '<thead><tr><th class="csx-pc">Property</th><th>Developer</th><th>Type</th><th class="num">Units</th><th class="num">Acres</th><th class="num">Units/ac</th><th>Start</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>';
+      const prow = (p) => rowWith(p, `${nameCell(p, E(p.submarket || '') + (p._auto ? ' <span class="csx-chip area" title="Pulled in because it is in one of the set’s submarkets">In area</span>' : ''))}<td class="csx-dev">${E(p.developer || '—')}</td><td>${E(p.style || '')}</td><td class="num">${intC(p.units)}</td><td class="num csx-o">${acres(p) ? (+acres(p)).toFixed(1) : '—'}</td><td class="num csx-o">${den(p) ? den(p).toFixed(0) : '—'}</td><td>${monYr(begunOf(p))}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 12);
+      const head = colg([19, 13, 7, 5, 5, 6, 7, 8, 18, 6, '40px', '32px']) + '<thead><tr><th class="csx-pc">Property</th><th>Developer</th><th>Type</th><th class="num">Units</th><th class="num csx-o">Acres</th><th class="num csx-o">Units/ac</th><th>Start</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>';
       const grp = (label, a) => (a.length ? `<tr class="csx-grp"><td colspan="12">${label} · ${a.length} · ${intC(u(a))} units</td></tr>${a.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}` : '');
       const worst = u(uc) + u(pr) + u(st);
       const line = sumLine([[intC(u(uc)), 'units under construction' + (base ? ` (${((u(uc) / base) * 100).toFixed(1)}% of ${E(bl)})` : '')], [intC(in12), 'delivering in 12 mo'], [next ? monYr(deliveryOf(next)) : '—', 'next delivery' + (next ? ` · ${E(next.name)}` : '')], [intC(worst), 'worst case with proposed + stalled' + (base ? ` (${((worst / base) * 100).toFixed(1)}%)` : '')]]) + `<span class="csx-fresh">${checked(pi)}</span>`;
       const nEx = pipeExcl(cs).size;
       const how = `<span class="csx-fresh">${checked(pi)} · new projects in ${setSubs(ps).map(E).join(', ')} are added automatically${nEx ? ` · ${nEx} removed <button type="button" class="csx-link csx-pxreset">Add back</button>` : ''}</span>`;
       out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', uc.length + pr.length, line.replace(/<span class="csx-fresh">[\s\S]*?<\/span>$/, '') + how, null, addBtn)}${UI.addProj ? addProjForm(cs) : ''}
-        ${uc.length ? `<div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${uc.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}</tbody></table></div>` : '<div class="csx-none3">Nothing under construction in this set’s area.</div>'}
-        ${pr.length ? `<details class="csx-stalled csx-prop"${UI.propOpen ? ' open' : ''}><summary>Proposed · ${pr.length} project${pr.length === 1 ? '' : 's'} · ${intC(u(pr))} units${base ? ` (${((u(pr) / base) * 100).toFixed(1)}% of inventory)` : ''} · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${pr.sort((x, y) => (y.units || 0) - (x.units || 0)).map(prow).join('')}</tbody></table></div></details>` : ''}
-        ${st.length ? `<details class="csx-stalled csx-stl"${UI.stalledOpen ? ' open' : ''}><summary>Stalled · ${st.length} project${st.length === 1 ? '' : 's'} · ${intC(u(st))} units · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${st.map(prow).join('')}</tbody></table></div></details>` : ''}</section>`;
+        ${uc.length ? `<div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${head}<tbody>${uc.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}</tbody></table></div>` : '<div class="csx-none3">Nothing under construction in this set’s area.</div>'}
+        ${pr.length ? `<details class="csx-stalled csx-prop"${UI.propOpen ? ' open' : ''}><summary>Proposed · ${pr.length} project${pr.length === 1 ? '' : 's'} · ${intC(u(pr))} units${base ? ` (${((u(pr) / base) * 100).toFixed(1)}% of inventory)` : ''} · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${head}<tbody>${pr.sort((x, y) => (y.units || 0) - (x.units || 0)).map(prow).join('')}</tbody></table></div></details>` : ''}
+        ${st.length ? `<details class="csx-stalled csx-stl"${UI.stalledOpen ? ' open' : ''}><summary>Stalled · ${st.length} project${st.length === 1 ? '' : 's'} · ${intC(u(st))} units · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${head}<tbody>${st.map(prow).join('')}</tbody></table></div></details>` : ''}</section>`;
     }
     return out;
   }
@@ -789,7 +803,10 @@
             <input class="csx-title panel-title" value="${E(cs.name)}" aria-label="Set name" maxlength="80">
             <input class="csx-desc" value="${E(cs.description || '')}" placeholder="Add the deal or site this set is for" aria-label="Deal or site" maxlength="120">
           </div>
-          <div class="csx-acts">
+          <div class="csx-acts csx-hacts">
+            <div class="csx-ta csx-addta"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-add-q" placeholder="Add a property by name or address…" aria-label="Add a property"><div class="csx-ta-list" hidden></div></div>
+            <div class="toggle-group csx-addtg"><button type="button" class="toggle-btn csx-addbtn${UI.add === 'near' ? ' active' : ''}" data-a="near">Near a site</button><button type="button" class="toggle-btn csx-addbtn${UI.add === 'map' ? ' active' : ''}" data-a="map">On the map</button></div>
+            <span class="csx-hsep" aria-hidden="true"></span>
             <div class="csx-savebox">${saveLabel(cs)}</div>
             <div class="csx-menuwrap">
               <button type="button" class="yx-btn csx-menubtn" aria-haspopup="menu" aria-expanded="${UI.menu ? 'true' : 'false'}">⚙ Actions</button>
@@ -800,10 +817,6 @@
               </div>
             </div>
           </div>
-        </div>
-        <div class="csx-addbar">
-          <div class="csx-ta csx-addta"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-add-q" placeholder="Add a property by name or address…" aria-label="Add a property"><div class="csx-ta-list" hidden></div></div>
-          <div class="toggle-group csx-addtg"><button type="button" class="toggle-btn csx-addbtn${UI.add === 'near' ? ' active' : ''}" data-a="near">Near a site</button><button type="button" class="toggle-btn csx-addbtn${UI.add === 'map' ? ' active' : ''}" data-a="map">On the map</button></div>
         </div>
         ${UI.add === 'near' ? addNear(cs, map) : UI.add === 'map' ? '<div class="csx-hint csx-maphint">Click any property on the map below to add it; click a comp to remove it. <button type="button" class="csx-tomap">Go to map ↓</button></div>' : ''}
         ${ps.length ? '' : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
@@ -1000,10 +1013,16 @@
     }));
     const pxr = $('.csx-pxreset'); if (pxr) pxr.onclick = () => { setPipeExcl(cs, []); render(); };
     const bs = $('.csx-blsel'); if (bs) bs.onchange = () => setBaseline(cs, bs.value);
+    $$('.csx-sec-ex th.csx-sortable').forEach((th) => (th.onclick = () => { const k = th.dataset.sk, st = UI.rcSort || { k: 'built', d: -1 };
+      UI.rcSort = st.k === k ? { k, d: -st.d } : { k, d: ['name', 'owner', 'style'].includes(k) ? 1 : -1 }; render(); }));
     wireSales(cs, membersOf(cs));
     const vs = $('.csx-vel'); if (vs) vs.onchange = () => { cs.settings = { ...(cs.settings || {}), vel: +vs.value }; touch(cs); render(); };
     const sd = $('.csx-stl'); if (sd) sd.ontoggle = () => { UI.stalledOpen = sd.open; };
     const prd = $('.csx-prop'); if (prd) prd.ontoggle = () => { UI.propOpen = prd.open; };
+    if (!window.__csxNavSpy) { window.__csxNavSpy = true; let raf = 0; window.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => {
+      const links = [...document.querySelectorAll('#view-compsets .csx-nav a')]; if (!links.length) return; let cur = links[0];
+      links.forEach((l) => { const t = document.getElementById(l.getAttribute('href').slice(1)); if (t && t.getBoundingClientRect().top < 160) cur = l; });
+      links.forEach((l) => l.classList.toggle('on', l === cur)); }); }, { passive: true }); }
     $$('.csx-nav a').forEach((a) => (a.onclick = (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (!t) return; e.preventDefault(); window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' }); }));
     const ap = $('.csx-addproj'); if (ap) ap.onclick = () => { UI.addProj = !UI.addProj; render(); const f = $('.csx-ap [data-f=name]'); if (f) f.focus(); };
     const apb = $('.csx-ap'); if (apb) { apb.querySelector('.csx-ap-x').onclick = () => { UI.addProj = false; UI.apPrefill = null; render(); }; apb.querySelector('.csx-ap-save').onclick = () => saveProject(apb, cs); wirePin(apb, null); }
