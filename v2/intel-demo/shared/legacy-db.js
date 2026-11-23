@@ -384,7 +384,7 @@
           const x = Object.assign({}, row); delete x.geom;
           x.attrs = Object.assign({}, x.attrs || {}, { _removed: { reason: reason || 'Removed from the property card', by: who, at: new Date().toISOString() } });
           const { error: e2 } = await S('core').from('properties_removed').insert(x);
-          if (e2) { const err = new Error(/row-level security|permission/i.test(e2.message || '') ? 'only an admin can remove CoStar properties right now' : e2.message); err.cause = e2; throw err; }
+          if (e2) { const err = new Error(/row-level security/i.test(e2.message || '') ? 'you don’t have edit access in this market' : (e2.message || 'the database refused the change')); err.cause = e2; throw err; }
         }
         const { error: e3 } = await S('core').from('properties').delete().eq('id', id); if (e3) throw e3;
         const c = ctx(); delete c.propByCostar[String(legacyId)]; delete c.costarByProp[id]; if (c.customProps) c.customProps.delete(id);
