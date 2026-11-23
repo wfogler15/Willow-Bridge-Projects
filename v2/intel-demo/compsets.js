@@ -136,7 +136,8 @@
   const BEDS = [['studio', 'Studio', 'unitsStudio'], ['one', '1 Bed', 'units1Bed'], ['two', '2 Bed', 'units2Bed'], ['three', '3 Bed', 'units3Bed']];
   const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const ed = (p) => (typeof userEdits !== 'undefined' && userEdits[p.id]) || {};
-  const isProposed = (p) => typeof isPlannedProposed === 'function' && isPlannedProposed(p);
+  const isStalled = (p) => /stall/i.test(ed(p).pipelineStage || p.pipelineStage || '');
+  const isProposed = (p) => !isStalled(p) && typeof isPlannedProposed === 'function' && isPlannedProposed(p);
   const leaseStartOf = (p) => (p.preLeaseStart ? new Date(p.preLeaseStart + 'T12:00:00') : (typeof monthYearToDate === 'function' ? monthYearToDate(p.monthBuilt, p.yearBuilt, p.dayBuilt) : null));
   const asOfOf = (p) => { try { return occAsOf(p); } catch (e) { return new Date(); } };
   const moBetween = (a, b) => (b - a) / 86400000 / 30.44;
@@ -167,11 +168,13 @@
   }
   function updCell(p) {
     const u = lastUpd(p);
-    if (!u) return `<td class="csx-upd-c"><span class="csx-src">CoStar</span><small>${day(typeof TODAY !== 'undefined' ? TODAY : null)}</small></td>`;
-    const old = Date.now() - u.at > 92 * 86400000;
-    return `<td class="csx-upd-c${old ? ' old' : ''}" title="${E((u.by || '') + (u.src ? ' · ' + u.src : ''))}"><span class="csx-src">${E(u.src || 'Hand entry')}</span><small>${day(u.at)}${u.by ? ' · ' + E(who(u.by)) : ''}</small></td>`;
+    if (!u) return `<td class="csx-upd-c src-cs" title="CoStar figures, not checked by hand yet">CoStar</td>`;
+    const old = Date.now() - u.at > 92 * 86400000, d = new Date(u.at);
+    const short = MON[d.getMonth()] + ' ' + d.getDate() + (d.getFullYear() !== new Date().getFullYear() ? ', ' + d.getFullYear() : '');
+    return `<td class="csx-upd-c${old ? ' old' : ''}" title="${E((u.src || 'Hand entry') + ' · ' + day(u.at) + (u.by ? ' · ' + who(u.by) : '') + (old ? ' · due for an update' : ''))}"><i></i>${short}</td>`;
   }
-  const updBtn = (p) => `<button type="button" class="yx-btn csx-updbtn${UI.upd === String(p.id) ? ' on' : ''}">${UI.upd === String(p.id) ? 'Close' : 'Update'}</button>`;
+  const PEN = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M11.3 2.3a1.6 1.6 0 0 1 2.3 2.3L5.4 12.8 2.5 13.5l.7-2.9z"/></svg>';
+  const updBtn = (p) => `<button type="button" class="csx-updbtn${UI.upd === String(p.id) ? ' on' : ''}" title="${UI.upd === String(p.id) ? 'Close' : 'Update this property'}" aria-label="Update ${E(p.name || '')}">${UI.upd === String(p.id) ? '×' : PEN}</button>`;
   const nameCell = (p, sub) => `<td><button type="button" class="csx-pname">${E(p.name || p.address)}</button><div class="csx-addr">${E(p.address || '')}${sub ? ' · ' + sub : ''}</div></td>`;
   const rmCell = (p) => `<td class="csx-x"><button type="button" class="csx-rm" title="Remove from set" aria-label="Remove ${E(p.name)}">×</button></td>`;
   const n0 = (v) => (v == null || isNaN(v) ? '' : String(Math.round(v * 100) / 100));
@@ -210,11 +213,15 @@
     if (ph === 'pipe') {
       const d = deliveryOf(p), mv = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : '';
       body = `<div class="csx-uf-grid">
-        <label><span>Stage</span><select class="csx-in csx-uf-f csx-uf-stage" data-f="pipelineStage"><option value="UC"${!isProposed(p) ? ' selected' : ''}>Under construction</option><option value="Proposed"${isProposed(p) ? ' selected' : ''}>Proposed</option><option value="Delivered">Delivered</option></select></label>
+        <label><span>Stage</span><select class="csx-in csx-uf-f csx-uf-stage" data-f="pipelineStage"><option value="UC"${!isProposed(p) && !isStalled(p) ? ' selected' : ''}>Under construction</option><option value="Proposed"${isProposed(p) ? ' selected' : ''}>Proposed</option><option value="Stalled"${isStalled(p) ? ' selected' : ''}>Stalled</option><option value="Delivered">Delivered</option></select></label>
+        <label><span>Developer</span><input class="csx-in csx-uf-f" data-f="developer" value="${E(p.developer || '')}" maxlength="80"></label>
+        <label><span>Product type</span><input class="csx-in csx-uf-f" data-f="style" value="${E(p.style || '')}" list="csx-styles" maxlength="40"></label>
+        <label><span>Acres</span><input type="number" class="csx-in csx-uf-f" data-f="acreage" value="${p.acreage || p.acres || ''}" min="0" step="0.01"></label>
+        <label><span>Construction start</span><input type="month" class="csx-in csx-uf-f" data-f="startMonth" value="${(() => { const d = begunOf(p); return d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : ''; })()}"></label>
         <label><span class="csx-uf-dl">Estimated completion</span><input type="month" class="csx-in csx-uf-f" data-f="estDelivery" value="${mv}"></label>
         <label class="csx-uf-dv" hidden><span>Occupancy % now <em>optional</em></span><input type="number" class="csx-in csx-uf-f" data-f="occ" min="0" max="100" step="0.1"></label>
         <label><span>Units</span><input type="number" class="csx-in csx-uf-f" data-f="units" value="${p.units || ''}" min="0"></label>
-      </div>${notes}`;
+      </div>${notes}<datalist id="csx-styles">${[...new Set(all().map((x) => x.style).filter(Boolean))].sort().map((x) => `<option value="${E(x)}">`).join('')}</datalist>`;
     } else {
       const rows = BEDS.map(([k, l, uk]) => {
         const sf = p[k + 'SF'];
@@ -264,6 +271,10 @@
         set('status', 'Existing'); set('pipelineStage', 'UC');
         const o = num(v.occ); if (o != null) set('vacancy', Math.round((100 - o) * 100) / 100);
       } else set('pipelineStage', v.pipelineStage || null);
+      if ((v.developer || '') !== (p.developer || '')) set('developer', v.developer.trim() || null);
+      if ((v.style || '') !== (p.style || '') && v.style.trim()) set('style', v.style.trim());
+      const ac = num(v.acreage); if (ac !== (p.acreage == null ? null : +p.acreage)) set('acreage', ac);
+      if (v.startMonth) { const [y, m] = v.startMonth.split('-').map(Number), sm = MON[m - 1] + ' ' + y, cur = begunOf(p); if (!cur || cur.getFullYear() !== y || cur.getMonth() !== m - 1) set('constructionBegin', sm); }
       if (v.estDelivery) { const [y, m] = v.estDelivery.split('-').map(Number); set('yearBuilt', y); set('monthBuilt', MON[m - 1]); }
       set('units', num(v.units));
     } else {
@@ -344,7 +355,7 @@
       const s3 = fy.reduce((a, r) => a + (r.sp || 0), 0), d3 = fy.reduce((a, r) => a + (r.dm || 0), 0);
       const yrs = [Y - 3, Y - 2, Y - 1, Y, Y + 1, Y + 2, Y + 3, Y + 4].filter((y) => f[y]);
       const row = (l, fn) => `<tr><th>${l}</th>${yrs.map((y) => { const v = fn(f[y] || {}); return `<td class="${y > Y ? 'fc' : y === Y ? 'cy' : ''} ${v.c || ''}">${v.t}</td>`; }).join('')}</tr>`;
-      rp = `<div class="csx-rp"><div class="csx-rph"><b>RealPage</b><span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || bl.name)} · ${Y} current year, ${Y + 1}+ forecast</span></div>
+      rp = `<div class="csx-rp"><div class="csx-rph"><b>RealPage forecast</b><span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || bl.name)} · ${Y} current year, ${Y + 1}+ forecast</span></div>
         <div class="csx-hcs">
           ${hero('Effective rent', c.eR ? '$' + Math.round(c.eR).toLocaleString() + '<u>/mo</u>' : '—', c.eR && avgSf ? '$' + (c.eR / avgSf).toFixed(2) + '/SF at the submarket’s avg unit size' : '')}
           ${hero(`Rent growth ${Y}`, `<span class="${cls(c.yR)}">${g(c.yR)}</span>`, `YoY vs ${Y - 1}`)}
@@ -360,9 +371,8 @@
           ${row('Demand (units)', (r) => ({ t: r.dm != null ? Math.round(r.dm).toLocaleString() : '—' }))}
         </tbody></table></div></div>`;
     } else rp = `<div class="csx-hint">No RealPage coverage mapped to ${E(bl.name)}.</div>`;
-    return `<div class="panel csx-bl">
-      <div class="panel-header"><div><div class="panel-title">Submarket baseline</div><div class="panel-sub">Pipeline is measured against this submarket's existing inventory; RealPage figures are for the same submarket</div></div>
-        <div class="csx-acts"><select class="csx-in csx-blsel" aria-label="Baseline submarket">${smOptions().map((o) => `<option${o === bl.name ? ' selected' : ''}>${E(o)}</option>`).join('')}</select>${bl.picked ? '' : '<span class="csx-save">Auto: where most of the set’s units are</span>'}</div></div>
+    return `<section class="panel csx-sec csx-bl">
+      <div class="csx-sech" id="csx-s-sm"><div class="csx-sect"><i></i><b>Submarket</b><select class="csx-in csx-blsel" aria-label="Baseline submarket">${smOptions().map((o) => `<option value="${E(o)}"${o === bl.name ? ' selected' : ''}>${E(o)}${o === bl.name && !bl.picked ? ' (auto)' : ''}</option>`).join('')}</select><span class="csx-secnote">Baseline for pipeline-vs-inventory and RealPage</span></div></div>
       <div class="panel-body">
         <div class="csx-hcs csx-hcs-bl">
           ${k('Existing inventory', exU.toLocaleString() + ' units', `${inSm.filter((p) => p.status === 'Existing').length} properties in ${E(bl.name)} (CoStar)`)}
@@ -373,63 +383,94 @@
         </div>
         ${rp}
         ${window.__WB_CS_NO_SETTINGS ? '<div class="csx-hint warn">The baseline choice is kept in this browser until the database update (comp_sets.settings) is run.</div>' : ''}
-      </div></div>`;
+      </div></section>`;
   }
 
-  // ---------- section panels: header band + hero cards + table ----------
+  // ---------- section panels ----------
   const hero = (l, v, sub, tone) => `<div class="csx-hc${tone ? ' ' + tone : ''}"><span>${l}</span><b>${v}</b><small>${sub || '&nbsp;'}</small></div>`;
   const fresh = (p) => { const u = lastUpd(p); return u && Date.now() - u.at <= 92 * 86400000; };
+  const velOf = (cs) => +((cs.settings && cs.settings.vel) || (typeof state !== 'undefined' && state.leaseVelocity) || 25);
+  const addMo = (d, m) => new Date(+d + m * 30.44 * 86400000);
+  const begunOf = (p) => { const b = ed(p).constructionBegin || p.constructionBegin; if (!b) return null; const d = typeof monthYearToDate === 'function' ? monthYearToDate(String(b).split(' ')[0], +String(b).split(' ').pop()) : null; return d; };
+  const intC = (v) => (v == null || isNaN(v) ? '—' : Math.round(v).toLocaleString());
+  const wa = (ps, f) => { let a = 0, w = 0; ps.forEach((p) => { const v = f(p); if (v != null && !isNaN(v) && p.units) { a += v * p.units; w += p.units; } }); return w ? a / w : null; };
+  function panelHead(id, key, title, count, note, cards, extra) {
+    return `<div class="csx-sech" id="${id}"><div class="csx-sect"><i></i><b>${title}</b>${count != null ? `<em>${count}</em>` : ''}${note ? `<span class="csx-secnote">${note}</span>` : ''}</div>${extra || ''}</div>
+      ${cards ? `<div class="csx-hcs">${cards}</div>` : ''}`;
+  }
+  // lease-up: properties leasing now plus under-construction buildings, projected at their own pace and at an assumed pace
+  function leaseOutlook(cs, lu, pi) {
+    const V = velOf(cs), now = new Date();
+    const cur = lu.map((p) => { const l = leaseOf(p); const atV = l.target && !l.done ? addMo(l.asOf, (l.target - l.leased) / V) : null; return { p, l, atV, start: l.d, end: l.done ? null : (l.stab || atV), kind: 'now' }; });
+    const fut = pi.filter((p) => !isProposed(p) && !isStalled(p)).map((p) => { const d = leaseStartOf(p) || deliveryOf(p); const end = d && p.units ? addMo(d, (p.units * STAB) / V) : null; return { p, start: d, end, atV: end, kind: 'next' }; });
+    if (!cur.length && !fut.length) return '';
+    const all2 = cur.concat(fut);
+    const vNow = cur.reduce((a, x) => a + (x.l.v || 0), 0), uNow = cur.reduce((a, x) => a + (x.p.units || 0), 0), uNext = fut.reduce((a, x) => a + (x.p.units || 0), 0);
+    const leased = cur.reduce((a, x) => a + (x.l.leased || 0), 0);
+    const lastOwn = all2.map((x) => x.kind === 'now' ? (x.l.done ? null : x.l.stab || x.atV) : x.atV).filter(Boolean).sort((a, b) => b - a)[0];
+    const lastV = all2.map((x) => (x.kind === 'now' && x.l.done ? null : x.atV)).filter(Boolean).sort((a, b) => b - a)[0];
+    const cards = hero('Leasing now', intC(uNow) + '<u> units</u>', cur.length ? `${cur.length} ${cur.length === 1 ? 'property' : 'properties'} · ${uNow ? ((leased / uNow) * 100).toFixed(0) + '% occupied' : ''}` : 'None in this set')
+      + hero('Coming', intC(uNext) + '<u> units</u>', fut.length ? `${fut.length} under construction` : 'Nothing under construction')
+      + hero('Pace now', vNow ? vNow.toFixed(0) + '<u> leases/mo</u>' : '—', cur.length ? 'Combined, since leasing began' : '')
+      + hero('All stabilized · own pace', lastOwn ? monYr(lastOwn) : '—', 'Pipeline at ' + V + '/mo (no pace yet)')
+      + hero(`All stabilized · ${V}/mo`, lastV ? monYr(lastV) : '—', 'Every property at the assumed pace');
+    // timeline
+    const t0 = new Date(Math.min(...all2.map((x) => +(x.start || now)), +now)), t1 = new Date(Math.max(...all2.map((x) => +(x.end || x.atV || now)), +addMo(now, 6)));
+    const span = (t1 - t0) * 1.12 || 1, X = (d) => (((+d - t0) / span) * 100).toFixed(2) + '%';
+    const years = []; for (let y = t0.getFullYear() + 1; y <= t1.getFullYear(); y++) { const d = new Date(y, 0, 1); if (d > t0 && d < t1) years.push(d); }
+    const bar = (x) => { const s = x.start || now, e = x.kind === 'now' ? (x.l.done ? now : (x.l.stab || x.atV || now)) : (x.end || now);
+      return `<div class="csx-tl-row"><div class="csx-tl-n" title="${E(x.p.name)}">${E(x.p.name)}<small>${intC(x.p.units)} units</small></div><div class="csx-tl-track">
+        <i class="csx-tl-bar ${x.kind}" style="left:${X(s)};width:calc(${X(e)} - ${X(s)})"></i>
+        ${x.kind === 'now' && x.atV && !x.l.done ? `<i class="csx-tl-v" style="left:${X(x.atV)}" title="At ${V}/mo: ${monYr(x.atV)}"></i>` : ''}
+        <span class="csx-tl-lab" style="left:${X(e)}">${x.kind === 'now' && x.l.done ? 'Stabilized' : monYr(e)}</span></div></div>`; };
+    const tl = `<div class="csx-tl"><div class="csx-tl-axis"><div class="csx-tl-n"></div><div class="csx-tl-track">${years.filter((d) => Math.abs(d - now) > span * 0.035).map((d) => `<span style="left:${X(d)}">${d.getFullYear()}</span>`).join('')}<b class="csx-tl-today" style="left:${X(now)}">Today</b></div></div>
+      ${all2.sort((a, b) => (a.start || now) - (b.start || now)).map(bar).join('')}
+      <div class="csx-tl-key"><span><i class="now"></i>Leasing now, to 95% at its own pace</span><span><i class="next"></i>Under construction, to 95% at ${V}/mo from completion</span><span><i class="v"></i>At ${V}/mo</span></div></div>`;
+    const rows = cur.map(({ p, l, atV }) => `<tr data-pid="${E(p.id)}"${UI.upd === String(p.id) ? ' class="csx-open"' : ''}>${nameCell(p, E(p.style || ''))}<td class="num">${intC(p.units)}</td><td>${monYr(l.d)}</td><td class="num">${pct(l.o)}${l.o != null ? `<span class="csx-bar1"><i style="width:${Math.min(100, l.o)}%"></i></span>` : ''}</td><td class="num csx-k">${l.v ? l.v.toFixed(1) : '—'}</td><td>${l.done ? '<span class="csx-ok">Stabilized</span>' : l.stab ? monYr(l.stab) : '—'}</td><td>${l.done ? '' : atV ? monYr(atV) : '—'}</td><td class="num">${money(p.avgAskingSF)}</td>${wksCell(p)}${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}</tr>${UI.upd === String(p.id) ? updForm(p, 'lease', 12) : ''}`).join('')
+      + (fut.length ? `<tr class="csx-grp"><td colspan="12">Under construction · projected from completion at ${V}/mo</td></tr>` + fut.map(({ p, start, end }) => `<tr data-pid="${E(p.id)}" class="csx-fut">${nameCell(p, E(p.style || ''))}<td class="num">${intC(p.units)}</td><td>${monYr(start)} <small>est.</small></td><td class="num">—</td><td class="num">—</td><td>—</td><td>${monYr(end)}</td><td class="num">—</td><td class="num">—</td>${updCell(p)}<td></td><td></td></tr>`).join('') : '');
+    const velSel = `<label class="csx-velsel">Assumed pace <select class="csx-in csx-vel">${[10, 15, 20, 25, 30, 35, 40].map((v) => `<option value="${v}"${v === V ? ' selected' : ''}>${v} leases/mo</option>`).join('')}</select></label>`;
+    return `<section class="panel csx-sec csx-sec-lu">${panelHead('csx-s-lu', 'lu', 'Lease-up outlook', cur.length + fut.length, cur.length ? checked(cur.map((x) => x.p)) : '', cards, velSel)}
+      ${tl}
+      <div class="table-scroll"><table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Occ.</th><th class="num">Leases/mo</th><th>95% · own pace</th><th>95% · ${V}/mo</th><th class="num">Asking $/SF</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  }
+  const checked = (a) => `${a.filter(fresh).length} of ${a.length} updated in the last 90 days`;
+
   function sections(cs, ps) {
     const ex = ps.filter((p) => phaseOf(p) === 'exist'), lu = ps.filter((p) => phaseOf(p) === 'lease'), pi = ps.filter((p) => phaseOf(p) === 'pipe');
-    const rowWith = (p, cells, cols) => `<tr data-pid="${E(p.id)}"${UI.upd === String(p.id) ? ' class="csx-open"' : ''}>${cells}</tr>${UI.upd === String(p.id) ? updForm(p, phaseOf(p), cols) : ''}`;
-    const sec = (key, title, count, sub, cards, head, body) => `<section class="panel csx-sec csx-sec-${key}">
-      <div class="csx-sech"><div class="csx-sect"><i></i><b>${title}</b><em>${count}</em></div><span>${sub}</span></div>
-      <div class="csx-hcs">${cards}</div>
-      <div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${body}</tbody></table></div></section>`;
+    const rowWith = (p, cells, cols, cls) => `<tr data-pid="${E(p.id)}" class="${cls || ''}${UI.upd === String(p.id) ? ' csx-open' : ''}">${cells}</tr>${UI.upd === String(p.id) ? updForm(p, phaseOf(p), cols) : ''}`;
     const tail = (p) => `${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`;
-    const checked = (a) => `${a.filter(fresh).length} of ${a.length} checked in the last 90 days`;
     let out = '';
     if (ex.length) {
-      const s = stats(ex), hw = ex.filter((p) => handWks(p) != null).length;
-      out += sec('ex', 'Existing', ex.length, checked(ex) + (ex.some((p) => handWks(p) == null) ? ' · <span class="csx-cs">gray weeks free = CoStar, not checked</span>' : ''),
-        hero('Units', s.units.toLocaleString(), `${ex.length} stabilized ${ex.length === 1 ? 'property' : 'properties'}`)
-        + hero('Asking rent', s.ask == null ? '—' : '$' + s.ask.toFixed(2) + '<u>/SF</u>', s.askU ? '$' + Math.round(s.askU).toLocaleString() + '/mo · unit-weighted' : '')
-        + hero('Effective rent', s.eff == null ? '—' : '$' + s.eff.toFixed(2) + '<u>/SF</u>', 'Net of concessions')
-        + hero('Occupancy', s.occ == null ? '—' : s.occ.toFixed(1) + '<u>%</u>', 'Unit-weighted')
-        + hero('Concessions', s.wks == null ? '—' : s.wks.toFixed(1) + '<u> wks</u>', `${hw} of ${ex.length} from websites`),
-        '<thead><tr><th class="csx-pc">Property</th><th>Type</th><th class="num">Units</th><th class="num">Built</th><th class="num">Asking $/SF</th><th class="num">$/mo</th><th class="num">Eff. $/SF</th><th class="num">Occ.</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead>',
-        ex.map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td class="num">${p.yearBuilt || '—'}</td><td class="num csx-k">${money(p.avgAskingSF)}</td><td class="num">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '—'}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num">${pct(occOf(p))}</td>${wksCell(p)}${tail(p)}`, 12)).join(''));
+      const s = stats(ex), hw = ex.filter((p) => handWks(p) != null).length, yrs = ex.map((p) => p.yearBuilt).filter(Boolean);
+      const cards = hero('Asking rent', s.ask == null ? '—' : '$' + s.ask.toFixed(2) + '<u>/SF</u>', s.askU ? '$' + Math.round(s.askU).toLocaleString() + '/mo · unit-weighted' : '')
+        + hero('Effective rent', s.eff == null ? '—' : '$' + s.eff.toFixed(2) + '<u>/SF</u>', s.ask && s.eff ? `${(((s.ask - s.eff) / s.ask) * 100).toFixed(1)}% below asking` : 'Net of concessions')
+        + hero('Occupancy', s.occ == null ? '—' : s.occ.toFixed(1) + '<u>%</u>', `${ex.filter((p) => occOf(p) != null && occOf(p) < 90).length} below 90%`)
+        + hero('Concessions', s.wks == null ? '—' : s.wks.toFixed(1) + '<u> wks free</u>', `${hw} of ${ex.length} checked on websites`)
+        + hero('Comps', intC(s.units) + '<u> units</u>', `${ex.length} properties · built ${yrs.length ? Math.min(...yrs) + '–' + Math.max(...yrs) : '—'}`);
+      const foot = `<tfoot><tr><td>Total / unit-weighted average</td><td></td><td></td><td></td><td class="num">${intC(s.units)}</td><td class="num">${yrs.length ? Math.round(wa(ex, (p) => p.yearBuilt)) : '—'}</td><td class="num csx-k">${money(s.ask)}</td><td class="num">${s.askU ? '$' + Math.round(s.askU).toLocaleString() : '—'}</td><td class="num">${money(s.eff)}</td><td class="num">${pct(s.occ)}</td><td class="num">${wks(s.wks)}</td><td colspan="3"></td></tr></tfoot>`;
+      out += `<section class="panel csx-sec csx-sec-ex">${panelHead('csx-s-ex', 'ex', 'Rent comps', ex.length, checked(ex) + (ex.some((p) => handWks(p) == null) ? ' · gray weeks free are CoStar’s, not checked' : ''), cards)}
+        <div class="table-scroll"><table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Property</th><th>Owner</th><th>Type</th><th class="num">Stories</th><th class="num">Units</th><th class="num">Built</th><th class="num">Asking $/SF</th><th class="num">$/mo</th><th class="num">Eff. $/SF</th><th class="num">Occ.</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead>
+        <tbody>${ex.sort((a, b) => (b.avgAskingSF || 0) - (a.avgAskingSF || 0)).map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td class="csx-dev">${E(p.owner || '—')}</td><td>${E(p.style || '')}</td><td class="num">${p.stories || '—'}</td><td class="num">${intC(p.units)}</td><td class="num">${p.yearBuilt || '—'}</td><td class="num csx-k">${money(p.avgAskingSF)}</td><td class="num">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '—'}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num${occOf(p) != null && occOf(p) < 90 ? ' csx-lo' : ''}">${pct(occOf(p))}</td>${wksCell(p)}${tail(p)}`, 14)).join('')}</tbody>${foot}</table></div></section>`;
     }
-    if (lu.length) {
-      const L = lu.map((p) => ({ p, l: leaseOf(p) }));
-      const v = L.reduce((a, x) => a + (x.l.v || 0), 0), units = lu.reduce((a, p) => a + (p.units || 0), 0);
-      const togo = L.reduce((a, x) => a + (x.l.target && !x.l.done ? x.l.target - x.l.leased : 0), 0);
-      const leased = L.reduce((a, x) => a + (x.l.leased || 0), 0);
-      const last = L.filter((x) => x.l.stab).sort((a, b) => b.l.stab - a.l.stab)[0];
-      const allStab = v > 0 && togo > 0 ? new Date(Date.now() + (togo / v) * 30.44 * 86400000) : null;
-      out += sec('lu', 'Lease-up', lu.length, checked(lu) + (lu.some((p) => handWks(p) == null) ? ' · <span class="csx-cs">gray weeks free = CoStar, not checked</span>' : ''),
-        hero('Units', units.toLocaleString(), `${Math.round(togo).toLocaleString()} left to ${STAB * 100}%`)
-        + hero('Occupancy', units ? ((leased / units) * 100).toFixed(1) + '<u>%</u>' : '—', 'Unit-weighted')
-        + hero('Velocity', v ? v.toFixed(0) + '<u> leases/mo</u>' : '—', 'Combined, since leasing began')
-        + hero('Lease-up clears', allStab ? monYr(allStab) : togo > 0 ? '—' : 'Done', 'At today’s combined pace')
-        + hero('Last to stabilize', last ? monYr(last.l.stab) : '—', last ? E(last.p.name) : ''),
-        '<thead><tr><th class="csx-pc">Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Months</th><th class="num">Occ.</th><th class="num">Leases/mo</th><th>Stabilizes (95%)</th><th class="num">Asking $/SF</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead>',
-        L.map(({ p, l }) => rowWith(p, `${nameCell(p, E(p.style || ''))}<td class="num">${(p.units || 0).toLocaleString()}</td><td>${monYr(l.d)}</td><td class="num">${l.mo ? l.mo.toFixed(1) : '—'}</td><td class="num">${pct(l.o)}${l.o != null ? `<span class="csx-bar1"><i style="width:${Math.min(100, l.o)}%"></i></span>` : ''}</td><td class="num csx-k">${l.v ? l.v.toFixed(1) : '—'}</td><td>${l.done ? '<span class="csx-ok">Stabilized</span>' : l.stab ? monYr(l.stab) + ` <small>${l.left.toFixed(0)} mo</small>` : '—'}</td><td class="num">${money(p.avgAskingSF)}</td>${wksCell(p)}${tail(p)}`, 12)).join(''));
-    }
+    out += leaseOutlook(cs, lu, pi);
     if (pi.length) {
-      const uc = pi.filter((p) => !isProposed(p)), pr = pi.filter(isProposed), u = (a) => a.reduce((s, p) => s + (p.units || 0), 0);
-      const bl = baselineOf(cs, ps).name, base = bl ? all().filter((p) => p.submarket === bl && p.status === 'Existing').reduce((s, p) => s + (p.units || 0), 0) : 0;
+      const uc = pi.filter((p) => !isProposed(p) && !isStalled(p)), pr = pi.filter(isProposed), st = pi.filter(isStalled), u = (a) => a.reduce((s2, p) => s2 + (p.units || 0), 0);
+      const bl = baselineOf(cs, ps).name, base = bl ? all().filter((p) => p.submarket === bl && p.status === 'Existing').reduce((s2, p) => s2 + (p.units || 0), 0) : 0;
       const rel = (n) => (base ? `${((n / base) * 100).toFixed(1)}% of ${E(bl)} inventory` : '');
-      const now = new Date(), yr = new Date(+now + 365 * 86400000);
-      const next = [...uc].filter((p) => deliveryOf(p)).sort((a, b) => deliveryOf(a) - deliveryOf(b))[0];
-      const in12 = u(uc.filter((p) => { const d = deliveryOf(p); return d && d <= yr; }));
-      out += sec('pi', 'Pipeline', pi.length, checked(pi),
-        hero('Under construction', u(uc).toLocaleString() + '<u> units</u>', rel(u(uc)) || `${uc.length} buildings`)
-        + hero('Proposed', u(pr).toLocaleString() + '<u> units</u>', rel(u(pr)) || `${pr.length} buildings`)
-        + hero('Delivering in 12 months', in12.toLocaleString() + '<u> units</u>', base ? rel(in12) : '')
-        + hero('Next delivery', next ? monYr(deliveryOf(next)) : '—', next ? E(next.name) : ''),
-        '<thead><tr><th class="csx-pc">Property</th><th>Stage</th><th>Type</th><th class="num">Units</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>',
-        [...uc, ...pr].map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td><span class="csx-chip ${isProposed(p) ? 'pr' : 'uc'}">${isProposed(p) ? 'Proposed' : 'Under construction'}</span></td><td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 9)).join(''));
+      const yr = new Date(Date.now() + 365 * 86400000), in12 = u(uc.filter((p) => { const d = deliveryOf(p); return d && d <= yr; }));
+      const next = [...uc].filter((p) => deliveryOf(p) && deliveryOf(p) >= new Date(Date.now() - 31 * 86400000)).sort((a, b) => deliveryOf(a) - deliveryOf(b))[0];
+      const cards = hero('Under construction', intC(u(uc)) + '<u> units</u>', rel(u(uc)) || `${uc.length} buildings`)
+        + hero('Proposed', intC(u(pr)) + '<u> units</u>', rel(u(pr)) || `${pr.length} buildings`)
+        + hero('Delivering in 12 months', intC(in12) + '<u> units</u>', rel(in12))
+        + hero('Next delivery', next ? monYr(deliveryOf(next)) : '—', next ? E(next.name) : '')
+        + hero('Stalled', intC(u(st)) + '<u> units</u>', st.length ? `${st.length} not counted above` : 'None marked');
+      const acres = (p) => p.acreage || p.acres, den = (p) => (acres(p) && p.units ? p.units / acres(p) : null);
+      const prow = (p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td class="csx-dev">${E(p.developer || '—')}</td><td>${E(p.style || '')}</td><td class="num">${intC(p.units)}</td><td class="num">${acres(p) ? (+acres(p)).toFixed(1) : '—'}</td><td class="num">${den(p) ? den(p).toFixed(0) : '—'}</td><td>${monYr(begunOf(p))}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 12);
+      const head = '<thead><tr><th class="csx-pc">Property</th><th>Developer</th><th>Type</th><th class="num">Units</th><th class="num">Acres</th><th class="num">Units/ac</th><th>Start</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>';
+      const grp = (label, a) => (a.length ? `<tr class="csx-grp"><td colspan="12">${label} · ${a.length} · ${intC(u(a))} units</td></tr>${a.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}` : '');
+      out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', uc.length + pr.length, checked(pi), cards)}
+        <div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${grp('Under construction', uc)}${grp('Proposed', pr)}</tbody></table></div>
+        ${st.length ? `<details class="csx-stalled"${UI.stalledOpen ? ' open' : ''}><summary>Stalled projects · ${st.length} · ${intC(u(st))} units <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${st.map(prow).join('')}</tbody></table></div></details>` : ''}</section>`;
     }
     return out;
   }
@@ -466,7 +507,8 @@
         ${ps.length ? '' : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
         ${missing > 0 ? `<div class="csx-hint warn">${missing} propert${missing === 1 ? 'y' : 'ies'} in this set ${missing === 1 ? 'isn’t' : 'aren’t'} in the current data (removed or filtered out by a data load).</div>` : ''}
       </div>
-      ${yocCheck(ps)}
+      ${ps.length ? `<nav class="csx-nav" aria-label="Sections"><a href="#csx-s-yoc">YOC check</a><a href="#csx-s-ex">Rent comps</a><a href="#csx-s-lu">Lease-up outlook</a><a href="#csx-s-pi">Pipeline</a><a href="#csx-s-sm">Submarket</a><a href="#csx-intel-slot">Analysis</a></nav>` : ''}
+      <div id="csx-s-yoc">${yocCheck(ps)}</div>
       ${ps.length ? sections(cs, ps) + baselineBlock(cs, ps) : ''}
       <div id="csx-intel-slot"></div>`;
   }
@@ -631,6 +673,9 @@
     }
     $$('.csx-rm').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const pid = b.closest('tr').dataset.pid; cs.propertyIds = (cs.propertyIds || []).filter((x) => String(x) !== String(pid)); touch(cs); refresh(); }));
     const bs = $('.csx-blsel'); if (bs) bs.onchange = () => setBaseline(cs, bs.value);
+    const vs = $('.csx-vel'); if (vs) vs.onchange = () => { cs.settings = { ...(cs.settings || {}), vel: +vs.value }; touch(cs); render(); };
+    const sd = $('.csx-stalled'); if (sd) sd.ontoggle = () => { UI.stalledOpen = sd.open; };
+    $$('.csx-nav a').forEach((a) => (a.onclick = (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (!t) return; e.preventDefault(); window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' }); }));
     $$('.csx-updbtn').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const pid = b.closest('tr').dataset.pid; UI.upd = UI.upd === pid ? null : pid; render(); const f = view.querySelector('.csx-uf'); if (f) f.scrollIntoView({ block: 'nearest' }); }));
     $$('.csx-uf').forEach((box) => {
       box.querySelector('.csx-uf-x').onclick = () => { UI.upd = null; render(); };
