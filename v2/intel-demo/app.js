@@ -14983,7 +14983,7 @@ function renderModal() {
           ${g('Avg Unit Size', p.avgUnitSF ? fmt.int(p.avgUnitSF) : '—', p.avgUnitSF ? ' SF' : '', '')}
           ${g('Asking', p.avgAskingSF != null ? '$' + p.avgAskingSF.toFixed(2) : '—', p.avgAskingSF != null ? '/SF' : '', mo(p.avgAskingUnit))}
           ${g('Effective', p.avgEffectiveSF != null ? '$' + p.avgEffectiveSF.toFixed(2) : '—', p.avgEffectiveSF != null ? '/SF' : '', mo(p.avgEffectiveUnit))}
-          ${g('Concessions', wk != null ? wk.toFixed(1) : '—', wk != null ? ' wks' : '', wk ? 'free on a 12-mo lease' : (wk === 0 ? 'none offered' : ''))}
+          ${g('Concessions', wk != null ? wk.toFixed(1) : '—', wk != null ? ' wks' : '', wk ? 'free (12-mo)' : (wk === 0 ? 'none offered' : ''))}
         </div>`;
       })()}
 
