@@ -11165,7 +11165,9 @@ function renderSaleCompModal() {
         { label: '✎ Edit Comp', action: 'data-sc-action="edit"' },
         (isCustom || isEdited) ? { sep: true } : null,
         isCustom ? { label: 'Delete Comp', action: 'data-sc-action="delete"', warn: true, title: 'Permanently delete this user-added comp' } : null,
-        isEdited ? { label: 'Reset to CSV', action: 'data-sc-action="revert"', warn: true, title: 'Restore original CSV values' } : null
+        isEdited ? { label: 'Reset to CSV', action: 'data-sc-action="revert"', warn: true, title: 'Restore original CSV values' } : null,
+        type === 'land' && typeof window.wbCsStartProject === 'function' && window.wbCsOpenSet && window.wbCsOpenSet() ? { sep: true } : null,
+        type === 'land' && typeof window.wbCsStartProject === 'function' && window.wbCsOpenSet && window.wbCsOpenSet() ? { label: 'Start a pipeline project from this sale', action: 'data-sc-action="startproj"', title: 'The site traded and the project is moving: add it to the comp set’s pipeline, pre-filled from this sale' } : null
       ])}
       <button class="modal-close" data-sc-action="close">CLOSE ×</button>
     `;
@@ -11490,7 +11492,7 @@ function saveSaleCompEdits() {
     if (!customComps[type]) customComps[type] = [];
     customComps[type].push(newComp);
     saveCompStorage();
-    pushCustomComp(type, newComp);
+    wbDirectSave('sale comp', (d) => d.saveComp(type, newComp)).then(() => window.wbCsRefreshSales && window.wbCsRefreshSales());
     scModalState.isNew = false;
     scModalState.editing = false;
     scModalState.ref = { customId: newComp.id };
@@ -11511,7 +11513,7 @@ function saveSaleCompEdits() {
       };
       list[idx] = updatedComp;
       saveCompStorage();
-      pushCustomComp(type, updatedComp);
+      wbDirectSave('sale comp', (d) => d.saveComp(type, updatedComp)).then(() => window.wbCsRefreshSales && window.wbCsRefreshSales());
     }
     scModalState.editing = false;
     scModalState.draft = null;
@@ -11571,7 +11573,7 @@ function deleteSaleComp() {
   const idToDelete = scModalState.ref.customId;
   customComps[type] = (customComps[type] || []).filter(c => c.id !== idToDelete);
   saveCompStorage();
-  deleteCustomCompCloud(type, idToDelete);
+  wbDirectSave('sale comp', (d) => d.removeComp(type, idToDelete)).then(() => window.wbCsRefreshSales && window.wbCsRefreshSales());
   closeSaleCompModal();
   renderSaleComps();
 }
@@ -11601,6 +11603,7 @@ window.deleteSaleComp = deleteSaleComp;
         case 'close':  closeSaleCompModal(); break;
         case 'delete': deleteSaleComp(); break;
         case 'revert': revertSaleCompEdits(); break;
+        case 'startproj': { const r = getCompByRef(scModalState.type, scModalState.ref); closeSaleCompModal(); if (r) window.wbCsStartProject(r._uuid || r.id); break; }
       }
     } catch (err) {
       console.error(`[sc-modal:${action}]`, err);

@@ -1501,3 +1501,11 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-mini tr.grp th { padding-top: 14px; font: 650 11px var(--x-font); letter-spacing: .05em; text-transform: uppercase; color: #6b6680; border-bottom: 1px solid #efedf4; }
 .csx-mini tr.sum th, .csx-mini tr.sum td { font-weight: 650; border-top: 1.5px solid #cfcadd; color: var(--x-ink); }
 .csx-chip.area { background: #f0eef6; color: #5a5470; font-size: 10.5px; padding: 1px 7px; margin-left: 4px; }
+/* sale comps: both tables share one column layout */
+.csx-salet { table-layout: fixed; }
+.csx-salet td, .csx-salet th { overflow: hidden; text-overflow: ellipsis; }
+.csx-salet td:first-child { white-space: normal; }
+.csx-salet tr.csx-srow { cursor: pointer; }
+.csx-salet tr.csx-srow:hover td { background: #f4f2fa; }
+.csx-prop summary { color: #4a4560; }
+@media (max-width: 1300px) { .csx-salet col:nth-child(9) { width: 11% !important; } }

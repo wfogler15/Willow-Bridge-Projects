@@ -356,7 +356,8 @@
     const pr = (n) => (exU ? (n / exU) * 100 : null);
     const setEx = ps.filter((p) => phaseOf(p) !== 'pipe'), setU = u(setEx), sLu = u(ps.filter((p) => phaseOf(p) === 'lease'));
     const pAll = ps.filter((p) => phaseOf(p) === 'pipe').concat(autoPipe(cs, ps));
-    const sUc = u(pAll.filter((p) => !isProposed(p) && !isStalled(p))), sPr = u(pAll.filter((p) => isProposed(p)));
+    const sUc = u(pAll.filter((p) => !isProposed(p) && !isStalled(p))), sPr = u(pAll.filter((p) => isProposed(p))), sSt = u(pAll.filter((p) => isStalled(p)));
+    const stU = u(inSm.filter((p) => p.status !== 'Existing' && isStalled(p)));
     const sp = (n) => (setU ? ((n / setU) * 100).toFixed(1) + '%' : '—'), mp = (n) => { const v = pr(n); return v == null ? '—' : v.toFixed(1) + '%'; };
     const mrow = (l, a, b, cls, pipeRow) => `<tr class="${cls || ''}"><th>${l}</th><td class="num">${intC(a)}</td><td class="num csx-pc2">${cls === 'tot' || pipeRow ? '' : sp(a)}</td><td class="num csx-gap">${intC(b)}</td><td class="num csx-pc2">${cls === 'tot' ? '' : mp(b)}</td></tr>`;
     const outside = ps.filter((p) => p.submarket !== bl.name);
@@ -365,7 +366,7 @@
         ${mrow('Existing units', setU, exU, 'tot')}
         ${mrow('of which in lease-up', sLu, luU, 'sub')}
         <tr class="grp"><th colspan="5">Pipeline</th></tr>
-        ${mrow('Under construction', sUc, ucU, 'sub', 1)}${mrow('Proposed', sPr, prU, 'sub', 1)}${mrow('Total pipeline', sUc + sPr, ucU + prU, 'sum', 1)}
+        ${mrow('Under construction', sUc, ucU, 'sum', 1)}${mrow('Proposed', sPr, prU, 'sub', 1)}${mrow('Stalled', sSt, stU, 'sub', 1)}${mrow('Worst case, all of it', sUc + sPr + sSt, ucU + prU + stU, 'sum', 1)}
       </tbody></table>
       <small class="csx-src2">Percentages are of existing units. The set’s pipeline is what’s in its submarkets plus anything you added, less what you removed. The submarket column counts every property CoStar places in ${E(bl.name)}${outside.length ? `; ${outside.length === 1 ? E(outside[0].name) + ' is' : outside.length + ' of the set’s properties are'} outside it${outside.length > 1 ? ` (${outside.slice(0, 3).map((p) => E(p.name)).join(', ')}${outside.length > 3 ? '…' : ''})` : ` (${E(outside[0].submarket || 'no submarket')})`}` : ''}. Lease-up: delivered in the last 12 months, or the last 30 and under 95% occupied.</small></div>`;
     const R = rpFor(bl.name);
@@ -549,12 +550,14 @@
       const prow = (p) => rowWith(p, `${nameCell(p, E(p.submarket || '') + (p._auto ? ' <span class="csx-chip area" title="Pulled in because it is in one of the set’s submarkets">In area</span>' : ''))}<td class="csx-dev">${E(p.developer || '—')}</td><td>${E(p.style || '')}</td><td class="num">${intC(p.units)}</td><td class="num">${acres(p) ? (+acres(p)).toFixed(1) : '—'}</td><td class="num">${den(p) ? den(p).toFixed(0) : '—'}</td><td>${monYr(begunOf(p))}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 12);
       const head = '<thead><tr><th class="csx-pc">Property</th><th>Developer</th><th>Type</th><th class="num">Units</th><th class="num">Acres</th><th class="num">Units/ac</th><th>Start</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>';
       const grp = (label, a) => (a.length ? `<tr class="csx-grp"><td colspan="12">${label} · ${a.length} · ${intC(u(a))} units</td></tr>${a.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}` : '');
-      const line = sumLine([[intC(u(uc)), 'units under construction' + (base ? ` (${((u(uc) / base) * 100).toFixed(1)}% of ${E(bl)})` : '')], [intC(u(pr)), 'proposed'], [intC(in12), 'delivering in 12 mo'], [next ? monYr(deliveryOf(next)) : '—', 'next delivery' + (next ? ` · ${E(next.name)}` : '')]]) + `<span class="csx-fresh">${checked(pi)}</span>`;
+      const worst = u(uc) + u(pr) + u(st);
+      const line = sumLine([[intC(u(uc)), 'units under construction' + (base ? ` (${((u(uc) / base) * 100).toFixed(1)}% of ${E(bl)})` : '')], [intC(in12), 'delivering in 12 mo'], [next ? monYr(deliveryOf(next)) : '—', 'next delivery' + (next ? ` · ${E(next.name)}` : '')], [intC(worst), 'worst case with proposed + stalled' + (base ? ` (${((worst / base) * 100).toFixed(1)}%)` : '')]]) + `<span class="csx-fresh">${checked(pi)}</span>`;
       const nEx = pipeExcl(cs).size, auto = pi.filter((p) => p._auto).length;
       const how = `<span class="csx-fresh">${checked(pi)}${auto ? ' · ' + `${auto} pulled in from ${setSubs(ps).map(E).join(', ')}` : ''}${nEx ? ` · ${nEx} removed <button type="button" class="csx-link csx-pxreset">Show again</button>` : ''}</span>`;
       out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', uc.length + pr.length, line.replace(/<span class="csx-fresh">[\s\S]*?<\/span>$/, '') + how, null, addBtn)}${UI.addProj ? addProjForm(cs) : ''}
-        <div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${grp('Under construction', uc)}${grp('Proposed', pr)}</tbody></table></div>
-        ${st.length ? `<details class="csx-stalled"${UI.stalledOpen ? ' open' : ''}><summary>Stalled projects · ${st.length} · ${intC(u(st))} units <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${st.map(prow).join('')}</tbody></table></div></details>` : ''}</section>`;
+        ${uc.length ? `<div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${uc.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}</tbody></table></div>` : '<div class="csx-none3">Nothing under construction in this set’s area.</div>'}
+        ${pr.length ? `<details class="csx-stalled csx-prop"${UI.propOpen ? ' open' : ''}><summary>Proposed · ${pr.length} project${pr.length === 1 ? '' : 's'} · ${intC(u(pr))} units${base ? ` (${((u(pr) / base) * 100).toFixed(1)}% of inventory)` : ''} · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${pr.sort((x, y) => (y.units || 0) - (x.units || 0)).map(prow).join('')}</tbody></table></div></details>` : ''}
+        ${st.length ? `<details class="csx-stalled csx-stl"${UI.stalledOpen ? ' open' : ''}><summary>Stalled · ${st.length} project${st.length === 1 ? '' : 's'} · ${intC(u(st))} units · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${st.map(prow).join('')}</tbody></table></div></details>` : ''}</section>`;
     }
     return out;
   }
@@ -622,6 +625,8 @@
     try { if (cs.uuid) { const { error } = await WB.sb.schema('market').from('comp_set_sales').delete().eq('comp_set_id', cs.uuid); if (error) throw error; } } catch (e) { wbSaveNote('Couldn’t reset: ' + (e.message || e), true); return; }
     SC.links[cs.id] = []; cs.settings = { ...(cs.settings || {}) }; delete cs.settings.salesCurated; touch(cs); render();
   }
+  // buyer/seller as people say it: drop the entity in parentheses and anything after ';' or ' / '
+  const shortCo = (x) => String(x || '').replace(/\s*\(.*?\)\s*/g, ' ').split(/;|\s\/\s/)[0].replace(/,?\s+(LLC|L\.L\.C\.|Inc\.?|LP|L\.P\.)$/i, '').trim() || '—';
   function salesSection(cs, ps) {
     if (!SC.pool) salePool(); saleLinks(cs);
     const head = (extra, line) => `<section class="panel csx-sec csx-sec-sc">${panelHead('csx-s-sc', 'sc', 'Sale comps', null, line, null, extra)}`;
@@ -632,32 +637,47 @@
     const W = window.__WBD || {}, mine = new Set(ps.map((p) => String((W.propByCostar && W.propByCostar[p.id]) || p.id)));
     const dist = (x) => (g && x.lat != null ? mi(g.c, x).toFixed(1) + ' mi' : '—');
     const tag = (x) => (mine.has(String(x.property_id)) ? ' <span class="csx-chip in">In set</span>' : '') + (x.portfolio ? ' <span class="csx-chip pr" title="Portfolio allocation">Portfolio</span>' : '');
+    const buyerTd = (x) => `<td class="csx-dev" title="${E(x.buyer || '')}">${E(shortCo(x.buyer))}</td>`;
+    const cols = '<colgroup><col style="width:24%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:7%"><col style="width:8%"><col style="width:7%"><col style="width:7%"><col style="width:15%"><col style="width:7%"><col style="width:42px"></colgroup>';
     const rmB = (x) => `<td class="csx-x"><button type="button" class="csx-rm csx-srm" data-sid="${E(x.id)}" title="Remove from this set" aria-label="Remove ${E(x.name || '')}">×</button></td>`;
-    const invT = inv.length ? `<table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Investment sales · ${inv.length}</th><th>Date</th><th class="num">Units</th><th class="num">Built</th><th class="num">Price</th><th class="num">$/unit</th><th class="num">$/SF</th><th class="num">Cap</th><th>Buyer</th><th class="num">Distance</th><th></th></tr></thead><tbody>
-      ${inv.sort((a, b) => String(b.sale_date).localeCompare(String(a.sale_date))).map((x) => `<tr><td><span class="csx-pname2">${E(x.name || x.address || '(unnamed)')}</span>${tag(x)}<div class="csx-addr">${E([x.address, x.submarket || x.city].filter(Boolean).join(' · '))}</div></td><td>${sMon(x.sale_date)}</td><td class="num">${intC(sNum(x.units))}</td><td class="num">${x.year_built || '—'}</td><td class="num">${mUSD(sNum(x.sale_price))}</td><td class="num csx-k">${kUSD(perUnit(x))}</td><td class="num">${sNum(x.price_per_sf) ? '$' + Math.round(x.price_per_sf) : '—'}</td><td class="num">${capOf(x) ? capOf(x).toFixed(2) + '%' : '—'}</td><td class="csx-dev">${E(x.buyer || '—')}</td><td class="num">${dist(x)}</td>${rmB(x)}</tr>`).join('')}
+    const invT = inv.length ? `<table class="csx-table csx-dense csx-salet">${cols}<thead><tr><th class="csx-pc">Investment sales · ${inv.length}</th><th>Date</th><th class="num">Units</th><th class="num">Built</th><th class="num">Price</th><th class="num">$/unit</th><th class="num">$/SF</th><th class="num">Cap</th><th>Buyer</th><th class="num">Distance</th><th></th></tr></thead><tbody>
+      ${inv.sort((a, b) => String(b.sale_date).localeCompare(String(a.sale_date))).map((x) => `<tr class="csx-srow" data-sid="${E(x.id)}"><td><span class="csx-pname2">${E(x.name || x.address || '(unnamed)')}</span>${tag(x)}<div class="csx-addr">${E([x.address, x.submarket || x.city].filter(Boolean).join(' · '))}</div></td><td>${sMon(x.sale_date)}</td><td class="num">${intC(sNum(x.units))}</td><td class="num">${x.year_built || '—'}</td><td class="num">${mUSD(sNum(x.sale_price))}</td><td class="num csx-k">${kUSD(perUnit(x))}</td><td class="num">${sNum(x.price_per_sf) ? '$' + Math.round(x.price_per_sf) : '—'}</td><td class="num">${capOf(x) ? capOf(x).toFixed(2) + '%' : '—'}</td>${buyerTd(x)}<td class="num">${dist(x)}</td>${rmB(x)}</tr>`).join('')}
       </tbody><tfoot><tr><td>Average</td><td></td><td class="num">${intC(avg(inv.map((x) => sNum(x.units)).filter(Boolean)))}</td><td></td><td></td><td class="num csx-k">${kUSD(avg(inv.map(perUnit).filter((v) => v != null)))}</td><td class="num">${(() => { const v = avg(inv.map((x) => sNum(x.price_per_sf)).filter(Boolean)); return v ? '$' + Math.round(v) : '—'; })()}</td><td class="num">${(() => { const v = avg(inv.map(capOf).filter(Boolean)); return v ? v.toFixed(2) + '%' : '—'; })()}</td><td colspan="3"></td></tr></tfoot></table>` : '<div class="csx-none3">No investment sales in the list</div>';
-    const landT = land.length ? `<table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Land sales · ${land.length}</th><th>Date</th><th class="num">Acres</th><th class="num">Units</th><th class="num">Units/ac</th><th class="num">Price</th><th class="num">$/door</th><th class="num">$/land SF</th><th>Buyer</th><th class="num">Distance</th><th></th><th></th></tr></thead><tbody>
-      ${land.sort((a, b) => String(b.sale_date).localeCompare(String(a.sale_date))).map((x) => { const un = sNum(x.proposed_units) || sNum(x.units), ac = sNum(x.acres); return `<tr><td><span class="csx-pname2">${E(x.name || x.address || '(unnamed)')}</span>${tag(x)}<div class="csx-addr">${E([x.address, x.submarket || x.city].filter(Boolean).join(' · '))}</div></td><td>${sMon(x.sale_date)}</td><td class="num">${ac ? ac.toFixed(2) : '—'}</td><td class="num">${intC(un)}</td><td class="num">${un && ac ? (un / ac).toFixed(0) : '—'}</td><td class="num">${mUSD(sNum(x.sale_price))}</td><td class="num csx-k">${kUSD(perUnit(x))}</td><td class="num">${sNum(x.price_per_land_sf) ? '$' + (+x.price_per_land_sf).toFixed(2) : '—'}</td><td class="csx-dev">${E(x.buyer || '—')}</td><td class="num">${dist(x)}</td><td class="csx-sp"><button type="button" class="csx-link csx-sproj" data-sid="${E(x.id)}" title="This site is now a pipeline project: add it, pre-filled from the sale">Start project</button></td>${rmB(x)}</tr>`; }).join('')}
-      </tbody><tfoot><tr><td>Average</td><td></td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.acres)).filter(Boolean)); return v ? v.toFixed(2) : '—'; })()}</td><td></td><td></td><td></td><td class="num csx-k">${kUSD(avg(land.map(perUnit).filter((v) => v != null)))}</td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.price_per_land_sf)).filter(Boolean)); return v ? '$' + v.toFixed(2) : '—'; })()}</td><td colspan="4"></td></tr></tfoot></table>` : '<div class="csx-none3">No land sales in the list</div>';
+    const landT = land.length ? `<table class="csx-table csx-dense csx-salet">${cols}<thead><tr><th class="csx-pc">Land sales · ${land.length}</th><th>Date</th><th class="num">Acres</th><th class="num">Units</th><th class="num">Units/ac</th><th class="num">Price</th><th class="num">$/door</th><th class="num">$/land SF</th><th>Buyer</th><th class="num">Distance</th><th></th></tr></thead><tbody>
+      ${land.sort((a, b) => String(b.sale_date).localeCompare(String(a.sale_date))).map((x) => { const un = sNum(x.proposed_units) || sNum(x.units), ac = sNum(x.acres); return `<tr class="csx-srow" data-sid="${E(x.id)}"><td><span class="csx-pname2">${E(x.name || x.address || '(unnamed)')}</span>${tag(x)}<div class="csx-addr">${E([x.address, x.submarket || x.city].filter(Boolean).join(' · '))}</div></td><td>${sMon(x.sale_date)}</td><td class="num">${ac ? ac.toFixed(2) : '—'}</td><td class="num">${intC(un)}</td><td class="num">${un && ac ? (un / ac).toFixed(0) : '—'}</td><td class="num">${mUSD(sNum(x.sale_price))}</td><td class="num csx-k">${kUSD(perUnit(x))}</td><td class="num">${sNum(x.price_per_land_sf) ? '$' + (+x.price_per_land_sf).toFixed(2) : '—'}</td>${buyerTd(x)}<td class="num">${dist(x)}</td>${rmB(x)}</tr>`; }).join('')}
+      </tbody><tfoot><tr><td>Average</td><td></td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.acres)).filter(Boolean)); return v ? v.toFixed(2) : '—'; })()}</td><td></td><td></td><td></td><td class="num csx-k">${kUSD(avg(land.map(perUnit).filter((v) => v != null)))}</td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.price_per_land_sf)).filter(Boolean)); return v ? '$' + v.toFixed(2) : '—'; })()}</td><td colspan="3"></td></tr></tfoot></table>` : '<div class="csx-none3">No land sales in the list</div>';
     const ipu = avg(inv.map(perUnit).filter((v) => v != null)), cap = avg(inv.map(capOf).filter(Boolean)), lpu = avg(land.map(perUnit).filter((v) => v != null));
     const line = sumLine([[kUSD(ipu), 'per unit, investment'], [cap ? cap.toFixed(2) + '%' : '—', 'avg cap'], [kUSD(lpu), 'per door, land']])
       + `<span class="csx-fresh">${L.curated ? 'Your list' : `Auto-picked: within ${g ? g.r.toFixed(1) : '—'} mi of the set, investment in the last 3 years (50+ units), land in the last 4 · add or remove one to keep it as yours`}</span>`;
     const extra = `<div class="csx-scacts">${L.curated ? '<button type="button" class="csx-link csx-sreset">Reset to auto</button>' : ''}<div class="csx-ta csx-sadd"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-sadd-q" placeholder="Add a sale by name or address…" aria-label="Add a sale"><div class="csx-ta-list" hidden></div></div></div>`;
     return head(extra, line) + `<div class="table-scroll">${invT}</div><div class="table-scroll csx-landt">${landT}</div>${SC.err ? `<div class="csx-hint warn">${E(SC.err)}</div>` : ''}</section>`;
   }
+  function openSale(id) {
+    const x = (SC.pool || []).find((y) => y.id === id); if (!x || typeof openSaleCompDetail !== 'function') return;
+    const type = x.comp_type === 'land' ? 'land' : 'investment';
+    let c = (customComps[type] || []).find((k) => k._uuid === x.id || k.id === x.id);
+    if (!c) {   // outside the Sale Comps tab's own filter (small or old deals): load it for the modal
+      c = { id: x.id, _uuid: x.id, name: x.name, address: x.address, city: x.city, submarket: x.submarket, lat: x.lat, lng: x.lng, saleDate: x.sale_date, salePrice: sNum(x.sale_price), units: sNum(x.units), proposedUnits: sNum(x.proposed_units), acreage: sNum(x.acres), yearBuilt: sNum(x.year_built), pricePerUnit: sNum(x.price_per_unit), pricePerSF: sNum(type === 'land' ? (x.price_per_land_sf ?? x.price_per_sf) : x.price_per_sf), pricePerLandSF: sNum(x.price_per_land_sf), capRate: sNum(x.cap_rate), buyer: x.buyer, seller: x.seller };
+      (customComps[type] = customComps[type] || []).push(c);
+    }
+    openSaleCompDetail(type, { customId: c.id });
+  }
+  window.wbCsOpenSet = () => !!(UI.open && compSets[UI.open]);
+  window.wbCsRefreshSales = () => { SC.pool = null; if (UI.open && getActiveView() === 'compsets') render(); };
+  window.wbCsStartProject = (id) => {
+    const x = (SC.pool || []).find((y) => y.id === id); if (!x) return;
+    const d = x.sale_date ? String(x.sale_date).slice(0, 7) : '';
+    UI.apPrefill = { landCompId: x.id, saleLabel: sMon(x.sale_date) + ' land', name: x.name || '', address: x.address || '', city: x.city || '', units: sNum(x.proposed_units) || sNum(x.units) || '', developer: shortCo(x.buyer) === '—' ? '' : shortCo(x.buyer), acres: sNum(x.acres) || '', start: d, lat: x.lat, lng: x.lng,
+      notes: `Land bought ${sMon(x.sale_date)}${sNum(x.sale_price) ? ' for ' + mUSD(sNum(x.sale_price)) : ''}${x.seller ? ' from ' + shortCo(x.seller) : ''}.` };
+    UI.addProj = true; render();
+    const t = document.getElementById('csx-s-pi'); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' });
+  };
   function wireSales(cs, ps) {
     const box = view.querySelector('.csx-sec-sc'); if (!box) return;
     const cur = () => saleList(cs, ps).ids;
-    box.querySelectorAll('.csx-srm').forEach((b) => (b.onclick = async () => { const ids = cur().filter((id) => id !== b.dataset.sid); if (await saveSales(cs, ids)) render(); }));
+    box.querySelectorAll('.csx-srm').forEach((b) => (b.onclick = async (e) => { e.stopPropagation(); const ids = cur().filter((id) => id !== b.dataset.sid); if (await saveSales(cs, ids)) render(); }));
     const rs = box.querySelector('.csx-sreset'); if (rs) rs.onclick = () => resetSales(cs);
-    box.querySelectorAll('.csx-sproj').forEach((b) => (b.onclick = () => {
-      const x = (SC.pool || []).find((y) => y.id === b.dataset.sid); if (!x) return;
-      const d = x.sale_date ? String(x.sale_date).slice(0, 7) : '';
-      UI.apPrefill = { landCompId: x.id, saleLabel: sMon(x.sale_date) + ' land', name: x.name || '', address: x.address || '', city: x.city || '', units: sNum(x.proposed_units) || sNum(x.units) || '', developer: x.buyer || '', acres: sNum(x.acres) || '', start: d, lat: x.lat, lng: x.lng,
-        notes: `Land bought ${sMon(x.sale_date)}${sNum(x.sale_price) ? ' for ' + mUSD(sNum(x.sale_price)) : ''}${x.seller ? ' from ' + x.seller : ''}.` };
-      UI.addProj = true; render();
-      const t = document.getElementById('csx-s-pi'); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' });
-    }));
+    box.querySelectorAll('.csx-srow').forEach((tr) => (tr.onclick = (e) => { if (e.target.closest('.csx-rm')) return; openSale(tr.dataset.sid); }));
     const q = box.querySelector('.csx-sadd-q'); if (!q) return;
     const list = q.parentElement.querySelector('.csx-ta-list');
     const run = () => {
@@ -727,13 +747,13 @@
       } catch (e) {}
       const gap = need && askP ? (askP / need - 1) * 100 : null;
       const bl = baselineOf(cs, ps).name, inSm = bl ? all().filter((p) => p.submarket === bl) : [], uu = (a) => a.reduce((x, p) => x + (p.units || 0), 0);
-      const inv = uu(inSm.filter((p) => p.status === 'Existing')), sup = uu(inSm.filter((p) => p.status !== 'Existing' && !isStalled(p)));
+      const inv = uu(inSm.filter((p) => p.status === 'Existing')), sup = uu(inSm.filter((p) => p.status !== 'Existing' && !isStalled(p) && !isProposed(p))), worstS = uu(inSm.filter((p) => p.status !== 'Existing'));
       const O = outlook(cs, lu, pi), R = rpFor(bl);
       const row = document.createElement('div'); row.className = 'kpi-row'; row.id = 'csx-hero';
       row.innerHTML = k('Comp asking rent', st.ask == null ? '—' : '$' + st.ask.toFixed(2), '/SF', `${st.askU ? '$' + Math.round(st.askU).toLocaleString() + '/mo · ' : ''}${ex.length} stabilized comps`)
         + k(prod ? `${prod} needs` : 'Rent needed', need == null ? '—' : '$' + need.toFixed(2), '/SF', gap == null ? `for ${(yocState.targetYoc * 100).toFixed(2)}% YOC` : `<b class="${gap >= 0 ? 'csx-up' : 'csx-dn'}">${Math.abs(gap).toFixed(0)}% ${gap >= 0 ? 'above' : 'below'}</b> · comps vs ${(yocState.targetYoc * 100).toFixed(2)}% YOC`)
         + k('Comp occupancy', st.occ == null ? '—' : st.occ.toFixed(1), st.occ == null ? '' : '%', `${wks(st.wks)} wks free`)
-        + k('Pipeline share', inv ? ((sup / inv) * 100).toFixed(1) : '—', inv ? '%' : '', `${intC(sup)} units UC + proposed · ${E(bl || '')}`)
+        + k('Under construction', inv ? ((sup / inv) * 100).toFixed(1) : '—', inv ? '%' : '', `of ${E(bl || 'submarket')} inventory · ${inv ? ((worstS / inv) * 100).toFixed(0) + '% worst case' : ''}`)
         + k('Lease-up clears', O && O.lastOwn ? monYr(O.lastOwn) : '—', '', O ? `own pace · ${O.lastV ? monYr(O.lastV) : '—'} at ${O.V}/mo` : 'Nothing leasing or under construction')
         + k('Rent growth forecast', R && R.avg != null ? gPct(R.avg) : '—', R && R.avg != null ? '/yr' : '', R ? `${R.Y + 1}–${R.Y + 3} · ${R.Y} was ${gPct(R.c.yR)}` : 'No RealPage coverage');
       slot.appendChild(row);
@@ -894,7 +914,8 @@
     const bs = $('.csx-blsel'); if (bs) bs.onchange = () => setBaseline(cs, bs.value);
     wireSales(cs, membersOf(cs));
     const vs = $('.csx-vel'); if (vs) vs.onchange = () => { cs.settings = { ...(cs.settings || {}), vel: +vs.value }; touch(cs); render(); };
-    const sd = $('.csx-stalled'); if (sd) sd.ontoggle = () => { UI.stalledOpen = sd.open; };
+    const sd = $('.csx-stl'); if (sd) sd.ontoggle = () => { UI.stalledOpen = sd.open; };
+    const prd = $('.csx-prop'); if (prd) prd.ontoggle = () => { UI.propOpen = prd.open; };
     $$('.csx-nav a').forEach((a) => (a.onclick = (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (!t) return; e.preventDefault(); window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' }); }));
     const ap = $('.csx-addproj'); if (ap) ap.onclick = () => { UI.addProj = !UI.addProj; render(); const f = $('.csx-ap [data-f=name]'); if (f) f.focus(); };
     const apb = $('.csx-ap'); if (apb) { apb.querySelector('.csx-ap-x').onclick = () => { UI.addProj = false; UI.apPrefill = null; render(); }; apb.querySelector('.csx-ap-save').onclick = () => saveProject(apb, cs); wirePin(apb, null); }
