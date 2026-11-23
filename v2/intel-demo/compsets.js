@@ -470,8 +470,18 @@
     touch(cs);
   }
   const setSubs = (ps) => [...new Set(ps.filter((p) => phaseOf(p) !== 'pipe').map((p) => p.submarket).filter(Boolean))];
+  // Pipeline area (Nov 23): the submarkets whose pipeline joins the set. Standard process: the deal's submarket only
+  // (the set's baseline submarket). Rent comps from elsewhere (e.g. downtown high-rises for a Tempe tower) no longer
+  // pull their submarkets' pipeline in. More submarkets can be added on the Pipeline panel.
+  function pipeSubsOf(cs, ps) {
+    const pick = cs.settings && cs.settings.pipeSubs;
+    if (Array.isArray(pick)) return pick;
+    const b = baselineOf(cs, ps).name;
+    return b ? [b] : setSubs(ps);
+  }
+  function setPipeSubs(cs, arr) { cs.settings = { ...(cs.settings || {}), pipeSubs: [...new Set(arr.filter(Boolean))] }; touch(cs); }
   function autoPipe(cs, ps) {
-    const subs = new Set(setSubs(ps)), mem = new Set(ps.map((p) => String(p.id))), ex = pipeExcl(cs);
+    const subs = new Set(pipeSubsOf(cs, ps)), mem = new Set(ps.map((p) => String(p.id))), ex = pipeExcl(cs);
     if (!subs.size) return [];
     return all().filter((p) => p.status !== 'Existing' && subs.has(p.submarket) && !mem.has(String(p.id)) && !ex.has(String(p.id))).map((p) => Object.assign(p, { _auto: true }));
   }
@@ -610,7 +620,9 @@
     }
     out += leaseOutlook(cs, lu, pi);
     const addBtn = `<button type="button" class="yx-btn csx-addproj">${UI.addProj ? 'Close' : '+ Add a project'}</button>`;
-    if (!pi.length) out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', 0, '<span class="csx-none2">None in this set. Add one from the search above, or add a project CoStar doesn’t have yet.</span>', null, addBtn)}${UI.addProj ? addProjForm(cs) : ''}</section>`;
+    const areaSubs = pipeSubsOf(cs, ps);
+    const area = `<div class="csx-parea"><span class="csx-parea-k">Pipeline from</span>${areaSubs.map((x) => `<span class="csx-pchip">${E(x)}${canEdit() ? `<button type="button" class="csx-pchip-x" data-sub="${E(x)}" aria-label="Stop pulling pipeline from ${E(x)}">×</button>` : ''}</span>`).join('') || '<span class="csx-none2">no submarket picked</span>'}${canEdit() ? `<select class="csx-psel" aria-label="Add a submarket to the pipeline area"><option value="">+ Submarket</option>${smOptions().filter((x) => !areaSubs.includes(x)).map((x) => `<option>${E(x)}</option>`).join('')}</select>` : ''}<span class="csx-parea-n">Under-construction and proposed projects in ${areaSubs.length === 1 ? 'this submarket' : 'these submarkets'} join the set automatically. Rent comps don’t change it.</span></div>`;
+    if (!pi.length) out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', 0, '<span class="csx-none2">None in this set. Add one from the search above, or add a project CoStar doesn’t have yet.</span>', null, addBtn)}${area}${UI.addProj ? addProjForm(cs) : ''}</section>`;
     if (pi.length) {
       const uc = pi.filter((p) => !isProposed(p) && !isStalled(p)), pr = pi.filter(isProposed), st = pi.filter(isStalled), u = (a) => a.reduce((s2, p) => s2 + (p.units || 0), 0);
       const bl = baselineOf(cs, ps).name, base = bl ? all().filter((p) => p.submarket === bl && p.status === 'Existing').reduce((s2, p) => s2 + (p.units || 0), 0) : 0;
@@ -623,14 +635,14 @@
         + hero('Next delivery', next ? monYr(deliveryOf(next)) : '—', next ? E(next.name) : '')
         + hero('Stalled', intC(u(st)) + '<u> units</u>', st.length ? `${st.length} not counted above` : 'None marked');
       const acres = (p) => p.acreage || p.acres, den = (p) => (acres(p) && p.units ? p.units / acres(p) : null);
-      const prow = (p) => rowWith(p, `${nameCell(p, E(p.submarket || '') + (p._auto ? ' <span class="csx-chip area" title="Pulled in because it is in one of the set’s submarkets">In area</span>' : ''))}<td class="csx-dev">${E(p.developer || '—')}</td><td>${E(p.style || '')}</td><td class="num">${intC(p.units)}</td><td class="num csx-o">${acres(p) ? (+acres(p)).toFixed(1) : '—'}</td><td class="num csx-o">${den(p) ? den(p).toFixed(0) : '—'}</td><td>${monYr(begunOf(p))}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 12);
+      const prow = (p) => rowWith(p, `${nameCell(p, E(p.submarket || '') + (p._auto ? ' <span class="csx-chip area" title="Pulled in because it is in the set’s pipeline area">In area</span>' : ''))}<td class="csx-dev">${E(p.developer || '—')}</td><td>${E(p.style || '')}</td><td class="num">${intC(p.units)}</td><td class="num csx-o">${acres(p) ? (+acres(p)).toFixed(1) : '—'}</td><td class="num csx-o">${den(p) ? den(p).toFixed(0) : '—'}</td><td>${monYr(begunOf(p))}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 12);
       const head = colg([20, 14, 7, 7, 7, 7, 7, 7, 15, 7, '40px', '32px']) + '<thead><tr><th class="csx-pc">Property</th><th class="csx-left">Developer</th><th>Type</th><th class="num">Units</th><th class="num csx-o">Acres</th><th class="num csx-o">Units/ac</th><th>Start</th><th>Est. completion</th><th class="csx-left">Notes</th><th>Updated</th><th></th><th></th></tr></thead>';
       const grp = (label, a) => (a.length ? `<tr class="csx-grp"><td colspan="12">${label} · ${a.length} · ${intC(u(a))} units</td></tr>${a.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}` : '');
       const worst = u(uc) + u(pr) + u(st);
       const line = sumLine([[intC(u(uc)), 'units under construction' + (base ? ` (${((u(uc) / base) * 100).toFixed(1)}% of ${E(bl)})` : '')], [intC(in12), 'delivering in 12 mo'], [next ? monYr(deliveryOf(next)) : '—', 'next delivery' + (next ? ` · ${E(next.name)}` : '')], [intC(worst), 'worst case with proposed + stalled' + (base ? ` (${((worst / base) * 100).toFixed(1)}%)` : '')]]) + `<span class="csx-fresh">${checked(pi)}</span>`;
       const nEx = pipeExcl(cs).size;
-      const how = `<span class="csx-fresh">${checked(pi)} · new projects in ${setSubs(ps).map(E).join(', ')} are added automatically${nEx ? ` · ${nEx} removed <button type="button" class="csx-link csx-pxreset">Add back</button>` : ''}</span>`;
-      out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', uc.length + pr.length, line.replace(/<span class="csx-fresh">[\s\S]*?<\/span>$/, '') + how, null, addBtn)}${UI.addProj ? addProjForm(cs) : ''}
+      const how = `<span class="csx-fresh">${checked(pi)}${nEx ? ` · ${nEx} removed by hand <button type="button" class="csx-link csx-pxreset">Add back</button>` : ''}</span>`;
+      out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', uc.length + pr.length, line.replace(/<span class="csx-fresh">[\s\S]*?<\/span>$/, '') + how, null, addBtn)}${area}${UI.addProj ? addProjForm(cs) : ''}
         ${uc.length ? `<div class="table-scroll"><table class="csx-table csx-dense csx-fixed csx-even">${head}<tbody>${uc.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}</tbody></table></div>` : '<div class="csx-none3">Nothing under construction in this set’s area.</div>'}
         ${pr.length ? `<details class="csx-stalled csx-prop"${UI.propOpen ? ' open' : ''}><summary>Proposed · ${pr.length} project${pr.length === 1 ? '' : 's'} · ${intC(u(pr))} units${base ? ` (${((u(pr) / base) * 100).toFixed(1)}% of inventory)` : ''} · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense csx-fixed csx-even">${head}<tbody>${pr.sort((x, y) => (y.units || 0) - (x.units || 0)).map(prow).join('')}</tbody></table></div></details>` : ''}
         ${st.length ? `<details class="csx-stalled csx-stl"${UI.stalledOpen ? ' open' : ''}><summary>Stalled · ${st.length} project${st.length === 1 ? '' : 's'} · ${intC(u(st))} units · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense csx-fixed csx-even">${head}<tbody>${st.map(prow).join('')}</tbody></table></div></details>` : ''}</section>`;
@@ -860,10 +872,22 @@
     // removals are stored with the set's settings; until that column exists they live in one browser, so only the set's creator auto-adds
     const mine = !cs.createdBy || String(cs.createdBy).toLowerCase() === me();
     if (!canEdit() || (window.__WB_CS_NO_SETTINGS && !mine)) return 0;
+    const ps0 = membersOf(cs), area = new Set(pipeSubsOf(cs, ps0));
+    // projects this set pulled in automatically from a submarket that's no longer in its pipeline area drop out
+    // (ones someone added by hand stay)
+    const auto = new Set(((cs.settings && cs.settings.pipeAdded) || []).map(String));
+    const drop = ps0.filter((p) => auto.has(String(p.id)) && phaseOf(p) === 'pipe' && !area.has(p.submarket)).map((p) => String(p.id));
+    if (drop.length) {
+      const d = new Set(drop);
+      cs.propertyIds = (cs.propertyIds || []).filter((id) => !d.has(String(id)));
+      cs.settings = { ...(cs.settings || {}), pipeAdded: [...auto].filter((id) => !d.has(id)) };
+    }
     const add = autoPipe(cs, membersOf(cs)).map((p) => p.id);
-    if (!add.length) return 0;
-    cs.propertyIds = [...(cs.propertyIds || []), ...add];
-    cs.settings = { ...(cs.settings || {}), pipeAdded: [...new Set([...((cs.settings && cs.settings.pipeAdded) || []), ...add.map(String)])] };
+    if (!add.length && !drop.length) return 0;
+    if (add.length) {
+      cs.propertyIds = [...(cs.propertyIds || []), ...add];
+      cs.settings = { ...(cs.settings || {}), pipeAdded: [...new Set([...((cs.settings && cs.settings.pipeAdded) || []), ...add.map(String)])] };
+    }
     touch(cs); return add.length;
   }
   function workspace(cs) {
@@ -1104,6 +1128,9 @@
       else { setPipeExcl(cs, [...pipeExcl(cs), String(pid)]); render(); }   // pulled in from the area: keep it off this set
     }));
     const pxr = $('.csx-pxreset'); if (pxr) pxr.onclick = () => { setPipeExcl(cs, []); render(); };
+    // pipeline area: remove a submarket (its auto-added projects drop out) or add one (its projects join)
+    document.querySelectorAll('#view-compsets .csx-pchip-x').forEach((b) => { b.onclick = () => { setPipeSubs(cs, pipeSubsOf(cs, membersOf(cs)).filter((x) => x !== b.dataset.sub)); render(); }; });
+    const psel = $('.csx-psel'); if (psel) psel.onchange = () => { if (psel.value) { setPipeSubs(cs, [...pipeSubsOf(cs, membersOf(cs)), psel.value]); render(); } };
     const bs = $('.csx-blsel'); if (bs) bs.onchange = () => setBaseline(cs, bs.value);
     $$('.csx-sec-ex th.csx-sortable').forEach((th) => (th.onclick = () => { const k = th.dataset.sk, st = UI.rcSort || { k: 'built', d: -1 };
       UI.rcSort = st.k === k ? { k, d: -st.d } : { k, d: ['name', 'owner', 'style'].includes(k) ? 1 : -1 }; render(); }));
