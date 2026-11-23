@@ -51,7 +51,7 @@
   }
 
   async function load() {
-    const [a, m] = await Promise.all([T().select('email,market_id,role,note'), WB.sb.schema('core').from('markets').select('id,label').order('label')]);
+    const [a, m] = await Promise.all([T().select('email,market_id,role,note'), WB.sb.schema('core').from('markets').select('id,label,config').order('label')]);
     if (a.error) throw a.error;
     lines = a.data || []; markets = (m.data || []).filter((x) => x.label);
   }
@@ -71,7 +71,16 @@
   }
   const isAdmin = () => people().some((p) => p.email.toLowerCase() === me() && p.admin);
   const viewMode = (p) => (p.admin ? 'admin' : p.viewAll ? 'all' : 'own');
-  const addOpts = (exclude) => [...(markets || []).filter((m) => !exclude.includes(m.id)).map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`), '<option value="__new">New market…</option>'].join('');
+  // regions live on each market (core.markets.config.region); "All West markets" grants every market in the region at once
+  const regionOf = (id) => { const m = (markets || []).find((x) => x.id === id); return (m && m.config && m.config.region) || ''; };
+  const regionList = () => [...new Set((markets || []).map((m) => m.config && m.config.region).filter(Boolean))].sort();
+  const inRegion = (r) => (markets || []).filter((m) => m.config && m.config.region === r).map((m) => m.id);
+  const addOpts = (exclude) => {
+    const rg = regionList().filter((r) => inRegion(r).some((id) => !exclude.includes(id)));
+    return [rg.length ? `<optgroup label="Whole region">${rg.map((r) => `<option value="__region:${esc(r)}">All ${esc(r)} markets</option>`).join('')}</optgroup><optgroup label="One market">` : '',
+      ...(markets || []).filter((m) => !exclude.includes(m.id)).map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`), rg.length ? '</optgroup>' : '', '<option value="__new">New market…</option>'].join('');
+  };
+  const regionsOf = (p) => [...new Set(p.edits.map(regionOf).filter(Boolean))];
 
   function html() {
     if (!lines) return '<p class="wba-lead">Loading…</p>';
@@ -91,7 +100,7 @@
             <select class="wba-plus" data-edit="${i}" aria-label="Let ${esc(p.email)} edit another market"><option value="">+ Add market</option>${addOpts(p.edits)}</select></div>
            <div class="wba-new" data-neww="${i}" hidden><input placeholder="Market name, e.g. Fort Lauderdale" data-newn="${i}"><button type="button" class="wba-btn" style="width:auto;padding:0 14px" data-newok="${i}">Add</button></div>`;
       return `<div class="wba-grid wba-r">
-        <div><div class="wba-who">${esc(p.email)}</div>${self ? '<div class="wba-sub">You</div>' : p.note ? `<div class="wba-sub">${esc(p.note)}</div>` : ''}</div>
+        <div><div class="wba-who">${esc(p.email)}</div>${(() => { const bits = [self ? 'You' : p.note || '', p.admin ? '' : regionsOf(p).map((r) => r + ' region').join(', ')].filter(Boolean); return bits.length ? `<div class="wba-sub">${esc(bits.join(' · '))}</div>` : ''; })()}</div>
         <div>${view}</div><div>${edit}</div>
         <div>${lock ? '' : `<button type="button" class="wba-x" data-rm="${i}">Remove</button>`}</div></div>`;
     }).join('');
@@ -132,6 +141,10 @@
       const i = s.dataset.edit, p = ps[+i];
       if (s.value === '__new') { box.querySelector(`[data-neww="${i}"]`).hidden = false; box.querySelector(`[data-newn="${i}"]`).focus(); s.value = ''; return; }
       if (!s.value) return;
+      if (s.value.startsWith('__region:')) {
+        const r = s.value.slice(9), ids = inRegion(r).filter((id) => !p.edits.includes(id));
+        return run([() => T().upsert(ids.map((id) => ({ email: p.email, market_id: id, role: 'edit' })), { onConflict: 'email,market_id' })], `${p.email} can now edit every ${r} market`);
+      }
       const id = s.value; run([() => T().upsert({ email: p.email, market_id: id, role: 'edit' }, { onConflict: 'email,market_id' })], `${p.email} can now edit ${mLabel(id)}`);
     }));
     box.querySelectorAll('[data-newok]').forEach((b) => b.addEventListener('click', () => {
@@ -164,7 +177,8 @@
       if (view === 'own' && !id) return msg('Pick a market they can edit, or let them view all markets', true);
       const ins = [];
       if (view === 'all') ins.push({ email, market_id: '*', role: 'view' });
-      if (id) ins.push({ email, market_id: id, role: 'edit' });
+      if (id && id.startsWith('__region:')) inRegion(id.slice(9)).forEach((mid) => ins.push({ email, market_id: mid, role: 'edit' }));
+      else if (id) ins.push({ email, market_id: id, role: 'edit' });
       run([() => T().insert(ins)], `Added ${email}`);
     });
   }

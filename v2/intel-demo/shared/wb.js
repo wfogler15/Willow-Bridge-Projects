@@ -52,7 +52,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202611231149');
+    add(ROOT + 'shared/wb-chrome.css?v=202611231323');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
@@ -98,7 +98,6 @@
       <nav>${PAGES.map((p) => `<a href="${ROOT}${p.href}" class="${p.id === active ? 'on' : ''}">${p.label}</a>`).join('')}</nav>
       <div class="right">
 
-        ${`<button type="button" class="ctl strip-btn" aria-pressed="false" title="Show the market snapshot">${ICON.strip}<span>Market snapshot</span></button>`}
         <div class="me"><button type="button" aria-haspopup="true" title="${esc(user.email)}">${esc(initials)}</button>
           <div class="menu"><div class="who">Signed in as<br>${esc(user.email)}</div><button type="button" data-signout>Sign out</button></div></div>
       </div>`;
@@ -120,7 +119,7 @@
       btn.onclick = (e) => { e.stopPropagation(); const open = !strip.classList.contains('open'); strip.classList.toggle('open', open); btn.setAttribute('aria-pressed', open); };
       document.addEventListener('click', (e) => { if (!strip.contains(e.target)) { strip.classList.remove('open'); btn.setAttribute('aria-pressed', 'false'); } });
     }
-    loadStrip();
+    // (the Market snapshot button and its strip were removed from the demo)
     // dense tools (Market intel) give the app bar's space back once you scroll; it returns at the top of the page or when the pointer touches the top edge
     if (opts.navAutoHide) {
       nav.classList.add('autohide');

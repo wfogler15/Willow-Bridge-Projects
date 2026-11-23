@@ -5,42 +5,57 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231149">
+<link rel="stylesheet" href="shared/wb.css?v=202611231323">
 <style>
   .page{max-width:1240px}
-  /* ---------- region switch ---------- */
-  .rg-bar{display:flex;align-items:center;gap:4px;margin:4px 0 14px;overflow-x:auto;scrollbar-width:none}
+  /* ---------- top row: regions + settings ---------- */
+  .hm-top{display:flex;align-items:center;gap:12px;margin:4px 0 14px}
+  .rg-bar{display:flex;align-items:center;gap:4px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
   .rg-bar::-webkit-scrollbar{display:none}
   .rg-bar button{all:unset;cursor:pointer;white-space:nowrap;font:500 14px/1 var(--font-display);color:var(--muted);padding:9px 14px;border-radius:999px;transition:background .15s,color .15s}
   .rg-bar button:hover{color:var(--ink);background:#F3F2F8}
   .rg-bar button.on{background:#1D1247;color:#fff}
   .rg-bar button .n{font-size:12px;opacity:.6;margin-left:6px}
+  .hm-gear{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:8px;font:500 14px/1 var(--font-display);color:var(--ink-2);padding:9px 14px;border:1px solid #E6E4EC;border-radius:999px;background:#fff;flex-shrink:0;margin-left:auto;transition:border-color .15s,color .15s}
+  .hm-gear:hover{border-color:#C9BFF0;color:#432890}
+  .hm-gear svg{width:15px;height:15px}
   /* ---------- hero ---------- */
-  .hm-hero{background:#1D1247;color:#fff;border-radius:16px;padding:34px 36px 30px;position:relative;overflow:hidden;margin-bottom:34px}
-  .hm-hero::after{content:"";position:absolute;right:-80px;top:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(129,104,214,.42),rgba(29,18,71,0) 70%);pointer-events:none}
+  .hm-hero{background:#1D1247;color:#fff;border-radius:16px;padding:32px 36px;position:relative;overflow:hidden;margin-bottom:30px}
+  .hm-hero::after{content:"";position:absolute;right:-80px;top:-140px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(129,104,214,.42),rgba(29,18,71,0) 70%);pointer-events:none}
   .hm-eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#C9BFF0}
   .hm-hero h1{font:600 34px/1.1 var(--font-display);margin:10px 0 8px;color:#fff;letter-spacing:-.01em}
-  .hm-hero .lead{font-size:15px;color:#DCD6F3;margin:0;max-width:760px}
-  .hm-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0 28px;margin-top:30px;position:relative;z-index:1}
-  .hm-kpi .k{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:#B9AEE6}
-  .hm-kpi .v{font:600 30px/1.15 var(--font-display);color:#fff;font-variant-numeric:tabular-nums;margin-top:8px;white-space:nowrap}
-  .hm-kpi .v i{font-style:normal;font-size:15px;font-weight:500;color:#C9BFF0;margin-left:3px}
-  .hm-kpi .s{font-size:13px;color:#B9AEE6;margin-top:4px;white-space:nowrap}
+  .hm-hero .lead{font-size:15px;color:#DCD6F3;margin:0;max-width:820px;line-height:1.5}
+  .hc{position:relative;z-index:1;margin-top:26px}
+  .hc-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+  .hc-t{font:600 15px/1.3 var(--font-display);color:#fff}
+  .hc-t small{display:block;font:400 12.5px/1.4 var(--font-display);color:#B9AEE6;margin-top:2px}
+  .hc-tg{display:flex;gap:2px;background:rgba(255,255,255,.08);border-radius:999px;padding:3px}
+  .hc-tg button{all:unset;cursor:pointer;font:500 13px/1 var(--font-display);color:#C9BFF0;padding:7px 12px;border-radius:999px}
+  .hc-tg button.on{background:#fff;color:#1D1247}
+  .hc-svg{width:100%;height:230px;display:block;overflow:visible}
+  .hc-leg{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px}
+  .hc-leg span{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#E7E2F8}
+  .hc-leg i{width:14px;height:3px;border-radius:2px;display:inline-block}
+  .hc-tip{position:absolute;pointer-events:none;background:#fff;color:#1D1247;border-radius:10px;padding:10px 12px;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);min-width:170px;opacity:0;transition:opacity .12s;z-index:3}
+  .hc-tip b{display:block;font:600 13px var(--font-display);margin-bottom:6px}
+  .hc-tip div{display:flex;justify-content:space-between;gap:14px;line-height:1.7;font-variant-numeric:tabular-nums}
+  .hc-tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
   /* ---------- markets list ---------- */
   .ml-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:8px;padding:0 18px}
   .ml-head h2{font:600 20px/1.2 var(--font-display);color:var(--ink);margin:0}
   .ml-head h2 span{font-weight:500;color:var(--faint);margin-left:8px;font-size:16px}
   .ml-find{font:14px var(--font-display);border:1px solid #E6E4EC;border-radius:999px;padding:8px 14px 8px 34px;width:220px;color:var(--ink);outline:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239C97AE' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.5 10.5 14 14'/%3E%3C/svg%3E") no-repeat 12px center/15px}
   .ml-find:focus{border-color:#C9BFF0;box-shadow:0 0 0 3px rgba(67,40,144,.08)}
-  .ml{--cols:minmax(200px,1.7fr) minmax(104px,.9fr) minmax(92px,.75fr) minmax(82px,.7fr) minmax(116px,.9fr) minmax(190px,1.35fr) minmax(64px,.45fr) 18px}
+  .ml{--cols:minmax(180px,1.5fr) minmax(100px,.85fr) minmax(92px,.75fr) minmax(104px,.75fr) minmax(112px,.85fr) minmax(170px,1.15fr) minmax(190px,1.25fr) 18px}
   .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 20px;align-items:center;padding:0 18px}
   .ml-cols{padding-top:10px;padding-bottom:10px}
-  .ml-cols button{all:unset;cursor:pointer;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
-  .ml-cols button:hover,.ml-cols button.on{color:var(--ink-2)}
+  .ml-cols{border-bottom:1px solid #E6E4EC}
+  .ml-cols button{all:unset;cursor:pointer;font:600 11.5px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
+  .ml-cols button:hover,.ml-cols button.on{color:#432890}
   .ml-cols button.on::after{content:" ↓";letter-spacing:0}
   .ml-cols button.on.asc::after{content:" ↑"}
   .ml-cols .r,.ml-row .r{text-align:right;justify-self:end}
-  .ml-row{min-height:78px;border-top:1px solid #EFEEF3;text-decoration:none;color:var(--ink);border-radius:12px;transition:background .15s}
+  .ml-row{min-height:80px;border-top:1px solid #EFEEF3;text-decoration:none;color:var(--ink);border-radius:12px;transition:background .15s}
   a.ml-row:hover{background:#F7F6FB;border-top-color:transparent}
   a.ml-row:hover+.ml-row{border-top-color:transparent}
   .ml-nm{font:600 17px/1.25 var(--font-display);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -50,169 +65,288 @@
   .ml-v i{font-style:normal;font-weight:500;font-size:12.5px;color:var(--muted);margin-left:2px}
   .ml-s{font-size:12.5px;color:var(--muted);margin-top:3px;white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
   .ml-uc{display:flex;align-items:center;gap:12px}
-  .ml-uc .bar{flex:1;height:6px;border-radius:999px;background:#EFEEF3;overflow:hidden;min-width:48px}
+  .ml-uc .bar{flex:1;height:6px;border-radius:999px;background:#EFEEF3;overflow:hidden;min-width:40px;max-width:110px}
   .ml-uc .bar b{display:block;height:100%;border-radius:999px;background:#8168D6;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
-  .ml-uc .pct{font:600 17px/1 var(--font-display);font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
+  .ml-uc .pct{font:600 17px/1.2 var(--font-display);font-variant-numeric:tabular-nums;min-width:48px}
+  .rp{display:flex;align-items:center;gap:12px}
+  .rp .ml-v{min-width:66px}
+  .rp svg{display:block;flex:none}
+  .up{color:#2F7A4F}.dn{color:#B42318}
   .ml-go{color:#C9C5D6;font-size:20px;line-height:1;transition:transform .15s,color .15s;justify-self:end}
   a.ml-row:hover .ml-go{color:#432890;transform:translateX(3px)}
   .ml-row.off .ml-nm{color:var(--muted)}
   .ml-row.off .ml-wait{grid-column:2 / -1;font-size:13.5px;color:var(--faint)}
-  /* region groups (All regions view) */
-  .rg-h{display:flex;align-items:baseline;gap:14px;margin:34px 0 4px;padding:0 18px}
-  .rg-h.first{margin-top:6px}
+  .rg-h{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;margin:30px 0 2px;padding:10px 18px;border-radius:10px;transition:background .15s}
+  .rg-h.first{margin-top:4px}
+  .rg-h:hover{background:#F7F6FB}
   .rg-h h3{font:600 13px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);margin:0}
-  .rg-h span{font-size:13px;color:var(--muted)}
-  .rg-h button{all:unset;cursor:pointer;margin-left:auto;font-size:13px;font-weight:600;color:#432890}
-  .rg-h button:hover{text-decoration:underline}
+  .rg-h .go{color:#C9C5D6;font-size:18px;line-height:1;transition:transform .15s,color .15s}
+  .rg-h:hover .go{color:#432890;transform:translateX(3px)}
   .ml-none{padding:40px 18px;color:var(--muted);font-size:14px;border-top:1px solid #EFEEF3}
   .hm-foot{margin:28px 0 50px;padding:0 18px;font-size:12.5px;color:var(--faint);line-height:1.6;max-width:820px}
   .hm-wait{color:var(--muted);font-size:14px;padding:40px 18px}
+  .sk{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,#F1F0F4,#F8F7FA,#F1F0F4);background-size:200% 100%;animation:sk 1.2s linear infinite}
+  @keyframes sk{to{background-position:-200% 0}}
   @keyframes grow{from{transform:scaleX(0)}}
   @keyframes rise{from{opacity:0;transform:translateY(6px)}}
   .ml-row{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
-  @media (prefers-reduced-motion:reduce){.ml-row,.ml-uc .bar b{animation:none}}
+  @media (prefers-reduced-motion:reduce){.ml-row,.ml-uc .bar b,.sk{animation:none}}
+  /* ---------- settings panel ---------- */
+  .hset [hidden],.hset[hidden],.hset-scrim[hidden]{display:none!important}
+  .hset-scrim{position:fixed;inset:0;background:rgba(20,12,51,.28);opacity:0;transition:opacity .2s;z-index:5500}
+  .hset-scrim.on{opacity:1}
+  .hset{position:fixed;top:0;right:0;bottom:0;width:min(860px,100vw);background:#fff;z-index:81;box-shadow:-12px 0 40px rgba(29,18,71,.14);z-index:5501 !important;transform:translateX(102%);transition:transform .28s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;
+      --ink-1:#1D1247;--ink-3:#6E6886;--line:#E6E4EC;--bg-2:#fff;--accent-text:#432890;--negative:#B42318}
+  .hset.on{transform:none}
+  .hset-hd{display:flex;align-items:flex-start;justify-content:space-between;padding:26px 32px 18px;border-bottom:1px solid #EFEEF3}
+  .hset-hd .e{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .hset-hd h2{font:600 24px/1.2 var(--font-display);color:var(--ink);margin:6px 0 0}
+  .hset-x{all:unset;cursor:pointer;font:500 14px var(--font-display);color:var(--muted);padding:6px 10px;border-radius:8px}
+  .hset-x:hover{background:#F3F2F8;color:var(--ink)}
+  .hset-nav{display:flex;gap:4px;padding:12px 28px 0}
+  .hset-nav button{all:unset;cursor:pointer;font:500 14px/1 var(--font-display);color:var(--muted);padding:10px 4px 12px;margin-right:18px;border-bottom:2px solid transparent}
+  .hset-nav button.on{color:var(--ink);border-bottom-color:#432890}
+  .hset-bd{flex:1;overflow:auto;padding:24px 32px 40px}
+  .hset-sec h3{font:600 17px/1.3 var(--font-display);color:var(--ink);margin:0 0 6px}
+  .hset-sec p.l{font-size:13.5px;color:var(--muted);line-height:1.55;margin:0 0 18px;max-width:640px}
+  .rgx{display:grid;grid-template-columns:minmax(0,1fr) 240px;column-gap:16px;align-items:center}
+  .rgx>div{padding:11px 0;border-bottom:1px solid #EFEEF3}
+  .rgx .h{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding-top:0}
+  .rgx .nm{font:600 15px/1.3 var(--font-display);color:var(--ink)}
+  .rgx .sb{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .rgx select,.rgx input,.hset-acct button{box-sizing:border-box;height:34px;font:14px var(--font-display);padding:0 10px;border:1px solid #E6E4EC;border-radius:8px;background:#fff;color:var(--ink);width:100%}
+  .rgx select:focus,.rgx input:focus{outline:2px solid #432890;outline-offset:-1px}
+  .rgx .nw{display:flex;gap:6px;margin-top:6px}
+  .rgx .nw button{all:unset;cursor:pointer;height:34px;padding:0 14px;border-radius:8px;background:#1D1247;color:#fff;font:600 13px var(--font-display)}
+  .rgx .ok{font-size:12px;color:#2F7A4F;margin-top:4px;min-height:0}
+  .rgx .bad{color:#B42318}
+  .rg-sum{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+  .rg-sum span{font-size:13px;padding:6px 12px;border-radius:999px;background:#F3F2F8;color:#432890}
+  .rg-sum span b{font-weight:600}
+  .hset-acct{display:flex;align-items:center;gap:16px}
+  .hset-acct .who{font:600 15px var(--font-display);color:var(--ink)}
+  .hset-acct button{width:auto;cursor:pointer;padding:0 14px;color:#432890;font-weight:600}
+  .hset-acct button:hover{border-color:#C9BFF0}
   @media (max-width:1100px){
-    .hm-kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 24px}
-    .ml{--cols:minmax(170px,1.6fr) minmax(96px,.9fr) minmax(84px,.75fr) minmax(104px,.9fr) minmax(150px,1.2fr) 18px}
-    .ml .c-conc,.ml .c-sets{display:none}
+    .ml{--cols:minmax(160px,1.5fr) minmax(96px,.9fr) minmax(84px,.75fr) minmax(150px,1.1fr) minmax(170px,1.2fr) 18px}
+    .ml .c-conc,.ml .c-ex{display:none}
   }
   @media (max-width:720px){
     .hm-hero{padding:26px 22px}
     .hm-hero h1{font-size:28px}
-    .hm-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
     .ml-cols{display:none}
     .ml{--cols:1fr 1fr 18px}
     .ml-row{padding:14px 14px;row-gap:10px}
     .ml-row>.c-nm{grid-column:1 / 3}
     .ml-row>.ml-go{grid-column:3;grid-row:1}
-    .ml-row>.c-ex,.ml-row>.c-uc{display:none}
+    .ml-row>.c-ex,.ml-row>.c-uc,.ml-row>.c-rp{display:none}
+    .hc-svg{height:180px}
     .ml-find{width:150px}
+    .hm-gear span{display:none}
+    .hset-hd,.hset-bd{padding-left:20px;padding-right:20px}
+    .rgx{grid-template-columns:1fr 150px}
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231149"></script>
+<script src="shared/wb.js?v=202611231323"></script>
+<script src="access.js?v=202611231323"></script>
 </head>
 <body>
 <main class="page">
-  <nav class="rg-bar" id="rg-bar" hidden></nav>
+  <div class="hm-top">
+    <nav class="rg-bar" id="rg-bar"></nav>
+    <button class="hm-gear" id="hm-gear" type="button" aria-haspopup="dialog"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="10" cy="10" r="2.6"/><path d="M10 1.8v2.3M10 15.9v2.3M1.8 10h2.3M15.9 10h2.3M4.2 4.2l1.6 1.6M14.2 14.2l1.6 1.6M4.2 15.8l1.6-1.6M14.2 5.8l1.6-1.6"/></svg><span>Settings</span></button>
+  </div>
   <section class="hm-hero" id="hm-hero">
     <div class="hm-eyebrow">Willow Bridge Market Intel</div>
     <h1>Markets</h1>
-    <p class="lead">Loading…</p>
+    <p class="lead">&nbsp;</p>
   </section>
-  <section class="ml" id="ml"><div class="hm-wait">Loading your markets…</div></section>
-  <p class="hm-foot">Same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Concessions are weeks free on a 12-month lease. Under construction counts active construction only (proposed projects are left out) and is shown as a share of existing units.</p>
+  <section class="ml" id="ml">
+    <div class="ml-head"><h2>Markets</h2></div>
+    <div style="padding:10px 18px"><span class="sk" style="width:60%;margin:22px 0"></span><span class="sk" style="width:80%;margin:22px 0"></span><span class="sk" style="width:70%;margin:22px 0"></span></div>
+  </section>
+  <p class="hm-foot">Asking, occupancy, concessions, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Concessions are weeks free on a 12-month lease. Under construction counts active construction only and is shown as a share of existing units. RealPage rent growth is the metro’s effective rent, forecast per year from this year to the end of RealPage’s forecast; the bars show each year’s change, faded where forecast.</p>
 </main>
+<div class="hset-scrim" id="st-scrim" hidden></div>
+<div class="hset" id="st" role="dialog" aria-modal="true" aria-labelledby="st-title" hidden>
+  <div class="hset-hd"><div><div class="e">Market Intel</div><h2 id="st-title">Settings</h2></div><button class="hset-x" type="button" id="st-x">Close ×</button></div>
+  <div class="hset-nav" id="st-nav"></div>
+  <div class="hset-bd" id="st-bd"></div>
+</div>
 <script>
 (async function () {
   const { sb, user } = await WB.ready('intel', { marketMode: 'single', present: true, brand: 'Willow Bridge Market Intel · Demo' });
+  window.__WBD = window.__WBD || {}; window.__WBD.user = user;   // access.js reads the signed-in person from here
   const S = (s) => sb.schema(s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-  const pl = (n, w) => int(n) + ' ' + w + (Math.round(n) === 1 ? '' : 's');
   const int = (n) => n == null ? '—' : Math.round(n).toLocaleString();
+  const pl = (n, w) => int(n) + ' ' + w + (Math.round(n) === 1 ? '' : 's');
   const num = (v) => { const n = typeof v === 'string' ? parseFloat(v) : v; return n == null || n === '' || isNaN(n) ? null : n; };
   const slug = (r) => String(r).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const store = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
   const rows = (p) => Promise.resolve(p).then((r) => (r && r.data) || [], () => []);
+  const OTHER = 'Other markets';
+  const STATES = { AZ: 'Arizona', CO: 'Colorado', UT: 'Utah', TX: 'Texas', FL: 'Florida', GA: 'Georgia', NC: 'North Carolina', SC: 'South Carolina', TN: 'Tennessee', VA: 'Virginia', MD: 'Maryland', DC: 'District of Columbia', NV: 'Nevada', OR: 'Oregon', WA: 'Washington', CA: 'California', ID: 'Idaho', NM: 'New Mexico', AL: 'Alabama' };
 
-  // ---------- who can see what ----------
   const me = String((user && user.email) || '').toLowerCase();
   const acc = (WB.access || []).filter((a) => !a.email || String(a.email).toLowerCase() === me);
   const seesAll = acc.some((a) => a.market_id === '*');
+  const isAdmin = acc.some((a) => a.market_id === '*' && a.role === 'admin');
   const canEdit = (id) => acc.some((a) => a.role !== 'view' && (a.market_id === id || (a.market_id === '*' && a.role === 'admin')));
-
-  const mk = await rows(S('core').from('markets').select('id,label,config').order('id'));
-  // live markets, plus any set up with a region that aren't live yet (shown as "not live yet", so the rollout is visible)
-  const markets = mk.filter((m) => m.config && (m.config.active === true || m.config.region) && (seesAll || acc.some((a) => a.market_id === m.id)));
-  const live = markets.filter((m) => m.config.active === true);
-  if (live.length === 1 && markets.length === 1) { location.replace('./?market=' + encodeURIComponent(live[0].id)); return; }
-  const OTHER = 'Other markets';
   const regionOf = (m) => (m.config && m.config.region) || OTHER;
   const name = (m) => (m.label || m.id).split(',')[0];
-  const STATES = { AZ: 'Arizona', CO: 'Colorado', UT: 'Utah', TX: 'Texas', FL: 'Florida', GA: 'Georgia', NC: 'North Carolina', SC: 'South Carolina', TN: 'Tennessee', VA: 'Virginia', MD: 'Maryland', DC: 'District of Columbia', NV: 'Nevada', OR: 'Oregon', WA: 'Washington', CA: 'California', ID: 'Idaho', NM: 'New Mexico', AL: 'Alabama' };
   const stateOf = (m) => { const s = (m.config && m.config.state) || ((m.label || '').split(',')[1] || '').trim(); return STATES[String(s).toUpperCase()] || s; };
 
-  // ---------- figures: the same records and rules the dashboard uses ----------
-  const ids = live.map((m) => m.id);
-  const [props, edits, logs, sets] = await Promise.all([
-    ids.length ? WB.fetchAll('core', 'properties', 'id,market_id,status,units,stage:attrs->>pipelineStage,avgAskingSF:attrs->avgAskingSF,avgAskingUnit:attrs->avgAskingUnit,vacancy:attrs->vacancy,concessions:attrs->concessions',
-      (q) => q.in('market_id', ids).neq('kind', 'land').order('id')).catch(() => []) : [],
-    WB.fetchAll('market', 'property_overrides', 'property_id,edits', (q) => q.order('property_id')).catch(() => []),
-    rows(S('public').from('refresh_log').select('market,period,period_sort').order('period_sort', { ascending: false })),
-    ids.length ? rows(S('market').from('comp_sets').select('id,market_id').in('market_id', ids)) : [],
-  ]);
-  const ED = {}; edits.forEach((o) => { if (o && o.edits) ED[o.property_id] = o.edits; });
-  // a team edit wins over the CoStar value (status, units, pipeline stage, rents, vacancy, concessions)
-  const P = props.map((p) => {
-    const e = ED[p.id] || {}, pick = (k, v) => (k in e && e[k] !== '' && e[k] != null) ? e[k] : v;
-    return { market_id: p.market_id, status: pick('status', p.status), units: num(pick('units', p.units)), stage: pick('pipelineStage', p.stage),
-      ask: num(pick('avgAskingSF', p.avgAskingSF)), askU: num(pick('avgAskingUnit', p.avgAskingUnit)), vac: num(pick('vacancy', p.vacancy)), conc: num(pick('concessions', p.concessions)) };
-  }).filter((p) => !(p.stage && p.stage !== 'UC'));   // a project marked Proposed/Stalled lives only in Pipeline, even if CoStar calls it under construction
-  function figures(rs) {
-    const ex = rs.filter((p) => p.status === 'Existing'), uc = rs.filter((p) => p.status === 'Under Construction');
-    const w = (k) => { let v = 0, t = 0; ex.forEach((r) => { const x = r[k]; if (x != null && r.units) { v += x * r.units; t += r.units; } }); return t ? v / t : null; };
-    const exU = ex.reduce((s, p) => s + (p.units || 0), 0), ucU = uc.reduce((s, p) => s + (p.units || 0), 0), vac = w('vac'), conc = w('conc');
-    return { exN: ex.length, exU, ucN: uc.length, ucU, ucPct: exU ? ucU / exU * 100 : null, psf: w('ask'), mo: w('askU'), occ: vac == null ? null : 100 - vac, vac, wks: conc == null ? null : conc / 100 * 52 };
+  let RP = {}, metric = 'yR';
+  let markets = [], live = [], regions = [], F = {}, region = null, sort = { key: 'name', asc: true }, find = '', maxUc = 1;
+
+  // ---------- figures: one row per market from the database (core.market_summary) ----------
+  const share = (x, w) => (x == null || !num(w)) ? null : num(x) / num(w);
+  function fromSummary(r) {
+    const exU = num(r.ex_units) || 0, ucU = num(r.uc_units) || 0, vac = share(r.vac_x, r.vac_w), conc = share(r.conc_x, r.conc_w);
+    return { exN: r.ex_n || 0, exU, ucN: r.uc_n || 0, ucU, ucPct: exU ? ucU / exU * 100 : null, psf: share(r.ask_x, r.ask_w), mo: share(r.mo_x, r.mo_w), vac, occ: vac == null ? null : 100 - vac, wks: conc == null ? null : conc / 100 * 52, sets: r.comp_sets || 0 };
   }
-  const byMarket = {}; P.forEach((p) => { (byMarket[p.market_id] = byMarket[p.market_id] || []).push(p); });
-  const F = {};
-  markets.forEach((m) => {
-    const cfg = m.config || {}, log = logs.find((l) => l.market === m.id);
-    F[m.id] = Object.assign(figures(byMarket[m.id] || []), {
-      live: cfg.active === true, sets: sets.filter((s) => s.market_id === m.id).length,
-      period: (log && log.period) || (cfg.dashboard && cfg.dashboard.livePeriodLabel) || (cfg.as_of ? new Date(cfg.as_of + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''),
+  // fallback if the summary function isn't there: the same rules, worked out in the browser (slower)
+  async function summaryInBrowser(ids) {
+    const [props, edits, sets] = await Promise.all([
+      WB.fetchAll('core', 'properties', 'id,market_id,status,units,stage:attrs->>pipelineStage,avgAskingSF:attrs->avgAskingSF,avgAskingUnit:attrs->avgAskingUnit,vacancy:attrs->vacancy,concessions:attrs->concessions', (q) => q.in('market_id', ids).neq('kind', 'land').order('id')).catch(() => []),
+      WB.fetchAll('market', 'property_overrides', 'property_id,edits', (q) => q.order('property_id')).catch(() => []),
+      rows(S('market').from('comp_sets').select('id,market_id').in('market_id', ids)),
+    ]);
+    const ED = {}; edits.forEach((o) => { if (o && o.edits) ED[o.property_id] = o.edits; });
+    const out = {};
+    props.forEach((p) => {
+      const e = ED[p.id] || {}, pick = (k, v) => (k in e && e[k] !== '' && e[k] != null) ? e[k] : v;
+      const stg = pick('pipelineStage', p.stage); if (stg && stg !== 'UC') return;
+      const st = pick('status', p.status), u = num(pick('units', p.units)) || 0;
+      const o = out[p.market_id] = out[p.market_id] || { market_id: p.market_id, ex_n: 0, ex_units: 0, uc_n: 0, uc_units: 0, ask_x: 0, ask_w: 0, mo_x: 0, mo_w: 0, vac_x: 0, vac_w: 0, conc_x: 0, conc_w: 0, comp_sets: 0 };
+      if (st === 'Under Construction') { o.uc_n++; o.uc_units += u; }
+      if (st !== 'Existing') return;
+      o.ex_n++; o.ex_units += u; if (!(u > 0)) return;
+      [['avgAskingSF', 'ask'], ['avgAskingUnit', 'mo'], ['vacancy', 'vac'], ['concessions', 'conc']].forEach(([k, s]) => { const v = num(pick(k, p[k])); if (v != null) { o[s + '_x'] += v * u; o[s + '_w'] += u; } });
     });
-  });
-  window.__WB_HOME = F;   // for checking the figures against each market's Overview
+    sets.forEach((s) => { if (out[s.market_id]) out[s.market_id].comp_sets++; });
+    return Object.values(out);
+  }
 
-  // ---------- regions ----------
-  const regions = [...new Set(markets.map(regionOf))].sort((a, b) => (a === OTHER) - (b === OTHER) || a.localeCompare(b));
-  // a person's home region: where the markets they edit sit (Jim edits Denver and Phoenix → West)
-  const homeRegions = [...new Set(live.filter((m) => acc.some((a) => a.market_id === m.id && a.role !== 'view')).map(regionOf))];
-  const q = new URLSearchParams(location.search);
-  let region = (q.get('region') && regions.find((r) => slug(r) === q.get('region'))) || regions.find((r) => r === store.get('wb_home_region')) || (homeRegions.length === 1 ? homeRegions[0] : null) || (regions.length === 1 ? regions[0] : 'all');
-  if (region !== 'all' && !regions.includes(region)) region = 'all';
-  let sort = { key: 'name', asc: true }, find = '';
+  // RealPage, MSA level ("Market" geography): actuals before this year, this year as the anchor, forecast after
+  const NOW_Y = new Date().getFullYear();
+  function rpFigures(d) {
+    if (!d) return { rpFc: null, rpNow: null, rpBars: null };
+    const g = (y, k) => d[y] && d[y][k] != null ? +d[y][k] : null;
+    const last = Math.max(...Object.keys(d).map(Number).filter((y) => g(y, 'eR') != null));
+    const a = g(NOW_Y, 'eR'), b = g(last, 'eR');
+    const rpFc = a && b && last > NOW_Y ? Math.pow(b / a, 1 / (last - NOW_Y)) - 1 : null;   // forecast rent growth per year, this year → last forecast year
+    const bars = []; for (let y = NOW_Y - 7; y <= last; y++) bars.push({ y, v: g(y, 'yR') });
+    return { rpFc, rpNow: g(NOW_Y, 'yR'), rpLast: last, rpBars: bars };
+  }
+  async function load() {
+    const mk = await rows(S('core').from('markets').select('id,label,config').order('id'));
+    markets = mk.filter((m) => m.config && (m.config.active === true || m.config.region) && (seesAll || acc.some((a) => a.market_id === m.id)));
+    live = markets.filter((m) => m.config.active === true);
+    const ids = live.map((m) => m.id);
+    const [sumRes, logs] = await Promise.all([
+      (() => { try { return Promise.resolve(S('core').rpc('market_summary')); } catch (e) { return Promise.reject(e); } })().then((r) => (r && !r.error && Array.isArray(r.data)) ? r.data : null, () => null),
+      rows(S('public').from('refresh_log').select('market,period,period_sort').order('period_sort', { ascending: false })),
+      ids.length ? rows(S('market').from('rp_trends').select('market_id,data').eq('geography', 'Market').in('market_id', ids)) : [],
+    ]).then((r) => { RP = {}; (r[2] || []).forEach((x) => { RP[x.market_id] = x.data || {}; }); return r; });
+    const sum = sumRes || (ids.length ? await summaryInBrowser(ids) : []);
+    F = {};
+    markets.forEach((m) => {
+      const cfg = m.config || {}, log = logs.find((l) => l.market === m.id), r = sum.find((x) => x.market_id === m.id);
+      F[m.id] = Object.assign(r ? fromSummary(r) : fromSummary({}), rpFigures(RP[m.id]), {
+        live: cfg.active === true,
+        period: (log && log.period) || (cfg.dashboard && cfg.dashboard.livePeriodLabel) || (cfg.as_of ? new Date(cfg.as_of + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''),
+      });
+    });
+    window.__WB_HOME = F;
+    regions = [...new Set(markets.map(regionOf))].sort((a, b) => (a === OTHER) - (b === OTHER) || a.localeCompare(b));
+    if (region == null) {
+      // a person's home region: where the markets they edit sit (Jim edits Denver and Phoenix → West)
+      const home = [...new Set(live.filter((m) => acc.some((a) => a.market_id === m.id && a.role !== 'view')).map(regionOf))];
+      const q = new URLSearchParams(location.search);
+      region = (q.get('region') && regions.find((r) => slug(r) === q.get('region'))) || regions.find((r) => r === store.get('wb_home_region')) || (home.length === 1 ? home[0] : null) || (regions.length === 1 ? regions[0] : 'all');
+    }
+    if (region !== 'all' && !regions.includes(region)) region = 'all';
+  }
+
   const regionTitle = (r) => r === 'all' ? (regions.length > 1 ? 'All regions' : 'Your markets') : (/region$/i.test(r) || r === OTHER ? r : r + ' Region');
-
   function paintBar() {
     const bar = document.getElementById('rg-bar');
-    if (regions.length < 2) { bar.hidden = true; return; }
-    bar.hidden = false;
-    bar.innerHTML = [['all', 'All regions', markets.length]].concat(regions.map((r) => [r, r, markets.filter((m) => regionOf(m) === r).length]))
+    bar.innerHTML = regions.length < 2 ? '' : [['all', 'All regions', markets.length]].concat(regions.map((r) => [r, r, markets.filter((m) => regionOf(m) === r).length]))
       .map(([k, l, n]) => `<button type="button" data-r="${esc(k)}" class="${k === region ? 'on' : ''}">${esc(l)}<span class="n">${n}</span></button>`).join('');
     bar.querySelectorAll('button').forEach((b) => b.onclick = () => setRegion(b.dataset.r));
   }
   function setRegion(r) {
     region = r; store.set('wb_home_region', r);
     const u = new URL(location.href); if (r === 'all') u.searchParams.delete('region'); else u.searchParams.set('region', slug(r)); history.replaceState(null, '', u);
-    paintBar(); paintHero(); paintList();
+    paintAll();
   }
-
   const inView = () => markets.filter((m) => region === 'all' || regionOf(m) === region);
-  const kpi = (k, v, unit, s) => `<div class="hm-kpi"><div class="k">${k}</div><div class="v">${v}${unit ? `<i>${unit}</i>` : ''}</div><div class="s">${s || '&nbsp;'}</div></div>`;
   function paintHero() {
-    const ms = inView(), lv = ms.filter((m) => F[m.id].live);
-    const T = figures(lv.flatMap((m) => byMarket[m.id] || []));
-    const names = lv.map(name), soon = ms.length - lv.length;
-    const lead = region === 'all' && regions.length > 1
-      ? `${lv.length} live market${lv.length === 1 ? '' : 's'} across ${regions.length} regions${soon ? ` · ${soon} on the way` : ''}`
-      : (names.length <= 6 ? names.join(' · ') : `${names.length} live markets`) + (soon ? ` · ${soon} on the way` : '');
+    const ms = inView(), lv = ms.filter((m) => F[m.id].live), soon = ms.length - lv.length;
+    let lead;
+    if (region === 'all' && regions.length > 1) lead = regions.map((r) => `${r === OTHER ? 'Other' : r} (${markets.filter((m) => regionOf(m) === r).length})`).join(' · ');
+    else lead = (lv.length <= 8 ? lv.map(name).join(' · ') : `${lv.length} live markets`) + (soon ? ` · ${soon} on the way` : '');
     document.title = regionTitle(region) + ' · Market Intel Demo · Willow Bridge';
-    document.getElementById('hm-hero').innerHTML = `
-      <div class="hm-eyebrow">Willow Bridge Market Intel</div>
-      <h1>${esc(regionTitle(region))}</h1>
-      <p class="lead">${esc(lead)}</p>
-      <div class="hm-kpis">
-        ${kpi('Asking rent', T.psf != null ? '$' + T.psf.toFixed(2) : '—', T.psf != null ? '/SF' : '', T.mo != null ? '$' + int(T.mo) + ' per month' : '')}
-        ${kpi('Occupancy', T.occ != null ? T.occ.toFixed(1) + '%' : '—', '', T.vac != null ? T.vac.toFixed(1) + '% vacant' : '')}
-        ${kpi('Concessions', T.wks != null ? T.wks.toFixed(1) : '—', T.wks != null ? 'wks free' : '', 'on a 12-month lease')}
-        ${kpi('Existing units', int(T.exU), '', int(T.exN) + ' properties')}
-        ${kpi('Under construction', int(T.ucU), 'units', T.ucPct != null ? T.ucPct.toFixed(1) + '% of existing · ' + pl(T.ucN, 'project') : '')}
-      </div>`;
+    const withRp = lv.filter((m) => RP[m.id]);
+    const chart = withRp.length && withRp.length <= 8;
+    document.getElementById('hm-hero').innerHTML = `<div class="hm-eyebrow">Willow Bridge Market Intel</div><h1>${esc(regionTitle(region))}</h1><p class="lead">${esc(lead || 'No markets yet')}</p>
+      ${chart ? `<div class="hc"><div class="hc-top"><div class="hc-t">RealPage · ${metric === 'yR' ? 'Effective rent growth' : 'Occupancy'}<small>Each market’s metro, by year. Solid is actual, dashed is RealPage’s forecast.</small></div>
+        <div class="hc-tg"><button type="button" data-k="yR" class="${metric === 'yR' ? 'on' : ''}">Rent growth</button><button type="button" data-k="oc" class="${metric === 'oc' ? 'on' : ''}">Occupancy</button></div></div>
+        <svg class="hc-svg" id="hc-svg"></svg><div class="hc-tip" id="hc-tip"></div><div class="hc-leg" id="hc-leg"></div></div>` : ''}`;
+    if (!chart) return;
+    document.querySelectorAll('.hc-tg button').forEach((b) => b.onclick = () => { metric = b.dataset.k; paintHero(); });
+    drawChart(withRp);
   }
-
-  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['wks', 'Concessions', 'c-conc'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['sets', 'Comp sets', 'c-sets r']];
+  const LINE = ['#C7C9FE', '#F2C66D', '#7FD6C2', '#F59AB5', '#9CC3FF', '#FFFFFF', '#E3A6FF', '#B8E07A'];
+  let chartMs = [];
+  function drawChart(ms) {
+    chartMs = ms;
+    const svg = document.getElementById('hc-svg'); if (!svg) return;
+    const W = svg.clientWidth || 900, H = svg.clientHeight || 230, L = 44, R = 12, T = 10, B = 26;
+    const y0 = NOW_Y - 9, y1 = Math.max(...ms.map((m) => F[m.id].rpLast || NOW_Y));
+    const val = (m, y) => { const d = RP[m.id][y]; return d && d[metric] != null ? +d[metric] : null; };
+    const all = []; ms.forEach((m) => { for (let y = y0; y <= y1; y++) { const v = val(m, y); if (v != null) all.push(v); } });
+    let lo = Math.min(...all), hi = Math.max(...all);
+    if (metric === 'yR') { lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+    const pad = (hi - lo) * .1 || .01; lo -= pad; hi += pad;
+    const X = (y) => L + (y - y0) / (y1 - y0) * (W - L - R), Y = (v) => T + (hi - v) / (hi - lo) * (H - T - B);
+    const step = metric === 'yR' ? (hi - lo > .2 ? .05 : .02) : (hi - lo > .06 ? .02 : .01);
+    let g = '';
+    g += `<rect x="${X(NOW_Y)}" y="${T}" width="${X(y1) - X(NOW_Y)}" height="${H - T - B}" fill="rgba(255,255,255,.05)" rx="6"/>`;
+    g += `<text x="${X(y1) - 4}" y="${T + 14}" text-anchor="end" fill="#B9AEE6" font-size="11" letter-spacing=".06em">FORECAST</text>`;
+    for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
+      const lab = metric === 'yR' ? (v > 0.0001 ? '+' : '') + (Math.abs(v) < 1e-9 ? '0' : (v * 100).toFixed(0)) + '%' : (v * 100).toFixed(0) + '%';
+      g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${metric === 'yR' && Math.abs(v) < 1e-9 ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.08)'}"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" fill="#B9AEE6" font-size="11">${lab}</text>`;
+    }
+    for (let y = y0; y <= y1; y++) if ((y - y0) % 2 === 0 || y === y1) g += `<text x="${X(y)}" y="${H - 6}" text-anchor="middle" fill="${y === NOW_Y ? '#fff' : '#B9AEE6'}" font-size="11" font-weight="${y === NOW_Y ? 600 : 400}">${y}</text>`;
+    ms.forEach((m, i) => {
+      const c = LINE[i % LINE.length], pts = []; for (let y = y0; y <= y1; y++) { const v = val(m, y); if (v != null) pts.push([y, v]); }
+      const path = (ps) => ps.map((p, j) => (j ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join(' ');
+      g += `<path d="${path(pts.filter((p) => p[0] <= NOW_Y))}" fill="none" stroke="${c}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+      g += `<path d="${path(pts.filter((p) => p[0] >= NOW_Y))}" fill="none" stroke="${c}" stroke-width="2.2" stroke-dasharray="5 5" stroke-linecap="round"/>`;
+      const now = pts.find((p) => p[0] === NOW_Y); if (now) g += `<circle cx="${X(now[0])}" cy="${Y(now[1])}" r="3.5" fill="${c}"/>`;
+    });
+    g += `<line id="hc-guide" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="rgba(255,255,255,.5)" stroke-dasharray="2 3" opacity="0"/><rect id="hc-hit" x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/>`;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = g;
+    document.getElementById('hc-leg').innerHTML = ms.map((m, i) => `<span><i style="background:${LINE[i % LINE.length]}"></i>${esc(name(m))}</span>`).join('');
+    const tip = document.getElementById('hc-tip'), guide = svg.querySelector('#hc-guide'), hit = svg.querySelector('#hc-hit');
+    const fmt = (v) => v == null ? '—' : metric === 'yR' ? pct(v) : (v * 100).toFixed(1) + '%';
+    hit.onmousemove = (e) => {
+      const r = svg.getBoundingClientRect(), x = (e.clientX - r.left) * (W / r.width);
+      const y = Math.max(y0, Math.min(y1, Math.round(y0 + (x - L) / (W - L - R) * (y1 - y0))));
+      guide.setAttribute('x1', X(y)); guide.setAttribute('x2', X(y)); guide.setAttribute('opacity', 1);
+      tip.innerHTML = `<b>${y}${y > NOW_Y ? ' · forecast' : y === NOW_Y ? ' · this year' : ''}</b>` + ms.map((m, i) => ({ m, i, v: val(m, y) })).sort((a, b) => (b.v ?? -9) - (a.v ?? -9))
+        .map(({ m, i, v }) => `<div><span><i style="background:${LINE[i % LINE.length]}"></i>${esc(name(m))}</span><span>${fmt(v)}</span></div>`).join('');
+      const px = X(y) / W * r.width, left = px > r.width - 200 ? px - 190 : px + 14;
+      tip.style.left = left + 'px'; tip.style.top = (svg.offsetTop + 6) + 'px'; tip.style.opacity = 1;
+    };
+    hit.onmouseleave = () => { tip.style.opacity = 0; guide.setAttribute('opacity', 0); };
+  }
+  let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (chartMs.length) drawChart(chartMs); }, 120); });
+  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['wks', 'Concessions', 'c-conc'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage rent growth', 'c-rp']];
   const val = (m, k) => k === 'name' ? name(m) : F[m.id][k];
   function ordered(ms) {
     return ms.slice().sort((a, b) => {
@@ -224,7 +358,20 @@
       return sort.asc ? c : -c;
     });
   }
-  let maxUc = 1;
+  const pct = (v, d = 1) => v == null ? '—' : (v >= 0 ? '+' : '−') + Math.abs(v * 100).toFixed(d) + '%';
+  function bars(bs) {
+    const W = 4, G = 3, H = 26, mx = Math.max(0.04, ...bs.map((b) => Math.abs(b.v || 0)));
+    return `<svg width="${bs.length * (W + G)}" height="${H}" viewBox="0 0 ${bs.length * (W + G)} ${H}" aria-hidden="true"><line x1="0" x2="${bs.length * (W + G)}" y1="${H / 2}" y2="${H / 2}" stroke="#E6E4EC"/>${bs.map((b, i) => {
+      if (b.v == null) return '';
+      const h = Math.max(1, Math.abs(b.v) / mx * (H / 2 - 1)), y = b.v >= 0 ? H / 2 - h : H / 2;
+      const fc = b.y > NOW_Y, col = b.v >= 0 ? '#8168D6' : '#E08A86';
+      return `<rect x="${i * (W + G)}" y="${y}" width="${W}" height="${h}" rx="1" fill="${col}" opacity="${fc ? .45 : b.y === NOW_Y ? 1 : .85}"><title>${b.y}${fc ? ' forecast' : ''}: ${pct(b.v)}</title></rect>`;
+    }).join('')}</svg>`;
+  }
+  function rpCell(f) {
+    if (f.rpFc == null) return '<div class="ml-v" style="color:var(--faint)">—</div><div class="ml-s">No RealPage data</div>';
+    return `<div class="rp"><div><div class="ml-v ${f.rpFc >= 0 ? 'up' : 'dn'}">${pct(f.rpFc)}<i>/yr</i></div><div class="ml-s">${NOW_Y}: ${pct(f.rpNow)}</div></div>${bars(f.rpBars)}</div>`;
+  }
   function row(m, i) {
     const f = F[m.id], sub = [stateOf(m), f.period].filter(Boolean).join(' · '), d = `animation-delay:${Math.min(i, 20) * 28}ms`;
     const nm = `<div class="c-nm"><div class="ml-nm">${esc(name(m))}${f.live && !canEdit(m.id) ? '<span class="ml-ro">View only</span>' : ''}</div><div class="ml-sub">${esc(sub)}</div></div>`;
@@ -236,8 +383,8 @@
       <div class="c-occ"><div class="ml-v">${f.occ != null ? f.occ.toFixed(1) + '%' : '—'}</div><div class="ml-s">${f.vac != null ? f.vac.toFixed(1) + '% vacant' : '&nbsp;'}</div></div>
       <div class="c-conc"><div class="ml-v">${f.wks != null ? f.wks.toFixed(1) + '<i>wks</i>' : '—'}</div><div class="ml-s">free</div></div>
       <div class="c-ex"><div class="ml-v">${int(f.exU)}<i>units</i></div><div class="ml-s">${f.exN === 1 ? '1 property' : int(f.exN) + ' properties'}</div></div>
-      <div class="c-uc"><div class="ml-uc"><span class="bar"><b style="width:${w}%;animation-delay:${120 + Math.min(i, 20) * 28}ms"></b></span><span class="pct">${f.ucPct != null ? f.ucPct.toFixed(1) + '%' : '—'}</span></div><div class="ml-s">${pl(f.ucU, 'unit')} · ${pl(f.ucN, 'project')}</div></div>
-      <div class="c-sets r"><div class="ml-v">${f.sets || '<span style="color:var(--faint);font-weight:500">0</span>'}</div><div class="ml-s">&nbsp;</div></div>
+      <div class="c-uc"><div class="ml-uc"><span class="pct">${f.ucPct != null ? f.ucPct.toFixed(1) + '%' : '—'}</span><span class="bar"><b style="width:${w}%;animation-delay:${120 + Math.min(i, 20) * 28}ms"></b></span></div><div class="ml-s">${pl(f.ucU, 'unit')} · ${pl(f.ucN, 'project')}</div></div>
+      <div class="c-rp">${rpCell(f)}</div>
       <span class="ml-go" aria-hidden="true">›</span>
     </a>`;
   }
@@ -248,14 +395,13 @@
     const head = `<div class="ml-head"><h2>Markets<span>${all.length}</span></h2>${all.length > 6 ? `<input class="ml-find" type="search" placeholder="Find a market" value="${esc(find)}" aria-label="Find a market">` : ''}</div>
       <div class="ml-cols">${COLS.map(([k, l, c]) => `<button type="button" data-k="${k}" class="${c} ${sort.key === k ? 'on' + (sort.asc ? ' asc' : '') : ''}">${l}</button>`).join('')}<span></span></div>`;
     let body = '', i = 0;
-    if (!ms.length) body = `<div class="ml-none">No markets match “${esc(find)}”.</div>`;
+    if (!all.length) body = `<div class="ml-none">${isAdmin ? 'No markets here yet. Assign markets to this region in Settings.' : 'No markets here yet.'}</div>`;
+    else if (!ms.length) body = `<div class="ml-none">No markets match “${esc(find)}”.</div>`;
     else if (region === 'all' && regions.length > 1) {
       let first = true;
       regions.forEach((r) => {
         const rs = ordered(ms.filter((m) => regionOf(m) === r)); if (!rs.length) return;
-        const T = figures(rs.filter((m) => F[m.id].live).flatMap((m) => byMarket[m.id] || []));
-        const bits = [`${rs.length} market${rs.length === 1 ? '' : 's'}`, T.exU ? int(T.exU) + ' units' : '', T.psf != null ? '$' + T.psf.toFixed(2) + '/SF' : '', T.ucPct != null && T.exU ? T.ucPct.toFixed(1) + '% under construction' : ''].filter(Boolean).join(' · ');
-        body += `<div class="rg-h${first ? ' first' : ''}"><h3>${esc(r)}</h3><span>${esc(bits)}</span>${r !== OTHER ? `<button type="button" data-r="${esc(r)}">Open region →</button>` : ''}</div>`;
+        body += r !== OTHER ? `<button type="button" class="rg-h${first ? ' first' : ''}" data-r="${esc(r)}"><h3>${esc(r)}</h3><span class="go" aria-hidden="true">›</span></button>` : `<div class="rg-h${first ? ' first' : ''}" style="cursor:default;background:none"><h3>${esc(r)}</h3></div>`;
         body += rs.map((m) => row(m, i++)).join('');
         first = false;
       });
@@ -263,11 +409,89 @@
     const el = document.getElementById('ml');
     el.innerHTML = head + body;
     el.querySelectorAll('.ml-cols button').forEach((b) => b.onclick = () => { const k = b.dataset.k; sort = sort.key === k ? { key: k, asc: !sort.asc } : { key: k, asc: k === 'name' }; paintList(); });
-    el.querySelectorAll('.rg-h button').forEach((b) => b.onclick = () => { setRegion(b.dataset.r); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    el.querySelectorAll('button.rg-h').forEach((b) => b.onclick = () => { setRegion(b.dataset.r); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     const inp = el.querySelector('.ml-find');
     if (inp) inp.oninput = () => { find = inp.value; const pos = inp.selectionStart; paintList(); const n = document.querySelector('.ml-find'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
   }
-  paintBar(); paintHero(); paintList();
+  function paintAll() { paintBar(); paintHero(); paintList(); }
+
+  await load();
+  if (live.length === 1 && markets.length === 1 && !isAdmin) { try { localStorage.removeItem('wb_home_multi'); } catch (e) {} location.replace('./?market=' + encodeURIComponent(live[0].id)); return; }
+  try { localStorage.setItem('wb_home_multi', '1'); } catch (e) {}
+  paintAll();
+
+  // ---------- Settings ----------
+  const panel = document.getElementById('st'), scrim = document.getElementById('st-scrim');
+  let tab = isAdmin ? 'regions' : 'people', dirty = false;
+  const TABS = [isAdmin && ['regions', 'Regions'], ['people', 'People and access'], ['account', 'Account']].filter(Boolean);
+  function openSettings() {
+    panel.hidden = scrim.hidden = false;
+    requestAnimationFrame(() => { panel.classList.add('on'); scrim.classList.add('on'); });
+    paintSettings();
+    document.getElementById('st-x').focus();
+  }
+  async function closeSettings() {
+    panel.classList.remove('on'); scrim.classList.remove('on');
+    setTimeout(() => { panel.hidden = scrim.hidden = true; }, 280);
+    if (dirty) { dirty = false; await load(); paintAll(); }
+  }
+  document.getElementById('hm-gear').onclick = openSettings;
+  document.getElementById('st-x').onclick = closeSettings;
+  scrim.onclick = closeSettings;
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) closeSettings(); });
+
+  function paintSettings() {
+    const nav = document.getElementById('st-nav');
+    nav.innerHTML = TABS.map(([k, l]) => `<button type="button" data-t="${k}" class="${k === tab ? 'on' : ''}">${l}</button>`).join('');
+    nav.querySelectorAll('button').forEach((b) => b.onclick = () => { tab = b.dataset.t; paintSettings(); });
+    const bd = document.getElementById('st-bd');
+    if (tab === 'regions') return paintRegions(bd);
+    if (tab === 'people') {
+      bd.innerHTML = `<div class="hset-sec"><h3>People and access</h3><div id="wb-access"></div></div>`;
+      window.__WBA_REGIONS = Object.fromEntries(markets.map((m) => [m.id, regionOf(m) === OTHER ? '' : regionOf(m)]));
+      if (window.wbRenderAccess) window.wbRenderAccess();
+      return;
+    }
+    bd.innerHTML = `<div class="hset-sec"><h3>Account</h3><p class="l">Your email is tagged on everything you add or edit, so the team can see who touched what.</p>
+      <div class="hset-acct"><span class="who">${esc(me)}</span><button type="button" id="st-out">Sign out</button></div></div>`;
+    document.getElementById('st-out').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+  }
+
+  // Regions: which region each market belongs to. Stored on the market (core.markets.config.region).
+  async function paintRegions(bd) {
+    const all = await rows(S('core').from('markets').select('id,label,config').order('label'));
+    const ms = all.filter((m) => m.label);
+    const named = [...new Set(ms.map((m) => m.config && m.config.region).filter(Boolean))].sort();
+    const counts = named.map((r) => `<span><b>${esc(r)}</b> · ${pl(ms.filter((m) => m.config && m.config.region === r).length, 'market')}</span>`).join('');
+    const opts = (cur) => `<option value=""${!cur ? ' selected' : ''}>No region</option>${named.map((r) => `<option${r === cur ? ' selected' : ''}>${esc(r)}</option>`).join('')}<option value="__new">New region…</option>`;
+    bd.innerHTML = `<div class="hset-sec"><h3>Regions</h3>
+      <p class="l">Each market belongs to one region. People land on the region where they edit markets, and the home page groups markets by region. To set up a new region, pick “New region…” on any market.</p>
+      ${counts ? `<div class="rg-sum">${counts}</div>` : ''}
+      <div class="rgx"><div class="h">Market</div><div class="h">Region</div>
+      ${ms.map((m) => `<div><div class="nm">${esc(name(m))}</div><div class="sb">${esc([stateOf(m), m.config && m.config.active === true ? 'Live' : 'Not live yet'].filter(Boolean).join(' · '))}</div></div>
+        <div><select data-m="${esc(m.id)}" aria-label="Region for ${esc(name(m))}">${opts(m.config && m.config.region)}</select>
+          <div class="nw" data-nw="${esc(m.id)}" hidden><input placeholder="e.g. Southeast" aria-label="New region name"><button type="button">Save</button></div>
+          <div class="ok" data-ok="${esc(m.id)}"></div></div>`).join('')}
+      </div></div>`;
+    const save = async (id, r) => {
+      const ok = bd.querySelector(`[data-ok="${id}"]`); ok.className = 'ok'; ok.textContent = 'Saving…';
+      const m = ms.find((x) => x.id === id), cfg = Object.assign({}, m.config || {});
+      if (r) cfg.region = r; else delete cfg.region;
+      const { data, error } = await S('core').from('markets').update({ config: cfg }).eq('id', id).select('id');
+      if (error || !data || !data.length) { ok.className = 'ok bad'; ok.textContent = 'Couldn’t save: ' + ((error && error.message) || 'no permission to change this market'); return; }
+      m.config = cfg; dirty = true; paintRegions(bd);
+    };
+    bd.querySelectorAll('select[data-m]').forEach((s) => s.onchange = () => {
+      const id = s.dataset.m;
+      if (s.value === '__new') { const nw = bd.querySelector(`[data-nw="${id}"]`); nw.hidden = false; nw.querySelector('input').focus(); return; }
+      save(id, s.value);
+    });
+    bd.querySelectorAll('[data-nw]').forEach((nw) => {
+      const go = () => { const v = nw.querySelector('input').value.trim().replace(/\s+region$/i, ''); if (v) save(nw.dataset.nw, v); };
+      nw.querySelector('button').onclick = go;
+      nw.querySelector('input').onkeydown = (e) => { if (e.key === 'Enter') go(); };
+    });
+  }
 })().catch((e) => { console.error(e); const g = document.getElementById('ml'); if (g) g.innerHTML = '<div class="hm-wait">Couldn’t load the markets. Refresh to try again.</div>'; });
 </script>
 </body>

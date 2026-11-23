@@ -56,6 +56,7 @@
     // people who cover more than one market start on the All markets page; a link with ?market= (or a single-market person) goes straight in
     const mine = markets.filter((m) => acc.some((a) => a.market_id === '*' || a.market_id === m.id));
     window.__WB_MULTI = mine.length > 1;
+    try { if (window.__WB_MULTI) localStorage.setItem('wb_home_multi', '1'); else localStorage.removeItem('wb_home_multi'); } catch (e) {}
     if (!q.get('market') && window.__WB_MULTI) { location.replace('home.html'); return; }
     let market = q.get('market') || (myEdit && myEdit.market_id) || 'denver';   // regional people open on the market they edit   // Demo: the URL decides (keeps the per-market storage namespace in step)
     if (!MARKETS[market]) market = markets.length ? markets.find((m) => m.id === 'denver')?.id || markets[0].id : 'denver';
