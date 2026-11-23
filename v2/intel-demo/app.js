@@ -14886,8 +14886,9 @@ function renderModal() {
                 <select class="edit-input" data-field="pipelineStage">
                   <option value="UC" ${cur === 'UC' ? 'selected' : ''}>Under Construction</option>
                   <option value="Planned" ${cur === 'Planned' ? 'selected' : ''}>Proposed</option>
+                  <option value="Delivered">Delivered (now existing)</option>
                 </select>
-                <div style="font-family:'Inter Tight',sans-serif;font-size:12px;color:var(--ink-4);margin-top:3px;letter-spacing:0.03em;">Proposed shows only in the Pipeline tab's Proposed toggle</div>
+                <div style="font-family:'Inter Tight',sans-serif;font-size:12px;color:var(--ink-4);margin-top:3px;letter-spacing:0.03em;">Delivered makes it existing; set Year/Month Built to the delivery month</div>
               </div>
             `;
           })() : ''}
@@ -15660,6 +15661,11 @@ function saveModalEdits() {
       changed = true;
     }
   });
+  // Delivered before CoStar caught up: the building becomes existing (leasing from its Year/Month Built)
+  if (edits.pipelineStage === 'Delivered') {
+    edits.pipelineStage = 'UC'; edits.status = 'Existing';
+    wbStampMeta(edits, ['status'], 'Property card'); changed = true;
+  }
 
   if (Object.keys(edits).length > 0) {
     // Stamp the local timestamp so reconcile-on-boot can later detect whether
