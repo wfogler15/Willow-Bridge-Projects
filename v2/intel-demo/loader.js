@@ -53,6 +53,10 @@
     MARKET_STATE = Object.fromEntries(markets.map((m) => [m.id, m.state || ((m.label || '').split(',')[1] || '').trim()]));
     const q = new URLSearchParams(location.search);
     const shared = WB.getMarket();
+    // people who cover more than one market start on the All markets page; a link with ?market= (or a single-market person) goes straight in
+    const mine = markets.filter((m) => acc.some((a) => a.market_id === '*' || a.market_id === m.id));
+    window.__WB_MULTI = mine.length > 1;
+    if (!q.get('market') && window.__WB_MULTI) { location.replace('home.html'); return; }
     let market = q.get('market') || (myEdit && myEdit.market_id) || 'denver';   // regional people open on the market they edit   // Demo: the URL decides (keeps the per-market storage namespace in step)
     if (!MARKETS[market]) market = markets.length ? markets.find((m) => m.id === 'denver')?.id || markets[0].id : 'denver';
     localStorage.setItem('market', market);
@@ -287,6 +291,7 @@
           <svg viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <div class="wbi-mktdd-menu" role="listbox" aria-label="Market" hidden>
+          ${window.__WB_MULTI ? `<a class="wbi-mktdd-home" href="home.html">All markets</a>` : ''}
           ${Object.keys(MARKETS).map((id) => `<button type="button" role="option" data-m="${id}" aria-selected="${id === cur}" class="${id === cur ? 'on' : ''}">
             <span class="nm">${mlab(id)}</span><span class="st">${String(stateName(id)).replace(/[&<>"]/g, "")}</span>
             <svg class="ck" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`).join('')}

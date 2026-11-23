@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All markets · Market Intel Demo · Willow Bridge</title>
+<link rel="icon" href="shared/wb-mark.png">
+<link rel="stylesheet" href="shared/wb.css?v=202611231138">
+<style>
+  .page{max-width:1280px}
+  .hm-hero{background:#1D1247;color:#fff;border-radius:14px;padding:30px 34px 28px;margin:6px 0 22px;position:relative;overflow:hidden}
+  .hm-hero::after{content:"";position:absolute;right:-60px;top:-90px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(129,104,214,.45),rgba(29,18,71,0) 70%);pointer-events:none}
+  .hm-eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#C9BFF0;margin-bottom:8px}
+  .hm-hero h1{font:600 30px/1.15 var(--font-display);margin:0 0 6px;color:#fff}
+  .hm-hero p{font-size:15px;margin:0;color:#E7E2F8}
+  .hm-tot{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:24px;border-top:1px solid rgba(255,255,255,.16);position:relative;z-index:1}
+  .hm-tot>div{padding:16px 18px 0 0}
+  .hm-tot>div+div{padding-left:18px;border-left:1px solid rgba(255,255,255,.16)}
+  .hm-tot .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#C9BFF0}
+  .hm-tot .v{font:600 26px/1.2 var(--font-display);color:#fff;font-variant-numeric:tabular-nums;margin-top:4px}
+  .hm-tot .s{font-size:12.5px;color:#C9BFF0;margin-top:2px}
+  .hm-h2{font:600 11px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:6px 0 12px}
+  .hm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;margin-bottom:30px;align-items:start}
+  .hm-card{display:block;background:#fff;border:1px solid rgb(232,230,238);border-radius:10px;box-shadow:rgba(29,18,71,.03) 0 1px 2px;padding:20px 22px 16px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s,transform .15s}
+  .hm-card:hover{border-color:#C9BFF0;box-shadow:rgba(29,18,71,.08) 0 4px 14px;transform:translateY(-1px)}
+  .hm-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  .hm-name{font:600 20px/1.2 var(--font-display);color:var(--ink)}
+  .hm-st{font-size:13px;color:var(--muted);margin-top:2px}
+  .hm-tags{display:flex;gap:6px;flex-shrink:0}
+  .hm-tag{font-size:11.5px;padding:3px 8px;border-radius:999px;background:#F3F1FA;color:#432890;white-space:nowrap}
+  .hm-tag.ro{background:#F4F4F2;color:var(--muted)}
+  .hm-figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:16px 0 4px;border-top:1px solid rgb(232,230,238)}
+  .hm-f{padding:12px 12px 12px 0}
+  .hm-f:nth-child(3n+2),.hm-f:nth-child(3n){padding-left:12px;border-left:1px solid rgb(232,230,238)}
+  .hm-f:nth-child(n+4){border-top:1px solid rgb(232,230,238)}
+  .hm-f .k{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+  .hm-f .v{font:600 20px/1.25 var(--font-display);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:3px}
+  .hm-f .v i{font-style:normal;font-size:12.5px;font-weight:500;color:var(--muted)}
+  .hm-f .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+  .hm-go{display:flex;justify-content:flex-end;font-size:13px;font-weight:600;color:#432890;padding-top:8px;border-top:1px solid rgb(232,230,238)}
+  .hm-card.off{cursor:default}
+  .hm-card.off:hover{border-color:rgb(232,230,238);box-shadow:rgba(29,18,71,.03) 0 1px 2px;transform:none}
+  .hm-wait{color:var(--muted);font-size:14px;padding:30px 0}
+  .hm-sets{background:#fff;border:1px solid rgb(232,230,238);border-radius:10px;box-shadow:rgba(29,18,71,.03) 0 1px 2px;margin-bottom:40px;overflow:hidden}
+  .hm-sets a{display:grid;grid-template-columns:minmax(0,2.4fr) 1fr .7fr 1.4fr;gap:12px;align-items:center;padding:12px 20px;text-decoration:none;color:var(--ink);font-size:14px;border-top:1px solid rgb(232,230,238)}
+  .hm-sets a:first-child{border-top:0}
+  .hm-sets a:hover{background:#FAF9FD}
+  .hm-sets .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hm-sets .mu{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hm-sets .r{text-align:right}
+  @media (max-width:760px){.hm-tot{grid-template-columns:repeat(2,minmax(0,1fr))}.hm-tot>div:nth-child(3){border-left:0;padding-left:0}.hm-sets a{grid-template-columns:1fr auto}.hm-sets a .hx{display:none}}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="shared/wb.js?v=202611231138"></script>
+</head>
+<body>
+<main class="page">
+  <section class="hm-hero">
+    <div class="hm-eyebrow">Willow Bridge Market Intel</div>
+    <h1 id="hm-hello">All markets</h1>
+    <p id="hm-lead">A quick read on every market you cover. Pick one to open it.</p>
+    <div class="hm-tot" id="hm-tot"></div>
+  </section>
+  <div class="hm-h2">Markets</div>
+  <div class="hm-grid" id="hm-grid"><div class="hm-wait">Loading your markets…</div></div>
+  <div id="hm-sets-wrap" hidden>
+    <div class="hm-h2">Recently updated comp sets</div>
+    <div class="hm-sets" id="hm-sets"></div>
+  </div>
+</main>
+<script>
+(async function () {
+  const { sb, user } = await WB.ready('intel', { marketMode: 'single', present: true, brand: 'Willow Bridge Market Intel · Demo' });
+  const S = (s) => sb.schema(s);
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const int = (n) => n == null ? '—' : Math.round(n).toLocaleString();
+  const me = String((user && user.email) || '').toLowerCase();
+  const parts = me.split('@')[0].split(/[._-]/).filter(Boolean), first = parts.length > 1 ? parts[0] : '';   // jane.doe → Jane; jpaton → no name
+  const hr = new Date().getHours();
+  document.getElementById('hm-hello').textContent = `Good ${hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening'}${first.length > 1 ? ', ' + first[0].toUpperCase() + first.slice(1) : ''}`;
+
+  // which markets this person can open, and where they can edit
+  const acc = (WB.access || []).filter((a) => !a.email || String(a.email).toLowerCase() === me);
+  const all = acc.some((a) => a.market_id === '*');
+  const role = (id) => acc.some((a) => a.role !== 'view' && (a.market_id === id || (a.market_id === '*' && a.role === 'admin'))) ? 'edit' : 'view';
+
+  const { data: mk } = await S('core').from('markets').select('id,label,config').order('id');
+  const markets = (mk || []).filter((m) => m.config && m.config.active === true && (all || acc.some((a) => a.market_id === m.id)));
+  if (markets.length === 1) { location.replace('./?market=' + encodeURIComponent(markets[0].id)); return; }
+  const ids = markets.map((m) => m.id);
+
+  const num = (v) => { const n = typeof v === 'string' ? parseFloat(v) : v; return n == null || isNaN(n) ? null : n; };
+  const [props, logs, sets, members] = await Promise.all([
+    WB.fetchAll('core', 'properties', 'market_id,status,units,ask:attrs->avgAskingSF,askU:attrs->avgAskingUnit,vac:attrs->vacancy,conc:attrs->concessions', (q) => q.in('market_id', ids).neq('kind', 'land').order('id')).catch(() => []),
+    Promise.resolve(S('public').from('refresh_log').select('market,period,period_sort,created_at').order('period_sort', { ascending: false })).then((r) => (r && r.data) || [], () => []),
+    Promise.resolve(S('market').from('comp_sets').select('id,market_id,name,updated_at,updated_by').in('market_id', ids).order('updated_at', { ascending: false })).then((r) => (r && r.data) || [], () => []),
+    WB.fetchAll('market', 'comp_set_members', 'comp_set_id,property_id', (q) => q.order('comp_set_id').order('property_id')).catch(() => []),
+  ]);
+  const nMem = {}; members.forEach((m) => { nMem[m.comp_set_id] = (nMem[m.comp_set_id] || 0) + 1; });
+
+  // same rules as the dashboard's Market Overview: existing only, weighted by units
+  const wavg = (rows, k) => { let v = 0, w = 0; rows.forEach((r) => { const x = num(r[k]); if (x != null && r.units) { v += x * r.units; w += r.units; } }); return w ? v / w : null; };
+  const stat = {};
+  markets.forEach((m) => {
+    const rows = props.filter((p) => p.market_id === m.id);
+    const ex = rows.filter((p) => p.status === 'Existing'), uc = rows.filter((p) => p.status === 'Under Construction');
+    const exU = ex.reduce((s, p) => s + (p.units || 0), 0), ucU = uc.reduce((s, p) => s + (p.units || 0), 0);
+    const vac = wavg(ex, 'vac'), conc = wavg(ex, 'conc');
+    const log = logs.find((l) => l.market === m.id);
+    const cfg = m.config || {};
+    const period = (log && log.period) || (cfg.dashboard && cfg.dashboard.livePeriodLabel) || (cfg.as_of ? new Date(cfg.as_of + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '');
+    stat[m.id] = { exN: ex.length, exU, ucN: uc.length, ucU, psf: wavg(ex, 'ask'), mo: wavg(ex, 'askU'), occ: vac == null ? null : 100 - vac, wks: conc == null ? null : conc / 100 * 52,
+      sets: sets.filter((s) => s.market_id === m.id).length, period };
+  });
+
+  const T = Object.values(stat).reduce((a, s) => ({ exU: a.exU + s.exU, exN: a.exN + s.exN, ucU: a.ucU + s.ucU, ucN: a.ucN + s.ucN, sets: a.sets + s.sets }), { exU: 0, exN: 0, ucU: 0, ucN: 0, sets: 0 });
+  document.getElementById('hm-tot').innerHTML = [
+    ['Markets', markets.length, markets.map((m) => (m.label || m.id).split(',')[0]).join(' · ')],
+    ['Existing units', int(T.exU), int(T.exN) + ' properties'],
+    ['Under construction', int(T.ucU), int(T.ucN) + ' projects · ' + (T.exU ? (T.ucU / T.exU * 100).toFixed(1) : '0') + '% of inventory'],
+    ['Comp sets', T.sets, 'across all markets'],
+  ].map(([k, v, s]) => `<div><div class="k">${k}</div><div class="v">${v}</div><div class="s">${esc(s)}</div></div>`).join('');
+
+  const f = (k, v, unit, s) => `<div class="hm-f"><div class="k">${k}</div><div class="v">${v}${unit ? `<i>${unit}</i>` : ''}</div><div class="s">${s || '&nbsp;'}</div></div>`;
+  document.getElementById('hm-grid').innerHTML = markets.map((m) => {
+    const s = stat[m.id], name = (m.label || m.id).split(',')[0], ro = role(m.id) === 'view';
+    const eyebrow = (m.config && m.config.eyebrow) || '';
+    if (!s.exN) return `<div class="hm-card off"><div class="hm-top"><div><div class="hm-name">${esc(name)}</div><div class="hm-st">${esc(eyebrow)}</div></div><div class="hm-tags"><span class="hm-tag ro">Not uploaded yet</span></div></div></div>`;
+    return `<a class="hm-card" href="./?market=${encodeURIComponent(m.id)}">
+      <div class="hm-top"><div><div class="hm-name">${esc(name)}</div><div class="hm-st">${esc(eyebrow)}</div></div>
+        <div class="hm-tags">${s.period ? `<span class="hm-tag">${esc(s.period)}</span>` : ''}<span class="hm-tag${ro ? ' ro' : ''}">${ro ? 'View only' : 'Can edit'}</span></div></div>
+      <div class="hm-figs">
+        ${f('Asking', s.psf != null ? '$' + s.psf.toFixed(2) : '—', s.psf != null ? '/SF' : '', s.mo != null ? '$' + int(s.mo) + '/mo' : '')}
+        ${f('Occupancy', s.occ != null ? s.occ.toFixed(1) + '%' : '—', '', 'unit-weighted')}
+        ${f('Concessions', s.wks != null ? s.wks.toFixed(1) : '—', s.wks != null ? ' wks' : '', 'free (12-mo)')}
+        ${f('Existing', int(s.exU), ' units', int(s.exN) + ' properties')}
+        ${f('UC', int(s.ucU), ' units', int(s.ucN) + ' projects · ' + (s.exU ? Math.round(s.ucU / s.exU * 100) : 0) + '%')}
+        ${f('Comp sets', s.sets, '', '')}
+      </div>
+      <div class="hm-go">Open ${esc(name)} →</div>
+    </a>`;
+  }).join('');
+
+  const nm = (id) => { const m = markets.find((x) => x.id === id); return m ? (m.label || m.id).split(',')[0] : id; };
+  const when = (t) => { if (!t) return ''; const d = (Date.now() - new Date(t)) / 864e5; return d < 1 ? 'today' : d < 2 ? 'yesterday' : d < 30 ? Math.floor(d) + ' days ago' : new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
+  const who = (e) => { const l = String(e || '').split('@')[0]; return l ? l : ''; };
+  const recent = sets.filter((s) => nMem[s.id]).slice(0, 8);
+  if (recent.length) {
+    document.getElementById('hm-sets').innerHTML = recent.map((s) => `<a href="./?market=${encodeURIComponent(s.market_id)}&cs=${encodeURIComponent(s.id)}">
+      <span class="nm">${esc(s.name)}</span><span class="mu">${esc(nm(s.market_id))}</span><span class="mu hx">${nMem[s.id]} properties</span><span class="mu r">${esc(when(s.updated_at))}${who(s.updated_by) ? ' · ' + esc(who(s.updated_by)) : ''}</span></a>`).join('');
+    document.getElementById('hm-sets-wrap').hidden = false;
+  }
+})().catch((e) => { console.error(e); const g = document.getElementById('hm-grid'); if (g) g.innerHTML = '<div class="hm-wait">Couldn’t load the markets. Refresh to try again.</div>'; });
+</script>
+</body>
+</html>

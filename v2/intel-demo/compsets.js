@@ -745,6 +745,16 @@
     openSaleCompDetail(type, { customId: c.id });
   }
   window.wbCsCanEdit = () => canEdit();
+  // a link from the All markets page (?cs=<comp set id>) opens that set once the sets have loaded
+  (function deepLink() {
+    const want = new URLSearchParams(location.search).get('cs'); if (!want) return;
+    let tries = 0;
+    const t = setInterval(() => {
+      const cs = Object.values(typeof compSets !== 'undefined' ? compSets : {}).find((c) => c && (String(c.uuid) === want || String(c.id) === want));
+      if (cs) { clearInterval(t); try { window.wbOpenCompSets({ id: cs.id }); } catch (e) { console.error(e); } const u = new URL(location.href); u.searchParams.delete('cs'); history.replaceState(null, '', u.toString()); }
+      else if (++tries > 60) clearInterval(t);
+    }, 500);
+  })();
   window.wbCsOpenSet = () => !!(UI.open && compSets[UI.open]);
   // for the analysis map: phase colours, and the pipeline projects this tab pulls in from the set's submarkets
   window.wbCsPhase = (p) => { const ph = phaseOf(p); return ph === 'pipe' ? (isStalled(p) ? 'stalled' : isProposed(p) ? 'proposed' : 'uc') : ph; };
