@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231406">
+<link rel="stylesheet" href="shared/wb.css?v=202611231407">
 <style>
   .page{max-width:1400px}
   /* ---------- top row: regions + settings ---------- */
@@ -69,9 +69,19 @@
   .ml{--cols:minmax(176px,1.35fr) minmax(90px,.7fr) minmax(84px,.6fr) minmax(104px,.7fr) minmax(164px,1fr) minmax(122px,.75fr) minmax(104px,.65fr) minmax(196px,1.15fr) 14px}
   .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 24px;align-items:center;padding:0 18px}
   .ml-cols{padding-top:10px;padding-bottom:10px;align-items:end}
-  .ml-cols{border-bottom:1px solid #E6E4EC}
-  .ml-grp{display:grid;grid-template-columns:var(--cols);gap:0 24px;padding:0 18px;margin-top:6px}
-  .ml-grp span{grid-column:6 / 9;margin-left:21px;padding-bottom:6px;border-bottom:2px solid #1D1247;font:700 11.5px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:#1D1247}
+  /* column headers sit in a soft band, grouped by source */
+  .ml-cols{background:#F6F5FA;border-radius:12px;margin:0 2px 6px;padding-top:12px;padding-bottom:12px}
+  .ml-cols+.ml-row{border-top-color:transparent}
+  .ml-grp{display:grid;grid-template-columns:var(--cols);gap:0 24px;padding:0 18px;margin:4px 2px 8px;align-items:end}
+  .ml-grp .g{display:flex;align-items:center;gap:10px;font:500 12.5px/1 var(--font-display);color:var(--muted)}
+  .ml-grp .g::after{content:"";flex:1;height:1px;background:#E6E4EC}
+  .ml-grp .g b{display:inline-flex;align-items:center;gap:6px;font:700 11px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:999px}
+  .ml-grp .g b::before{content:"";width:6px;height:6px;border-radius:50%}
+  .ml-grp .g1{grid-column:2 / 6}
+  .ml-grp .g1 b{background:#EFEFFE;color:#432890}.ml-grp .g1 b::before{background:#8168D6}
+  .ml-grp .g2{grid-column:6 / 9;margin-left:21px}
+  .ml-grp .g2 b{background:#F9EEC4;color:#5C4A0B}.ml-grp .g2 b::before{background:#C9A227}
+  .ml-head h2 small{display:block;font:400 13px/1.4 var(--font-display);color:var(--muted);margin-top:4px}
   .ml-cols button{all:unset;cursor:pointer;font:600 11.5px/1.35 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
   .ml-cols button:hover,.ml-cols button.on{color:#432890}
   .ml-cols button.on::after{content:" ↓";letter-spacing:0}
@@ -96,6 +106,7 @@
   .ml-row>div,.ml-cols>button{min-width:0}
   .c-uc{padding-right:8px;overflow:hidden}
   .c-rp{padding-left:20px;border-left:1px solid #EFEEF3}
+  .ml-cols .c-rp{border-left-color:transparent}
   .ml-cols .c-rp{border-left:0}
   .c-sd{min-width:0}
   .ml-s b{font-weight:600}
@@ -184,8 +195,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231406"></script>
-<script src="access.js?v=202611231406"></script>
+<script src="shared/wb.js?v=202611231407"></script>
+<script src="access.js?v=202611231407"></script>
 </head>
 <body>
 <main class="page">
@@ -471,8 +482,8 @@
     const all = inView(), needle = find.trim().toLowerCase();
     const ms = needle ? all.filter((m) => (name(m) + ' ' + stateOf(m) + ' ' + regionOf(m)).toLowerCase().includes(needle)) : all;
     maxUc = Math.max(1, ...markets.map((m) => F[m.id].ucPct || 0));
-    const head = `<div class="ml-head"><h2>Markets<span>${all.length}</span></h2>${all.length > 6 ? `<input class="ml-find" type="search" placeholder="Find a market" value="${esc(find)}" aria-label="Find a market">` : ''}</div>
-      <div class="ml-grp"><span>RealPage</span></div>
+    const head = `<div class="ml-head"><h2>Markets<span>${all.length}</span><small>Click a market to open it. Click a column to sort.</small></h2>${all.length > 6 ? `<input class="ml-find" type="search" placeholder="Find a market" value="${esc(find)}" aria-label="Find a market">` : ''}</div>
+      <div class="ml-grp"><span class="g g1"><b>CoStar</b>Today</span><span class="g g2"><b>RealPage</b>Metro trend</span></div>
       <div class="ml-cols">${COLS.map(([k, l, c]) => `<button type="button" data-k="${k}" class="${c} ${sort.key === k ? 'on' + (sort.asc ? ' asc' : '') : ''}">${l}</button>`).join('')}<span></span></div>`;
     let body = '', i = 0;
     if (!all.length) body = `<div class="ml-none">${isAdmin ? 'No markets here yet. Assign markets to this region in Settings.' : 'No markets here yet.'}</div>`;
