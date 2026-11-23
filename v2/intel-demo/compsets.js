@@ -348,31 +348,40 @@
   const gPct = (x) => (x == null ? '—' : (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(1) + '%');
   const gCls = (x) => (x == null ? '' : x >= 0 ? 'up' : 'dn');
   // ---------- submarket: four story cards (supply pressure, rent, occupancy, supply vs demand) + year table on demand ----------
+  // charts are drawn at the card's real width after render (no stretching), and redrawn on resize
   function spark(pts, Y, opt) {
-    // pts: [[year, value]], solid through Y, dashed after; optional reference line
-    const W = 280, H = 64, P = 4, v = pts.filter((x) => x[1] != null);
-    if (v.length < 2) return '';
-    const xs = v.map((x) => x[0]), ys = v.map((x) => x[1]).concat(opt && opt.ref != null ? [opt.ref] : []);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), lo = Math.min(...ys), hi = Math.max(...ys), pad = (hi - lo) * 0.12 || 1;
-    const X = (x) => P + ((x - x0) / (x1 - x0 || 1)) * (W - P * 2), Yv = (y) => H - P - ((y - (lo - pad)) / (hi - lo + pad * 2)) * (H - P * 2);
-    const path = (a) => a.map((x, k) => (k ? 'L' : 'M') + X(x[0]).toFixed(1) + ',' + Yv(x[1]).toFixed(1)).join('');
-    const hist = v.filter((x) => x[0] <= Y), fc = v.filter((x) => x[0] >= Y), cur = v.find((x) => x[0] === Y);
-    const area = hist.length > 1 ? path(hist) + `L${X(hist[hist.length - 1][0]).toFixed(1)},${H - P}L${X(hist[0][0]).toFixed(1)},${H - P}Z` : '';
-    return `<svg class="csx-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-      ${opt && opt.ref != null ? `<line x1="${P}" x2="${W - P}" y1="${Yv(opt.ref).toFixed(1)}" y2="${Yv(opt.ref).toFixed(1)}" class="ref"/><text x="${W - P}" y="${(Yv(opt.ref) - 3).toFixed(1)}" text-anchor="end" class="reft">${E(opt.refLabel || '')}</text>` : ''}
-      ${area ? `<path d="${area}" class="area"/>` : ''}<path d="${path(hist)}" class="hist"/>${fc.length > 1 ? `<path d="${path(fc)}" class="fc"/>` : ''}
-      ${cur ? `<circle cx="${X(cur[0]).toFixed(1)}" cy="${Yv(cur[1]).toFixed(1)}" r="3.2" class="dot"/>` : ''}
-</svg><div class="csx-spax"><span>${x0}</span><span>${x1}</span></div>`;
+    const v = pts.filter((x) => x[1] != null); if (v.length < 2) return '';
+    return `<div class="csx-sparkbox" data-k="line" data-sp="${E(JSON.stringify({ v, Y, ref: opt && opt.ref, refLabel: opt && opt.refLabel }))}"></div><div class="csx-spax"><span>${v[0][0]}</span><span>${v[v.length - 1][0]}</span></div>`;
   }
   function sdBars(f, Y, yrs) {
-    const W = 280, H = 64, P = 4, rows = yrs.map((y) => [y, (f[y] || {}).sp || 0, (f[y] || {}).dm || 0]);
-    const mx = Math.max(1, ...rows.map((r) => Math.max(r[1], Math.abs(r[2])))), bw = (W - P * 2) / rows.length;
-    const Hh = (n) => (Math.max(0, n) / mx) * (H - 16);
-    return `<svg class="csx-spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${rows.map(([y, sp, dm], k) => {
-      const x = P + k * bw, f2 = y > Y ? ' f' : '';
-      return `<rect x="${(x + bw * 0.14).toFixed(1)}" y="${(H - 12 - Hh(sp)).toFixed(1)}" width="${(bw * 0.34).toFixed(1)}" height="${Hh(sp).toFixed(1)}" class="sp${f2}"/><rect x="${(x + bw * 0.52).toFixed(1)}" y="${(H - 12 - Hh(dm)).toFixed(1)}" width="${(bw * 0.34).toFixed(1)}" height="${Hh(dm).toFixed(1)}" class="dm${f2}"/>`;
-    }).join('')}</svg><div class="csx-spax"><span>${rows[0][0]}</span><span class="cy">${Y} now</span><span>${rows[rows.length - 1][0]}</span></div>`;
+    const rows = yrs.map((y) => [y, (f[y] || {}).sp || 0, (f[y] || {}).dm || 0]);
+    return `<div class="csx-sparkbox" data-k="bars" data-sp="${E(JSON.stringify({ rows, Y }))}"></div><div class="csx-spax"><span>${rows[0][0]}</span><span class="cy">${Y} now</span><span>${rows[rows.length - 1][0]}</span></div>`;
   }
+  function drawSparks() {
+    document.querySelectorAll('#view-compsets .csx-sparkbox').forEach((box) => {
+      const W = Math.max(120, box.clientWidth), H = 84, P = 6; let d; try { d = JSON.parse(box.dataset.sp); } catch (e) { return; }
+      if (box.dataset.k === 'line') {
+        const { v, Y, ref, refLabel } = d, xs = v.map((x) => x[0]), ys = v.map((x) => x[1]).concat(ref != null ? [ref] : []);
+        const x0 = Math.min(...xs), x1 = Math.max(...xs), lo = Math.min(...ys), hi = Math.max(...ys), pad = (hi - lo) * 0.15 || 1;
+        const X = (x) => P + ((x - x0) / (x1 - x0 || 1)) * (W - P * 2), Yv = (y) => H - P - ((y - (lo - pad)) / (hi - lo + pad * 2)) * (H - P * 2);
+        const path = (a) => a.map((x, k) => (k ? 'L' : 'M') + X(x[0]).toFixed(1) + ',' + Yv(x[1]).toFixed(1)).join('');
+        const hist = v.filter((x) => x[0] <= Y), fc = v.filter((x) => x[0] >= Y), cur = v.find((x) => x[0] === Y);
+        const area = hist.length > 1 ? path(hist) + `L${X(hist[hist.length - 1][0]).toFixed(1)},${H}L${X(hist[0][0]).toFixed(1)},${H}Z` : '';
+        box.innerHTML = `<svg class="csx-spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">
+          ${ref != null ? `<line x1="${P}" x2="${W - P}" y1="${Yv(ref).toFixed(1)}" y2="${Yv(ref).toFixed(1)}" class="ref"/><text x="${W - P}" y="${(Yv(ref) - 4).toFixed(1)}" text-anchor="end" class="reft">${E(refLabel || '')}</text>` : ''}
+          ${area ? `<path d="${area}" class="area"/>` : ''}<path d="${path(hist)}" class="hist"/>${fc.length > 1 ? `<path d="${path(fc)}" class="fc"/>` : ''}
+          ${cur ? `<circle cx="${X(cur[0]).toFixed(1)}" cy="${Yv(cur[1]).toFixed(1)}" r="3.5" class="dot"/>` : ''}</svg>`;
+      } else {
+        const { rows, Y } = d, mx = Math.max(1, ...rows.map((r) => Math.max(r[1], r[2]))), bw = (W - P * 2) / rows.length, Hh = (n) => (Math.max(0, n) / mx) * (H - 8);
+        const bwi = Math.min(18, bw * 0.34);
+        box.innerHTML = `<svg class="csx-spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true">${rows.map(([y, sp, dm], k) => {
+          const cx = P + k * bw + bw / 2, f2 = y > Y ? ' f' : '';
+          return `<rect x="${(cx - bwi - 1).toFixed(1)}" y="${(H - Hh(sp)).toFixed(1)}" width="${bwi.toFixed(1)}" height="${Hh(sp).toFixed(1)}" rx="2" class="sp${f2}"><title>${y}: ${intC(sp)} delivered</title></rect><rect x="${(cx + 1).toFixed(1)}" y="${(H - Hh(dm)).toFixed(1)}" width="${bwi.toFixed(1)}" height="${Hh(dm).toFixed(1)}" rx="2" class="dm${f2}"><title>${y}: ${intC(dm)} absorbed</title></rect>`;
+        }).join('')}</svg>`;
+      }
+    });
+  }
+  if (!window.__csxSparkRz) { window.__csxSparkRz = true; let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(drawSparks, 120); }); }
   function baselineBlock(cs, ps) {
     const bl = baselineOf(cs, ps); if (!bl.name) return '';
     const inSm = all().filter((p) => p.submarket === bl.name), u = (a) => a.reduce((x, p) => x + (p.units || 0), 0);
@@ -988,7 +997,7 @@
     if (UI.open && !compSets[UI.open]) UI.open = null;
     const cs = UI.open && compSets[UI.open];
     view.innerHTML = `<div class="csx">${cs ? workspace(cs) : library()}</div>`;
-    wire(cs); heroKpis(cs); enterAnim(cs);
+    wire(cs); heroKpis(cs); enterAnim(cs); drawSparks(); requestAnimationFrame(drawSparks);
     // the set's analysis (map, snapshot, fees, concessions, unit mix, positioning, sales, underwriting) lives under the workspace
     let intel = document.getElementById('cs-intel'); const slot = document.getElementById('csx-intel-slot');
     if (!intel && slot) { intel = document.createElement('div'); intel.id = 'cs-intel'; }   // the Demo's Index rebuild dropped the original container
