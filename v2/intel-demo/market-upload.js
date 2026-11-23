@@ -310,29 +310,38 @@
       stories: r.stories, avgUnitSF: r.avg_unit_sf, class: r.class, starRating: r.star_rating, developer: r.developer, owner: r.owner, propertyManager: r.manager, status: r.status });
   }
   const KEEP_EDITS = new Set(['submarket', 'style']);   // Willow Bridge taxonomy: never replaced by an upload
-  /** New data replaces hand edits, except taxonomy and a hand-entered occupancy that's higher than CoStar's new one.
-      A hand edit stays where CoStar has no value for that field. → [{ property_id, name, edits (new, or null to clear), replaced: [fields], keptOcc }] */
+  const PIPE_EDITS = new Set(['monthBuilt', 'yearBuilt', 'dayBuilt']);   // hand-estimated completion, kept while the building is still in the pipeline
+  /** Quarterly refresh rule for hand edits (comp set updates and property-card edits):
+      - rents and everything else CoStar reports: the new data replaces the hand value
+      - occupancy: replaced, unless CoStar's new occupancy is lower than the hand value; those go to review (default keeps the hand value)
+      - kept: Willow Bridge taxonomy, fields CoStar has no value for (notes, lease start, unit mix it doesn't report),
+        and a hand-estimated completion date while CoStar still has the building under construction or proposed
+      → [{ property_id, name, edits (if replaced/accepted), editsKeep (if hand occupancy kept), replaced: [fields], review: {mine, costar} }] */
   async function planOverrides(sb, updates) {
     if (!updates.length) return [];
     const byId = new Map(updates.map((u) => [u.id, u]));
     const rows = (await Promise.all(chunk([...byId.keys()], 300).map((c) => sb.schema('market').from('property_overrides').select('property_id,edits').in('property_id', c))))
       .flatMap((r) => { if (r.error) throw r.error; return r.data; });
     const out = [];
+    const clean = (o) => { const m = o._meta && { ...o._meta }; if (m) { Object.keys(m).forEach((k) => { if (!(k in o) && k !== '_phase') delete m[k]; }); o._meta = m; } return Object.keys(o).some((k) => !k.startsWith('_')) || o._phase ? o : null; };
     for (const o of rows) {
       const u = byId.get(o.property_id); if (!u || !o.edits) continue;
       const fresh = legacyView(Object.assign({}, u.patch, { costar_id: u.costar_id }));
-      const next = {}, replaced = []; let keptOcc = null;
+      const stillPipe = fresh.status && !/exist/i.test(fresh.status);
+      const next = {}, replaced = []; let review = null;
       for (const [k, v] of Object.entries(o.edits)) {
         if (k.startsWith('_')) { next[k] = v; continue; }
         if (KEEP_EDITS.has(k)) { next[k] = v; continue; }
+        if (PIPE_EDITS.has(k) && stillPipe) { next[k] = v; continue; }
         const nv = fresh[k];
         if (nv == null || nv === '') { next[k] = v; continue; }   // CoStar has nothing for it: keep the hand value
-        if (k === 'vacancy' && v != null && +v < +nv) { next[k] = v; keptOcc = { mine: 100 - v, costar: 100 - nv }; continue; }
+        if (k === 'vacancy' && v != null && +v < +nv) { review = { mine: 100 - v, costar: 100 - nv }; continue; }
         replaced.push(k);
       }
-      if (!replaced.length) { if (keptOcc) out.push({ property_id: o.property_id, name: u.patch.name, edits: null, keep: true, replaced, keptOcc }); continue; }
-      const left = Object.keys(next).filter((k) => !k.startsWith('_'));
-      out.push({ property_id: o.property_id, name: u.patch.name, edits: left.length ? next : null, replaced, keptOcc });
+      if (!replaced.length && !review) continue;
+      const editsUse = clean({ ...next });
+      const editsKeep = review ? clean({ ...next, vacancy: o.edits.vacancy }) : null;
+      out.push({ property_id: o.property_id, name: u.patch.name, edits: editsUse, editsKeep, replaced, review, keptOcc: review });
     }
     return out;
   }
@@ -457,8 +466,10 @@
     }
     if (P.props && P.props.overrides && P.props.overrides.length) {
       onStep('Replacing hand edits with the new data');
-      for (const o of P.props.overrides) {
-        if (o.keep) continue;
+      for (let o of P.props.overrides) {
+        // occupancy under review: keep the hand value unless the check screen said to use CoStar's
+        const useCostar = o.review && P.occUse && P.occUse.has(o.property_id);
+        if (o.review && !useCostar) { if (!o.replaced.length) continue; o = Object.assign({}, o, { edits: o.editsKeep }); }
         if (o.edits) chk(await S('market').from('property_overrides').update({ edits: o.edits }).eq('property_id', o.property_id));
         else chk(await S('market').from('property_overrides').delete().eq('property_id', o.property_id));
       }

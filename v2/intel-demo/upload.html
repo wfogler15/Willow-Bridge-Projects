@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Upload market data · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611230910">
+<link rel="stylesheet" href="shared/wb.css?v=202611230912">
 <style>
   .page{max-width:1100px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -63,9 +63,9 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="shared/wb.js?v=202611230910"></script>
-<script src="market-setup.js?v=202611230910"></script>
-<script src="market-upload.js?v=202611230910"></script>
+<script src="shared/wb.js?v=202611230912"></script>
+<script src="market-setup.js?v=202611230912"></script>
+<script src="market-upload.js?v=202611230912"></script>
 </head>
 <body>
 <main class="page">
@@ -284,9 +284,10 @@
       if (c.occMoves.length) h.push(`<details><summary>Occupancy moved 3+ points (${c.occMoves.length})</summary>${list(c.occMoves, [['Property', (u) => u.patch.name], ['Was', (u) => u.from.toFixed(1) + '%'], ['Now', (u) => u.to.toFixed(1) + '%']])}</details>`);
     }
     if (P.props && P.props.overrides && P.props.overrides.length) {
-      const ov = P.props.overrides, rep = ov.filter((o) => o.replaced.length), kept = ov.filter((o) => o.keptOcc);
-      h.push(`<h3 class="h3">Hand edits</h3><p>New data replaces hand edits on <b>${n(rep.length)}</b> properties. Willow Bridge submarket and product type are never replaced.${kept.length ? ` On <b>${n(kept.length)}</b>, your hand-entered occupancy is higher than CoStar's new figure, so yours stays.` : ''}</p>`);
-      h.push(`<details><summary>See them</summary>${list(ov, [['Property', (o) => o.name], ['Replaced by new data', (o) => o.replaced.join(', ') || '—'], ['Kept', (o) => (o.keptOcc ? `Your ${o.keptOcc.mine.toFixed(1)}% occupancy over CoStar's ${o.keptOcc.costar.toFixed(1)}%` : '')]])}</details>`);
+      const ov = P.props.overrides, rep = ov.filter((o) => o.replaced.length), rv = ov.filter((o) => o.review);
+      h.push(`<h3 class="h3">Hand updates</h3><p>The new data replaces hand-entered rents and other CoStar fields on <b>${n(rep.length)}</b> properties. Notes, lease start dates, estimated completion on buildings still in the pipeline, and Willow Bridge submarket and product type are kept.</p>`);
+      if (rep.length) h.push(`<details><summary>What gets replaced (${rep.length})</summary>${list(rep, [['Property', (o) => o.name], ['Replaced by new data', (o) => o.replaced.join(', ')]])}</details>`);
+      if (rv.length) h.push(`<h3 class="h3">Occupancy to review (${n(rv.length)})</h3><p>CoStar's new occupancy is lower than the figure entered by hand. Yours stays unless you tick it.</p><div class="tblwrap"><table class="tbl"><thead><tr><th><input type="checkbox" id="occAll" aria-label="Use CoStar for all"></th><th>Property</th><th>Hand entry</th><th>CoStar now</th><th>Difference</th></tr></thead><tbody>${rv.map((o) => `<tr><td><input type="checkbox" class="occChk" value="${esc(o.property_id)}"></td><td>${esc(o.name)}</td><td>${o.review.mine.toFixed(1)}%</td><td>${o.review.costar.toFixed(1)}%</td><td>${(o.review.costar - o.review.mine).toFixed(1)} pts</td></tr>`).join('')}</tbody></table></div><p class="muted">Ticked rows take CoStar's occupancy.</p>`);
     }
     if (P.props && P.props.missing && P.props.missing.length) {
       const ms = P.props.missing;
@@ -300,6 +301,7 @@
       if (P.sales.inserts.length) h.push(`<details><summary>New sale comps (${P.sales.inserts.length})</summary>${list(P.sales.inserts, [['Property', (r) => r.name], ['Date', (r) => r.sale_date], ['Price', (r) => (r.sale_price ? '$' + n(r.sale_price) : '')], ['Units', (r) => r.units], ['Built', (r) => r.year_built], ['Buyer', (r) => r.buyer], ['Portfolio', (r) => (r.portfolio ? 'Yes' : '')]])}</details>`);
     }
     $('#preview').innerHTML = h.join('');
+    const oa = document.getElementById('occAll'); if (oa) oa.onchange = () => document.querySelectorAll('.occChk').forEach((c) => { c.checked = oa.checked; });
     const all = document.getElementById('rmAll'); if (all) all.onchange = () => document.querySelectorAll('.rmChk').forEach((c) => { c.checked = all.checked; });
     $('#sPreview').hidden = false; $('#loadMsg').textContent = ''; $('#bLoad').disabled = false;
     $('#sPreview').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -311,6 +313,7 @@
     const log = $('#log'); log.textContent = '';
     const step = (s) => { log.textContent += s + '\n'; };
     P.removeMissing = [...document.querySelectorAll('.rmChk:checked')].map((c) => c.value);
+    P.occUse = new Set([...document.querySelectorAll('.occChk:checked')].map((c) => c.value));
     try {
       const out = await U.commit(sb, P, { user: user.email, onStep: step, period: U.currentPeriod() });
       step(`Done: ${out.inserted} new and ${out.updated} updated properties${out.removed ? `, ${out.removed} removed` : ''}, ${out.rp} RealPage properties, ${out.trends} trend geographies, ${out.sales} sale comps.`);
