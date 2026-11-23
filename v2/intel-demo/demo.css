@@ -1680,10 +1680,9 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 #modal-content .pcg { border: 0; border-top: 1px solid var(--x-line); border-bottom: 1px solid var(--x-line); border-radius: 0; margin: 4px 0 8px; }
 #modal-content .pcg-c:first-child { padding-left: 0; }
 #modal-content .detail-grid { border: 0 !important; border-top: 1px solid var(--x-line) !important; border-bottom: 1px solid var(--x-line) !important; border-radius: 0 !important; box-shadow: none !important; background: transparent !important; gap: 0 !important; overflow: visible; }
-#modal-content .detail-cell { background: transparent !important; border-right: 1px solid var(--x-line); padding: 12px 16px; }
-#modal-content .detail-grid > .detail-cell:nth-child(4n) { border-right: 0; }
-#modal-content .detail-grid > .detail-cell:nth-child(4n+1) { padding-left: 0; }
-#modal-content .detail-grid > .detail-cell:nth-child(n+5) { border-top: 1px solid var(--x-line); }
+/* cells: row lines only, no column lines, so wide (2-column) and wrapped cells line up the same in every grid */
+#modal-content .detail-grid { border-bottom: 0 !important; }
+#modal-content .detail-cell { background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--x-line) !important; padding: 12px 16px 12px 0 !important; }
 /* glance row: 7 figures (Units, Year Built, Occupancy, Avg Unit Size, Asking, Effective, Concessions) */
 #modal-content .pcg { grid-template-columns: repeat(7, minmax(0, 1fr)); }
 #modal-content .pcg-c { padding: 14px 12px; }
@@ -1701,3 +1700,6 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .wbi-back{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;color:var(--ink-2,#4A4A55);text-decoration:none;margin:0 0 10px;padding:2px 0}
 .wbi-back svg{width:12px;height:12px}
 .wbi-back:hover{color:var(--ink,#16161D);text-decoration:underline}
+
+/* unit mix: total row */
+#modal-content .unit-mix-table tfoot td { font-weight: 600; color: var(--x-ink); border-top: 1px solid var(--x-ink); border-bottom: 0; }

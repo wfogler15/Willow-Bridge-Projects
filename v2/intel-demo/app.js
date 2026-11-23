@@ -15281,6 +15281,18 @@ function renderModal() {
               <tr><td>${r[0]}</td><td class="num">${fmt.int(r[1])}</td><td class="num">${fmt.int(r[2])}</td><td class="num">${fmt.money(r[3])}</td><td class="num">${fmt.money2(r[4])}</td></tr>
             `).join('')}
           </tbody>
+          ${!editing && unitMixRows.length > 1 ? (() => {
+            // total row: units summed; size and rents weighted by units (rows missing a figure are left out of that average)
+            let u = 0, su = 0, sfw = 0, ru = 0, rw = 0, pu = 0, pr = 0, ps = 0;
+            unitMixRows.forEach(r => {
+              const n = +r[1] || 0; if (!n) return; u += n;
+              if (+r[2]) { su += n; sfw += n * r[2]; }
+              if (+r[3]) { ru += n; rw += n * r[3]; }
+              if (+r[2] && +r[3]) { pr += n * r[3]; ps += n * r[2]; }
+            });
+            if (!u) return '';
+            return `<tfoot><tr><td>Total</td><td class="num">${fmt.int(u)}</td><td class="num">${su ? fmt.int(sfw / su) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru) : '—'}</td><td class="num">${ps ? fmt.money2(pr / ps) : '—'}</td></tr></tfoot>`;
+          })() : ''}
         </table>
       ` : ''}
 
