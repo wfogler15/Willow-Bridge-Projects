@@ -1004,6 +1004,18 @@
   function saveLocalOnly() {
     Object.values(compSets).forEach((cs) => { if (!cs.uuid && !tried[cs.id] && UI.save[cs.id] !== 'saving' && UI.save[cs.id] !== 'pending') { tried[cs.id] = true; saveNow(cs); } });
   }
+  // one-time: per-set choices kept in this browser before comp_sets.settings existed (submarket pick, removed pipeline projects) move onto the set
+  function liftLocalSettings() {
+    if (window.__WB_CS_NO_SETTINGS || !canEdit()) return;
+    const bl = blLocal(), px = pxLocal();
+    Object.values(compSets).forEach((cs) => {
+      const st = cs.settings || {}, add = {};
+      if (bl[cs.id] && !st.baseline) add.baseline = bl[cs.id];
+      if (px[cs.id] && px[cs.id].length && !(st.pipeExcluded && st.pipeExcluded.length)) add.pipeExcluded = px[cs.id];
+      if (Object.keys(add).length && cs.uuid) { cs.settings = { ...st, ...add }; touch(cs); }
+    });
+  }
+  setTimeout(liftLocalSettings, 4000);
   setTimeout(saveLocalOnly, 5000); setInterval(() => { Object.keys(tried).forEach((k) => { if (compSets[k] && !compSets[k].uuid) delete tried[k]; }); saveLocalOnly(); }, 120000);
 
   // ---------- render ----------
