@@ -351,6 +351,30 @@
     return out;
   }
 
+  // ---------- hand-added projects that CoStar now has ----------
+  const ftBetween = (a, b) => { const R = 20902231, t = (x) => (x * Math.PI) / 180, dl = t(b.lat - a.lat), dn = t(b.lng - a.lng); const h = Math.sin(dl / 2) ** 2 + Math.cos(t(a.lat)) * Math.cos(t(b.lat)) * Math.sin(dn / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(h)); };
+  const toks = (x) => new Set((x || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !['the', 'apartments', 'apartment', 'at', 'and', 'llc', 'inc', 'residences', 'residential', 'company', 'companies'].includes(w)));
+  const overlap = (a, b) => { const A = toks(a), B = toks(b); let n = 0; A.forEach((w) => { if (B.has(w)) n++; }); return n; };
+  /** → [{ costar_id, name, address, manual: {id, name, address, developer, units}, ft, strong, why }] (each hand-added project claimed at most once) */
+  function matchManual(inserts, manual) {
+    const cands = [];
+    for (const r of inserts) for (const m of manual) {
+      const ft = r.lat != null && m.lat != null ? ftBetween(r, m) : null;
+      const sameAddr = r.address && m.address && normAddr(r.address) === normAddr(m.address);
+      const nameHit = overlap(r.name, m.name) > 0, devHit = r.developer && m.developer && overlap(r.developer, m.developer) > 0;
+      const strong = sameAddr || (ft != null && ft <= 400);
+      const possible = strong || (ft != null && ft <= 1584 && (nameHit || devHit));
+      if (!possible) continue;
+      cands.push({ r, m, ft, strong, score: (strong ? 0 : 1e6) + (ft == null ? 5e5 : ft) - (nameHit ? 300 : 0) - (devHit ? 200 : 0),
+        why: [sameAddr ? 'same address' : null, ft != null ? Math.round(ft) + ' ft apart' : null, nameHit ? 'name' : null, devHit ? 'developer' : null].filter(Boolean).join(' · ') });
+    }
+    cands.sort((a, b) => a.score - b.score);
+    const usedR = new Set(), usedM = new Set(), out = [];
+    for (const c of cands) { if (usedR.has(c.r.costar_id) || usedM.has(c.m.id)) continue; usedR.add(c.r.costar_id); usedM.add(c.m.id);
+      out.push({ costar_id: c.r.costar_id, name: c.r.name, address: c.r.address, units: c.r.units, developer: c.r.developer, manual: { id: c.m.id, name: c.m.name, address: c.m.address, developer: c.m.developer, units: c.m.units, status: c.m.status, year_built: c.m.year_built, month_built: c.m.month_built, attrs: c.m.attrs || {} }, ft: c.ft, strong: c.strong, why: c.why }); }
+    return out;
+  }
+
   /** Compare parsed files with the database. Reads only. → plan (shown as the preview, then passed to commit). */
   async function plan(sb, { marketId, newMarket, parsed, asOf }) {
     const P = { asOf: asOf || null, marketId, newMarket: newMarket || null, props: null, rp: null, trends: null, sales: null, warnings: [] };
@@ -416,7 +440,13 @@
           return r != null && Math.abs(r) > RENT_REVIEW ? { id: u.id, name: u.patch.name, from, to, change: r, hand: h != null } : null;
         }).filter(Boolean);
       }
-      P.props = { inserts, updates, removedSkips, otherMarket, skipped: parsed.costar_props.skipped, notInFile, missing, changes, overrides, rentReview };
+      // a property CoStar shows for the first time may be a project someone added by hand: offer to claim it instead of adding a duplicate
+      let claims = [];
+      if (!newMarket && inserts.length) {
+        const manual = await all(sb, 'core', 'properties', 'id,name,address,developer,units,lat,lng,status,year_built,month_built,attrs', (q) => q.eq('market_id', marketId).eq('source', 'manual').neq('kind', 'land'));
+        claims = matchManual(inserts, manual);
+      }
+      P.props = { inserts, updates, removedSkips, otherMarket, skipped: parsed.costar_props.skipped, notInFile, missing, changes, overrides, rentReview, claims };
       if (otherMarket.length) P.warnings.push(`${otherMarket.length} properties already sit in another market (${[...new Set(otherMarket.map((o) => o.market))].join(', ')}); they'll be updated in place, and their market follows their location.`);
     }
     // RealPage
@@ -465,6 +495,24 @@
     const idByCostar = new Map();
     if (P.props) {
       let i = 0;
+      // claimed: the hand-added project becomes the CoStar record (same row, so comp sets, hand updates and notes stay attached)
+      const claimOn = new Map((P.props.claims || []).filter((c) => P.claimUse ? P.claimUse.has(c.costar_id) : c.strong).map((c) => [c.costar_id, c]));
+      for (const r of P.props.inserts.filter((x) => claimOn.has(x.costar_id))) {
+        const c = claimOn.get(r.costar_id), ma = c.manual.attrs || {};
+        const attrs = Object.assign({}, r.attrs);
+        ['notes', 'wbSubmarket', 'wbProductType', 'landCompId', 'constructionBegin', 'acreage'].forEach((k) => { if (ma[k] != null && ma[k] !== '' && (k === 'notes' || k === 'wbSubmarket' || k === 'landCompId' || attrs[k] == null)) attrs[k] = ma[k]; });
+        attrs.claimedFrom = { legacy_id: ma.legacy_id || null, name: c.manual.name, at: new Date().toISOString(), by: who };
+        const patch = Object.assign({}, r, { attrs, source: 'costar', updated_by: who });
+        // still in the pipeline: keep the hand-estimated completion over CoStar's
+        if (!/exist/i.test(r.status || '') && c.manual.year_built) {
+          const mm = c.manual.month_built || ma.monthBuilt, mi = typeof mm === 'number' ? mm : ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(String(mm || '').slice(0, 3).toLowerCase()) + 1;
+          patch.year_built = c.manual.year_built; if (mi > 0) patch.month_built = mi;
+        }
+        onStep(`Matching ${r.name || 'a new property'} to ${c.manual.name || 'a hand-added project'}`);
+        chk(await S('core').from('properties').update(patch).eq('id', c.manual.id));
+        idByCostar.set(r.costar_id, c.manual.id); out.claimed = (out.claimed || 0) + 1;
+      }
+      P.props.inserts = P.props.inserts.filter((x) => !claimOn.has(x.costar_id));
       for (const c of chunk(P.props.inserts, 200)) {
         onStep(`Adding properties ${i + 1}–${i + c.length} of ${P.props.inserts.length}`);
         const rows = c.map((r) => Object.assign({}, r, { market_id: P.marketId, created_by: who, updated_by: who }));

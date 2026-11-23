@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Upload market data · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231008">
+<link rel="stylesheet" href="shared/wb.css?v=202611231013">
 <style>
   .page{max-width:1100px}
   h1.t{font:600 26px/1.2 var(--font-display);color:var(--ink);margin:8px 0 4px}
@@ -63,9 +63,9 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="shared/wb.js?v=202611231008"></script>
-<script src="market-setup.js?v=202611231008"></script>
-<script src="market-upload.js?v=202611231008"></script>
+<script src="shared/wb.js?v=202611231013"></script>
+<script src="market-setup.js?v=202611231013"></script>
+<script src="market-upload.js?v=202611231013"></script>
 </head>
 <body>
 <main class="page">
@@ -289,6 +289,10 @@
       if (rep.length) h.push(`<details><summary>What gets replaced (${rep.length})</summary>${list(rep, [['Property', (o) => o.name], ['Replaced by new data', (o) => o.replaced.join(', ')]])}</details>`);
       if (rv.length) h.push(`<h3 class="h3">Occupancy to review (${n(rv.length)})</h3><p>CoStar's new occupancy is lower than the figure entered by hand. Yours stays unless you tick it.</p><div class="tblwrap"><table class="tbl"><thead><tr><th><input type="checkbox" id="occAll" aria-label="Use CoStar for all"></th><th>Property</th><th>Hand entry</th><th>CoStar now</th><th>Difference</th></tr></thead><tbody>${rv.map((o) => `<tr><td><input type="checkbox" class="occChk" value="${esc(o.property_id)}"></td><td>${esc(o.name)}</td><td>${o.review.mine.toFixed(1)}%</td><td>${o.review.costar.toFixed(1)}%</td><td>${(o.review.costar - o.review.mine).toFixed(1)} pts</td></tr>`).join('')}</tbody></table></div><p class="muted">Ticked rows take CoStar's occupancy.</p>`);
     }
+    if (P.props && P.props.claims && P.props.claims.length) {
+      const cl = P.props.claims;
+      h.push(`<h3 class="h3">Projects added by hand that CoStar now has (${n(cl.length)})</h3><p>Ticked rows update the hand-added project in place (it keeps its comp sets, notes and hand updates) instead of adding a duplicate. Close matches are ticked; check the possible ones.</p><div class="tblwrap"><table class="tbl"><thead><tr><th><input type="checkbox" id="claimAll" aria-label="Match all"></th><th>New in CoStar</th><th>Added by hand</th><th>Units</th><th>Why</th></tr></thead><tbody>${cl.map((c) => `<tr><td><input type="checkbox" class="claimChk" value="${esc(c.costar_id)}"${c.strong ? ' checked' : ''}></td><td>${esc(c.name)}<br><small>${esc(c.address || '')}</small></td><td>${esc(c.manual.name)}<br><small>${esc(c.manual.address || '')}${c.manual.developer ? ' · ' + esc(c.manual.developer) : ''}</small></td><td>${n(c.units)} / ${n(c.manual.units)}</td><td>${c.strong ? '<b>Close match</b>' : 'Possible'} · ${esc(c.why)}</td></tr>`).join('')}</tbody></table></div>`);
+    }
     if (P.props && P.props.rentReview && P.props.rentReview.length) {
       const rr = P.props.rentReview.slice().sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
       h.push(`<h3 class="h3">Asking rent to review (${n(rr.length)})</h3><p>These moved more than 20% either way, measured against your hand-entered rent where there is one. Each keeps its current rent unless you tick it.</p><div class="tblwrap"><table class="tbl"><thead><tr><th><input type="checkbox" id="rentAll" aria-label="Take the new rent for all"></th><th>Property</th><th>Current $/SF</th><th>New $/SF</th><th>Change</th><th></th></tr></thead><tbody>${rr.map((r) => `<tr><td><input type="checkbox" class="rentChk" value="${esc(r.id)}"></td><td>${esc(r.name)}</td><td>${(+r.from).toFixed(2)}</td><td>${(+r.to).toFixed(2)}</td><td>${(r.change > 0 ? '+' : '') + (r.change * 100).toFixed(0) + '%'}</td><td>${r.hand ? 'Hand entry' : 'CoStar'}</td></tr>`).join('')}</tbody></table></div><p class="muted">Ticked rows take the new CoStar rent.</p>`);
@@ -305,6 +309,7 @@
       if (P.sales.inserts.length) h.push(`<details><summary>New sale comps (${P.sales.inserts.length})</summary>${list(P.sales.inserts, [['Property', (r) => r.name], ['Date', (r) => r.sale_date], ['Price', (r) => (r.sale_price ? '$' + n(r.sale_price) : '')], ['Units', (r) => r.units], ['Built', (r) => r.year_built], ['Buyer', (r) => r.buyer], ['Portfolio', (r) => (r.portfolio ? 'Yes' : '')]])}</details>`);
     }
     $('#preview').innerHTML = h.join('');
+    const ca = document.getElementById('claimAll'); if (ca) ca.onchange = () => document.querySelectorAll('.claimChk').forEach((c) => { c.checked = ca.checked; });
     const ra = document.getElementById('rentAll'); if (ra) ra.onchange = () => document.querySelectorAll('.rentChk').forEach((c) => { c.checked = ra.checked; });
     const oa = document.getElementById('occAll'); if (oa) oa.onchange = () => document.querySelectorAll('.occChk').forEach((c) => { c.checked = oa.checked; });
     const all = document.getElementById('rmAll'); if (all) all.onchange = () => document.querySelectorAll('.rmChk').forEach((c) => { c.checked = all.checked; });
@@ -318,6 +323,7 @@
     const log = $('#log'); log.textContent = '';
     const step = (s) => { log.textContent += s + '\n'; };
     P.removeMissing = [...document.querySelectorAll('.rmChk:checked')].map((c) => c.value);
+    P.claimUse = new Set([...document.querySelectorAll('.claimChk:checked')].map((c) => c.value));
     P.rentUse = new Set([...document.querySelectorAll('.rentChk:checked')].map((c) => c.value));
     P.occUse = new Set([...document.querySelectorAll('.occChk:checked')].map((c) => c.value));
     try {

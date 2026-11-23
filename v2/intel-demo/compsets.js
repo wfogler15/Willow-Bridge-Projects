@@ -164,6 +164,7 @@
     const m = ed(p)._meta || {}, f = (typeof compFees !== 'undefined' && compFees[p.id] && compFees[p.id]._meta) || {};
     let best = null; [m, f].forEach((o) => Object.values(o).forEach((x) => { if (x && x.at && (!best || x.at > best.at)) best = x; }));
     if (!best && ed(p)._updatedAt) best = { at: ed(p)._updatedAt, by: ed(p)._updatedBy, src: 'Hand entry' };
+    if (!best && p._addedAt) best = { at: p._addedAt, by: p._addedBy, src: 'Added by hand' };
     return best;
   }
   function updCell(p) {
@@ -450,25 +451,25 @@
   const checked = (a) => `${a.filter(fresh).length} of ${a.length} updated in the last 90 days`;
 
   function addProjForm(cs) {
-    const ps = membersOf(cs), bl = baselineOf(cs, ps).name;
+    const ps = membersOf(cs), bl = baselineOf(cs, ps).name, pf = UI.apPrefill || {}, vq = (k) => (pf[k] == null ? '' : E(pf[k]));
     const styles = [...new Set(all().map((x) => x.style).filter(Boolean))].sort();
-    return `<div class="csx-uf csx-ap"><div class="csx-uf-head"><b>Add a project CoStar doesn’t have yet</b><span class="csx-uf-last">Saved to the database for ${E((window.__WBD && window.__WBD.title) || 'this market')} and added to this set</span></div>
+    return `<div class="csx-uf csx-ap"><div class="csx-uf-head"><b>${pf.landCompId ? `New project from the ${E(pf.saleLabel || 'land')} sale` : 'Add a project CoStar doesn’t have yet'}</b><span class="csx-uf-last">Saved to the database for ${E((window.__WBD && window.__WBD.title) || 'this market')} and added to this set</span></div>
       <div class="csx-uf-grid">
-        <label><span>Name *</span><input class="csx-in csx-ap-f" data-f="name" maxlength="80"></label>
-        <label><span>Address</span><input class="csx-in csx-ap-f" data-f="address" maxlength="120"></label>
-        <label><span>City</span><input class="csx-in csx-ap-f" data-f="city" maxlength="60" value="${E((ps[0] && ps[0].city) || '')}"></label>
-        <label><span>Units *</span><input type="number" class="csx-in csx-ap-f" data-f="units" min="1"></label>
-        <label><span>Developer</span><input class="csx-in csx-ap-f" data-f="developer" maxlength="80"></label>
+        <label><span>Name *</span><input class="csx-in csx-ap-f" data-f="name" maxlength="80" value="${vq('name')}"></label>
+        <label><span>Address</span><input class="csx-in csx-ap-f" data-f="address" maxlength="120" value="${vq('address')}"></label>
+        <label><span>City</span><input class="csx-in csx-ap-f" data-f="city" maxlength="60" value="${pf.city ? vq('city') : E((ps[0] && ps[0].city) || '')}"></label>
+        <label><span>Units *</span><input type="number" class="csx-in csx-ap-f" data-f="units" min="1" value="${vq('units')}"></label>
+        <label><span>Developer</span><input class="csx-in csx-ap-f" data-f="developer" maxlength="80" value="${vq('developer')}"></label>
         <label><span>Product type</span><select class="csx-in csx-ap-f" data-f="style">${styles.map((x) => `<option${x === 'Garden' ? ' selected' : ''}>${E(x)}</option>`).join('')}</select></label>
         <label><span>Stage</span><select class="csx-in csx-ap-f" data-f="stage"><option value="UC">Under construction</option><option value="Proposed">Proposed</option><option value="Stalled">Stalled</option></select></label>
-        <label><span>Construction start</span><input type="month" class="csx-in csx-ap-f" data-f="start"></label>
+        <label><span>Construction start</span><input type="month" class="csx-in csx-ap-f" data-f="start" value="${vq('start')}"></label>
         <label><span>Est. completion</span><input type="month" class="csx-in csx-ap-f" data-f="done"></label>
-        <label><span>Acres</span><input type="number" class="csx-in csx-ap-f" data-f="acres" min="0" step="0.01"></label>
+        <label><span>Acres</span><input type="number" class="csx-in csx-ap-f" data-f="acres" min="0" step="0.01" value="${vq('acres')}"></label>
         <label><span>Stories</span><input type="number" class="csx-in csx-ap-f" data-f="stories" min="1"></label>
         <label><span>Submarket</span><select class="csx-in csx-ap-f" data-f="submarket">${smOptions().map((o) => `<option${o === bl ? ' selected' : ''}>${E(o)}</option>`).join('')}</select></label>
       </div>
-      <label class="csx-uf-notes"><span>Notes</span><textarea class="csx-in csx-ap-f" data-f="notes" rows="2" placeholder="Broke ground Nov 2026…"></textarea></label>
-      <div class="csx-uf-loc"><span class="csx-uf-loch">Map location *</span><input class="csx-in csx-uf-ll" placeholder="lat, lng (paste from Google Maps) or drop the pin"><button type="button" class="yx-btn csx-uf-pin">Drop pin on map</button><div class="csx-uf-map" hidden></div></div>
+      <label class="csx-uf-notes"><span>Notes</span><textarea class="csx-in csx-ap-f" data-f="notes" rows="2" placeholder="Broke ground Nov 2026…">${vq('notes')}</textarea></label>
+      <div class="csx-uf-loc"><span class="csx-uf-loch">Map location *</span><input class="csx-in csx-uf-ll" placeholder="lat, lng (paste from Google Maps) or drop the pin" value="${pf.lat != null ? (+pf.lat).toFixed(6) + ', ' + (+pf.lng).toFixed(6) : ''}"><button type="button" class="yx-btn csx-uf-pin">Drop pin on map</button><div class="csx-uf-map" hidden></div></div>
       <div class="csx-bar"><button type="button" class="yx-btn yx-btn-primary csx-ap-save">Add project</button><button type="button" class="yx-btn csx-ap-x">Cancel</button><span class="csx-msg"></span></div></div>`;
   }
   async function saveProject(box, cs) {
@@ -483,14 +484,14 @@
       status: v.stage === 'Proposed' || v.stage === 'Stalled' ? 'Under Construction' : 'Under Construction', pipelineStage: v.stage === 'UC' ? 'UC' : v.stage,
       yearBuilt: dn ? dn[0] : null, monthBuilt: dn ? MON[dn[1] - 1] : null, constructionBegin: stt ? MON[stt[1] - 1] + ' ' + stt[0] : null,
       acreage: num(v.acres), stories: num(v.stories), submarket: v.submarket || null, notes: v.notes || '', lat: +m[1], lng: +m[2],
-      _addedBy: by, _addedAt: Date.now() };
+      landCompId: (UI.apPrefill && UI.apPrefill.landCompId) || null, _addedBy: by, _addedAt: Date.now() };
     const btn = box.querySelector('.csx-ap-save'); btn.disabled = true; btn.textContent = 'Saving…';
     try {
       if (!window.LegacyDB || !LegacyDB.direct || !LegacyDB.direct.saveCustomProp) throw new Error('saving isn’t available');
       await LegacyDB.direct.saveCustomProp(rec);
     } catch (e) { btn.disabled = false; btn.textContent = 'Add project'; msg.textContent = 'Couldn’t save: ' + (e.message || e); return; }
     try { customProperties[rec.id] = rec; saveCustomProps(); RAW_DATA.push(hydrateWbDeal(rec)); } catch (e) { console.error(e); }
-    cs.propertyIds = [...(cs.propertyIds || []), rec.id]; UI.addProj = false; touch(cs); refresh();
+    cs.propertyIds = [...(cs.propertyIds || []), rec.id]; UI.addProj = false; UI.apPrefill = null; touch(cs); refresh();
     try { wbSaveNote('Added ' + rec.name); } catch (e) {}
   }
   function sections(cs, ps) {
@@ -614,9 +615,9 @@
     const invT = inv.length ? `<table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Investment sales · ${inv.length}</th><th>Date</th><th class="num">Units</th><th class="num">Built</th><th class="num">Price</th><th class="num">$/unit</th><th class="num">$/SF</th><th class="num">Cap</th><th>Buyer</th><th class="num">Distance</th><th></th></tr></thead><tbody>
       ${inv.sort((a, b) => String(b.sale_date).localeCompare(String(a.sale_date))).map((x) => `<tr><td><span class="csx-pname2">${E(x.name || x.address || '(unnamed)')}</span>${tag(x)}<div class="csx-addr">${E([x.address, x.submarket || x.city].filter(Boolean).join(' · '))}</div></td><td>${sMon(x.sale_date)}</td><td class="num">${intC(sNum(x.units))}</td><td class="num">${x.year_built || '—'}</td><td class="num">${mUSD(sNum(x.sale_price))}</td><td class="num csx-k">${kUSD(perUnit(x))}</td><td class="num">${sNum(x.price_per_sf) ? '$' + Math.round(x.price_per_sf) : '—'}</td><td class="num">${capOf(x) ? capOf(x).toFixed(2) + '%' : '—'}</td><td class="csx-dev">${E(x.buyer || '—')}</td><td class="num">${dist(x)}</td>${rmB(x)}</tr>`).join('')}
       </tbody><tfoot><tr><td>Average</td><td></td><td class="num">${intC(avg(inv.map((x) => sNum(x.units)).filter(Boolean)))}</td><td></td><td></td><td class="num csx-k">${kUSD(avg(inv.map(perUnit).filter((v) => v != null)))}</td><td class="num">${(() => { const v = avg(inv.map((x) => sNum(x.price_per_sf)).filter(Boolean)); return v ? '$' + Math.round(v) : '—'; })()}</td><td class="num">${(() => { const v = avg(inv.map(capOf).filter(Boolean)); return v ? v.toFixed(2) + '%' : '—'; })()}</td><td colspan="3"></td></tr></tfoot></table>` : '<div class="csx-none3">No investment sales in the list</div>';
-    const landT = land.length ? `<table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Land sales · ${land.length}</th><th>Date</th><th class="num">Acres</th><th class="num">Units</th><th class="num">Units/ac</th><th class="num">Price</th><th class="num">$/door</th><th class="num">$/land SF</th><th>Buyer</th><th class="num">Distance</th><th></th></tr></thead><tbody>
-      ${land.sort((a, b) => String(b.sale_date).localeCompare(String(a.sale_date))).map((x) => { const un = sNum(x.proposed_units) || sNum(x.units), ac = sNum(x.acres); return `<tr><td><span class="csx-pname2">${E(x.name || x.address || '(unnamed)')}</span>${tag(x)}<div class="csx-addr">${E([x.address, x.submarket || x.city].filter(Boolean).join(' · '))}</div></td><td>${sMon(x.sale_date)}</td><td class="num">${ac ? ac.toFixed(2) : '—'}</td><td class="num">${intC(un)}</td><td class="num">${un && ac ? (un / ac).toFixed(0) : '—'}</td><td class="num">${mUSD(sNum(x.sale_price))}</td><td class="num csx-k">${kUSD(perUnit(x))}</td><td class="num">${sNum(x.price_per_land_sf) ? '$' + (+x.price_per_land_sf).toFixed(2) : '—'}</td><td class="csx-dev">${E(x.buyer || '—')}</td><td class="num">${dist(x)}</td>${rmB(x)}</tr>`; }).join('')}
-      </tbody><tfoot><tr><td>Average</td><td></td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.acres)).filter(Boolean)); return v ? v.toFixed(2) : '—'; })()}</td><td></td><td></td><td></td><td class="num csx-k">${kUSD(avg(land.map(perUnit).filter((v) => v != null)))}</td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.price_per_land_sf)).filter(Boolean)); return v ? '$' + v.toFixed(2) : '—'; })()}</td><td colspan="3"></td></tr></tfoot></table>` : '<div class="csx-none3">No land sales in the list</div>';
+    const landT = land.length ? `<table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Land sales · ${land.length}</th><th>Date</th><th class="num">Acres</th><th class="num">Units</th><th class="num">Units/ac</th><th class="num">Price</th><th class="num">$/door</th><th class="num">$/land SF</th><th>Buyer</th><th class="num">Distance</th><th></th><th></th></tr></thead><tbody>
+      ${land.sort((a, b) => String(b.sale_date).localeCompare(String(a.sale_date))).map((x) => { const un = sNum(x.proposed_units) || sNum(x.units), ac = sNum(x.acres); return `<tr><td><span class="csx-pname2">${E(x.name || x.address || '(unnamed)')}</span>${tag(x)}<div class="csx-addr">${E([x.address, x.submarket || x.city].filter(Boolean).join(' · '))}</div></td><td>${sMon(x.sale_date)}</td><td class="num">${ac ? ac.toFixed(2) : '—'}</td><td class="num">${intC(un)}</td><td class="num">${un && ac ? (un / ac).toFixed(0) : '—'}</td><td class="num">${mUSD(sNum(x.sale_price))}</td><td class="num csx-k">${kUSD(perUnit(x))}</td><td class="num">${sNum(x.price_per_land_sf) ? '$' + (+x.price_per_land_sf).toFixed(2) : '—'}</td><td class="csx-dev">${E(x.buyer || '—')}</td><td class="num">${dist(x)}</td><td class="csx-sp"><button type="button" class="csx-link csx-sproj" data-sid="${E(x.id)}" title="This site is now a pipeline project: add it, pre-filled from the sale">Start project</button></td>${rmB(x)}</tr>`; }).join('')}
+      </tbody><tfoot><tr><td>Average</td><td></td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.acres)).filter(Boolean)); return v ? v.toFixed(2) : '—'; })()}</td><td></td><td></td><td></td><td class="num csx-k">${kUSD(avg(land.map(perUnit).filter((v) => v != null)))}</td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.price_per_land_sf)).filter(Boolean)); return v ? '$' + v.toFixed(2) : '—'; })()}</td><td colspan="4"></td></tr></tfoot></table>` : '<div class="csx-none3">No land sales in the list</div>';
     const ipu = avg(inv.map(perUnit).filter((v) => v != null)), cap = avg(inv.map(capOf).filter(Boolean)), lpu = avg(land.map(perUnit).filter((v) => v != null));
     const line = sumLine([[kUSD(ipu), 'per unit, investment'], [cap ? cap.toFixed(2) + '%' : '—', 'avg cap'], [kUSD(lpu), 'per door, land']])
       + `<span class="csx-fresh">${L.curated ? 'Your list' : `Auto-picked: within ${g ? g.r.toFixed(1) : '—'} mi of the set, investment in the last 3 years (50+ units), land in the last 4 · add or remove one to keep it as yours`}</span>`;
@@ -628,6 +629,14 @@
     const cur = () => saleList(cs, ps).ids;
     box.querySelectorAll('.csx-srm').forEach((b) => (b.onclick = async () => { const ids = cur().filter((id) => id !== b.dataset.sid); if (await saveSales(cs, ids)) render(); }));
     const rs = box.querySelector('.csx-sreset'); if (rs) rs.onclick = () => resetSales(cs);
+    box.querySelectorAll('.csx-sproj').forEach((b) => (b.onclick = () => {
+      const x = (SC.pool || []).find((y) => y.id === b.dataset.sid); if (!x) return;
+      const d = x.sale_date ? String(x.sale_date).slice(0, 7) : '';
+      UI.apPrefill = { landCompId: x.id, saleLabel: sMon(x.sale_date) + ' land', name: x.name || '', address: x.address || '', city: x.city || '', units: sNum(x.proposed_units) || sNum(x.units) || '', developer: x.buyer || '', acres: sNum(x.acres) || '', start: d, lat: x.lat, lng: x.lng,
+        notes: `Land bought ${sMon(x.sale_date)}${sNum(x.sale_price) ? ' for ' + mUSD(sNum(x.sale_price)) : ''}${x.seller ? ' from ' + x.seller : ''}.` };
+      UI.addProj = true; render();
+      const t = document.getElementById('csx-s-pi'); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' });
+    }));
     const q = box.querySelector('.csx-sadd-q'); if (!q) return;
     const list = q.parentElement.querySelector('.csx-ta-list');
     const run = () => {
@@ -863,7 +872,7 @@
     const sd = $('.csx-stalled'); if (sd) sd.ontoggle = () => { UI.stalledOpen = sd.open; };
     $$('.csx-nav a').forEach((a) => (a.onclick = (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (!t) return; e.preventDefault(); window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' }); }));
     const ap = $('.csx-addproj'); if (ap) ap.onclick = () => { UI.addProj = !UI.addProj; render(); const f = $('.csx-ap [data-f=name]'); if (f) f.focus(); };
-    const apb = $('.csx-ap'); if (apb) { apb.querySelector('.csx-ap-x').onclick = () => { UI.addProj = false; render(); }; apb.querySelector('.csx-ap-save').onclick = () => saveProject(apb, cs); wirePin(apb, null); }
+    const apb = $('.csx-ap'); if (apb) { apb.querySelector('.csx-ap-x').onclick = () => { UI.addProj = false; UI.apPrefill = null; render(); }; apb.querySelector('.csx-ap-save').onclick = () => saveProject(apb, cs); wirePin(apb, null); }
     $$('.csx-updbtn').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const pid = b.closest('tr').dataset.pid; UI.upd = UI.upd === pid ? null : pid; render(); const f = view.querySelector('.csx-uf'); if (f) f.scrollIntoView({ block: 'nearest' }); }));
     $$('.csx-uf:not(.csx-ap)').forEach((box) => {
       box.querySelector('.csx-uf-x').onclick = () => { UI.upd = null; render(); };
