@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231353">
+<link rel="stylesheet" href="shared/wb.css?v=202611231355">
 <style>
   .page{max-width:1240px}
   /* ---------- top row: regions + settings ---------- */
@@ -37,10 +37,10 @@
   .hc{position:relative;z-index:1}
   .hm-hero.two{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr);gap:0 40px;padding:30px 32px 26px}
   .hm-left{display:flex;flex-direction:column;min-width:0}
-  .hm-ctl{margin-top:auto;padding-top:22px;display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+  .hm-ctl{padding-top:20px;display:flex;flex-direction:column;align-items:flex-start;gap:14px}
   .hm-hero.two .hm-stamp{flex-direction:column;align-items:flex-start}
   .hm-hero.two .hc-leg{flex-direction:column;gap:8px;margin:0}
-  .hm-hero.two .hc-t{margin-bottom:6px}
+  .hm-hero.two .hc-top{margin-bottom:6px;align-items:flex-start}
   .hc-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:10px}
   .hc-t{font:600 15px/1.3 var(--font-display);color:#fff}
   .hc-t small{display:block;font:400 12.5px/1.4 var(--font-display);color:rgba(255,255,255,.72);margin-top:2px}
@@ -180,8 +180,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231353"></script>
-<script src="access.js?v=202611231353"></script>
+<script src="shared/wb.js?v=202611231355"></script>
+<script src="access.js?v=202611231355"></script>
 </head>
 <body>
 <main class="page">
@@ -332,8 +332,9 @@
     hero.classList.toggle('two', !!chart);
     hero.innerHTML = `${ARCS}<div class="hm-left"><div class="hm-eyebrow hm-brand"><img src="shared/wb-mark.png" alt="">Willow Bridge Market Intel</div><h1>${esc(regionTitle(region))}</h1><p class="lead">${esc(lead || 'No markets yet')}</p>
       ${stamps(lv)}
-      ${chart ? `<div class="hm-ctl"><div class="hc-tg"><button type="button" data-k="yR" class="${metric === 'yR' ? 'on' : ''}">Rent growth</button><button type="button" data-k="oc" class="${metric === 'oc' ? 'on' : ''}">Occupancy</button></div><div class="hc-leg" id="hc-leg"></div></div>` : ''}</div>
-      ${chart ? `<div class="hc"><div class="hc-t">RealPage · ${metric === 'yR' ? 'Effective rent growth by year' : 'Occupancy by year'}<small>Each market’s metro. Solid is actual, dashed is RealPage’s forecast.</small></div>
+      ${chart ? `<div class="hm-ctl"><div class="hc-leg" id="hc-leg"></div></div>` : ''}</div>
+      ${chart ? `<div class="hc"><div class="hc-top"><div class="hc-t">RealPage · ${metric === 'yR' ? 'Effective rent growth by year' : 'Occupancy by year'}<small>Each market’s metro. Solid is actual, dashed is RealPage’s forecast.</small></div>
+        <div class="hc-tg"><button type="button" data-k="yR" class="${metric === 'yR' ? 'on' : ''}">Rent growth</button><button type="button" data-k="oc" class="${metric === 'oc' ? 'on' : ''}">Occupancy</button></div></div>
         <svg class="hc-svg" id="hc-svg"></svg><div class="hc-tip" id="hc-tip"></div></div>` : ''}`;
     if (!chart) return;
     document.querySelectorAll('.hc-tg button').forEach((b) => b.onclick = () => { metric = b.dataset.k; paintHero(); });
