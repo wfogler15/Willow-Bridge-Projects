@@ -480,13 +480,13 @@
     const asOf = P.asOf || new Date().toISOString().slice(0, 10);
     if (P.newMarket) {
       onStep('Creating the market');
-      const cfg = P.newMarket.config; if (P.rp) cfg.rp_mapping = P.rp.rpMapping; if (P.props) cfg.as_of = asOf;
+      const cfg = P.newMarket.config; if (P.rp) cfg.rp_mapping = P.rp.rpMapping; if (P.props) { cfg.as_of = asOf; if (period) cfg.costar_period = period.label; }
       chk(await S('core').from('markets').insert({ id: P.newMarket.id, label: P.newMarket.label, title: P.newMarket.title, config: cfg }));
     } else if (P.props || (P.rp && Object.keys(P.rp.rpMapping).length)) {
       // existing market: move its "as of" date forward; fill the RealPage mapping only when it has none (Denver/Phoenix keep their curated ones)
       const m = chk(await S('core').from('markets').select('config').eq('id', P.marketId).single());
       const cfg = Object.assign({}, m.config);
-      if (P.props) cfg.as_of = asOf;
+      if (P.props) { cfg.as_of = asOf; if (period) cfg.costar_period = period.label; }   // the Markets home page shows this as the CoStar period
       if (P.rp && Object.keys(P.rp.rpMapping).length && (!cfg.rp_mapping || !Object.keys(cfg.rp_mapping).length)) cfg.rp_mapping = P.rp.rpMapping;
       const subs = P.props ? [...new Set([...(cfg.wb_submarkets || []), ...[...P.props.inserts].map((r) => r.attrs.wbSubmarket).filter(Boolean)])].sort() : cfg.wb_submarkets;
       if (subs) cfg.wb_submarkets = subs;
