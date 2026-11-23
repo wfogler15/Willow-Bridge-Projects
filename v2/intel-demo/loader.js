@@ -125,7 +125,11 @@
 
     const s = document.createElement('script');
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
-    s.onload = () => { const c = document.createElement('script'); c.src = 'compsets.js?v=' + (window.WB_BUILD || '1'); c.onload = c.onerror = start; document.body.appendChild(c); };
+    s.onload = () => {
+      const c = document.createElement('script'); c.src = 'compsets.js?v=' + (window.WB_BUILD || '1');
+      c.onload = c.onerror = () => { const w = document.createElement('script'); w.src = 'webtrack.js?v=' + (window.WB_BUILD || '1'); w.onload = w.onerror = start; document.body.appendChild(w); };
+      document.body.appendChild(c);
+    };
     const start = () => { try { buildShell(); sentenceCase(); } finally { document.documentElement.classList.add('wbi-ready'); requestAnimationFrame(() => overlay.remove()); } document.addEventListener('click', scLater, true); };
     s.onerror = () => { overlay.textContent = 'The dashboard code failed to load. Reload the page.'; };
     document.body.appendChild(s);

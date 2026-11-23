@@ -15105,6 +15105,8 @@ function renderModal() {
         `;
       })()}
 
+      ${editing ? '' : '<div id="wbw" class="wbw"></div>'}
+
       <div class="detail-section-title">Ownership · Operations</div>
       <div class="detail-grid">
         ${wideCell('Owner', p.owner, 'owner')}
@@ -15329,6 +15331,7 @@ function renderModal() {
   `;
 
   if (editing) { wbMixWire(p); }
+  else if (window.wbWebFill) window.wbWebFill(p);   // website tracking (webtrack.js)
   // Initialize the embedded property location map (only in view mode)
   if (!editing) {
     setTimeout(() => initPropertyModalMap(p), 100);
