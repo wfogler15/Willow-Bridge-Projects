@@ -44,10 +44,8 @@
     const acc = WB.access || [];
     const isAdm = acc.some((a) => a.market_id === '*' && a.role === 'admin');
     const pendingMine = acc.filter((a) => a.market_id !== '*' && a.role !== 'view' && !markets.some((m) => m.id === a.market_id));
-    if (!markets.length || (!isAdm && pendingMine.length && !sessionStorage.getItem('wb_upload_prompted'))) {
-      try { sessionStorage.setItem('wb_upload_prompted', '1'); } catch (e) {}
-      location.replace('upload.html'); return;
-    }
+    // everyone gets the same start: the Markets home page (uploading a market is in its Settings → Data)
+    if (!markets.length || !new URLSearchParams(location.search).get('market')) { location.replace('home.html'); return; }
     const myEdit = acc.find((a) => a.market_id !== '*' && a.role !== 'view' && markets.some((m) => m.id === a.market_id));
     MARKETS = Object.fromEntries(markets.map((m) => [m.id, (m.label || m.id).split(',')[0]]));
     MARKET_STATE = Object.fromEntries(markets.map((m) => [m.id, m.state || ((m.label || '').split(',')[1] || '').trim()]));
@@ -57,7 +55,6 @@
     const mine = markets.filter((m) => acc.some((a) => a.market_id === '*' || a.market_id === m.id));
     window.__WB_MULTI = mine.length > 1;
     try { if (window.__WB_MULTI) localStorage.setItem('wb_home_multi', '1'); else localStorage.removeItem('wb_home_multi'); } catch (e) {}
-    if (!q.get('market') && window.__WB_MULTI) { location.replace('home.html'); return; }
     let market = q.get('market') || (myEdit && myEdit.market_id) || 'denver';   // regional people open on the market they edit   // Demo: the URL decides (keeps the per-market storage namespace in step)
     if (!MARKETS[market]) market = markets.length ? markets.find((m) => m.id === 'denver')?.id || markets[0].id : 'denver';
     localStorage.setItem('market', market);
@@ -292,7 +289,7 @@
           <svg viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
         <div class="wbi-mktdd-menu" role="listbox" aria-label="Market" hidden>
-          ${window.__WB_MULTI ? `<a class="wbi-mktdd-home" href="home.html">All markets</a>` : ''}
+          <a class="wbi-mktdd-home" href="home.html">All markets</a>
           ${Object.keys(MARKETS).map((id) => `<button type="button" role="option" data-m="${id}" aria-selected="${id === cur}" class="${id === cur ? 'on' : ''}">
             <span class="nm">${mlab(id)}</span><span class="st">${String(stateName(id)).replace(/[&<>"]/g, "")}</span>
             <svg class="ck" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`).join('')}

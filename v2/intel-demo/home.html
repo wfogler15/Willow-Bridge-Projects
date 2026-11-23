@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231421">
+<link rel="stylesheet" href="shared/wb.css?v=202611231425">
 <style>
   .page{max-width:1400px}
   /* ---------- top row: regions + settings ---------- */
@@ -193,8 +193,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231421"></script>
-<script src="access.js?v=202611231421"></script>
+<script src="shared/wb.js?v=202611231425"></script>
+<script src="access.js?v=202611231425"></script>
 </head>
 <body>
 <main class="page">
@@ -517,7 +517,6 @@
   function paintAll() { paintBar(); paintHero(); paintList(); }
 
   await load();
-  if (live.length === 1 && markets.length === 1 && !isAdmin) { try { localStorage.removeItem('wb_home_multi'); } catch (e) {} location.replace('./?market=' + encodeURIComponent(live[0].id)); return; }
   try { localStorage.setItem('wb_home_multi', '1'); } catch (e) {}
   paintAll();
 
@@ -549,8 +548,8 @@
     if (tab === 'regions') return paintRegions(bd);
     if (tab === 'data') {
       const mine = markets.filter((m) => isAdmin || canEdit(m.id) || (m.config && m.config.pending));
-      bd.innerHTML = `<div class="hset-sec"><h3>Data</h3><p class="l">Load a new market or refresh one you edit with the latest CoStar and RealPage exports. You review a check before anything is saved.</p>
-        <a class="hset-cta" href="upload.html">↑ Upload data${isAdmin ? ' or add a market' : ''}</a>
+      bd.innerHTML = `<div class="hset-sec"><h3>Data</h3><p class="l">Load a new market, or refresh one you edit with the latest CoStar and RealPage exports. You review a check before anything is saved.</p>
+        <a class="hset-cta" href="upload.html">↑ Upload a market</a>
         ${mine.length ? `<div class="rgx" style="margin-top:22px"><div class="h">Market</div><div class="h"></div>
           ${mine.map((m) => `<div><div class="nm">${esc(name(m))}</div><div class="sb">${m.config && m.config.pending ? 'Not loaded yet' : esc([F[m.id] && F[m.id].period ? 'CoStar ' + F[m.id].period : '', m.config && m.config.active ? 'Live' : 'Not live yet'].filter(Boolean).join(' · '))}</div></div>
             <div class="lk">${m.config && m.config.pending ? '<a href="upload.html">Load data</a>' : `<a href="upload.html?market=${encodeURIComponent(m.id)}">Refresh data</a><a href="setup.html?market=${encodeURIComponent(m.id)}">Submarkets &amp; product types</a>`}</div>`).join('')}</div>` : ''}</div>`;
