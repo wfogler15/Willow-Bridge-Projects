@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231414">
+<link rel="stylesheet" href="shared/wb.css?v=202611231416">
 <style>
   .page{max-width:1400px}
   /* ---------- top row: regions + settings ---------- */
@@ -35,29 +35,11 @@
   .hm-hero h1{font:600 34px/1.1 var(--font-display);margin:10px 0 8px;color:#fff;letter-spacing:-.01em}
   .hm-hero .lead{font-size:15px;color:#fff;margin:0;max-width:820px;line-height:1.5}
   .hc{position:relative;z-index:1}
-  .hm-hero.two{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:0 40px;padding:30px 32px 26px}
+  .hm-hero.two{display:grid;grid-template-columns:minmax(240px,300px) minmax(0,1fr);gap:0 40px;padding:30px 32px 26px}
   .hm-left{display:flex;flex-direction:column;min-width:0}
-  .hm-hello{font-size:14px;color:#fff;margin-top:18px;opacity:.85}
-  .hm-hero .hm-hello+h1{margin-top:4px}
-  .hm-go{display:flex;flex-direction:column;gap:8px;margin-top:22px}
-  .hm-go a{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 10px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#fff;text-decoration:none;font:600 15px/1 var(--font-display);transition:background .15s,border-color .15s}
-  .hm-go a:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.28)}
-  .hm-go .cd{display:grid;place-items:center;width:38px;height:30px;border-radius:8px;background:#fff;color:#1D1247;font:700 11.5px/1 var(--font-display);letter-spacing:.06em}
-  .hm-go .ar{margin-left:auto;opacity:.7;transition:transform .15s,opacity .15s}
-  .hm-go a:hover .ar{opacity:1;transform:translateX(3px)}
-  .hm-tk{list-style:none;margin:22px 0 0;padding:0;display:flex;flex-direction:column;gap:14px}
-  .hm-tk li{display:flex;gap:12px;align-items:flex-start}
-  .hm-tk .ic{flex:none;display:grid;place-items:center;width:28px;height:28px;border-radius:9px;font:700 14px/1 var(--font-display);background:rgba(255,255,255,.1);color:#fff}
-  .hm-tk .ic.up{background:#2F6B3A}.hm-tk .ic.dn{background:#8E2F2F}.hm-tk .ic.mx{background:rgba(255,255,255,.16)}
-  .hm-tk .t{font:600 14.5px/1.3 var(--font-display);color:#fff}
-  .hm-tk .d{font-size:13px;line-height:1.5;color:rgba(255,255,255,.78);margin-top:2px}
-  .hm-tk .d b{color:#fff;font-weight:600}
-  .hm-tk .d .u{opacity:.8;white-space:nowrap}
-  .hm-hero.two .hc{display:flex;flex-direction:column}
-  .hm-hero.two .hc-svg{flex:1;min-height:260px;height:auto}
-  .hm-hero.two .hm-stamp{margin-top:auto;padding-top:20px;flex-direction:row}
-  .hc-t .hc-leg{display:flex;flex-direction:row;flex-wrap:wrap;gap:4px 16px;margin-top:10px}
   .hm-ctl{padding-top:20px;display:flex;flex-direction:column;align-items:flex-start;gap:14px}
+  .hm-hero.two .hm-stamp{flex-direction:column;align-items:flex-start}
+  .hm-hero.two .hc-leg{flex-direction:column;gap:8px;margin:0}
   .hm-hero.two .hc-top{margin-bottom:6px;align-items:flex-start}
   .hc-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:10px}
   .hc-t{font:600 15px/1.3 var(--font-display);color:#fff}
@@ -65,7 +47,7 @@
   .hc-tg{display:flex;gap:2px;background:rgba(255,255,255,.08);border-radius:999px;padding:3px}
   .hc-tg button{all:unset;cursor:pointer;font:500 13px/1 var(--font-display);color:#fff;padding:7px 12px;border-radius:999px}
   .hc-tg button.on{background:#fff;color:#1D1247}
-  .hc-svg{width:100%;height:270px;display:block;overflow:visible}
+  .hc-svg{width:100%;height:250px;display:block;overflow:visible}
   .hc-a{stroke-dasharray:1;stroke-dashoffset:1;animation:arc 1.1s cubic-bezier(.3,.7,.2,1) forwards}
   .hc-f{opacity:0;animation:fadein .5s ease forwards}
   @keyframes fadein{to{opacity:1}}
@@ -87,15 +69,11 @@
   .ml{--cols:minmax(176px,1.35fr) minmax(90px,.7fr) minmax(84px,.6fr) minmax(104px,.7fr) minmax(164px,1fr) minmax(122px,.75fr) minmax(104px,.65fr) minmax(196px,1.15fr) 14px}
   .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 24px;align-items:center;padding:0 18px}
   .ml-cols{padding-top:10px;padding-bottom:10px;align-items:end}
-  /* column headers sit in a soft band, grouped by source */
-  .ml-cols{background:#F6F5FA;border-radius:12px;margin:0 2px 6px;padding-top:8px;padding-bottom:12px;grid-template-rows:14px auto;row-gap:10px;position:relative}
-  .ml-cols>button{grid-row:2;position:relative;z-index:1}
-  .ml-cols>span:last-child{grid-row:2}
-  .ml-cols .z{grid-row:1 / 3;align-self:stretch;margin:-8px -12px -12px;padding:10px 12px 0;border-radius:10px;font:700 10.5px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase}
-  .ml-cols .z1{grid-column:2 / 6;background:#ECEBFA;color:#432890}
-  .ml-cols .z2{grid-column:6 / 9;background:#FAF3DA;color:#5C4A0B;margin-left:0}
-  .ml-cols+.ml-row{border-top-color:transparent}
-  .ml-head h2 small{display:block;font:400 13px/1.4 var(--font-display);color:var(--muted);margin-top:4px}
+  .ml-cols{border-bottom:1px solid #E6E4EC}
+  .ml-grp{display:grid;grid-template-columns:var(--cols);gap:0 24px;padding:0 18px;margin-top:6px}
+  .ml-grp span.g1{grid-column:2 / 6}
+  .ml-grp span.g2{grid-column:6 / 9;margin-left:21px}
+  .ml-grp span{padding-bottom:6px;border-bottom:2px solid #1D1247;font:700 11.5px/1 var(--font-display);letter-spacing:.09em;text-transform:uppercase;color:#1D1247}
   .ml-cols button{all:unset;cursor:pointer;font:600 11.5px/1.35 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2)}
   .ml-cols button:hover,.ml-cols button.on{color:#432890}
   .ml-cols button.on::after{content:" ↓";letter-spacing:0}
@@ -120,12 +98,10 @@
   .ml-row>div,.ml-cols>button{min-width:0}
   .c-uc{padding-right:8px;overflow:hidden}
   .c-rp{padding-left:20px;border-left:1px solid #EFEEF3}
-  .ml-cols .c-rp{border-left-color:transparent}
   .ml-cols .c-rp{border-left:0}
   .c-sd{min-width:0}
   .ml-s b{font-weight:600}
   .ml-cols button.c-rp{padding-left:21px}
-  .ml-cols .z2{padding-left:21px}
   .ml-uc .bar b{display:block;height:100%;border-radius:999px;background:#8168D6;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
   .ml-uc .pct{font:600 17px/1.2 var(--font-display);font-variant-numeric:tabular-nums;min-width:48px}
   .rp3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 10px}
@@ -190,7 +166,7 @@
   .hset-acct button:hover{border-color:#C9BFF0}
   @media (max-width:1100px){
     .ml{--cols:minmax(160px,1.5fr) minmax(96px,.9fr) minmax(84px,.75fr) minmax(150px,1.1fr) minmax(230px,1.4fr) 18px}
-    .ml .c-ex,.ml .c-sd,.ml .c-rf,.ml-cols .z{display:none}
+    .ml .c-ex,.ml .c-sd,.ml .c-rf,.ml-grp{display:none}
   }
   @media (max-width:720px){
     .hm-hero,.hm-hero.two{padding:26px 22px;display:block}
@@ -210,8 +186,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231414"></script>
-<script src="access.js?v=202611231414"></script>
+<script src="shared/wb.js?v=202611231416"></script>
+<script src="access.js?v=202611231416"></script>
 </head>
 <body>
 <main class="page">
@@ -362,13 +338,10 @@
     // two columns: who and what on the left, the RealPage chart filling the right
     const hero = document.getElementById('hm-hero');
     hero.classList.toggle('two', !!chart);
-    const hr = new Date().getHours(), hello = `Good ${hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening'}`;
-    hero.innerHTML = `${ARCS}<div class="hm-left"><div class="hm-eyebrow hm-brand"><img src="shared/wb-mark.png" alt="">Willow Bridge Market Intel</div>
-      <div class="hm-hello">${hello}</div>
-      <h1>${esc(regionTitle(region))}</h1>
-      ${lv.length && lv.length <= 6 ? `<div class="hm-go">${lv.map((m) => `<a href="./?market=${encodeURIComponent(m.id)}"><span class="cd">${esc(codeOf(m))}</span>${esc(name(m))}<span class="ar">→</span></a>`).join('')}</div>` : `<p class="lead">${esc(lead || 'No markets yet')}</p>`}
-      ${stamps(lv)}</div>
-      ${chart ? `<div class="hc"><div class="hc-top"><div class="hc-t">RealPage · ${metric === 'yR' ? 'Effective rent growth by year' : 'Occupancy by year'}<small>Each market’s metro. Solid is actual, dashed is forecast.</small><div class="hc-leg" id="hc-leg"></div></div>
+    hero.innerHTML = `${ARCS}<div class="hm-left"><div class="hm-eyebrow hm-brand"><img src="shared/wb-mark.png" alt="">Willow Bridge Market Intel</div><h1>${esc(regionTitle(region))}</h1><p class="lead">${esc(lead || 'No markets yet')}</p>
+      ${stamps(lv)}
+      ${chart ? `<div class="hm-ctl"><div class="hc-leg" id="hc-leg"></div></div>` : ''}</div>
+      ${chart ? `<div class="hc"><div class="hc-top"><div class="hc-t">RealPage · ${metric === 'yR' ? 'Effective rent growth by year' : 'Occupancy by year'}<small>Each market’s metro. Solid is actual, dashed is RealPage’s forecast.</small></div>
         <div class="hc-tg"><button type="button" data-k="yR" class="${metric === 'yR' ? 'on' : ''}">Rent growth</button><button type="button" data-k="oc" class="${metric === 'oc' ? 'on' : ''}">Occupancy</button></div></div>
         <svg class="hc-svg" id="hc-svg"></svg><div class="hc-tip" id="hc-tip"></div></div>` : ''}`;
     if (!chart) return;
@@ -500,8 +473,9 @@
     const all = inView(), needle = find.trim().toLowerCase();
     const ms = needle ? all.filter((m) => (name(m) + ' ' + stateOf(m) + ' ' + regionOf(m)).toLowerCase().includes(needle)) : all;
     maxUc = Math.max(1, ...markets.map((m) => F[m.id].ucPct || 0));
-    const head = `<div class="ml-head"><h2>Markets<span>${all.length}</span><small>Click a market to open it. Click a column to sort.</small></h2>${all.length > 6 ? `<input class="ml-find" type="search" placeholder="Find a market" value="${esc(find)}" aria-label="Find a market">` : ''}</div>
-      <div class="ml-cols"><span class="z z1">CoStar · today</span><span class="z z2">RealPage · metro</span>${COLS.map(([k, l, c], ci) => `<button type="button" data-k="${k}" style="grid-column:${ci + 1};grid-row:2" class="${c} ${sort.key === k ? 'on' + (sort.asc ? ' asc' : '') : ''}">${l}</button>`).join('')}<span style="grid-column:${COLS.length + 1};grid-row:2"></span></div>`;
+    const head = `<div class="ml-head"><h2>Markets<span>${all.length}</span></h2>${all.length > 6 ? `<input class="ml-find" type="search" placeholder="Find a market" value="${esc(find)}" aria-label="Find a market">` : ''}</div>
+      <div class="ml-grp"><span class="g1">CoStar</span><span class="g2">RealPage</span></div>
+      <div class="ml-cols">${COLS.map(([k, l, c]) => `<button type="button" data-k="${k}" class="${c} ${sort.key === k ? 'on' + (sort.asc ? ' asc' : '') : ''}">${l}</button>`).join('')}<span></span></div>`;
     let body = '', i = 0;
     if (!all.length) body = `<div class="ml-none">${isAdmin ? 'No markets here yet. Assign markets to this region in Settings.' : 'No markets here yet.'}</div>`;
     else if (!ms.length) body = `<div class="ml-none">No markets match “${esc(find)}”.</div>`;
