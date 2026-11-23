@@ -1493,3 +1493,4 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-chip.pr { font-size: 10.5px; padding: 2px 7px; margin-left: 4px; }
 #view-compsets .table-scroll { max-height: none !important; overflow-y: visible; }
 .csx-dense td.csx-sp { white-space: nowrap; } .csx-sproj { padding: 0; font-size: 12px; }
+#comp-set-active-banner { display: none !important; }   /* the header pill shows the active set; edit/delete live in the Comp Sets tab */

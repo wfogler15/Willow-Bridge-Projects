@@ -10303,6 +10303,8 @@ function renderProperties() {
   //                          RAW_DATA, since getFiltered intentionally excludes them.
   //                          Sidebar filters (class, product type, city, submarket) still apply.
   let data;
+  const pxSetIds = state.compSetMode === 'viewing' && state.activeCompSetId && compSets[state.activeCompSetId]
+    ? new Set(compSets[state.activeCompSetId].propertyIds.map(String)) : null;
   // 'all' unions the standard pipeline (existing + true UC) with the
   // planned/proposed records that getFiltered deliberately withholds, so the
   // index can show the entire market in one pass.
@@ -10310,6 +10312,7 @@ function renderProperties() {
     data = getFiltered();
     const proposed = RAW_DATA.map(applyUserEdits).filter(p => {
       if (!isPlannedProposed(p)) return false;
+      if (pxSetIds) return pxSetIds.has(String(p.id));   // a comp set in view: only its members, like getFiltered()
       if (!matchesClass(p)) return false;
       if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
       if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
@@ -10321,6 +10324,7 @@ function renderProperties() {
   } else if (state.propStatus === 'Proposed') {
     data = RAW_DATA.map(applyUserEdits).filter(p => {
       if (!isPlannedProposed(p)) return false;
+      if (pxSetIds) return pxSetIds.has(String(p.id));   // a comp set in view: only its members, like getFiltered()
       if (!matchesClass(p)) return false;
       if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
       if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
@@ -13961,6 +13965,8 @@ function exportPropertyIndexCsv() {
   // Replicate the exact filter chain used by renderProperties so the CSV
   // matches what the user sees on screen.
   let data;
+  const pxSetIds = state.compSetMode === 'viewing' && state.activeCompSetId && compSets[state.activeCompSetId]
+    ? new Set(compSets[state.activeCompSetId].propertyIds.map(String)) : null;
   // 'all' unions the standard pipeline (existing + true UC) with the
   // planned/proposed records that getFiltered deliberately withholds, so the
   // index can show the entire market in one pass.
@@ -13968,6 +13974,7 @@ function exportPropertyIndexCsv() {
     data = getFiltered();
     const proposed = RAW_DATA.map(applyUserEdits).filter(p => {
       if (!isPlannedProposed(p)) return false;
+      if (pxSetIds) return pxSetIds.has(String(p.id));
       if (!matchesClass(p)) return false;
       if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
       if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
@@ -13979,6 +13986,7 @@ function exportPropertyIndexCsv() {
   } else if (state.propStatus === 'Proposed') {
     data = RAW_DATA.map(applyUserEdits).filter(p => {
       if (!isPlannedProposed(p)) return false;
+      if (pxSetIds) return pxSetIds.has(String(p.id));
       if (!matchesClass(p)) return false;
       if (state.productTypes.size > 0 && !state.productTypes.has(p.style)) return false;
       if (state.cities.size > 0 && !state.cities.has(p.city)) return false;
