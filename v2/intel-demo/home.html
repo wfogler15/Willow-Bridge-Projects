@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231416">
+<link rel="stylesheet" href="shared/wb.css?v=202611231420">
 <style>
   .page{max-width:1400px}
   /* ---------- top row: regions + settings ---------- */
@@ -110,6 +110,8 @@
   .ml-go{color:#C9C5D6;font-size:20px;line-height:1;transition:transform .15s,color .15s;justify-self:end}
   a.ml-row:hover .ml-go{color:#432890;transform:translateX(3px)}
   .ml-row.off .ml-nm{color:var(--muted)}
+  .ml-row.load .ml-wait b{color:#432890;font-weight:600}
+  a.ml-row.load:hover .ml-wait b{text-decoration:underline}
   .ml-row.off .ml-wait{grid-column:2 / -1;font-size:13.5px;color:var(--faint)}
   .rg-h{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;margin:22px 0 2px;padding:10px 18px;border-radius:10px;transition:background .15s}
   .rg-h.first{margin-top:4px}
@@ -160,6 +162,11 @@
   .rg-sum{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
   .rg-sum span{font-size:13px;padding:6px 12px;border-radius:999px;background:#F3F2F8;color:#432890}
   .rg-sum span b{font-weight:600}
+  .hset-cta{display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 16px;border-radius:10px;background:#1D1247;color:#fff;text-decoration:none;font:600 14px var(--font-display)}
+  .hset-cta:hover{background:#2B1D63}
+  .rgx .lk{display:flex;gap:14px;justify-content:flex-end;flex-wrap:wrap}
+  .rgx .lk a{font:600 13px var(--font-display);color:#432890;text-decoration:none}
+  .rgx .lk a:hover{text-decoration:underline}
   .hset-acct{display:flex;align-items:center;gap:16px}
   .hset-acct .who{font:600 15px var(--font-display);color:var(--ink)}
   .hset-acct button{width:auto;cursor:pointer;padding:0 14px;color:#432890;font-weight:600}
@@ -186,8 +193,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231416"></script>
-<script src="access.js?v=202611231416"></script>
+<script src="shared/wb.js?v=202611231420"></script>
+<script src="access.js?v=202611231420"></script>
 </head>
 <body>
 <main class="page">
@@ -232,6 +239,7 @@
   const acc = (WB.access || []).filter((a) => !a.email || String(a.email).toLowerCase() === me);
   const seesAll = acc.some((a) => a.market_id === '*');
   const isAdmin = acc.some((a) => a.market_id === '*' && a.role === 'admin');
+  const editsAny = isAdmin || acc.some((a) => a.role !== 'view');
   const canEdit = (id) => acc.some((a) => a.role !== 'view' && (a.market_id === id || (a.market_id === '*' && a.role === 'admin')));
   const regionOf = (m) => (m.config && m.config.region) || OTHER;
   const name = (m) => (m.label || m.id).split(',')[0];
@@ -287,6 +295,10 @@
   async function load() {
     const mk = await rows(S('core').from('markets').select('id,label,config').order('id'));
     markets = mk.filter((m) => m.config && (m.config.active === true || m.config.region) && (seesAll || acc.some((a) => a.market_id === m.id)));
+    // markets this person was given to edit that nobody has loaded yet (e.g. Jacob and Fort Lauderdale): show them with a way to load the data
+    const pretty = (id) => id.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    acc.filter((a) => a.market_id !== '*' && a.role !== 'view' && !mk.some((m) => m.id === a.market_id))
+      .forEach((a) => { if (!markets.some((m) => m.id === a.market_id)) markets.push({ id: a.market_id, label: pretty(a.market_id), config: { pending: true } }); });
     live = markets.filter((m) => m.config.active === true);
     const ids = live.map((m) => m.id);
     const [sumRes, logs] = await Promise.all([
@@ -454,7 +466,8 @@
   const codeOf = (m) => (m.config && m.config.code) || CODES[m.id] || name(m).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
   function row(m, i) {
     const f = F[m.id], sub = [stateOf(m), f.period].filter(Boolean).join(' · '), d = `animation-delay:${Math.min(i, 20) * 28}ms`;
-    const nm = `<div class="c-nm"><span class="ml-code">${esc(codeOf(m))}</span><div class="ml-nmw"><div class="ml-nm">${esc(name(m))}${f.live && !canEdit(m.id) ? '<span class="ml-ro">View only</span>' : ''}</div><div class="ml-sub">${esc(sub)}</div></div></div>`;
+    const nm = `<div class="c-nm"><span class="ml-code">${esc(codeOf(m))}</span><div class="ml-nmw"><div class="ml-nm">${esc(name(m))}</div><div class="ml-sub">${esc(sub)}${f.live && !canEdit(m.id) ? ' · view only' : ''}</div></div></div>`;
+    if (m.config && m.config.pending) return `<a class="ml-row off load" href="upload.html" style="${d}">${nm}<div class="ml-wait">Not loaded yet. <b>Load the CoStar and RealPage data →</b></div></a>`;
     if (!f.live || !f.exN) return `<div class="ml-row off" style="${d}">${nm}<div class="ml-wait">${f.live ? 'Data not uploaded yet' : 'Not live yet'}</div></div>`;
     const w = f.ucPct != null ? Math.max(2, Math.min(100, f.ucPct / maxUc * 100)) : 0;
     return `<a class="ml-row" href="./?market=${encodeURIComponent(m.id)}" style="${d}">
@@ -504,8 +517,8 @@
 
   // ---------- Settings ----------
   const panel = document.getElementById('st'), scrim = document.getElementById('st-scrim');
-  let tab = isAdmin ? 'regions' : 'people', dirty = false;
-  const TABS = [isAdmin && ['regions', 'Regions'], ['people', 'People and access'], ['account', 'Account']].filter(Boolean);
+  let tab = editsAny ? 'data' : 'people', dirty = false;
+  const TABS = [editsAny && ['data', 'Data'], isAdmin && ['regions', 'Regions'], ['people', 'People and access'], ['account', 'Account']].filter(Boolean);
   function openSettings() {
     panel.hidden = scrim.hidden = false;
     requestAnimationFrame(() => { panel.classList.add('on'); scrim.classList.add('on'); });
@@ -528,6 +541,15 @@
     nav.querySelectorAll('button').forEach((b) => b.onclick = () => { tab = b.dataset.t; paintSettings(); });
     const bd = document.getElementById('st-bd');
     if (tab === 'regions') return paintRegions(bd);
+    if (tab === 'data') {
+      const mine = markets.filter((m) => isAdmin || canEdit(m.id) || (m.config && m.config.pending));
+      bd.innerHTML = `<div class="hset-sec"><h3>Data</h3><p class="l">Load a new market or refresh one you edit with the latest CoStar and RealPage exports. You review a check before anything is saved.</p>
+        <a class="hset-cta" href="upload.html">↑ Upload data${isAdmin ? ' or add a market' : ''}</a>
+        ${mine.length ? `<div class="rgx" style="margin-top:22px"><div class="h">Market</div><div class="h"></div>
+          ${mine.map((m) => `<div><div class="nm">${esc(name(m))}</div><div class="sb">${m.config && m.config.pending ? 'Not loaded yet' : esc([F[m.id] && F[m.id].period ? 'CoStar ' + F[m.id].period : '', m.config && m.config.active ? 'Live' : 'Not live yet'].filter(Boolean).join(' · '))}</div></div>
+            <div class="lk">${m.config && m.config.pending ? '<a href="upload.html">Load data</a>' : `<a href="upload.html?market=${encodeURIComponent(m.id)}">Refresh data</a><a href="setup.html?market=${encodeURIComponent(m.id)}">Submarkets &amp; product types</a>`}</div>`).join('')}</div>` : ''}</div>`;
+      return;
+    }
     if (tab === 'people') {
       bd.innerHTML = `<div class="hset-sec"><h3>People and access</h3><div id="wb-access"></div></div>`;
       window.__WBA_REGIONS = Object.fromEntries(markets.map((m) => [m.id, regionOf(m) === OTHER ? '' : regionOf(m)]));
