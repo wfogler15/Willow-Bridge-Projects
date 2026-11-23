@@ -537,6 +537,110 @@
     return out;
   }
 
+  // ---------- sale comps: an automatic list for the set, saved as the user's own the first time they edit it ----------
+  const SALE_COLS = 'id,property_id,comp_type,name,address,city,submarket,lat,lng,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_sf,price_per_land_sf,cap_rate,cap_rate_t12,buyer,seller,excluded,portfolio';
+  const SC = { pool: null, loading: false, err: null, links: {}, linkLoad: {} };
+  async function salePool() {
+    if (SC.pool || SC.loading) return; SC.loading = true;
+    try {
+      const mk = (window.__WBD && window.__WBD.market) || '';
+      const out = []; for (let f = 0; ; f += 1000) { const { data, error } = await WB.sb.schema('comps').from('sale_comps').select(SALE_COLS).eq('market_id', mk).range(f, f + 999); if (error) throw error; out.push(...data); if (data.length < 1000) break; }
+      SC.pool = out.filter((x) => !x.excluded);
+    } catch (e) { SC.err = e.message || String(e); SC.pool = []; }
+    SC.loading = false; if (UI.open) render();
+  }
+  async function saleLinks(cs) {
+    if (!cs.uuid || SC.links[cs.id] || SC.linkLoad[cs.id]) return; SC.linkLoad[cs.id] = true;
+    try { const { data, error } = await WB.sb.schema('market').from('comp_set_sales').select('sale_comp_id,sort').eq('comp_set_id', cs.uuid).order('sort'); if (error) throw error; SC.links[cs.id] = (data || []).map((r) => r.sale_comp_id); }
+    catch (e) { SC.links[cs.id] = []; SC.err = e.message || String(e); }
+    SC.linkLoad[cs.id] = false; if (UI.open === cs.id) render();
+  }
+  const sNum = (v) => (v == null || v === '' || isNaN(+v) || +v === 0 ? null : +v);
+  const perUnit = (x) => { const un = sNum(x.units) || sNum(x.proposed_units); return sNum(x.price_per_unit) ?? (sNum(x.sale_price) && un ? x.sale_price / un : null); };
+  const capOf = (x) => sNum(x.cap_rate) ?? sNum(x.cap_rate_t12);
+  const kUSD = (n) => (n == null ? '—' : '$' + Math.round(n / 1000).toLocaleString() + 'K');
+  const mUSD = (n) => (n == null ? '—' : n >= 1e6 ? '$' + (n / 1e6).toFixed(1) + 'M' : '$' + Math.round(n).toLocaleString());
+  const sMon = (d) => { if (!d) return '—'; const [y, m] = String(d).split('-'); return MON[+m - 1] + ' ' + y; };
+  function setGeo(ps) {
+    const q = ps.filter((p) => p.lat != null); if (!q.length) return null;
+    const c = { lat: q.reduce((a, p) => a + p.lat, 0) / q.length, lng: q.reduce((a, p) => a + p.lng, 0) / q.length };
+    const r = Math.min(5, Math.max(2, Math.max(...q.map((p) => mi(c, p))) + 1));
+    return { c, r };
+  }
+  function autoSales(ps) {
+    const g = setGeo(ps); if (!g || !SC.pool) return [];
+    const W = window.__WBD || {}, mine = new Set(ps.map((p) => String((W.propByCostar && W.propByCostar[p.id]) || p.id)));
+    const now = Date.now(), yrs = (d) => (now - new Date(d + 'T12:00:00')) / (365.25 * 86400000);
+    const pick = (type, maxYrs, n, ok) => SC.pool.filter((x) => x.comp_type === type && x.sale_date && yrs(x.sale_date) <= maxYrs && (ok ? ok(x) : true))
+      .map((x) => ({ x, d: x.lat != null ? mi(g.c, x) : null, own: mine.has(String(x.property_id)) }))
+      .filter((o) => o.own || (o.d != null && o.d <= g.r)).sort((a, b) => (b.own - a.own) || a.d - b.d).slice(0, n).map((o) => o.x.id);
+    return pick('investment', 3, 12, (x) => (sNum(x.units) || 0) >= 50).concat(pick('land', 4, 10));
+  }
+  function saleList(cs, ps) {
+    const curated = !!(cs.settings && cs.settings.salesCurated) || (SC.links[cs.id] && SC.links[cs.id].length > 0);
+    const ids = curated ? (SC.links[cs.id] || []) : autoSales(ps);
+    const byIdS = new Map((SC.pool || []).map((x) => [x.id, x]));
+    return { curated, ids, rows: ids.map((id) => byIdS.get(id)).filter(Boolean) };
+  }
+  async function saveSales(cs, ids) {
+    if (!cs.uuid) { wbSaveNote('Save the comp set first', true); return false; }
+    const by = (window.WB && WB.user && WB.user.email) || null;
+    try {
+      const old = SC.links[cs.id] || [];
+      const drop = old.filter((id) => !ids.includes(id));
+      if (drop.length) { const { error } = await WB.sb.schema('market').from('comp_set_sales').delete().eq('comp_set_id', cs.uuid).in('sale_comp_id', drop); if (error) throw error; }
+      if (ids.length) { const { error } = await WB.sb.schema('market').from('comp_set_sales').upsert(ids.map((id, i) => ({ comp_set_id: cs.uuid, sale_comp_id: id, sort: i + 1, created_by: by })), { onConflict: 'comp_set_id,sale_comp_id' }); if (error) throw error; }
+      SC.links[cs.id] = ids.slice();
+      cs.settings = { ...(cs.settings || {}), salesCurated: true }; touch(cs);
+      try { Object.keys(csSalesCache).forEach((k) => { if (k.startsWith(cs.id + ':')) delete csSalesCache[k]; }); } catch (e) {}
+      wbSaveNote('Saved sale comps'); return true;
+    } catch (e) { wbSaveNote('Couldn’t save sale comps: ' + (e.message || e), true); return false; }
+  }
+  async function resetSales(cs) {
+    try { if (cs.uuid) { const { error } = await WB.sb.schema('market').from('comp_set_sales').delete().eq('comp_set_id', cs.uuid); if (error) throw error; } } catch (e) { wbSaveNote('Couldn’t reset: ' + (e.message || e), true); return; }
+    SC.links[cs.id] = []; cs.settings = { ...(cs.settings || {}) }; delete cs.settings.salesCurated; touch(cs); render();
+  }
+  function salesSection(cs, ps) {
+    if (!SC.pool) salePool(); saleLinks(cs);
+    const head = (extra, line) => `<section class="panel csx-sec csx-sec-sc">${panelHead('csx-s-sc', 'sc', 'Sale comps', null, line, null, extra)}`;
+    if (!SC.pool || SC.linkLoad[cs.id]) return head('', '<span class="csx-none2">Loading sales…</span>') + '</section>';
+    const L = saleList(cs, ps), g = setGeo(ps);
+    const inv = L.rows.filter((x) => x.comp_type === 'investment'), land = L.rows.filter((x) => x.comp_type === 'land');
+    const avg = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
+    const W = window.__WBD || {}, mine = new Set(ps.map((p) => String((W.propByCostar && W.propByCostar[p.id]) || p.id)));
+    const dist = (x) => (g && x.lat != null ? mi(g.c, x).toFixed(1) + ' mi' : '—');
+    const tag = (x) => (mine.has(String(x.property_id)) ? ' <span class="csx-chip in">In set</span>' : '') + (x.portfolio ? ' <span class="csx-chip pr" title="Portfolio allocation">Portfolio</span>' : '');
+    const rmB = (x) => `<td class="csx-x"><button type="button" class="csx-rm csx-srm" data-sid="${E(x.id)}" title="Remove from this set" aria-label="Remove ${E(x.name || '')}">×</button></td>`;
+    const invT = inv.length ? `<table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Investment sales · ${inv.length}</th><th>Date</th><th class="num">Units</th><th class="num">Built</th><th class="num">Price</th><th class="num">$/unit</th><th class="num">$/SF</th><th class="num">Cap</th><th>Buyer</th><th class="num">Distance</th><th></th></tr></thead><tbody>
+      ${inv.sort((a, b) => String(b.sale_date).localeCompare(String(a.sale_date))).map((x) => `<tr><td><span class="csx-pname2">${E(x.name || x.address || '(unnamed)')}</span>${tag(x)}<div class="csx-addr">${E([x.address, x.submarket || x.city].filter(Boolean).join(' · '))}</div></td><td>${sMon(x.sale_date)}</td><td class="num">${intC(sNum(x.units))}</td><td class="num">${x.year_built || '—'}</td><td class="num">${mUSD(sNum(x.sale_price))}</td><td class="num csx-k">${kUSD(perUnit(x))}</td><td class="num">${sNum(x.price_per_sf) ? '$' + Math.round(x.price_per_sf) : '—'}</td><td class="num">${capOf(x) ? capOf(x).toFixed(2) + '%' : '—'}</td><td class="csx-dev">${E(x.buyer || '—')}</td><td class="num">${dist(x)}</td>${rmB(x)}</tr>`).join('')}
+      </tbody><tfoot><tr><td>Average</td><td></td><td class="num">${intC(avg(inv.map((x) => sNum(x.units)).filter(Boolean)))}</td><td></td><td></td><td class="num csx-k">${kUSD(avg(inv.map(perUnit).filter((v) => v != null)))}</td><td class="num">${(() => { const v = avg(inv.map((x) => sNum(x.price_per_sf)).filter(Boolean)); return v ? '$' + Math.round(v) : '—'; })()}</td><td class="num">${(() => { const v = avg(inv.map(capOf).filter(Boolean)); return v ? v.toFixed(2) + '%' : '—'; })()}</td><td colspan="3"></td></tr></tfoot></table>` : '<div class="csx-none3">No investment sales in the list</div>';
+    const landT = land.length ? `<table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Land sales · ${land.length}</th><th>Date</th><th class="num">Acres</th><th class="num">Units</th><th class="num">Units/ac</th><th class="num">Price</th><th class="num">$/door</th><th class="num">$/land SF</th><th>Buyer</th><th class="num">Distance</th><th></th></tr></thead><tbody>
+      ${land.sort((a, b) => String(b.sale_date).localeCompare(String(a.sale_date))).map((x) => { const un = sNum(x.proposed_units) || sNum(x.units), ac = sNum(x.acres); return `<tr><td><span class="csx-pname2">${E(x.name || x.address || '(unnamed)')}</span>${tag(x)}<div class="csx-addr">${E([x.address, x.submarket || x.city].filter(Boolean).join(' · '))}</div></td><td>${sMon(x.sale_date)}</td><td class="num">${ac ? ac.toFixed(2) : '—'}</td><td class="num">${intC(un)}</td><td class="num">${un && ac ? (un / ac).toFixed(0) : '—'}</td><td class="num">${mUSD(sNum(x.sale_price))}</td><td class="num csx-k">${kUSD(perUnit(x))}</td><td class="num">${sNum(x.price_per_land_sf) ? '$' + (+x.price_per_land_sf).toFixed(2) : '—'}</td><td class="csx-dev">${E(x.buyer || '—')}</td><td class="num">${dist(x)}</td>${rmB(x)}</tr>`; }).join('')}
+      </tbody><tfoot><tr><td>Average</td><td></td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.acres)).filter(Boolean)); return v ? v.toFixed(2) : '—'; })()}</td><td></td><td></td><td></td><td class="num csx-k">${kUSD(avg(land.map(perUnit).filter((v) => v != null)))}</td><td class="num">${(() => { const v = avg(land.map((x) => sNum(x.price_per_land_sf)).filter(Boolean)); return v ? '$' + v.toFixed(2) : '—'; })()}</td><td colspan="3"></td></tr></tfoot></table>` : '<div class="csx-none3">No land sales in the list</div>';
+    const ipu = avg(inv.map(perUnit).filter((v) => v != null)), cap = avg(inv.map(capOf).filter(Boolean)), lpu = avg(land.map(perUnit).filter((v) => v != null));
+    const line = sumLine([[kUSD(ipu), 'per unit, investment'], [cap ? cap.toFixed(2) + '%' : '—', 'avg cap'], [kUSD(lpu), 'per door, land']])
+      + `<span class="csx-fresh">${L.curated ? 'Your list' : `Auto-picked: within ${g ? g.r.toFixed(1) : '—'} mi of the set, investment in the last 3 years (50+ units), land in the last 4 · add or remove one to keep it as yours`}</span>`;
+    const extra = `<div class="csx-scacts">${L.curated ? '<button type="button" class="csx-link csx-sreset">Reset to auto</button>' : ''}<div class="csx-ta csx-sadd"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="csx-in csx-sadd-q" placeholder="Add a sale by name or address…" aria-label="Add a sale"><div class="csx-ta-list" hidden></div></div></div>`;
+    return head(extra, line) + `<div class="table-scroll">${invT}</div><div class="table-scroll csx-landt">${landT}</div>${SC.err ? `<div class="csx-hint warn">${E(SC.err)}</div>` : ''}</section>`;
+  }
+  function wireSales(cs, ps) {
+    const box = view.querySelector('.csx-sec-sc'); if (!box) return;
+    const cur = () => saleList(cs, ps).ids;
+    box.querySelectorAll('.csx-srm').forEach((b) => (b.onclick = async () => { const ids = cur().filter((id) => id !== b.dataset.sid); if (await saveSales(cs, ids)) render(); }));
+    const rs = box.querySelector('.csx-sreset'); if (rs) rs.onclick = () => resetSales(cs);
+    const q = box.querySelector('.csx-sadd-q'); if (!q) return;
+    const list = q.parentElement.querySelector('.csx-ta-list');
+    const run = () => {
+      const t = q.value.trim().toLowerCase(); if (t.length < 2) { list.hidden = true; return; }
+      const have = new Set(cur()), g = setGeo(ps);
+      const hits = (SC.pool || []).filter((x) => !have.has(x.id) && ((x.name || '') + ' ' + (x.address || '') + ' ' + (x.buyer || '')).toLowerCase().includes(t)).slice(0, 10);
+      list.innerHTML = hits.map((x) => `<button type="button" data-sid="${E(x.id)}"><b>${E(x.name || x.address || '(unnamed)')}</b><small>${x.comp_type === 'land' ? 'Land' : 'Investment'} · ${sMon(x.sale_date)} · ${mUSD(sNum(x.sale_price))}${g && x.lat != null ? ' · ' + mi(g.c, x).toFixed(1) + ' mi' : ''}</small></button>`).join('') || '<div class="csx-none">No match</div>';
+      list.hidden = false;
+      list.querySelectorAll('button[data-sid]').forEach((b) => (b.onclick = async () => { list.hidden = true; if (await saveSales(cs, cur().concat(b.dataset.sid))) render(); }));
+    };
+    q.addEventListener('input', run); q.addEventListener('blur', () => setTimeout(() => { list.hidden = true; }, 180));
+  }
+
   // ---------- workspace ----------
   function workspace(cs) {
     const map = byId(), ps = membersOf(cs, map);
@@ -569,10 +673,11 @@
         ${ps.length ? '' : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
         ${missing > 0 ? `<div class="csx-hint warn">${missing} propert${missing === 1 ? 'y' : 'ies'} in this set ${missing === 1 ? 'isn’t' : 'aren’t'} in the current data (removed or filtered out by a data load).</div>` : ''}
       </div>
-      ${ps.length ? `<nav class="csx-nav" aria-label="Sections"><a href="#csx-s-ex">Rent comps</a><a href="#csx-s-lu">Lease-up outlook</a><a href="#csx-s-pi">Pipeline</a><a href="#csx-s-sm">Submarket</a><a href="#csx-s-yoc">YOC check</a><a href="#csx-intel-slot">Analysis</a></nav>` : ''}
-      ${ps.length ? sections(cs, ps) + baselineBlock(cs, ps) : ''}
+      ${ps.length ? `<nav class="csx-nav" aria-label="Sections"><a href="#csx-s-ex">Rent comps</a><a href="#csx-s-lu">Lease-up outlook</a><a href="#csx-s-pi">Pipeline</a><a href="#csx-intel-slot">Analysis</a><a href="#csx-s-yoc">YOC check</a><a href="#csx-s-sm">Submarket</a><a href="#csx-s-sc">Sale comps</a></nav>` : ''}
+      ${ps.length ? sections(cs, ps) : ''}
+      <div id="csx-intel-slot"></div>
       <div id="csx-s-yoc">${yocCheck(ps)}</div>
-      <div id="csx-intel-slot"></div>`;
+      ${ps.length ? baselineBlock(cs, ps) + salesSection(cs, ps) : ''}`;
   }
   // the set's headline figures go in the page header band, like every other tab's KPIs
   function heroKpis(cs) {
@@ -753,6 +858,7 @@
     }
     $$('.csx-rm').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const pid = b.closest('tr').dataset.pid; cs.propertyIds = (cs.propertyIds || []).filter((x) => String(x) !== String(pid)); touch(cs); refresh(); }));
     const bs = $('.csx-blsel'); if (bs) bs.onchange = () => setBaseline(cs, bs.value);
+    wireSales(cs, membersOf(cs));
     const vs = $('.csx-vel'); if (vs) vs.onchange = () => { cs.settings = { ...(cs.settings || {}), vel: +vs.value }; touch(cs); render(); };
     const sd = $('.csx-stalled'); if (sd) sd.ontoggle = () => { UI.stalledOpen = sd.open; };
     $$('.csx-nav a').forEach((a) => (a.onclick = (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (!t) return; e.preventDefault(); window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' }); }));

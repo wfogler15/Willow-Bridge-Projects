@@ -1481,3 +1481,14 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
   .csx-dense th, .csx-dense td { padding-left: 9px !important; padding-right: 9px !important; }
   .csx-dense td.csx-dev { max-width: 130px; }
 }
+.csx-scacts { display: flex; align-items: center; gap: 12px; }
+.csx-sadd { width: 300px; }
+.csx-sadd .csx-in { height: 32px; width: 100%; padding-left: 32px; }
+.csx-sadd svg { position: absolute; left: 10px; top: 9px; width: 14px; height: 14px; fill: none; stroke: #8a859b; stroke-width: 1.5; }
+.csx-sadd { position: relative; }
+.csx-landt { border-top: 1px solid #efedf4; }
+.csx-none3 { padding: 14px 20px; font-size: 13px; color: #77728a; }
+.csx-pname2 { font: 600 13.5px var(--x-font); color: var(--x-ink); }
+.csx-chip.in { background: #e8f3ee; color: #2d7a4b; font-size: 10.5px; padding: 2px 7px; margin-left: 4px; }
+.csx-chip.pr { font-size: 10.5px; padding: 2px 7px; margin-left: 4px; }
+#view-compsets .table-scroll { max-height: none !important; overflow-y: visible; }

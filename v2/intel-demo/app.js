@@ -9387,7 +9387,7 @@ function renderCsSales(props) {
     </div>`;
 
   /* 2. our own investment sale comp set, benchmarked against the deal's basis */
-  const picks = c.picks;
+  const picks = c.picks.filter(s => s.comp_type !== 'land');   // land picks live in the Comp Sets tab's Sale comps section
   const pu = picks.map(csSalePerUnit).filter(v => v != null), caps = picks.map(csSaleCap).filter(v => v != null), psf = picks.map(s => csNum(s.price_per_sf)).filter(v => v != null);
   const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
   const avgPU = avg(pu), avgCap = avg(caps), avgSF = avg(psf), avgLand = avg(landPer);
