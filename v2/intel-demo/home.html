@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231334">
+<link rel="stylesheet" href="shared/wb.css?v=202611231337">
 <style>
   .page{max-width:1240px}
   /* ---------- top row: regions + settings ---------- */
@@ -46,7 +46,7 @@
   .ml-head h2 span{font-weight:500;color:var(--faint);margin-left:8px;font-size:16px}
   .ml-find{font:14px var(--font-display);border:1px solid #E6E4EC;border-radius:999px;padding:8px 14px 8px 34px;width:220px;color:var(--ink);outline:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239C97AE' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.5 10.5 14 14'/%3E%3C/svg%3E") no-repeat 12px center/15px}
   .ml-find:focus{border-color:#C9BFF0;box-shadow:0 0 0 3px rgba(67,40,144,.08)}
-  .ml{--cols:minmax(180px,1.5fr) minmax(100px,.85fr) minmax(92px,.75fr) minmax(104px,.75fr) minmax(112px,.85fr) minmax(170px,1.15fr) minmax(230px,1.45fr) 18px}
+  .ml{--cols:minmax(190px,1.5fr) minmax(110px,.9fr) minmax(100px,.8fr) minmax(120px,.9fr) minmax(180px,1.2fr) minmax(240px,1.5fr) 18px}
   .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 20px;align-items:center;padding:0 18px}
   .ml-cols{padding-top:10px;padding-bottom:10px}
   .ml-cols{border-bottom:1px solid #E6E4EC}
@@ -127,8 +127,8 @@
   .hset-acct button{width:auto;cursor:pointer;padding:0 14px;color:#432890;font-weight:600}
   .hset-acct button:hover{border-color:#C9BFF0}
   @media (max-width:1100px){
-    .ml{--cols:minmax(160px,1.5fr) minmax(96px,.9fr) minmax(84px,.75fr) minmax(150px,1.1fr) minmax(170px,1.2fr) 18px}
-    .ml .c-conc,.ml .c-ex{display:none}
+    .ml{--cols:minmax(160px,1.5fr) minmax(96px,.9fr) minmax(84px,.75fr) minmax(150px,1.1fr) minmax(230px,1.4fr) 18px}
+    .ml .c-ex{display:none}
   }
   @media (max-width:720px){
     .hm-hero{padding:26px 22px}
@@ -147,8 +147,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231334"></script>
-<script src="access.js?v=202611231334"></script>
+<script src="shared/wb.js?v=202611231337"></script>
+<script src="access.js?v=202611231337"></script>
 </head>
 <body>
 <main class="page">
@@ -165,7 +165,7 @@
     <div class="ml-head"><h2>Markets</h2></div>
     <div style="padding:10px 18px"><span class="sk" style="width:60%;margin:22px 0"></span><span class="sk" style="width:80%;margin:22px 0"></span><span class="sk" style="width:70%;margin:22px 0"></span></div>
   </section>
-  <p class="hm-foot">Asking, occupancy, concessions, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Concessions are weeks free on a 12-month lease, across all existing properties, with Class A and B delivered in the last five years underneath. Under construction counts active construction only and is shown as a share of existing units. RealPage figures are the metro’s effective rent: actual growth per year over the last three full years, this year’s change, and RealPage’s forecast growth per year from here to the end of its forecast.</p>
+  <p class="hm-foot">Asking, occupancy, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Under construction counts active construction only and is shown as a share of existing units. RealPage figures are the metro’s effective rent: actual growth per year over the last three full years, this year’s change, and RealPage’s forecast growth per year from here to the end of its forecast.</p>
 </main>
 <div class="hset-scrim" id="st-scrim" hidden></div>
 <div class="hset" id="st" role="dialog" aria-modal="true" aria-labelledby="st-title" hidden>
@@ -349,7 +349,7 @@
     hit.onmouseleave = () => { tip.style.opacity = 0; guide.setAttribute('opacity', 0); };
   }
   let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (chartMs.length) drawChart(chartMs); }, 120); });
-  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['wks', 'Concessions', 'c-conc'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage effective rent growth', 'c-rp']];
+  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage effective rent growth', 'c-rp']];
   const val = (m, k) => k === 'name' ? name(m) : F[m.id][k];
   function ordered(ms) {
     return ms.slice().sort((a, b) => {
@@ -386,8 +386,7 @@
       ${nm}
       <div class="c-ask"><div class="ml-v">${f.psf != null ? '$' + f.psf.toFixed(2) + '<i>/SF</i>' : '—'}</div><div class="ml-s">${f.mo != null ? '$' + int(f.mo) + '/mo' : '&nbsp;'}</div></div>
       <div class="c-occ"><div class="ml-v">${f.occ != null ? f.occ.toFixed(1) + '%' : '—'}</div><div class="ml-s">${f.vac != null ? f.vac.toFixed(1) + '% vacant' : '&nbsp;'}</div></div>
-      <div class="c-conc"><div class="ml-v">${f.wks != null ? f.wks.toFixed(1) + '<i>wks</i>' : '—'}</div><div class="ml-s" title="Class A and B delivered in the last five years (${f.ncN} properties)">${f.ncWks != null ? 'New A/B ' + f.ncWks.toFixed(1) + ' wks' : 'free'}</div></div>
-      <div class="c-ex"><div class="ml-v">${int(f.exU)}<i>units</i></div><div class="ml-s">${f.exN === 1 ? '1 property' : int(f.exN) + ' properties'}</div></div>
+            <div class="c-ex"><div class="ml-v">${int(f.exU)}<i>units</i></div><div class="ml-s">${f.exN === 1 ? '1 property' : int(f.exN) + ' properties'}</div></div>
       <div class="c-uc"><div class="ml-uc"><span class="pct">${f.ucPct != null ? f.ucPct.toFixed(1) + '%' : '—'}</span><span class="bar"><b style="width:${w}%;animation-delay:${120 + Math.min(i, 20) * 28}ms"></b></span></div><div class="ml-s">${pl(f.ucU, 'unit')} · ${pl(f.ucN, 'project')}</div></div>
       <div class="c-rp">${rpCell(f)}</div>
       <span class="ml-go" aria-hidden="true">›</span>
