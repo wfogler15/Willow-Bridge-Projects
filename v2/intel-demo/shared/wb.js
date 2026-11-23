@@ -52,7 +52,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202611231455');
+    add(ROOT + 'shared/wb-chrome.css?v=202611231500');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
@@ -202,7 +202,8 @@
         const btn = $('button', f1); btn.disabled = true;
         const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
         btn.disabled = false;
-        if (error) return say(error.message, true);
+        // the database refuses logins for emails not on the access list (Settings → People and access)
+        if (error) return say(/saving new user|NOT_ON_ACCESS_LIST/i.test(error.message) ? 'This email doesn’t have access yet. Ask Will Fogler to add you.' : error.message, true);
         f1.hidden = true; f2.hidden = false; f2.code.focus();
         $('#wb-step', el).textContent = `We sent a code to ${email}. Enter it below to sign in.`;
         say('Check your junk folder if it isn’t there in a minute.');
