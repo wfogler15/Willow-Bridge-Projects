@@ -125,7 +125,7 @@
     const run = async (steps, okText) => {
       if (busy) return; busy = true;
       try { for (const s of steps) { const { error } = await s(); if (error) throw error; } await load(); paint(box); WB.toast && WB.toast(okText); }
-      catch (e) { const t = e.message || String(e); try { await load(); paint(box); } catch (_) {} const b2 = document.getElementById('wb-access'); const m2 = b2 && b2.querySelector('#wba-msg'); if (m2) { m2.textContent = t; m2.classList.add('bad'); } }
+      catch (e) { let t = e.message || String(e); if (/market_access_wb_email/.test(t)) t = 'Only @willowbridgepc.com emails can be given access.'; try { await load(); paint(box); } catch (_) {} const b2 = document.getElementById('wb-access'); const m2 = b2 && b2.querySelector('#wba-msg'); if (m2) { m2.textContent = t; m2.classList.add('bad'); } }
       busy = false;
     };
     const newId = (name) => { const id = slug(name); if (!/^[a-z][a-z0-9_]{1,30}$/.test(id)) { msg('Name the new market, e.g. Fort Lauderdale', true); return null; } return id; };
