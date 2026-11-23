@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231325">
+<link rel="stylesheet" href="shared/wb.css?v=202611231327">
 <style>
   .page{max-width:1240px}
   /* ---------- top row: regions + settings ---------- */
@@ -46,7 +46,7 @@
   .ml-head h2 span{font-weight:500;color:var(--faint);margin-left:8px;font-size:16px}
   .ml-find{font:14px var(--font-display);border:1px solid #E6E4EC;border-radius:999px;padding:8px 14px 8px 34px;width:220px;color:var(--ink);outline:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239C97AE' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.5 10.5 14 14'/%3E%3C/svg%3E") no-repeat 12px center/15px}
   .ml-find:focus{border-color:#C9BFF0;box-shadow:0 0 0 3px rgba(67,40,144,.08)}
-  .ml{--cols:minmax(180px,1.5fr) minmax(100px,.85fr) minmax(92px,.75fr) minmax(104px,.75fr) minmax(112px,.85fr) minmax(170px,1.15fr) minmax(190px,1.25fr) 18px}
+  .ml{--cols:minmax(180px,1.5fr) minmax(100px,.85fr) minmax(92px,.75fr) minmax(104px,.75fr) minmax(112px,.85fr) minmax(170px,1.15fr) minmax(230px,1.45fr) 18px}
   .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 20px;align-items:center;padding:0 18px}
   .ml-cols{padding-top:10px;padding-bottom:10px}
   .ml-cols{border-bottom:1px solid #E6E4EC}
@@ -68,9 +68,8 @@
   .ml-uc .bar{flex:1;height:6px;border-radius:999px;background:#EFEEF3;overflow:hidden;min-width:40px;max-width:110px}
   .ml-uc .bar b{display:block;height:100%;border-radius:999px;background:#8168D6;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
   .ml-uc .pct{font:600 17px/1.2 var(--font-display);font-variant-numeric:tabular-nums;min-width:48px}
-  .rp{display:flex;align-items:center;gap:12px}
-  .rp .ml-v{min-width:66px}
-  .rp svg{display:block;flex:none}
+  .rp3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 12px}
+  .rp3 .ml-v{font-size:16px}
   .up{color:#2F7A4F}.dn{color:#B42318}
   .ml-go{color:#C9C5D6;font-size:20px;line-height:1;transition:transform .15s,color .15s;justify-self:end}
   a.ml-row:hover .ml-go{color:#432890;transform:translateX(3px)}
@@ -148,8 +147,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231325"></script>
-<script src="access.js?v=202611231325"></script>
+<script src="shared/wb.js?v=202611231327"></script>
+<script src="access.js?v=202611231327"></script>
 </head>
 <body>
 <main class="page">
@@ -166,7 +165,7 @@
     <div class="ml-head"><h2>Markets</h2></div>
     <div style="padding:10px 18px"><span class="sk" style="width:60%;margin:22px 0"></span><span class="sk" style="width:80%;margin:22px 0"></span><span class="sk" style="width:70%;margin:22px 0"></span></div>
   </section>
-  <p class="hm-foot">Asking, occupancy, concessions, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Concessions are weeks free on a 12-month lease. Under construction counts active construction only and is shown as a share of existing units. RealPage rent growth is the metro’s effective rent, forecast per year from this year to the end of RealPage’s forecast; the bars show each year’s change, faded where forecast.</p>
+  <p class="hm-foot">Asking, occupancy, concessions, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Concessions are weeks free on a 12-month lease. Under construction counts active construction only and is shown as a share of existing units. RealPage figures are the metro’s effective rent: actual growth per year over the last three full years, this year’s change, and RealPage’s forecast growth per year from here to the end of its forecast.</p>
 </main>
 <div class="hset-scrim" id="st-scrim" hidden></div>
 <div class="hset" id="st" role="dialog" aria-modal="true" aria-labelledby="st-title" hidden>
@@ -239,7 +238,9 @@
     const a = g(NOW_Y, 'eR'), b = g(last, 'eR');
     const rpFc = a && b && last > NOW_Y ? Math.pow(b / a, 1 / (last - NOW_Y)) - 1 : null;   // forecast rent growth per year, this year → last forecast year
     const bars = []; for (let y = NOW_Y - 7; y <= last; y++) bars.push({ y, v: g(y, 'yR') });
-    return { rpFc, rpNow: g(NOW_Y, 'yR'), rpLast: last, rpBars: bars };
+    const h0 = g(NOW_Y - 4, 'eR'), h1 = g(NOW_Y - 1, 'eR');
+    const rpHist = h0 && h1 ? Math.pow(h1 / h0, 1 / 3) - 1 : null;   // actual rent growth per year over the last three full years
+    return { rpFc, rpNow: g(NOW_Y, 'yR'), rpHist, rpLast: last, rpBars: bars };
   }
   async function load() {
     const mk = await rows(S('core').from('markets').select('id,label,config').order('id'));
@@ -348,7 +349,7 @@
     hit.onmouseleave = () => { tip.style.opacity = 0; guide.setAttribute('opacity', 0); };
   }
   let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (chartMs.length) drawChart(chartMs); }, 120); });
-  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['wks', 'Concessions', 'c-conc'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage rent growth', 'c-rp']];
+  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['wks', 'Concessions', 'c-conc'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage effective rent growth', 'c-rp']];
   const val = (m, k) => k === 'name' ? name(m) : F[m.id][k];
   function ordered(ms) {
     return ms.slice().sort((a, b) => {
@@ -370,9 +371,11 @@
       return `<rect x="${i * (W + G)}" y="${y}" width="${W}" height="${h}" rx="1" fill="${col}" opacity="${fc ? .45 : b.y === NOW_Y ? 1 : .85}"><title>${b.y}${fc ? ' forecast' : ''}: ${pct(b.v)}</title></rect>`;
     }).join('')}</svg>`;
   }
+  const yy = (y) => "'" + String(y).slice(2);
   function rpCell(f) {
-    if (f.rpFc == null) return '<div class="ml-v" style="color:var(--faint)">—</div><div class="ml-s">No RealPage data</div>';
-    return `<div class="rp"><div><div class="ml-v ${f.rpFc >= 0 ? 'up' : 'dn'}">${pct(f.rpFc)}<i>/yr</i></div><div class="ml-s">${NOW_Y}: ${pct(f.rpNow)}</div></div>${bars(f.rpBars)}</div>`;
+    if (f.rpFc == null && f.rpNow == null) return '<div class="ml-v" style="color:var(--faint)">—</div><div class="ml-s">No RealPage data</div>';
+    const fig = (v, lab) => `<div><div class="ml-v ${v == null ? '' : v >= 0 ? 'up' : 'dn'}">${pct(v)}</div><div class="ml-s">${lab}</div></div>`;
+    return `<div class="rp3">${fig(f.rpHist, `${yy(NOW_Y - 3)}–${yy(NOW_Y - 1)} /yr`)}${fig(f.rpNow, String(NOW_Y))}${fig(f.rpFc, `${yy(NOW_Y + 1)}–${yy(f.rpLast)} /yr`)}</div>`;
   }
   function row(m, i) {
     const f = F[m.id], sub = [stateOf(m), f.period].filter(Boolean).join(' · '), d = `animation-delay:${Math.min(i, 20) * 28}ms`;
