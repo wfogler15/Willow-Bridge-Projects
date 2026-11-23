@@ -309,7 +309,10 @@
     return Object.assign({}, r.attrs || {}, { name: r.name, address: r.address, city: r.city, zip: r.zip, units: r.units, yearBuilt: r.year_built, monthBuilt: r.month_built,
       stories: r.stories, avgUnitSF: r.avg_unit_sf, class: r.class, starRating: r.star_rating, developer: r.developer, owner: r.owner, propertyManager: r.manager, status: r.status });
   }
-  const KEEP_EDITS = new Set(['submarket', 'style']);   // Willow Bridge taxonomy: never replaced by an upload
+  const KEEP_EDITS = new Set(['submarket', 'style', 'lat', 'lng']);   // Willow Bridge taxonomy and hand-placed map pins: never replaced by an upload
+  // asking/effective rent fields: a move of more than RENT_REVIEW either way is held for review instead of replaced
+  const RENT_REVIEW = 0.20;
+  const RENT_KEYS = ['avgAskingSF', 'avgAskingUnit', 'avgEffectiveSF', 'avgEffectiveUnit'].concat(...['studio', 'one', 'two', 'three'].map((b) => [b + 'Rent', b + 'RentSF', b + 'EffUnit', b + 'EffSF']));
   const PIPE_EDITS = new Set(['monthBuilt', 'yearBuilt', 'dayBuilt']);   // hand-estimated completion, kept while the building is still in the pipeline
   /** Quarterly refresh rule for hand edits (comp set updates and property-card edits):
       - rents and everything else CoStar reports: the new data replaces the hand value
@@ -333,15 +336,17 @@
         if (k.startsWith('_')) { next[k] = v; continue; }
         if (KEEP_EDITS.has(k)) { next[k] = v; continue; }
         if (PIPE_EDITS.has(k) && stillPipe) { next[k] = v; continue; }
+        if (k === 'status' && /exist/i.test(v) && stillPipe) { next[k] = v; continue; }   // marked delivered by hand before CoStar caught up
         const nv = fresh[k];
         if (nv == null || nv === '') { next[k] = v; continue; }   // CoStar has nothing for it: keep the hand value
         if (k === 'vacancy' && v != null && +v < +nv) { review = { mine: 100 - v, costar: 100 - nv }; continue; }
         replaced.push(k);
       }
+      out.hand = out.hand || {}; out.hand[o.property_id] = o.edits;
       if (!replaced.length && !review) continue;
       const editsUse = clean({ ...next });
       const editsKeep = review ? clean({ ...next, vacancy: o.edits.vacancy }) : null;
-      out.push({ property_id: o.property_id, name: u.patch.name, edits: editsUse, editsKeep, replaced, review, keptOcc: review });
+      out.push({ property_id: o.property_id, name: u.patch.name, edits: editsUse, editsKeep, replaced, review, keptOcc: review, orig: o.edits });
     }
     return out;
   }
@@ -395,15 +400,23 @@
         }
       }
       // refresh of an existing market: what changed, hand edits the new data replaces, properties missing from this file
-      let missing = [], changes = null, overrides = [];
+      let missing = [], changes = null, overrides = [], rentReview = [];
       if (!newMarket) {
         const idSet = new Set(ids);
         const onFile = await all(sb, 'core', 'properties', 'id,costar_id,name,address,city,status,units,year_built', (q) => q.eq('market_id', marketId).eq('source', 'costar'));
         missing = onFile.filter((x) => !idSet.has(x.costar_id));
         changes = summarizeChanges(updates, inserts);
         overrides = await planOverrides(sb, updates);
+        // asking rent moved more than 20% either way (against the hand figure where there is one): review before it replaces anything
+        const hand = overrides.hand || {};
+        rentReview = updates.map((u) => {
+          const ba = (u.before && u.before.attrs) || {}, na = u.patch.attrs || {};
+          if (!/exist/i.test(u.patch.status || '') || !/exist/i.test((u.before && u.before.status) || '')) return null;
+          const h = hand[u.id] && hand[u.id].avgAskingSF, from = h != null ? +h : ba.avgAskingSF, to = na.avgAskingSF, r = pct(from, to);
+          return r != null && Math.abs(r) > RENT_REVIEW ? { id: u.id, name: u.patch.name, from, to, change: r, hand: h != null } : null;
+        }).filter(Boolean);
       }
-      P.props = { inserts, updates, removedSkips, otherMarket, skipped: parsed.costar_props.skipped, notInFile, missing, changes, overrides };
+      P.props = { inserts, updates, removedSkips, otherMarket, skipped: parsed.costar_props.skipped, notInFile, missing, changes, overrides, rentReview };
       if (otherMarket.length) P.warnings.push(`${otherMarket.length} properties already sit in another market (${[...new Set(otherMarket.map((o) => o.market))].join(', ')}); they'll be updated in place, and their market follows their location.`);
     }
     // RealPage
@@ -430,6 +443,7 @@
 
   /** Write a plan. onStep(label) reports progress. Returns a summary. */
   async function commit(sb, P, { user, onStep = () => {}, period } = {}) {
+    const held = new Set(((P.props && P.props.rentReview) || []).filter((r) => !(P.rentUse && P.rentUse.has(r.id))).map((r) => r.id));   // rent moves held for review
     const S = (s) => sb.schema(s); const who = user || 'upload';
     const out = { inserted: 0, updated: 0, rp: 0, trends: 0, sales: 0 };
     const chk = (r) => { if (r.error) throw new Error(r.error.message); return r.data; };
@@ -458,7 +472,8 @@
         i += c.length; out.inserted += c.length;
       }
       i = 0;
-      for (const u of P.props.updates) {
+      for (let u of P.props.updates) {
+        if (held.has(u.id)) { const ba = (u.before && u.before.attrs) || {}, keep = {}; RENT_KEYS.forEach((k) => { if (k in ba) keep[k] = ba[k]; }); u = Object.assign({}, u, { patch: Object.assign({}, u.patch, { attrs: Object.assign({}, u.patch.attrs, keep) }) }); }
         if (i % 50 === 0) onStep(`Updating properties ${i + 1}–${Math.min(i + 50, P.props.updates.length)} of ${P.props.updates.length}`);
         chk(await S('core').from('properties').update(Object.assign({}, u.patch, { updated_by: who })).eq('id', u.id));
         idByCostar.set(u.costar_id, u.id); i++; out.updated++;
@@ -469,7 +484,12 @@
       for (let o of P.props.overrides) {
         // occupancy under review: keep the hand value unless the check screen said to use CoStar's
         const useCostar = o.review && P.occUse && P.occUse.has(o.property_id);
-        if (o.review && !useCostar) { if (!o.replaced.length) continue; o = Object.assign({}, o, { edits: o.editsKeep }); }
+        if (o.review && !useCostar) { o = Object.assign({}, o, { edits: o.editsKeep }); }
+        if (held.has(o.property_id) && o.orig) {   // rent held for review: the hand rents stay
+          const back = {}, meta = {}; RENT_KEYS.forEach((k) => { if (k in o.orig) { back[k] = o.orig[k]; if (o.orig._meta && o.orig._meta[k]) meta[k] = o.orig._meta[k]; } });
+          if (Object.keys(back).length) { const e = Object.assign({}, o.edits || {}, back); e._meta = Object.assign({}, (o.edits && o.edits._meta) || {}, meta); o = Object.assign({}, o, { edits: e, replaced: o.replaced.filter((k) => !(k in back)) }); }
+        }
+        if (!o.replaced.length && !(o.review && useCostar)) continue;
         if (o.edits) chk(await S('market').from('property_overrides').update({ edits: o.edits }).eq('property_id', o.property_id));
         else chk(await S('market').from('property_overrides').delete().eq('property_id', o.property_id));
       }

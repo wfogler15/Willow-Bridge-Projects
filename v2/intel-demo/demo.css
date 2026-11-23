@@ -1221,3 +1221,18 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-rph span { font-size: 12.5px; color: var(--x-ink-3); }
 .csx-bl .csx-blsel { height: 34px; min-width: 220px; }
 .csx-bl .csx-hint { margin: 12px 0 0; }
+.csx-uf-con { grid-column: 1 / -1; display: grid; grid-template-columns: 1.2fr .8fr .8fr; gap: 12px 14px; padding: 12px; border: 1px solid #ece9f3; border-radius: 10px; }
+.csx-uf-con label { display: flex; flex-direction: column; gap: 5px; }
+.csx-uf-con .csx-uf-cx { grid-column: 1 / -1; }
+.csx-uf-cw { grid-column: 1 / -1; font-size: 12.5px; color: var(--x-ink-3); }
+.csx-uf-cw b { color: var(--x-ink); }
+.csx-table td.csx-cs { color: var(--x-ink-3); }
+.csx-table td.csx-cs small { font-size: 10.5px; }
+.csx-uf-loc { margin-top: 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.csx-uf-loch { font: 600 11px var(--x-font); letter-spacing: .04em; text-transform: uppercase; color: var(--x-ink-3); }
+.csx-uf-loc .csx-uf-ll { height: 34px; width: 280px; }
+.csx-uf-loc .csx-uf-pin { height: 34px; }
+.csx-uf-loc small { font-size: 12px; color: var(--x-ink-3); }
+.csx-uf-map { flex-basis: 100%; height: 340px; border-radius: 10px; overflow: hidden; border: 1px solid #e4e1ec; }
+.csx-uf-map[hidden] { display: none; }
+.csx-pin i { display: block; width: 22px; height: 22px; border-radius: 50% 50% 50% 0; background: #432890; border: 3px solid #fff; transform: rotate(-45deg); box-shadow: 0 2px 6px rgba(0,0,0,.35); }

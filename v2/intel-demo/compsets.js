@@ -175,6 +175,23 @@
   const nameCell = (p, sub) => `<td><button type="button" class="csx-pname">${E(p.name || p.address)}</button><div class="csx-addr">${E(p.address || '')}${sub ? ' · ' + sub : ''}</div></td>`;
   const rmCell = (p) => `<td class="csx-x"><button type="button" class="csx-rm" title="Remove from set" aria-label="Remove ${E(p.name)}">×</button></td>`;
   const n0 = (v) => (v == null || isNaN(v) ? '' : String(Math.round(v * 100) / 100));
+  // concessions as the website quotes them, converted to weeks free on a 12-month lease
+  const CTYPES = [['weeks', 'Weeks free'], ['months', 'Months free'], ['onetime', '$ off at move-in'], ['monthly', '$ off monthly rent'], ['none', 'No concession']];
+  const conOf = (p) => ((typeof compFees !== 'undefined' && compFees[p.id] && compFees[p.id].concession) || null);
+  const handWks = (p) => { const f = typeof compFees !== 'undefined' && compFees[p.id]; return f && f.weeksFree != null && f.weeksFree !== '' ? +f.weeksFree : null; };
+  function toWeeks(type, amt, term, rent) {
+    if (type === 'none') return 0;
+    if (amt == null) return null;
+    const L = term || 12;
+    if (type === 'weeks') return (amt * 12) / L;
+    if (type === 'months') return (amt * 52 / 12) * (12 / L);
+    if (!rent) return null;
+    if (type === 'onetime') return (amt / (rent * 12 / 52)) * (12 / L);
+    if (type === 'monthly') return (amt / rent) * 52;
+    return null;
+  }
+  const conText = (c) => { if (!c) return ''; if (c.type === 'none') return 'No concession'; const a = c.amount; const t = c.type === 'weeks' ? `${a} wk${a == 1 ? '' : 's'} free` : c.type === 'months' ? `${a} mo free` : c.type === 'onetime' ? `$${Math.round(a).toLocaleString()} off move-in` : `$${Math.round(a).toLocaleString()}/mo off`; return t + (c.term && c.term != 12 ? ` on ${c.term}-mo lease` : '') + (c.text ? ` · ${c.text}` : ''); };
+  const wksCell = (p) => { const h = handWks(p), c = conOf(p); return h != null ? `<td class="num" title="${E(conText(c) || 'Entered by hand')}">${wks(h)}</td>` : `<td class="num csx-cs" title="CoStar concession, not checked">${wks(wksOf(p))}<small> CoStar</small></td>`; };
   const SRCS = ['Property website', 'CoStar', 'Call / tour', 'Drive-by', 'Other'];
 
   function updForm(p, ph, cols) {
@@ -184,13 +201,18 @@
       <label>Source <select class="csx-in csx-uf-src">${SRCS.map((x) => `<option${x === (((lastUpd(p) || {}).src) || (ph === 'pipe' ? 'Drive-by' : '')) ? ' selected' : ''}>${x}</option>`).join('')}</select></label>
       ${lastUpd(p) ? `<span class="csx-uf-last">Last updated ${day(lastUpd(p).at)}${lastUpd(p).by ? ' by ' + E(who(lastUpd(p).by)) : ''}</span>` : '<span class="csx-uf-last">Showing CoStar figures</span>'}</div>`;
     const notes = `<label class="csx-uf-notes"><span>Notes</span><textarea class="csx-in csx-uf-f" data-f="notes" rows="2" placeholder="${ph === 'pipe' ? 'Site visit: framing on level 3, cranes down…' : 'Specials, renovation, management change…'}">${E(e.notes || p.notes || '')}</textarea></label>`;
+    const loc = `<div class="csx-uf-loc"><span class="csx-uf-loch">Map location</span>
+      <input class="csx-in csx-uf-ll" value="${p.lat != null ? (+p.lat).toFixed(6) + ', ' + (+p.lng).toFixed(6) : ''}" placeholder="lat, lng (paste from Google Maps)" aria-label="Latitude, longitude">
+      <button type="button" class="yx-btn csx-uf-pin">Move pin on map</button>${ed(p).lat != null ? '<small>Moved by hand</small>' : ''}
+      <div class="csx-uf-map" hidden></div></div>`;
     const bar = `<div class="csx-bar"><button type="button" class="yx-btn yx-btn-primary csx-uf-save">Save update</button><button type="button" class="yx-btn csx-uf-x">Cancel</button><span class="csx-msg"></span></div>`;
     let body;
     if (ph === 'pipe') {
       const d = deliveryOf(p), mv = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` : '';
       body = `<div class="csx-uf-grid">
-        <label><span>Stage</span><select class="csx-in csx-uf-f" data-f="pipelineStage"><option value="UC"${!isProposed(p) ? ' selected' : ''}>Under construction</option><option value="Proposed"${isProposed(p) ? ' selected' : ''}>Proposed</option></select></label>
-        <label><span>Estimated completion</span><input type="month" class="csx-in csx-uf-f" data-f="estDelivery" value="${mv}"></label>
+        <label><span>Stage</span><select class="csx-in csx-uf-f csx-uf-stage" data-f="pipelineStage"><option value="UC"${!isProposed(p) ? ' selected' : ''}>Under construction</option><option value="Proposed"${isProposed(p) ? ' selected' : ''}>Proposed</option><option value="Delivered">Delivered</option></select></label>
+        <label><span class="csx-uf-dl">Estimated completion</span><input type="month" class="csx-in csx-uf-f" data-f="estDelivery" value="${mv}"></label>
+        <label class="csx-uf-dv" hidden><span>Occupancy % now <em>optional</em></span><input type="number" class="csx-in csx-uf-f" data-f="occ" min="0" max="100" step="0.1"></label>
         <label><span>Units</span><input type="number" class="csx-in csx-uf-f" data-f="units" value="${p.units || ''}" min="0"></label>
       </div>${notes}`;
     } else {
@@ -205,7 +227,13 @@
           <div class="csx-uf-avg">Average asking <b class="csx-uf-avgv">${money(p.avgAskingSF)}/SF · ${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() + '/mo' : '—'}</b> <small>mix-weighted; effective rents are recalculated from weeks free</small></div></div>
         <div class="csx-uf-grid">
           <label><span>Occupancy %</span><input type="number" class="csx-in csx-uf-f" data-f="occ" value="${n0(occOf(p))}" min="0" max="100" step="0.1"></label>
-          <label><span>Weeks free</span><input type="number" class="csx-in csx-uf-f" data-f="weeksFree" value="${n0(wksOf(p))}" min="0" step="0.5"></label>
+          <div class="csx-uf-con">
+            <label><span>Concession offered</span><select class="csx-in csx-uf-ct">${CTYPES.map(([k, l]) => `<option value="${k}"${(conOf(p) ? conOf(p).type : 'weeks') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+            <label><span>Amount</span><input type="number" class="csx-in csx-uf-ca" value="${conOf(p) ? n0(conOf(p).amount) : (handWks(p) != null ? n0(handWks(p)) : '')}" min="0" step="0.5" placeholder="${handWks(p) == null && wksOf(p) != null ? 'CoStar: ' + wks(wksOf(p)) + ' wks' : ''}"></label>
+            <label><span>Lease term (mo)</span><input type="number" class="csx-in csx-uf-cl" value="${conOf(p) && conOf(p).term ? conOf(p).term : 12}" min="1" step="1"></label>
+            <label class="csx-uf-cx"><span>As advertised</span><input class="csx-in csx-uf-cd" value="${E(conOf(p) ? conOf(p).text || '' : '')}" placeholder="e.g. select 2 beds, 13+ mo leases" maxlength="140"></label>
+            <div class="csx-uf-cw">= <b>${handWks(p) != null ? wks(handWks(p)) : '—'}</b> weeks free on a 12-month lease</div>
+          </div>
           ${ph === 'lease' ? `<label><span>Leasing started</span><input type="month" class="csx-in csx-uf-f" data-f="leaseStart" value="${lsv}"><small>Delivery date unless you change it</small></label>` : ''}
           <label><span>Treat as</span><select class="csx-in csx-uf-f" data-f="_phase"><option value="">Automatic</option><option value="lease"${e._phase === 'lease' ? ' selected' : ''}>Lease-up</option><option value="exist"${e._phase === 'exist' ? ' selected' : ''}>Stabilized</option></select></label>
         </div>
@@ -213,7 +241,7 @@
       <details class="csx-uf-fees"><summary>Fees</summary><div class="csx-uf-grid">${(typeof FEE_SCHEMA !== 'undefined' ? FEE_SCHEMA : []).map((f) => `<label><span>${E(f.label)} <em>${f.kind === 'monthly' ? '/mo' : 'one-time'}</em></span><input type="number" class="csx-in csx-uf-fee" data-k="${f.key}" value="${fees[f.key] == null ? '' : E(fees[f.key])}" min="0" step="1"></label>`).join('')}</div></details>
       ${notes}`;
     }
-    return `<tr class="csx-uf-row"><td colspan="${cols}"><div class="csx-uf" data-pid="${E(p.id)}" data-ph="${ph}">${head}${body}${bar}</div></td></tr>`;
+    return `<tr class="csx-uf-row"><td colspan="${cols}"><div class="csx-uf" data-pid="${E(p.id)}" data-ph="${ph}">${head}${body}${loc}${bar}</div></td></tr>`;
   }
   const num = (v) => { if (v === '' || v == null) return null; const n = parseFloat(v); return isNaN(n) ? null : n; };
   function saveUpdate(box, cs) {
@@ -227,12 +255,23 @@
       if (typeof val === 'number' && typeof cur === 'number' && Math.abs(val - cur) < 1e-9) return;
       if (val === (raw[k] == null ? null : raw[k])) delete edits[k]; else edits[k] = val; ch.push(k);
     };
+    const llm = (box.querySelector('.csx-uf-ll').value || '').match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/);
+    if (llm) { const la = +llm[1], ln = +llm[2]; if (Math.abs(la) <= 90 && Math.abs(ln) <= 180 && (p.lat == null || Math.abs(la - p.lat) > 1e-6 || Math.abs(ln - p.lng) > 1e-6)) { set('lat', la); set('lng', ln); } }
     if (ph === 'pipe') {
-      set('pipelineStage', v.pipelineStage || null);
+      if (v.pipelineStage === 'Delivered') {
+        // seen delivered before CoStar caught up: it becomes existing and moves to Lease-up, leasing from the delivery month
+        if (!v.estDelivery) { box.querySelector('.csx-msg').textContent = 'Enter the month it delivered.'; return; }
+        set('status', 'Existing'); set('pipelineStage', 'UC');
+        const o = num(v.occ); if (o != null) set('vacancy', Math.round((100 - o) * 100) / 100);
+      } else set('pipelineStage', v.pipelineStage || null);
       if (v.estDelivery) { const [y, m] = v.estDelivery.split('-').map(Number); set('yearBuilt', y); set('monthBuilt', MON[m - 1]); }
       set('units', num(v.units));
     } else {
-      const wk = num(v.weeksFree);
+      const ct = box.querySelector('.csx-uf-ct').value, ca = num(box.querySelector('.csx-uf-ca').value), cl = num(box.querySelector('.csx-uf-cl').value) || 12, cd = box.querySelector('.csx-uf-cd').value.trim();
+      let rentNow = p.avgAskingUnit; { let n = 0, r = 0; BEDS.forEach(([k, , uk]) => { const u = num(v[uk]), rr = num(v[k + 'Rent']); if (u && rr) { n += u; r += u * rr; } }); if (n) rentNow = r / n; }
+      const wkIn = toWeeks(ct, ca, cl, rentNow);
+      const wk = wkIn == null ? (ct === 'none' ? 0 : null) : Math.round(wkIn * 100) / 100;
+      const conNew = (ca == null && ct !== 'none') ? null : { type: ct, amount: ct === 'none' ? null : ca, term: cl, text: cd };
       let n = 0, rent = 0, sfw = 0, cnt = 0;
       BEDS.forEach(([k, , uk]) => {
         const u = num(v[uk]), r = num(v[k + 'Rent']), sf = p[k + 'SF'];
@@ -245,14 +284,18 @@
       const rentChanged = ch.some((k) => /Rent$|^units/.test(k));
       let askU = p.avgAskingUnit, askSF = p.avgAskingSF;
       if (rentChanged && n) { askU = rent / n; set('avgAskingUnit', askU); if (sfw && cnt === n) { askSF = rent / sfw; set('avgAskingSF', askSF); } else if (p.avgUnitSF) { askSF = askU / p.avgUnitSF; set('avgAskingSF', askSF); } }
-      if (wk != null && (rentChanged || wk !== wksOf(p))) { if (askU != null) set('avgEffectiveUnit', askU * (1 - wk / 52)); if (askSF != null) set('avgEffectiveSF', askSF * (1 - wk / 52)); }
+      if (wk != null && (rentChanged || wk !== handWks(p))) { if (askU != null) set('avgEffectiveUnit', askU * (1 - wk / 52)); if (askSF != null) set('avgEffectiveSF', askSF * (1 - wk / 52)); }
       const o = num(v.occ); if (o != null && (occOf(p) == null || Math.abs(o - occOf(p)) > 1e-6)) set('vacancy', Math.round((100 - o) * 100) / 100);
       if (v.leaseStart) { const cur = leaseStartOf(p), cv = cur ? `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}` : ''; if (v.leaseStart !== cv) set('preLeaseStart', v.leaseStart + '-01'); }
       if ((v._phase || '') !== (edits._phase || '')) { if (v._phase) edits._phase = v._phase; else delete edits._phase; ch.push('_phase'); }
       // fees + weeks free live in the fee record (same as the fee schedule)
       const fr = { ...((typeof compFees !== 'undefined' && compFees[pid]) || {}) }, fch = [];
       box.querySelectorAll('.csx-uf-fee').forEach((i) => { const nv = num(i.value), ov = num(fr[i.dataset.k]); if (nv !== ov) { if (nv == null) delete fr[i.dataset.k]; else fr[i.dataset.k] = nv; fch.push(i.dataset.k); } });
-      if (wk !== (wksOf(p) == null ? null : Math.round(wksOf(p) * 100) / 100)) { if (wk == null) delete fr.weeksFree; else fr.weeksFree = wk; fch.push('weeksFree'); }
+      const hw = handWks(p);
+      if (wk !== (hw == null ? null : Math.round(hw * 100) / 100) || JSON.stringify(conNew) !== JSON.stringify(fr.concession || null)) {
+        if (wk == null) { delete fr.weeksFree; delete fr.concession; } else { fr.weeksFree = wk; fr.concession = conNew; }
+        fch.push('weeksFree');
+      }
       if (fch.length) {
         fr._meta = { ...(fr._meta || {}) }; fch.forEach((k) => { fr._meta[k] = { at, by, src }; });
         compFees[pid] = fr; try { saveCompFees(); } catch (e) {}
@@ -331,7 +374,7 @@
       const s = stats(ex);
       out += sec('Existing', `${ex.length} stabilized · ${s.units.toLocaleString()} units · ${money(s.ask)}/SF asking · ${pct(s.occ)} occupied`,
         '<thead><tr><th>Property</th><th>Product type</th><th class="num">Units</th><th class="num">Built</th><th class="num">Asking $/SF</th><th class="num">$/mo</th><th class="num">Effective $/SF</th><th class="num">Occupancy</th><th class="num">Weeks free</th><th>Updated</th><th></th><th></th></tr></thead>',
-        ex.map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td class="num">${p.yearBuilt || '—'}</td><td class="num">${money(p.avgAskingSF)}</td><td class="num">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '—'}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num">${pct(occOf(p))}</td><td class="num">${wks(wksOf(p))}</td>${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`, 12)).join(''));
+        ex.map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td class="num">${p.yearBuilt || '—'}</td><td class="num">${money(p.avgAskingSF)}</td><td class="num">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '—'}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num">${pct(occOf(p))}</td>${wksCell(p)}${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`, 12)).join(''));
     }
     if (lu.length) {
       const L = lu.map((p) => ({ p, l: leaseOf(p) }));
@@ -344,7 +387,7 @@
       const extra = `<div class="csx-secx">${togo > 0 ? `<span>${Math.round(togo).toLocaleString()} units to ${STAB * 100}%</span>` : ''}${last ? `<span>Last to stabilize <b>${E(last.p.name)}</b> · ${monYr(last.l.stab)}</span>` : ''}${allStab ? `<span>At today's combined pace, lease-up clears ${monYr(allStab)}</span>` : ''}</div>`;
       out += sec('Lease-up', sub,
         '<thead><tr><th>Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Months</th><th class="num">Occupancy</th><th class="num">Leases / mo</th><th>Stabilizes (95%)</th><th class="num">Asking $/SF</th><th class="num">Weeks free</th><th>Updated</th><th></th><th></th></tr></thead>',
-        L.map(({ p, l }) => rowWith(p, `${nameCell(p, E(p.style || ''))}<td class="num">${(p.units || 0).toLocaleString()}</td><td>${monYr(l.d)}</td><td class="num">${l.mo ? l.mo.toFixed(1) : '—'}</td><td class="num">${pct(l.o)}</td><td class="num"><b>${l.v ? l.v.toFixed(1) : '—'}</b></td><td>${l.done ? '<span class="csx-ok">Stabilized</span>' : l.stab ? monYr(l.stab) + ` <small>${l.left.toFixed(0)} mo</small>` : '—'}</td><td class="num">${money(p.avgAskingSF)}</td><td class="num">${wks(wksOf(p))}</td>${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`, 12)).join(''), extra);
+        L.map(({ p, l }) => rowWith(p, `${nameCell(p, E(p.style || ''))}<td class="num">${(p.units || 0).toLocaleString()}</td><td>${monYr(l.d)}</td><td class="num">${l.mo ? l.mo.toFixed(1) : '—'}</td><td class="num">${pct(l.o)}</td><td class="num"><b>${l.v ? l.v.toFixed(1) : '—'}</b></td><td>${l.done ? '<span class="csx-ok">Stabilized</span>' : l.stab ? monYr(l.stab) + ` <small>${l.left.toFixed(0)} mo</small>` : '—'}</td><td class="num">${money(p.avgAskingSF)}</td>${wksCell(p)}${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`, 12)).join(''), extra);
     }
     if (pi.length) {
       const uc = pi.filter((p) => !isProposed(p)), pr = pi.filter(isProposed), u = (a) => a.reduce((s, p) => s + (p.units || 0), 0);
@@ -558,6 +601,24 @@
     $$('.csx-uf').forEach((box) => {
       box.querySelector('.csx-uf-x').onclick = () => { UI.upd = null; render(); };
       box.querySelector('.csx-uf-save').onclick = () => saveUpdate(box, cs);
+      const pinBtn = box.querySelector('.csx-uf-pin');
+      if (pinBtn) pinBtn.onclick = () => {
+        const el = box.querySelector('.csx-uf-map'), ll = box.querySelector('.csx-uf-ll');
+        if (!el.hidden) { el.hidden = true; pinBtn.textContent = 'Move pin on map'; return; }
+        el.hidden = false; pinBtn.textContent = 'Hide map';
+        if (el._map || typeof L === 'undefined') { if (el._map) el._map.invalidateSize(); return; }
+        const p = byId().get(box.dataset.pid) || {}, m0 = (ll.value.match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/) || []);
+        const start = m0[1] ? [+m0[1], +m0[2]] : (p.lat != null ? [p.lat, p.lng] : ((window.__WBD && window.__WBD.center) || [39.74, -104.99]));
+        const map = L.map(el, { zoomControl: true, attributionControl: false }).setView(start, 17);
+        try { (typeof wbSatLayer === 'function' ? wbSatLayer() : L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}')).addTo(map); } catch (e) { console.error(e); }
+        const mk = L.marker(start, { draggable: true, icon: L.divIcon({ className: 'csx-pin', html: '<i></i>', iconSize: [22, 22], iconAnchor: [11, 22] }) }).addTo(map);
+        const put = (latlng) => { mk.setLatLng(latlng); ll.value = latlng.lat.toFixed(6) + ', ' + latlng.lng.toFixed(6); };
+        mk.on('dragend', () => put(mk.getLatLng())); map.on('click', (e) => put(e.latlng));
+        ll.onchange = () => { const m = ll.value.match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/); if (m) { mk.setLatLng([+m[1], +m[2]]); map.setView([+m[1], +m[2]]); } };
+        el._map = map; setTimeout(() => map.invalidateSize(), 50);
+      };
+      const stg = box.querySelector('.csx-uf-stage');
+      if (stg) stg.onchange = () => { const d = stg.value === 'Delivered'; box.querySelector('.csx-uf-dl').textContent = d ? 'Delivered (month)' : 'Estimated completion'; box.querySelector('.csx-uf-dv').hidden = !d; };
       const live = () => {   // $/SF and the mix-weighted average as you type
         let n = 0, r = 0, sfw = 0;
         box.querySelectorAll('.csx-uf-mix tr[data-b]').forEach((tr) => {
@@ -569,6 +630,13 @@
         const av = box.querySelector('.csx-uf-avgv'); if (av && n) av.textContent = `${sfw ? '$' + (r / sfw).toFixed(2) + '/SF · ' : ''}$${Math.round(r / n).toLocaleString()}/mo`;
       };
       box.querySelectorAll('.csx-uf-mix input').forEach((i) => (i.oninput = live));
+      const cw = box.querySelector('.csx-uf-cw');
+      if (cw) { const conv = () => { const p = byId().get(box.dataset.pid) || {}, t = box.querySelector('.csx-uf-ct').value, a = num(box.querySelector('.csx-uf-ca').value), l = num(box.querySelector('.csx-uf-cl').value) || 12;
+          let rn = p.avgAskingUnit; { let n = 0, r = 0; box.querySelectorAll('.csx-uf-mix tr[data-b]').forEach((tr) => { const u = num(tr.querySelector('[data-f^="units"]').value), rr = num(tr.querySelector('.csx-uf-rent').value); if (u && rr) { n += u; r += u * rr; } }); if (n) rn = r / n; }
+          const w = toWeeks(t, a, l, rn);
+          cw.innerHTML = w == null ? (a == null && t !== 'none' ? 'Leave blank to use CoStar’s figure' : 'Needs an asking rent to convert') : `= <b>${w.toFixed(1)}</b> weeks free on a 12-month lease${rn ? ` · about $${Math.round((w / 52) * rn).toLocaleString()}/mo off` : ''}`;
+          box.querySelector('.csx-uf-ca').disabled = t === 'none'; };
+        box.querySelectorAll('.csx-uf-ct, .csx-uf-ca, .csx-uf-cl, .csx-uf-mix input').forEach((i) => { const o = i.oninput; i.oninput = (e) => { if (o) o(e); conv(); }; i.onchange = conv; }); conv(); }
     });
     $$('.csx-pname').forEach((b) => (b.onclick = () => { try { openDetail(b.closest('tr').dataset.pid); } catch (e) { console.error(e); } }));
   }
