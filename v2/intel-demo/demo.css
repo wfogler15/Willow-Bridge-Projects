@@ -1695,3 +1695,9 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .wbi-mktdd-home::before { content: "← "; }
 /* concessions: CoStar's figure is shown lighter than one the team has checked */
 .conc-costar { color: var(--ink-3, #6E6886); }
+
+/* way back to the home page: the brand in the top bar and a link above the market picker */
+.wb-nav.present.wbi-homelink .brand{pointer-events:auto;cursor:pointer}
+.wbi-back{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:500;color:var(--ink-2,#4A4A55);text-decoration:none;margin:0 0 10px;padding:2px 0}
+.wbi-back svg{width:12px;height:12px}
+.wbi-back:hover{color:var(--ink,#16161D);text-decoration:underline}

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231502">
+<link rel="stylesheet" href="shared/wb.css?v=202611231522">
 <style>
   .page{max-width:1400px}
   /* ---------- top row: regions + settings ---------- */
@@ -60,7 +60,7 @@
   .hc-tip div{display:flex;justify-content:space-between;gap:14px;line-height:1.7;font-variant-numeric:tabular-nums}
   .hc-tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
   /* ---------- markets list ---------- */
-  .ml{background:#fff;border:1px solid rgb(232,230,238);border-radius:16px;box-shadow:rgba(29,18,71,.04) 0 1px 3px;padding:20px 8px 10px}
+  .ml{background:#fff;padding:20px 8px 10px}
   .ml-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:8px;padding:0 18px}
   .ml-head h2{font:600 20px/1.2 var(--font-display);color:var(--ink);margin:0}
   .ml-head h2 span{font-weight:500;color:var(--faint);margin-left:8px;font-size:16px}
@@ -193,8 +193,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231502"></script>
-<script src="access.js?v=202611231502"></script>
+<script src="shared/wb.js?v=202611231522"></script>
+<script src="access.js?v=202611231522"></script>
 </head>
 <body>
 <main class="page">
@@ -369,6 +369,7 @@
     const bits = [];
     if (per.length) bits.push(`CoStar <b>${esc(per.join(', '))}</b>`);
     if (lv.some((m) => RP[m.id])) bits.push(`RealPage forecast through <b>${Math.max(...lv.filter((m) => RP[m.id]).map((m) => F[m.id].rpLast || NOW_Y))}</b>`);
+    return '';   // period pills removed (Will, Nov 23); the period still shows under each market name
     return bits.length ? `<div class="hm-stamp">${bits.map((b) => `<span>${b}</span>`).join('')}</div>` : '';
   }
   let chartMs = [];
@@ -475,13 +476,12 @@
     const nm = `<div class="c-nm"><span class="ml-code">${esc(codeOf(m))}</span><div class="ml-nmw"><div class="ml-nm">${esc(name(m))}</div><div class="ml-sub">${esc(sub)}${f.live && !canEdit(m.id) ? ' · view only' : ''}</div></div></div>`;
     if (m.config && m.config.pending) return `<a class="ml-row off load" href="upload.html" style="${d}">${nm}<div class="ml-wait">Not loaded yet. <b>Load the CoStar and RealPage data →</b></div></a>`;
     if (!f.live || !f.exN) return `<div class="ml-row off" style="${d}">${nm}<div class="ml-wait">${f.live ? 'Data not uploaded yet' : 'Not live yet'}</div></div>`;
-    const w = f.ucPct != null ? Math.max(2, Math.min(100, f.ucPct / maxUc * 100)) : 0;
     return `<a class="ml-row" href="./?market=${encodeURIComponent(m.id)}" style="${d}">
       ${nm}
       <div class="c-ask"><div class="ml-v">${f.psf != null ? '$' + f.psf.toFixed(2) + '<i>/SF</i>' : '—'}</div><div class="ml-s">${f.mo != null ? '$' + int(f.mo) + '/mo' : '&nbsp;'}</div></div>
       <div class="c-occ"><div class="ml-v">${f.occ != null ? f.occ.toFixed(1) + '%' : '—'}</div><div class="ml-s">${f.vac != null ? f.vac.toFixed(1) + '% vacant' : '&nbsp;'}</div></div>
             <div class="c-ex"><div class="ml-v">${int(f.exU)}<i>units</i></div><div class="ml-s">${f.exN === 1 ? '1 property' : int(f.exN) + ' properties'}</div></div>
-      <div class="c-uc"><div class="ml-uc"><span class="pct">${f.ucPct != null ? f.ucPct.toFixed(1) + '%' : '—'}</span><span class="bar"><b style="width:${w}%;animation-delay:${120 + Math.min(i, 20) * 28}ms"></b></span></div><div class="ml-s">${pl(f.ucU, 'unit')} · ${pl(f.ucN, 'project')}</div></div>
+      <div class="c-uc"><div class="ml-uc"><span class="pct">${f.ucPct != null ? f.ucPct.toFixed(1) + '%' : '—'}</span></div><div class="ml-s">${pl(f.ucU, 'unit')} · ${pl(f.ucN, 'project')}</div></div>
       <div class="c-rp">${rpActual(f)}</div>
       <div class="c-rf">${rpForecast(f)}</div>
       <div class="c-sd">${sdCell(f)}</div>
@@ -602,6 +602,18 @@
     });
   }
 })().catch((e) => { console.error(e); const g = document.getElementById('ml'); if (g) g.innerHTML = '<div class="hm-wait">Couldn’t load the markets. Refresh to try again.</div>'; });
+</script>
+<script>
+// warm the browser cache for the market page while the person looks at this one, so opening a market only waits on its data
+window.addEventListener('load', () => setTimeout(async () => {
+  try {
+    const html = await (await fetch('index.html', { credentials: 'same-origin' })).text();
+    const urls = new Set();
+    html.replace(/<script[^>]+src=["']([^"']+)["']/g, (_, u) => urls.add(u));
+    html.replace(/<link[^>]+rel=["']stylesheet["'][^>]*href=["']([^"']+)["']|<link[^>]+href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/g, (_, a, b) => urls.add(a || b));
+    urls.forEach((u) => { if (/^data:/.test(u)) return; const l = document.createElement('link'); l.rel = 'prefetch'; l.href = u; document.head.appendChild(l); });
+  } catch (e) { /* only a speed-up */ }
+}, 1200));
 </script>
 </body>
 </html>

@@ -278,12 +278,13 @@
     const navEl = document.querySelector('.wb-nav'), right = navEl && navEl.querySelector('.right');
     if (navEl && right) {
       navEl.classList.remove('autohide');
+      const brand = navEl.querySelector('.brand'); if (brand) { brand.href = 'home.html'; brand.title = 'All markets'; navEl.classList.add('wbi-homelink'); }
       const bar = document.createElement('div'); bar.className = 'wbi-navacts'; bar.appendChild(acts); right.prepend(bar);
     }
     const cur = window.__WBD && window.__WBD.market;
     const top2 = document.createElement('div'); top2.className = 'wbi-railtop';
     const mlab = (id) => `${MARKETS[id]} MSA`;
-    top2.innerHTML = `<div class="wbi-mktdd">
+    top2.innerHTML = `<a class="wbi-back" href="home.html"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M7.5 2.5L4 6l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>All markets</a><div class="wbi-mktdd">
         <button type="button" class="wbi-mktdd-btn" aria-haspopup="listbox" aria-expanded="false">
           <span class="k">Market</span><span class="v">${mlab(cur)}</span>
           <svg viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>

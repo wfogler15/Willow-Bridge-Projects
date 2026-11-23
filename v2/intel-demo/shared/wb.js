@@ -52,7 +52,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202611231502');
+    add(ROOT + 'shared/wb-chrome.css?v=202611231522');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
@@ -241,8 +241,19 @@
 
   /** Read every row of a table, 1,000 at a time. build(q) can add filters/order. */
   async function fetchAll(schema, table, select = '*', build = (q) => q) {
-    const out = []; const size = 1000;
-    for (let from = 0; ; from += size) {
+    // first page also returns the row count, then the remaining pages load side by side instead of one after another
+    const size = 1000;
+    const first = await build(sb.schema(schema).from(table).select(select, { count: 'exact' })).range(0, size - 1);
+    if (first.error) throw first.error;
+    const out = [...first.data];
+    if (first.data.length < size) return out;
+    if (typeof first.count === 'number') {
+      const pages = [];
+      for (let from = size; from < first.count; from += size) pages.push(build(sb.schema(schema).from(table).select(select)).range(from, from + size - 1));
+      for (const r of await Promise.all(pages)) { if (r.error) throw r.error; out.push(...r.data); }
+      return out;
+    }
+    for (let from = size; ; from += size) {   // no count available: page one after another
       const { data, error } = await build(sb.schema(schema).from(table).select(select)).range(from, from + size - 1);
       if (error) throw error;
       out.push(...data);
