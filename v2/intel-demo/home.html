@@ -383,7 +383,7 @@
     hit.onmouseleave = () => { tip.style.opacity = 0; guide.setAttribute('opacity', 0); };
   }
   let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (chartMs.length) drawChart(chartMs, true); }, 120); });
-  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage rent growth / yr', 'c-rp']];
+  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage rent growth · avg / yr', 'c-rp']];
   const val = (m, k) => k === 'name' ? name(m) : F[m.id][k];
   function ordered(ms) {
     return ms.slice().sort((a, b) => {
@@ -409,7 +409,7 @@
   function rpCell(f) {
     if (f.rpFc == null && f.rpNow == null) return '<div class="ml-v" style="color:var(--faint)">—</div><div class="ml-s">No RealPage data</div>';
     const fig = (v, lab) => `<div><div class="ml-v ${v == null ? '' : v >= 0 ? 'up' : 'dn'}">${pct(v)}</div><div class="ml-s">${lab}</div></div>`;
-    return `<div class="rp3">${fig(f.rpHist, `${yy(NOW_Y - 3)}–${String(NOW_Y - 1).slice(2)} avg`)}${fig(f.rpNow, String(NOW_Y))}${fig(f.rpFc, `${yy(NOW_Y + 1)}–${String(f.rpLast).slice(2)} avg`)}</div>`;
+    return `<div class="rp3">${fig(f.rpHist, `${yy(NOW_Y - 3)}–${String(NOW_Y - 1).slice(2)}`)}${fig(f.rpNow, String(NOW_Y))}${fig(f.rpFc, `${yy(NOW_Y + 1)}–${String(f.rpLast).slice(2)}`)}</div>`;
   }
   const CODES = { denver: 'DEN', phoenix: 'PHX', slc: 'SLC', dallas: 'DFW', austin: 'AUS', houston: 'HOU', san_antonio: 'SAT', atlanta: 'ATL', atl: 'ATL', miami: 'MIA', ftl: 'FLL', fort_lauderdale: 'FLL', tampa: 'TPA', orlando: 'MCO', charlotte: 'CLT', clt: 'CLT', raleigh: 'RDU', rdu: 'RDU', nashville: 'BNA', nash: 'BNA', dc: 'DCA', richmond: 'RIC', rva: 'RIC' };
   const codeOf = (m) => (m.config && m.config.code) || CODES[m.id] || name(m).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
