@@ -355,6 +355,13 @@
     storage: { from: () => ({ download: async () => fail({ message: 'not available' }), upload: async () => fail({ message: 'not available' }) }) },
     linkDealCompSet: (oppLegacyId, setLegacyId) => linkCompSet(setLegacyId || null, oppLegacyId),
     _internals: { dealToOpp, oppToDeal, compRowToLegacy, legacyToCompRow },
+    // Hand updates (property card Save, fee schedule, comp set Update forms): explicit saves only, straight to the database.
+    // The boot-time reconcile that re-pushes browser caches stays blocked by read-only.
+    direct: {
+      saveEdits: (pid, edits) => H.property_edits_upsert({ property_id: pid, edits: edits || {} }),
+      removeEdits: (pid) => H.property_edits_remove({ property_id: pid }),
+      saveFees: (pid, fees) => H.comp_fees_upsert({ property_id: pid, fees: fees || {} }),
+    },
     // Comp Sets tab: explicit saves only, so they go straight to the database even in the read-only Demo
     // (read-only exists to stop the old layer re-pushing cached records on load; a button press is not that)
     compSets: {

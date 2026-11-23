@@ -1155,3 +1155,6 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-ycp:hover { color: var(--x-purple); text-decoration: underline; }
 .csx-ycl { margin-top: 10px; font: 600 10.5px var(--x-font); letter-spacing: .06em; text-transform: uppercase; color: var(--x-ink-3); }
 .csx-ygrid { align-items: start; }
+#wb-save-note { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 9999; background: #1d1247; color: #fff; font: 500 13px var(--x-font); padding: 9px 16px; border-radius: 999px; box-shadow: 0 8px 24px rgba(29,18,71,.25); transition: opacity .2s, transform .2s; }
+#wb-save-note.on { opacity: 1; transform: translate(-50%, 0); }
+#wb-save-note.bad { background: #a3332b; }

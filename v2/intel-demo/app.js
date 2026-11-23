@@ -1961,6 +1961,27 @@ function subscribeCompFeesRealtime() {
 // Performance note: 687 properties × possible edits = potentially hundreds of rows.
 // On boot we pull all rows in one query and hydrate the local map in O(n).
 
+
+/* Hand updates save straight to the database (explicit actions only; see LegacyDB.direct).
+   Failures show in the page instead of vanishing into the console. */
+function wbDirectSave(label, fn) {
+  if (!window.LegacyDB || !LegacyDB.direct) { wbSaveNote('Couldn\u2019t save ' + label + ': saving isn\u2019t available', true); return Promise.resolve(false); }
+  return fn(LegacyDB.direct).then(() => { wbSaveNote('Saved ' + label); return true; })
+    .catch((e) => { console.error('[save]', label, e); wbSaveNote('Couldn\u2019t save ' + label + ': ' + (e.message || e), true); return false; });
+}
+function wbSaveNote(msg, bad) {
+  let n = document.getElementById('wb-save-note');
+  if (!n) { n = document.createElement('div'); n.id = 'wb-save-note'; document.body.appendChild(n); }
+  n.textContent = msg; n.className = bad ? 'bad on' : 'on';
+  clearTimeout(wbSaveNote._t); wbSaveNote._t = setTimeout(() => { n.className = n.className.replace(' on', '').replace(/^on$/, ''); }, bad ? 7000 : 2200);
+}
+function wbStampMeta(rec, fields, src) {
+  rec._meta = rec._meta || {};
+  const by = (window.WB && WB.user && WB.user.email) || (syncState && syncState.editorName) || '';
+  fields.forEach((f) => { rec._meta[f] = { at: Date.now(), by, src: src || 'Hand entry' }; });
+  return rec;
+}
+
 async function pushPropertyEdit(propId, edits) {
   if (!syncState.enabled || !propId) return;
   await syncOp('propedit.push', async () => {
@@ -9716,8 +9737,9 @@ function wireCsIntel() {
       if (raw === '' || raw == null) delete compFees[pid][key];
       else compFees[pid][key] = (el.type === 'number') ? wbNum(raw) : raw;
       if (Object.keys(compFees[pid]).length === 0) delete compFees[pid];
+      if (compFees[pid]) wbStampMeta(compFees[pid], [key], 'Fee schedule');
       saveCompFees();
-      pushCompFeesCloud(pid, compFees[pid] || {});
+      wbDirectSave('fees', (d) => d.saveFees(pid, compFees[pid] || {}));
       // Repaint so the derived columns and set averages stay honest, then put
       // the cursor back where it was.
       const scroller = host.querySelector('.cs-fee-scroll');
@@ -9782,8 +9804,9 @@ function wireCsIntel() {
       if (v == null) delete compFees[pid].weeksFree;
       else compFees[pid].weeksFree = Math.min(52, Math.max(0, v));
       if (Object.keys(compFees[pid]).length === 0) delete compFees[pid];
+      if (compFees[pid]) wbStampMeta(compFees[pid], ['weeksFree'], 'Concessions');
       saveCompFees();
-      pushCompFeesCloud(pid, compFees[pid] || {});
+      wbDirectSave('concessions', (d) => d.saveFees(pid, compFees[pid] || {}));
       renderCompSetIntel();
       const again = document.querySelector(`[data-conc-pid="${CSS.escape(pid)}"]`);
       if (again) again.focus();
@@ -15628,6 +15651,7 @@ function saveModalEdits() {
     // If different from what the user was looking at, save as override.
     // If identical, drop any prior override (revert to default).
     if (val !== baseline && !(val == null && baseline == null)) {
+      if (edits[field] !== val) wbStampMeta(edits, [field], 'Property card');
       edits[field] = val;
       changed = true;
     } else if (edits.hasOwnProperty(field)) {
@@ -15644,11 +15668,11 @@ function saveModalEdits() {
     edits._updatedBy = syncState.editorName || 'Anonymous';
     userEdits[pid] = edits;
     saveUserEdits();
-    pushPropertyEdit(pid, edits);
+    wbDirectSave('property', (d) => d.saveEdits(pid, edits));
   } else {
     delete userEdits[pid];
     saveUserEdits();
-    deletePropertyEditCloud(pid);
+    wbDirectSave('property', (d) => d.removeEdits(pid));
   }
 
   modalState.editing = false;
@@ -15667,7 +15691,7 @@ function revertModalEdits() {
   if (!confirm('Reset all manual edits for this property back to the original CoStar values?')) return;
   delete userEdits[pid];
   saveUserEdits();
-  deletePropertyEditCloud(pid);
+  wbDirectSave('property', (d) => d.removeEdits(pid));
   if (modalState.map) {
     try { modalState.map.remove(); } catch (e) {}
     modalState.map = null;
