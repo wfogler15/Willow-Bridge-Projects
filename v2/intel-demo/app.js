@@ -7802,7 +7802,8 @@ function renderCsSnapshot(props, meta) {
   // Per-unit is the rent-roll view; per-foot normalises for floorplan size.
   // The toggle drives the field, the scale, the average line and the formatter
   // together so the chart can never show a mixed basis.
-  const ranked = props.slice().sort((a, b) => (b[barField] || -1) - (a[barField] || -1));
+  // only properties with an asking rent: a building under construction appears once it's pre-leasing with rents posted
+  const ranked = props.filter(p => p.avgAskingUnit != null || p.avgAskingSF != null).sort((a, b) => (b[barField] || -1) - (a[barField] || -1));
   const maxEff = Math.max(...props.map(p => p[barField] || 0), 1);
   const avgPos = barAvg ? (barAvg / maxEff) * 100 : null;
   const bars = ranked.map(p => {
