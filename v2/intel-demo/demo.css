@@ -1587,3 +1587,21 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-dense th.csx-sortable:hover { color: var(--x-purple) !important; }
 .csx-dense th.csx-sortable.on { color: var(--x-ink) !important; }
 .csx-dense th.csx-sortable i { font-style: normal; margin-left: 3px; color: var(--x-purple); }
+/* lease-up + pipeline: equal data columns, centred, so the gaps are even */
+.csx-even th:not(:first-child):not(:nth-last-child(-n+2)), .csx-even td:not(:first-child):not(.csx-dev):not(.csx-note):not(.csx-ub):not(.csx-x) { text-align: center !important; }
+.csx-even th:nth-child(2):is(.csx-dev, [data-l]) { text-align: left !important; }
+.csx-even td.csx-dev, .csx-even td.csx-note { text-align: left !important; }
+.csx-even td .csx-bar1 { margin-left: auto; margin-right: auto; width: 56px; }
+.csx-even td.csx-upd-c i { margin-right: 5px; }
+#view-compsets .csx-even th.csx-left { text-align: left !important; }
+.csx-ychit2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 2px 0 8px; }
+.csx-ychit2 > div { display: flex; align-items: baseline; gap: 6px; }
+.csx-ychit2 b { font: 650 17px var(--x-font); color: var(--x-ink); font-variant-numeric: tabular-nums; }
+.csx-ychit2 b.ok { color: #2d7a4b; } .csx-ychit2 b.bad { color: #a3332b; }
+.csx-ychit2 small { font-size: 12px; color: #6b6680; }
+.csx-ychits li .csx-yct { font-size: 10.5px; color: #8a859b; margin-left: 6px; }
+.csx-ychits li .csx-yct.same { color: #4a4560; font-weight: 600; }
+.csx-ychits .csx-ycl { margin-top: 8px; font: 650 10.5px var(--x-font); letter-spacing: .05em; text-transform: uppercase; color: #8a859b; }
+.csx-ychits li { grid-template-columns: minmax(0, 1fr) 62px auto 44px; }
+.csx-ychits li .csx-yct { margin-left: 0; text-align: right; white-space: nowrap; }
+.csx-ychits li .csx-ycp { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }

@@ -467,7 +467,7 @@
     const line = sumLine([[intC(uNow), 'units leasing now' + (uNow ? ` · ${((leased / uNow) * 100).toFixed(0)}% occupied` : '')], [vNow ? vNow.toFixed(0) : '—', 'leases/mo now'], [lastOwn ? monYr(lastOwn) : '—', 'all at 95%, own pace'], [lastV ? monYr(lastV) : '—', `all at 95%, ${V}/mo`]]);
     return `<section class="panel csx-sec csx-sec-lu">${panelHead('csx-s-lu', 'lu', 'Lease-up outlook', cur.length + fut.length, line, null, velSel)}
       ${tl}
-      <div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${colg([22, 6, 9, 9, 8, 10, 10, 8, 6, 8, '40px', '32px'])}<thead><tr><th class="csx-pc">Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Occ.</th><th class="num">Leases/mo</th><th>95% · own pace</th><th>95% · ${V}/mo</th><th class="num">Asking $/SF</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+      <div class="table-scroll"><table class="csx-table csx-dense csx-fixed csx-even">${colg([20, 8, 8, 8, 8, 8, 8, 8, 8, 8, '40px', '32px'])}<thead><tr><th class="csx-pc">Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Occ.</th><th class="num">Leases/mo</th><th>95% · own pace</th><th>95% · ${V}/mo</th><th class="num">Asking $/SF</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
   }
   // rent comps sort: newest delivery first unless a header is clicked
   const RC_COLS = [['name', 'Property', 'csx-pc', (p) => (p.name || '').toLowerCase()], ['owner', 'Owner', 'csx-o', (p) => (p.owner || '').toLowerCase()], ['style', 'Type', '', (p) => p.style || ''],
@@ -562,16 +562,16 @@
         + hero('Stalled', intC(u(st)) + '<u> units</u>', st.length ? `${st.length} not counted above` : 'None marked');
       const acres = (p) => p.acreage || p.acres, den = (p) => (acres(p) && p.units ? p.units / acres(p) : null);
       const prow = (p) => rowWith(p, `${nameCell(p, E(p.submarket || '') + (p._auto ? ' <span class="csx-chip area" title="Pulled in because it is in one of the set’s submarkets">In area</span>' : ''))}<td class="csx-dev">${E(p.developer || '—')}</td><td>${E(p.style || '')}</td><td class="num">${intC(p.units)}</td><td class="num csx-o">${acres(p) ? (+acres(p)).toFixed(1) : '—'}</td><td class="num csx-o">${den(p) ? den(p).toFixed(0) : '—'}</td><td>${monYr(begunOf(p))}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 12);
-      const head = colg([19, 13, 7, 5, 5, 6, 7, 8, 18, 6, '40px', '32px']) + '<thead><tr><th class="csx-pc">Property</th><th>Developer</th><th>Type</th><th class="num">Units</th><th class="num csx-o">Acres</th><th class="num csx-o">Units/ac</th><th>Start</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>';
+      const head = colg([20, 14, 7, 7, 7, 7, 7, 7, 15, 7, '40px', '32px']) + '<thead><tr><th class="csx-pc">Property</th><th class="csx-left">Developer</th><th>Type</th><th class="num">Units</th><th class="num csx-o">Acres</th><th class="num csx-o">Units/ac</th><th>Start</th><th>Est. completion</th><th class="csx-left">Notes</th><th>Updated</th><th></th><th></th></tr></thead>';
       const grp = (label, a) => (a.length ? `<tr class="csx-grp"><td colspan="12">${label} · ${a.length} · ${intC(u(a))} units</td></tr>${a.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}` : '');
       const worst = u(uc) + u(pr) + u(st);
       const line = sumLine([[intC(u(uc)), 'units under construction' + (base ? ` (${((u(uc) / base) * 100).toFixed(1)}% of ${E(bl)})` : '')], [intC(in12), 'delivering in 12 mo'], [next ? monYr(deliveryOf(next)) : '—', 'next delivery' + (next ? ` · ${E(next.name)}` : '')], [intC(worst), 'worst case with proposed + stalled' + (base ? ` (${((worst / base) * 100).toFixed(1)}%)` : '')]]) + `<span class="csx-fresh">${checked(pi)}</span>`;
       const nEx = pipeExcl(cs).size;
       const how = `<span class="csx-fresh">${checked(pi)} · new projects in ${setSubs(ps).map(E).join(', ')} are added automatically${nEx ? ` · ${nEx} removed <button type="button" class="csx-link csx-pxreset">Add back</button>` : ''}</span>`;
       out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', uc.length + pr.length, line.replace(/<span class="csx-fresh">[\s\S]*?<\/span>$/, '') + how, null, addBtn)}${UI.addProj ? addProjForm(cs) : ''}
-        ${uc.length ? `<div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${head}<tbody>${uc.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}</tbody></table></div>` : '<div class="csx-none3">Nothing under construction in this set’s area.</div>'}
-        ${pr.length ? `<details class="csx-stalled csx-prop"${UI.propOpen ? ' open' : ''}><summary>Proposed · ${pr.length} project${pr.length === 1 ? '' : 's'} · ${intC(u(pr))} units${base ? ` (${((u(pr) / base) * 100).toFixed(1)}% of inventory)` : ''} · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${head}<tbody>${pr.sort((x, y) => (y.units || 0) - (x.units || 0)).map(prow).join('')}</tbody></table></div></details>` : ''}
-        ${st.length ? `<details class="csx-stalled csx-stl"${UI.stalledOpen ? ' open' : ''}><summary>Stalled · ${st.length} project${st.length === 1 ? '' : 's'} · ${intC(u(st))} units · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${head}<tbody>${st.map(prow).join('')}</tbody></table></div></details>` : ''}</section>`;
+        ${uc.length ? `<div class="table-scroll"><table class="csx-table csx-dense csx-fixed csx-even">${head}<tbody>${uc.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}</tbody></table></div>` : '<div class="csx-none3">Nothing under construction in this set’s area.</div>'}
+        ${pr.length ? `<details class="csx-stalled csx-prop"${UI.propOpen ? ' open' : ''}><summary>Proposed · ${pr.length} project${pr.length === 1 ? '' : 's'} · ${intC(u(pr))} units${base ? ` (${((u(pr) / base) * 100).toFixed(1)}% of inventory)` : ''} · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense csx-fixed csx-even">${head}<tbody>${pr.sort((x, y) => (y.units || 0) - (x.units || 0)).map(prow).join('')}</tbody></table></div></details>` : ''}
+        ${st.length ? `<details class="csx-stalled csx-stl"${UI.stalledOpen ? ' open' : ''}><summary>Stalled · ${st.length} project${st.length === 1 ? '' : 's'} · ${intC(u(st))} units · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense csx-fixed csx-even">${head}<tbody>${st.map(prow).join('')}</tbody></table></div></details>` : ''}</section>`;
     }
     return out;
   }
@@ -870,7 +870,9 @@
       const g = ps.filter((p) => p.status === 'Existing' && p.avgAskingSF && col(p) === prod);
       const later = ps.filter((p) => p.status !== 'Existing' && p.avgAskingSF && col(p) === prod);
       const hits = req ? g.filter((p) => p.avgAskingSF >= req) : [];
-      const li = (p, counted) => { const ok = req && p.avgAskingSF >= req; return `<li class="${counted ? (ok ? 'ok' : 'bad') : 'na'}"><button type="button" class="csx-ycp" data-pid="${E(p.id)}">${E(p.name || p.address)}</button><span>$${p.avgAskingSF.toFixed(2)}</span><em>${req ? (p.avgAskingSF >= req ? '+' : '−') + Math.abs((p.avgAskingSF / req - 1) * 100).toFixed(0) + '%' : ''}</em></li>`; };
+      // every stabilized comp in the set, any product type: a mid-rise rent can carry garden construction
+      const allEx = ps.filter((p) => p.status === 'Existing' && p.avgAskingSF), allHits = req ? allEx.filter((p) => p.avgAskingSF >= req) : [];
+      const li = (p, counted) => { const ok = req && p.avgAskingSF >= req; return `<li class="${counted ? (ok ? 'ok' : 'bad') : 'na'}"><button type="button" class="csx-ycp" data-pid="${E(p.id)}">${E(p.name || p.address)}</button><small class="csx-yct${col(p) === prod ? ' same' : ''}">${E(col(p) || p.style || '')}</small><span>$${p.avgAskingSF.toFixed(2)}</span><em>${req ? (p.avgAskingSF >= req ? '+' : '−') + Math.abs((p.avgAskingSF / req - 1) * 100).toFixed(0) + '%' : ''}</em></li>`; };
       const sorted = (a) => [...a].sort((x, y) => y.avgAskingSF - x.avgAskingSF);
       const open = UI.yocOpen && UI.yocOpen[prod];
       let a = 0, w = 0; g.forEach((p) => { a += p.avgAskingSF * (p.units || 0); w += p.units || 0; }); const ask = w ? a / w : null;
@@ -880,11 +882,13 @@
         <div class="csx-yc-top"><b>${E(prod)}</b><span>${g.length} existing comp${g.length === 1 ? '' : 's'}</span></div>
         <div class="csx-yc-nums"><div><small>Needs</small><strong>${req == null ? '—' : '$' + req.toFixed(2)}</strong></div><div><small>Comps ask</small><strong>${ask == null ? '—' : '$' + ask.toFixed(2)}</strong></div><div><small>Gap</small><strong class="${gap == null ? '' : gap >= 0 ? 'ok' : 'bad'}">${gap == null ? '—' : (gap >= 0 ? '+' : '−') + Math.abs(gap).toFixed(0) + '%'}</strong></div></div>
         <div class="csx-ycbar"><i class="${gap == null ? '' : gap >= 0 ? 'ok' : 'bad'}" style="width:${fill}%"></i></div>
-        ${g.length || later.length ? `<details class="csx-ychits" data-prod="${E(prod)}" ${open ? 'open' : ''}>
-          <summary><b class="${hits.length ? 'ok' : 'bad'}">${hits.length} of ${g.length}</b> comps hit $${req ? req.toFixed(2) : '—'}<i aria-hidden="true">▾</i></summary>
-          <ul>${sorted(g).map((p) => li(p, true)).join('')}</ul>
+        <div class="csx-ychit2"><div><b class="${g.length ? (hits.length ? 'ok' : 'bad') : ''}">${g.length ? `${hits.length} of ${g.length}` : '—'}</b><small>${E(prod.toLowerCase())} comps hit</small></div><div><b class="${allHits.length ? 'ok' : 'bad'}">${allHits.length} of ${allEx.length}</b><small>all comps hit</small></div></div>
+        ${allEx.length || later.length ? `<details class="csx-ychits" data-prod="${E(prod)}" ${open ? 'open' : ''}>
+          <summary>Comps against $${req ? req.toFixed(2) : '—'}/SF<i aria-hidden="true">▾</i></summary>
+          ${g.length ? `<div class="csx-ycl">${E(prod)}</div><ul>${sorted(g).map((p) => li(p, true)).join('')}</ul>` : ''}
+          ${allEx.length > g.length ? `<div class="csx-ycl">Other product types</div><ul>${sorted(allEx.filter((p) => col(p) !== prod)).map((p) => li(p, true)).join('')}</ul>` : ''}
           ${later.length ? `<div class="csx-ycl">Not yet existing, not counted</div><ul>${sorted(later).map((p) => li(p, false)).join('')}</ul>` : ''}
-        </details>` : `<div class="csx-yc-none">No ${E(prod.toLowerCase())} comps in this set</div>`}
+        </details>` : `<div class="csx-yc-none">No stabilized comps in this set</div>`}
       </div>`;
     }).join('');
     return `<section class="panel csx-sec csx-yocp"><div class="csx-sech"><div class="csx-sect"><i></i><b>YOC check</b></div><span class="csx-fresh">Rent needed for a ${target} yield on the matrix's current costs, against this set's stabilized comps (unit-weighted, asking $/SF) <button type="button" class="csx-link csx-toyoc">Open YOC matrix →</button></span></div><div class="csx-ygrid2">${cards}</div></section>`;
