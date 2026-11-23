@@ -200,6 +200,11 @@
     const cards = YOC_PRODUCT_COLUMNS.map((prod) => {
       let req = null; try { req = requiredPsfRent(prod, sfFor(prod)); } catch (e) {}
       const g = ps.filter((p) => p.status === 'Existing' && p.avgAskingSF && col(p) === prod);
+      const later = ps.filter((p) => p.status !== 'Existing' && p.avgAskingSF && col(p) === prod);
+      const hits = req ? g.filter((p) => p.avgAskingSF >= req) : [];
+      const li = (p, counted) => { const ok = req && p.avgAskingSF >= req; return `<li class="${counted ? (ok ? 'ok' : 'bad') : 'na'}"><button type="button" class="csx-ycp" data-pid="${E(p.id)}">${E(p.name || p.address)}</button><span>$${p.avgAskingSF.toFixed(2)}</span><em>${req ? (p.avgAskingSF >= req ? '+' : '−') + Math.abs((p.avgAskingSF / req - 1) * 100).toFixed(0) + '%' : ''}</em></li>`; };
+      const sorted = (a) => [...a].sort((x, y) => y.avgAskingSF - x.avgAskingSF);
+      const open = UI.yocOpen && UI.yocOpen[prod];
       let a = 0, w = 0; g.forEach((p) => { a += p.avgAskingSF * (p.units || 0); w += p.units || 0; }); const ask = w ? a / w : null;
       const ratio = req && ask ? ask / req : null, gap = ratio == null ? null : (ratio - 1) * 100;
       const fill = ratio == null ? 0 : Math.max(4, Math.min(100, ratio * 100));
@@ -209,6 +214,11 @@
         <div class="csx-ycv">${req == null ? '—' : '$' + req.toFixed(2)}<span>/SF</span></div>
         <div class="csx-ycbar"><i class="${gap == null ? '' : gap >= 0 ? 'ok' : 'bad'}" style="width:${fill}%"></i></div>
         <div class="csx-ycs">${ask == null ? `No existing ${E(prod.toLowerCase())} comps in this set` : `Comps ask <b>$${ask.toFixed(2)}</b> · <b class="${gap >= 0 ? 'ok' : 'bad'}">${Math.abs(gap).toFixed(0)}% ${gap >= 0 ? 'above' : 'below'}</b> what's needed`}</div>
+        ${g.length || later.length ? `<details class="csx-ychits" data-prod="${E(prod)}" ${open ? 'open' : ''}>
+          <summary><b class="${hits.length ? 'ok' : 'bad'}">${hits.length} of ${g.length}</b> existing comps hit $${req ? req.toFixed(2) : '—'}<i aria-hidden="true">▾</i></summary>
+          <ul>${sorted(g).map((p) => li(p, true)).join('')}</ul>
+          ${later.length ? `<div class="csx-ycl">Not yet existing, not counted</div><ul>${sorted(later).map((p) => li(p, false)).join('')}</ul>` : ''}
+        </details>` : ''}
       </div>`;
     }).join('');
     return `<div class="csx-ygrid">${cards}<div class="panel csx-ycard csx-ynote"><div class="csx-ych"><b>From the YOC matrix</b></div><div class="csx-ycs">Required rent uses the matrix's current costs, ${target} target and operating assumptions. Comps are this set's existing properties, unit-weighted.</div><button type="button" class="yx-btn csx-toyoc">Open YOC matrix →</button></div></div>`;
@@ -306,6 +316,8 @@
     const toMap = () => { const m = document.getElementById('csx-intel-slot'); if (m) m.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
     $$('.csx-addbtn').forEach((b) => (b.onclick = () => { UI.add = UI.add === b.dataset.a ? '' : b.dataset.a; render(); const i = $('.csx-near-q'); if (UI.add === 'near' && i && !UI.near) i.focus(); if (UI.add === 'map') toMap(); }));
     const tm = $('.csx-tomap'); if (tm) tm.onclick = toMap;
+    $$('.csx-ychits').forEach((d) => (d.ontoggle = () => { UI.yocOpen = UI.yocOpen || {}; UI.yocOpen[d.dataset.prod] = d.open; }));
+    $$('.csx-ycp').forEach((b) => (b.onclick = () => { try { openDetail(b.dataset.pid); } catch (e) {} }));
     const ty = $('.csx-toyoc'); if (ty) ty.onclick = () => { const t = document.querySelector('.tab[data-view="yoc"]'); if (t) t.click(); window.scrollTo({ top: 0 }); };
     const inSet = () => new Set((cs.propertyIds || []).map(String));
     const aq = $('.csx-add-q'); if (aq) typeahead(aq, (p) => { if (!p) return; cs.propertyIds = [...(cs.propertyIds || []), p.id]; touch(cs); refresh(); setTimeout(() => { const i = $('.csx-add-q'); if (i) i.focus(); }, 30); }, inSet);

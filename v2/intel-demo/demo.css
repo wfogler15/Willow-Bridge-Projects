@@ -1138,3 +1138,20 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 #view-compsets .csx-desc { font: 400 13px var(--x-font) !important; color: var(--x-ink-3) !important; text-transform: none !important; letter-spacing: 0 !important; }
 #view-compsets .csx-title { text-transform: none; letter-spacing: -.005em; }
 #view-compsets .csx-addbar { padding: 2px 20px 12px; } #view-compsets .csx-near { margin: 0 20px 14px; } #view-compsets .csx-hint { margin-left: 20px; margin-right: 20px; }
+/* YOC cards: which comps hit the required rent */
+#view-compsets .csx-ycard > .csx-ychits { display: block !important; width: 100%; margin-top: 10px; border-top: 1px solid var(--x-line); padding-top: 10px; }
+.csx-ychits summary { list-style: none; cursor: pointer; font-size: 13px; color: var(--x-ink-2); display: flex; align-items: center; gap: 6px; }
+.csx-ychits summary::-webkit-details-marker { display: none; }
+.csx-ychits summary b.ok { color: #2f6b3a; } .csx-ychits summary b.bad { color: #a3332b; }
+.csx-ychits summary i { font-style: normal; margin-left: auto; color: var(--x-ink-3); transition: transform .15s; }
+.csx-ychits[open] summary i { transform: rotate(180deg); }
+.csx-ychits ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.csx-ychits li { display: grid; grid-template-columns: minmax(0, 1fr) auto 44px; gap: 10px; align-items: baseline; padding: 5px 0; font-size: 12.5px; border-bottom: 1px solid #f3f1f7; }
+.csx-ychits li:last-child { border-bottom: 0; }
+.csx-ychits li span { font-variant-numeric: tabular-nums; color: var(--x-ink); font-weight: 600; }
+.csx-ychits li em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.csx-ychits li.ok em { color: #2f6b3a; } .csx-ychits li.bad em { color: #a3332b; } .csx-ychits li.na em, .csx-ychits li.na span { color: var(--x-ink-3); }
+.csx-ycp { background: none; border: 0; padding: 0; text-align: left; font: 500 12.5px var(--x-font); color: var(--x-ink); cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csx-ycp:hover { color: var(--x-purple); text-decoration: underline; }
+.csx-ycl { margin-top: 10px; font: 600 10.5px var(--x-font); letter-spacing: .06em; text-transform: uppercase; color: var(--x-ink-3); }
+.csx-ygrid { align-items: start; }
