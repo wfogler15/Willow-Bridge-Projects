@@ -191,7 +191,7 @@
     return null;
   }
   const conText = (c) => { if (!c) return ''; if (c.type === 'none') return 'No concession'; const a = c.amount; const t = c.type === 'weeks' ? `${a} wk${a == 1 ? '' : 's'} free` : c.type === 'months' ? `${a} mo free` : c.type === 'onetime' ? `$${Math.round(a).toLocaleString()} off move-in` : `$${Math.round(a).toLocaleString()}/mo off`; return t + (c.term && c.term != 12 ? ` on ${c.term}-mo lease` : '') + (c.text ? ` · ${c.text}` : ''); };
-  const wksCell = (p) => { const h = handWks(p), c = conOf(p); return h != null ? `<td class="num" title="${E(conText(c) || 'Entered by hand')}">${wks(h)}</td>` : `<td class="num csx-cs" title="CoStar concession, not checked">${wks(wksOf(p))}<small> CoStar</small></td>`; };
+  const wksCell = (p) => { const h = handWks(p), c = conOf(p); return h != null ? `<td class="num" title="${E(conText(c) || 'Entered by hand')}">${wks(h)}</td>` : `<td class="num csx-cs" title="CoStar concession, not checked yet">${wks(wksOf(p))}</td>`; };
   const SRCS = ['Property website', 'CoStar', 'Call / tour', 'Drive-by', 'Other'];
 
   function updForm(p, ph, cols) {
@@ -330,29 +330,41 @@
     const exU = u(inSm.filter((p) => p.status === 'Existing')), ucU = u(inSm.filter((p) => p.status !== 'Existing' && !isProposed(p))), prU = u(inSm.filter((p) => p.status !== 'Existing' && isProposed(p)));
     const luU = u(inSm.filter((p) => p.status === 'Existing' && phaseOf(p) === 'lease'));
     const r = (n) => (exU ? ((n / exU) * 100).toFixed(1) + '%' : '—');
-    const k = (l, v, sub) => `<div class="csx-blk"><span>${l}</span><b>${v}</b><small>${sub}</small></div>`;
+    const k = (l, v, sub) => hero(l, v, sub);
     // RealPage: blended for the submarket (same blend the Trends tab uses)
     let rp = '';
     const f = typeof getRpForecastForWbSubmarket === 'function' ? getRpForecastForWbSubmarket(bl.name) : null;
     const Y = typeof CURRENT_YEAR !== 'undefined' ? CURRENT_YEAR : new Date().getFullYear();
     if (f && f[Y]) {
-      const c = f[Y], pv = f[Y - 1] || {}, nx = f[Y + 1] || {}, f3 = f[Y + 3] || {}, s3 = [1, 2, 3].reduce((a, i) => a + ((f[Y + i] || {}).sp || 0), 0), d3 = [1, 2, 3].reduce((a, i) => a + ((f[Y + i] || {}).dm || 0), 0);
-      const g = (x) => (x == null ? '—' : (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(1) + '%');
-      const sfU = (rent) => { const a = stats(inSm.filter((p) => p.status === 'Existing')).sf; return rent && a ? '$' + (rent / a).toFixed(2) + '/SF · ' : ''; };
-      rp = `<div class="csx-rp"><div class="csx-rph"><b>RealPage · ${E(bl.name)}</b><span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || '')} · ${Y} is the current year</span></div>
-        <div class="csx-blks">
-          ${k('Effective rent', c.eR ? `${sfU(c.eR)}$${Math.round(c.eR).toLocaleString()}/mo` : '—', `${g(c.yR)} vs ${Y - 1} · ${g(nx.yR)} forecast ${Y + 1}`)}
-          ${k('Occupancy', c.oc != null ? (c.oc * 100).toFixed(1) + '%' : '—', `${f3.oc != null ? (f3.oc * 100).toFixed(1) + '% forecast ' + (Y + 3) : '&nbsp;'}`)}
-          ${k('Inventory', c.eu ? Math.round(c.eu).toLocaleString() + ' units' : '—', 'RealPage existing units')}
-          ${k(`Supply ${Y}`, c.sp != null ? Math.round(c.sp).toLocaleString() : '—', `demand ${c.dm != null ? Math.round(c.dm).toLocaleString() : '—'}${c.eu && c.sp ? ' · ' + ((c.sp / c.eu) * 100).toFixed(1) + '% of inventory' : ''}`)}
-          ${k(`Next 3 years`, s3 ? Math.round(s3).toLocaleString() + ' delivered' : '—', `${d3 ? Math.round(d3).toLocaleString() + ' absorbed' : '&nbsp;'}${s3 && d3 ? ' · ' + (d3 / s3).toFixed(2) + '× demand/supply' : ''}`)}
-        </div></div>`;
+      const c = f[Y], g = (x) => (x == null ? '—' : (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(1) + '%');
+      const cls = (x) => (x == null ? '' : x >= 0 ? 'up' : 'dn');
+      const avgSf = stats(inSm.filter((p) => p.status === 'Existing')).sf;
+      const fy = [1, 2, 3].map((i) => f[Y + i] || {}), fg = fy.map((r) => r.yR).filter((x) => x != null);
+      const cum = fg.length ? fg.reduce((a, x) => a * (1 + x), 1) - 1 : null, avg = fg.length ? Math.pow(1 + cum, 1 / fg.length) - 1 : null;
+      const s3 = fy.reduce((a, r) => a + (r.sp || 0), 0), d3 = fy.reduce((a, r) => a + (r.dm || 0), 0);
+      const yrs = [Y - 3, Y - 2, Y - 1, Y, Y + 1, Y + 2, Y + 3, Y + 4].filter((y) => f[y]);
+      const row = (l, fn) => `<tr><th>${l}</th>${yrs.map((y) => { const v = fn(f[y] || {}); return `<td class="${y > Y ? 'fc' : y === Y ? 'cy' : ''} ${v.c || ''}">${v.t}</td>`; }).join('')}</tr>`;
+      rp = `<div class="csx-rp"><div class="csx-rph"><b>RealPage</b><span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || bl.name)} · ${Y} current year, ${Y + 1}+ forecast</span></div>
+        <div class="csx-hcs">
+          ${hero('Effective rent', c.eR ? '$' + Math.round(c.eR).toLocaleString() + '<u>/mo</u>' : '—', c.eR && avgSf ? '$' + (c.eR / avgSf).toFixed(2) + '/SF at the submarket’s avg unit size' : '')}
+          ${hero(`Rent growth ${Y}`, `<span class="${cls(c.yR)}">${g(c.yR)}</span>`, `YoY vs ${Y - 1}`)}
+          ${hero(`Forecast ${Y + 1}–${Y + 3}`, `<span class="${cls(avg)}">${g(avg)}</span><u>/yr</u>`, cum != null ? `${g(cum)} cumulative` : '')}
+          ${hero('Occupancy', c.oc != null ? (c.oc * 100).toFixed(1) + '<u>%</u>' : '—', fy[2].oc != null ? (fy[2].oc * 100).toFixed(1) + '% forecast ' + (Y + 3) : '')}
+          ${hero(`Supply ${Y + 1}–${Y + 3}`, s3 ? Math.round(s3).toLocaleString() + '<u> units</u>' : '—', d3 ? `${Math.round(d3).toLocaleString()} absorbed · ${(d3 / s3).toFixed(2)}× demand/supply` : '')}
+        </div>
+        <div class="table-scroll"><table class="csx-rpt"><thead><tr><th></th>${yrs.map((y) => `<th class="${y > Y ? 'fc' : y === Y ? 'cy' : ''}">${y}${y > Y ? '<i>F</i>' : ''}</th>`).join('')}</tr></thead><tbody>
+          ${row('Effective rent', (r) => ({ t: r.eR ? '$' + Math.round(r.eR).toLocaleString() : '—' }))}
+          ${row('Rent growth YoY', (r) => ({ t: g(r.yR), c: cls(r.yR) }))}
+          ${row('Occupancy', (r) => ({ t: r.oc != null ? (r.oc * 100).toFixed(1) + '%' : '—' }))}
+          ${row('Supply (units)', (r) => ({ t: r.sp != null ? Math.round(r.sp).toLocaleString() : '—' }))}
+          ${row('Demand (units)', (r) => ({ t: r.dm != null ? Math.round(r.dm).toLocaleString() : '—' }))}
+        </tbody></table></div></div>`;
     } else rp = `<div class="csx-hint">No RealPage coverage mapped to ${E(bl.name)}.</div>`;
     return `<div class="panel csx-bl">
       <div class="panel-header"><div><div class="panel-title">Submarket baseline</div><div class="panel-sub">Pipeline is measured against this submarket's existing inventory; RealPage figures are for the same submarket</div></div>
         <div class="csx-acts"><select class="csx-in csx-blsel" aria-label="Baseline submarket">${smOptions().map((o) => `<option${o === bl.name ? ' selected' : ''}>${E(o)}</option>`).join('')}</select>${bl.picked ? '' : '<span class="csx-save">Auto: where most of the set’s units are</span>'}</div></div>
       <div class="panel-body">
-        <div class="csx-blks">
+        <div class="csx-hcs csx-hcs-bl">
           ${k('Existing inventory', exU.toLocaleString() + ' units', `${inSm.filter((p) => p.status === 'Existing').length} properties in ${E(bl.name)} (CoStar)`)}
           ${k('Under construction', ucU.toLocaleString() + ' units', `${r(ucU)} of inventory`)}
           ${k('Proposed', prU.toLocaleString() + ' units', `${r(prU)} of inventory`)}
@@ -364,17 +376,29 @@
       </div></div>`;
   }
 
-  // ---------- section tables ----------
+  // ---------- section panels: header band + hero cards + table ----------
+  const hero = (l, v, sub, tone) => `<div class="csx-hc${tone ? ' ' + tone : ''}"><span>${l}</span><b>${v}</b><small>${sub || '&nbsp;'}</small></div>`;
+  const fresh = (p) => { const u = lastUpd(p); return u && Date.now() - u.at <= 92 * 86400000; };
   function sections(cs, ps) {
     const ex = ps.filter((p) => phaseOf(p) === 'exist'), lu = ps.filter((p) => phaseOf(p) === 'lease'), pi = ps.filter((p) => phaseOf(p) === 'pipe');
     const rowWith = (p, cells, cols) => `<tr data-pid="${E(p.id)}"${UI.upd === String(p.id) ? ' class="csx-open"' : ''}>${cells}</tr>${UI.upd === String(p.id) ? updForm(p, phaseOf(p), cols) : ''}`;
-    const sec = (title, sub, head, body, extra) => `<div class="csx-sec"><div class="csx-sech"><div><b>${title}</b><span>${sub}</span></div>${extra || ''}</div><div class="table-scroll"><table class="csx-table">${head}<tbody>${body}</tbody></table></div></div>`;
+    const sec = (key, title, count, sub, cards, head, body) => `<section class="panel csx-sec csx-sec-${key}">
+      <div class="csx-sech"><div class="csx-sect"><i></i><b>${title}</b><em>${count}</em></div><span>${sub}</span></div>
+      <div class="csx-hcs">${cards}</div>
+      <div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${body}</tbody></table></div></section>`;
+    const tail = (p) => `${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`;
+    const checked = (a) => `${a.filter(fresh).length} of ${a.length} checked in the last 90 days`;
     let out = '';
     if (ex.length) {
-      const s = stats(ex);
-      out += sec('Existing', `${ex.length} stabilized · ${s.units.toLocaleString()} units · ${money(s.ask)}/SF asking · ${pct(s.occ)} occupied`,
-        '<thead><tr><th>Property</th><th>Product type</th><th class="num">Units</th><th class="num">Built</th><th class="num">Asking $/SF</th><th class="num">$/mo</th><th class="num">Effective $/SF</th><th class="num">Occupancy</th><th class="num">Weeks free</th><th>Updated</th><th></th><th></th></tr></thead>',
-        ex.map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td class="num">${p.yearBuilt || '—'}</td><td class="num">${money(p.avgAskingSF)}</td><td class="num">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '—'}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num">${pct(occOf(p))}</td>${wksCell(p)}${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`, 12)).join(''));
+      const s = stats(ex), hw = ex.filter((p) => handWks(p) != null).length;
+      out += sec('ex', 'Existing', ex.length, checked(ex) + (ex.some((p) => handWks(p) == null) ? ' · <span class="csx-cs">gray weeks free = CoStar, not checked</span>' : ''),
+        hero('Units', s.units.toLocaleString(), `${ex.length} stabilized ${ex.length === 1 ? 'property' : 'properties'}`)
+        + hero('Asking rent', s.ask == null ? '—' : '$' + s.ask.toFixed(2) + '<u>/SF</u>', s.askU ? '$' + Math.round(s.askU).toLocaleString() + '/mo · unit-weighted' : '')
+        + hero('Effective rent', s.eff == null ? '—' : '$' + s.eff.toFixed(2) + '<u>/SF</u>', 'Net of concessions')
+        + hero('Occupancy', s.occ == null ? '—' : s.occ.toFixed(1) + '<u>%</u>', 'Unit-weighted')
+        + hero('Concessions', s.wks == null ? '—' : s.wks.toFixed(1) + '<u> wks</u>', `${hw} of ${ex.length} from websites`),
+        '<thead><tr><th class="csx-pc">Property</th><th>Type</th><th class="num">Units</th><th class="num">Built</th><th class="num">Asking $/SF</th><th class="num">$/mo</th><th class="num">Eff. $/SF</th><th class="num">Occ.</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead>',
+        ex.map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td class="num">${p.yearBuilt || '—'}</td><td class="num csx-k">${money(p.avgAskingSF)}</td><td class="num">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '—'}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num">${pct(occOf(p))}</td>${wksCell(p)}${tail(p)}`, 12)).join(''));
     }
     if (lu.length) {
       const L = lu.map((p) => ({ p, l: leaseOf(p) }));
@@ -383,19 +407,29 @@
       const leased = L.reduce((a, x) => a + (x.l.leased || 0), 0);
       const last = L.filter((x) => x.l.stab).sort((a, b) => b.l.stab - a.l.stab)[0];
       const allStab = v > 0 && togo > 0 ? new Date(Date.now() + (togo / v) * 30.44 * 86400000) : null;
-      const sub = `${lu.length} in lease-up · ${units.toLocaleString()} units · ${units ? ((leased / units) * 100).toFixed(0) + '% occupied' : '—'} · ${v ? Math.round(v) + ' leases/mo combined' : 'no velocity yet'}`;
-      const extra = `<div class="csx-secx">${togo > 0 ? `<span>${Math.round(togo).toLocaleString()} units to ${STAB * 100}%</span>` : ''}${last ? `<span>Last to stabilize <b>${E(last.p.name)}</b> · ${monYr(last.l.stab)}</span>` : ''}${allStab ? `<span>At today's combined pace, lease-up clears ${monYr(allStab)}</span>` : ''}</div>`;
-      out += sec('Lease-up', sub,
-        '<thead><tr><th>Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Months</th><th class="num">Occupancy</th><th class="num">Leases / mo</th><th>Stabilizes (95%)</th><th class="num">Asking $/SF</th><th class="num">Weeks free</th><th>Updated</th><th></th><th></th></tr></thead>',
-        L.map(({ p, l }) => rowWith(p, `${nameCell(p, E(p.style || ''))}<td class="num">${(p.units || 0).toLocaleString()}</td><td>${monYr(l.d)}</td><td class="num">${l.mo ? l.mo.toFixed(1) : '—'}</td><td class="num">${pct(l.o)}</td><td class="num"><b>${l.v ? l.v.toFixed(1) : '—'}</b></td><td>${l.done ? '<span class="csx-ok">Stabilized</span>' : l.stab ? monYr(l.stab) + ` <small>${l.left.toFixed(0)} mo</small>` : '—'}</td><td class="num">${money(p.avgAskingSF)}</td>${wksCell(p)}${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`, 12)).join(''), extra);
+      out += sec('lu', 'Lease-up', lu.length, checked(lu) + (lu.some((p) => handWks(p) == null) ? ' · <span class="csx-cs">gray weeks free = CoStar, not checked</span>' : ''),
+        hero('Units', units.toLocaleString(), `${Math.round(togo).toLocaleString()} left to ${STAB * 100}%`)
+        + hero('Occupancy', units ? ((leased / units) * 100).toFixed(1) + '<u>%</u>' : '—', 'Unit-weighted')
+        + hero('Velocity', v ? v.toFixed(0) + '<u> leases/mo</u>' : '—', 'Combined, since leasing began')
+        + hero('Lease-up clears', allStab ? monYr(allStab) : togo > 0 ? '—' : 'Done', 'At today’s combined pace')
+        + hero('Last to stabilize', last ? monYr(last.l.stab) : '—', last ? E(last.p.name) : ''),
+        '<thead><tr><th class="csx-pc">Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Months</th><th class="num">Occ.</th><th class="num">Leases/mo</th><th>Stabilizes (95%)</th><th class="num">Asking $/SF</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead>',
+        L.map(({ p, l }) => rowWith(p, `${nameCell(p, E(p.style || ''))}<td class="num">${(p.units || 0).toLocaleString()}</td><td>${monYr(l.d)}</td><td class="num">${l.mo ? l.mo.toFixed(1) : '—'}</td><td class="num">${pct(l.o)}${l.o != null ? `<span class="csx-bar1"><i style="width:${Math.min(100, l.o)}%"></i></span>` : ''}</td><td class="num csx-k">${l.v ? l.v.toFixed(1) : '—'}</td><td>${l.done ? '<span class="csx-ok">Stabilized</span>' : l.stab ? monYr(l.stab) + ` <small>${l.left.toFixed(0)} mo</small>` : '—'}</td><td class="num">${money(p.avgAskingSF)}</td>${wksCell(p)}${tail(p)}`, 12)).join(''));
     }
     if (pi.length) {
       const uc = pi.filter((p) => !isProposed(p)), pr = pi.filter(isProposed), u = (a) => a.reduce((s, p) => s + (p.units || 0), 0);
       const bl = baselineOf(cs, ps).name, base = bl ? all().filter((p) => p.submarket === bl && p.status === 'Existing').reduce((s, p) => s + (p.units || 0), 0) : 0;
-      const rel = (n) => (base ? ` (${((n / base) * 100).toFixed(1)}% of ${E(bl)} inventory)` : '');
-      out += sec('Pipeline', [uc.length ? `${u(uc).toLocaleString()} units under construction${rel(u(uc))}` : '', pr.length ? `${u(pr).toLocaleString()} proposed${rel(u(pr))}` : ''].filter(Boolean).join(' · '),
-        '<thead><tr><th>Property</th><th>Stage</th><th>Product type</th><th class="num">Units</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>',
-        [...uc, ...pr].map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td><span class="csx-st">${isProposed(p) ? 'Proposed' : 'Under construction'}</span></td><td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}`, 9)).join(''));
+      const rel = (n) => (base ? `${((n / base) * 100).toFixed(1)}% of ${E(bl)} inventory` : '');
+      const now = new Date(), yr = new Date(+now + 365 * 86400000);
+      const next = [...uc].filter((p) => deliveryOf(p)).sort((a, b) => deliveryOf(a) - deliveryOf(b))[0];
+      const in12 = u(uc.filter((p) => { const d = deliveryOf(p); return d && d <= yr; }));
+      out += sec('pi', 'Pipeline', pi.length, checked(pi),
+        hero('Under construction', u(uc).toLocaleString() + '<u> units</u>', rel(u(uc)) || `${uc.length} buildings`)
+        + hero('Proposed', u(pr).toLocaleString() + '<u> units</u>', rel(u(pr)) || `${pr.length} buildings`)
+        + hero('Delivering in 12 months', in12.toLocaleString() + '<u> units</u>', base ? rel(in12) : '')
+        + hero('Next delivery', next ? monYr(deliveryOf(next)) : '—', next ? E(next.name) : ''),
+        '<thead><tr><th class="csx-pc">Property</th><th>Stage</th><th>Type</th><th class="num">Units</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>',
+        [...uc, ...pr].map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td><span class="csx-chip ${isProposed(p) ? 'pr' : 'uc'}">${isProposed(p) ? 'Proposed' : 'Under construction'}</span></td><td>${E(p.style || '')}</td><td class="num">${(p.units || 0).toLocaleString()}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 9)).join(''));
     }
     return out;
   }
@@ -406,8 +440,7 @@
     const missing = (cs.propertyIds || []).length - ps.length;
     return `
       <div class="csx-crumb"><button type="button" class="csx-back">← All comp sets</button></div>
-      ${yocCheck(ps)}
-      <div class="panel">
+      <div class="panel csx-headp">
         <div class="panel-header csx-wshead">
           <div class="csx-ttl">
             <input class="csx-title panel-title" value="${E(cs.name)}" aria-label="Set name" maxlength="80">
@@ -430,10 +463,11 @@
           <div class="toggle-group csx-addtg"><button type="button" class="toggle-btn csx-addbtn${UI.add === 'near' ? ' active' : ''}" data-a="near">Near a site</button><button type="button" class="toggle-btn csx-addbtn${UI.add === 'map' ? ' active' : ''}" data-a="map">On the map</button></div>
         </div>
         ${UI.add === 'near' ? addNear(cs, map) : UI.add === 'map' ? '<div class="csx-hint csx-maphint">Click any property on the map below to add it; click a comp to remove it. <button type="button" class="csx-tomap">Go to map ↓</button></div>' : ''}
-        ${ps.length ? `<div class="panel-body tight csx-secs">${sections(cs, ps)}</div>` : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
+        ${ps.length ? '' : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
         ${missing > 0 ? `<div class="csx-hint warn">${missing} propert${missing === 1 ? 'y' : 'ies'} in this set ${missing === 1 ? 'isn’t' : 'aren’t'} in the current data (removed or filtered out by a data load).</div>` : ''}
       </div>
-      ${ps.length ? baselineBlock(cs, ps) : ''}
+      ${yocCheck(ps)}
+      ${ps.length ? sections(cs, ps) + baselineBlock(cs, ps) : ''}
       <div id="csx-intel-slot"></div>`;
   }
   // the set's headline figures go in the page header band, like every other tab's KPIs
