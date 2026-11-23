@@ -1494,3 +1494,9 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 #view-compsets .table-scroll { max-height: none !important; overflow-y: visible; }
 .csx-dense td.csx-sp { white-space: nowrap; } .csx-sproj { padding: 0; font-size: 12px; }
 #comp-set-active-banner { display: none !important; }   /* the header pill shows the active set; edit/delete live in the Comp Sets tab */
+.csx-srctag { font-style: normal; font: 650 10.5px var(--x-font); letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 5px; margin-left: 6px; vertical-align: 1px; }
+.csx-srctag.cs { background: #eef3fb; color: #2a5a9e; }
+.csx-srctag.rp { background: #fdf0e6; color: #a2551d; }
+.csx-mini tr.sub th { padding-left: 14px; font-weight: 400; color: #4a4560; }
+.csx-mini tr.grp th { padding-top: 14px; font: 650 11px var(--x-font); letter-spacing: .05em; text-transform: uppercase; color: #6b6680; border-bottom: 1px solid #efedf4; }
+.csx-mini tr.sum th, .csx-mini tr.sum td { font-weight: 650; border-top: 1.5px solid #cfcadd; color: var(--x-ink); }

@@ -357,12 +357,14 @@
     const setEx = ps.filter((p) => phaseOf(p) !== 'pipe'), setU = u(setEx), sLu = u(ps.filter((p) => phaseOf(p) === 'lease'));
     const sUc = u(ps.filter((p) => phaseOf(p) === 'pipe' && !isProposed(p) && !isStalled(p))), sPr = u(ps.filter((p) => phaseOf(p) === 'pipe' && isProposed(p)));
     const sp = (n) => (setU ? ((n / setU) * 100).toFixed(1) + '%' : '—'), mp = (n) => { const v = pr(n); return v == null ? '—' : v.toFixed(1) + '%'; };
-    const mrow = (l, a, b, tot) => `<tr${tot ? ' class="tot"' : ''}><th>${l}</th><td class="num">${intC(a)}</td><td class="num csx-pc2">${tot ? '' : sp(a)}</td><td class="num csx-gap">${intC(b)}</td><td class="num csx-pc2">${tot ? '' : mp(b)}</td></tr>`;
+    const mrow = (l, a, b, cls) => `<tr class="${cls || ''}"><th>${l}</th><td class="num">${intC(a)}</td><td class="num csx-pc2">${cls === 'tot' ? '' : sp(a)}</td><td class="num csx-gap">${intC(b)}</td><td class="num csx-pc2">${cls === 'tot' ? '' : mp(b)}</td></tr>`;
     const outside = ps.filter((p) => p.submarket !== bl.name);
-    const supply = `<div class="csx-smcol"><h4>Supply against inventory</h4>
+    const supply = `<div class="csx-smcol"><h4>Supply against inventory <i class="csx-srctag cs">CoStar</i></h4>
       <table class="csx-mini"><thead><tr><th></th><th class="num" colspan="2">This set</th><th class="num csx-gap" colspan="2">${E(bl.name)}</th></tr></thead><tbody>
-        ${mrow('Existing units', setU, exU, true)}
-        ${mrow('In lease-up', sLu, luU)}${mrow('Under construction', sUc, ucU)}${mrow('Proposed', sPr, prU)}${mrow('UC + proposed', sUc + sPr, ucU + prU)}
+        ${mrow('Existing units', setU, exU, 'tot')}
+        ${mrow('of which in lease-up', sLu, luU, 'sub')}
+        <tr class="grp"><th colspan="5">Pipeline</th></tr>
+        ${mrow('Under construction', sUc, ucU, 'sub')}${mrow('Proposed', sPr, prU, 'sub')}${mrow('Total pipeline', sUc + sPr, ucU + prU, 'sum')}
       </tbody></table>
       <small class="csx-src2">Percentages are of existing units. The submarket column counts every property CoStar places in ${E(bl.name)}${outside.length ? `; ${outside.length === 1 ? E(outside[0].name) + ' is' : outside.length + ' of the set’s properties are'} outside it${outside.length > 1 ? ` (${outside.slice(0, 3).map((p) => E(p.name)).join(', ')}${outside.length > 3 ? '…' : ''})` : ` (${E(outside[0].submarket || 'no submarket')})`}` : ''}. Lease-up: delivered in the last 12 months, or the last 30 and under 95% occupied.</small></div>`;
     const R = rpFor(bl.name);
@@ -371,22 +373,22 @@
       const { f, Y, c, fy, cum, avg, s3, d3 } = R, avgSf = stats(exP).sf;
       const yrs = [Y - 3, Y - 2, Y - 1, Y, Y + 1, Y + 2, Y + 3, Y + 4].filter((y) => f[y]);
       const row = (l, fn) => `<tr><th>${l}</th>${yrs.map((y) => { const v = fn(f[y] || {}); return `<td class="${y > Y ? 'fc' : y === Y ? 'cy' : ''} ${v.c || ''}">${v.t}</td>`; }).join('')}</tr>`;
-      rp = `<div class="csx-smcol csx-smrp"><h4>RealPage forecast <span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || bl.name)}</span></h4>
+      rp = `<div class="csx-smcol csx-smrp"><h4>Forecast <i class="csx-srctag rp">RealPage</i> <span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || bl.name)}</span></h4>
         <div class="csx-rpk">
           <div><span>Effective rent ${Y}</span><b>$${Math.round(c.eR || 0).toLocaleString()}<u>/mo</u></b><small>${c.eR && avgSf ? '$' + (c.eR / avgSf).toFixed(2) + '/SF at avg unit size' : ''}</small></div>
+          <div><span>Occupancy</span><b>${c.oc != null ? (c.oc * 100).toFixed(1) + '<u>%</u>' : '—'}</b><small>${fy[2].oc != null ? (fy[2].oc * 100).toFixed(1) + '% in ' + (Y + 3) : ''}</small></div>
           <div><span>Rent growth ${Y}</span><b class="${gCls(c.yR)}">${gPct(c.yR)}</b><small>YoY vs ${Y - 1}</small></div>
           <div><span>Forecast ${Y + 1}–${Y + 3}</span><b class="${gCls(avg)}">${gPct(avg)}<u>/yr</u></b><small>${cum != null ? gPct(cum) + ' cumulative' : ''}</small></div>
-          <div><span>Occupancy</span><b>${c.oc != null ? (c.oc * 100).toFixed(1) + '<u>%</u>' : '—'}</b><small>${fy[2].oc != null ? (fy[2].oc * 100).toFixed(1) + '% in ' + (Y + 3) : ''}</small></div>
           <div><span>Supply ${Y + 1}–${Y + 3}</span><b>${intC(s3)}</b><small>${d3 && s3 ? `${intC(d3)} absorbed · ${(d3 / s3).toFixed(2)}×` : ''}</small></div>
         </div>
         <div class="table-scroll"><table class="csx-rpt"><thead><tr><th></th>${yrs.map((y) => `<th class="${y > Y ? 'fc' : y === Y ? 'cy' : ''}">${y}${y > Y ? '<i>F</i>' : ''}</th>`).join('')}</tr></thead><tbody>
           ${row('Effective rent', (r) => ({ t: r.eR ? '$' + Math.round(r.eR).toLocaleString() : '—' }))}
-          ${row('Rent growth YoY', (r) => ({ t: gPct(r.yR), c: gCls(r.yR) }))}
           ${row('Occupancy', (r) => ({ t: r.oc != null ? (r.oc * 100).toFixed(1) + '%' : '—' }))}
+          ${row('Rent growth YoY', (r) => ({ t: gPct(r.yR), c: gCls(r.yR) }))}
           ${row('Supply', (r) => ({ t: r.sp != null ? intC(r.sp) : '—' }))}
           ${row('Demand', (r) => ({ t: r.dm != null ? intC(r.dm) : '—' }))}
         </tbody></table></div></div>`;
-    } else rp = `<div class="csx-smcol csx-smrp"><h4>RealPage forecast</h4><div class="csx-hint">No RealPage coverage mapped to ${E(bl.name)}.</div></div>`;
+    } else rp = `<div class="csx-smcol csx-smrp"><h4>Forecast <i class="csx-srctag rp">RealPage</i></h4><div class="csx-hint">No RealPage coverage mapped to ${E(bl.name)}.</div></div>`;
     return `<section class="panel csx-sec csx-bl">
       <div class="csx-sech" id="csx-s-sm"><div class="csx-sect"><i></i><b>Submarket</b><select class="csx-in csx-blsel" aria-label="Baseline submarket">${smOptions().map((o) => `<option value="${E(o)}"${o === bl.name ? ' selected' : ''}>${E(o)}${o === bl.name && !bl.picked ? ' (auto)' : ''}</option>`).join('')}</select></div><span class="csx-fresh">The baseline for pipeline share and RealPage</span></div>
       <div class="csx-smgrid">${supply}${rp}</div>
