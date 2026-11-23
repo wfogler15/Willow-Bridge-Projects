@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231337">
+<link rel="stylesheet" href="shared/wb.css?v=202611231341">
 <style>
   .page{max-width:1240px}
   /* ---------- top row: regions + settings ---------- */
@@ -21,33 +21,48 @@
   .hm-gear svg{width:15px;height:15px}
   /* ---------- hero ---------- */
   .hm-hero{background:#1D1247;color:#fff;border-radius:16px;padding:32px 36px;position:relative;overflow:hidden;margin-bottom:30px}
-  .hm-hero::after{content:"";position:absolute;right:-80px;top:-140px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(129,104,214,.42),rgba(29,18,71,0) 70%);pointer-events:none}
-  .hm-eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#C9BFF0}
+  .hm-hero{background:linear-gradient(135deg,#1D1247 0%,#24175A 55%,#2B1D63 100%)}
+  .hm-arcs{position:absolute;right:0;top:0;width:300px;height:300px;pointer-events:none;z-index:0}
+  .hm-arcs path{fill:none;stroke:#C7C9FE;stroke-width:24;stroke-linecap:butt;opacity:.09;stroke-dasharray:1;stroke-dashoffset:1;animation:arc 1.6s cubic-bezier(.2,.8,.2,1) forwards}
+  .hm-arcs path:nth-child(2){animation-delay:.08s;opacity:.06}.hm-arcs path:nth-child(3){animation-delay:.16s;opacity:.05}.hm-arcs path:nth-child(4){animation-delay:.24s;opacity:.04}.hm-arcs path:nth-child(5){animation-delay:.32s;opacity:.035}
+  @keyframes arc{to{stroke-dashoffset:0}}
+  .hm-hero>*:not(.hm-arcs){position:relative;z-index:1}
+  .hm-brand{display:flex;align-items:center;gap:10px}
+  .hm-brand img{width:22px;height:22px;border-radius:5px;background:#fff;padding:2px}
+  .hm-stamp{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .hm-stamp span{font-size:12px;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:5px 11px}
+  .hm-stamp b{font-weight:600;color:#fff}
+  .hm-eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#fff;font-weight:600}
   .hm-hero h1{font:600 34px/1.1 var(--font-display);margin:10px 0 8px;color:#fff;letter-spacing:-.01em}
-  .hm-hero .lead{font-size:15px;color:#DCD6F3;margin:0;max-width:820px;line-height:1.5}
+  .hm-hero .lead{font-size:15px;color:#fff;margin:0;max-width:820px;line-height:1.5}
   .hc{position:relative;z-index:1;margin-top:26px}
   .hc-top{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:10px}
   .hc-t{font:600 15px/1.3 var(--font-display);color:#fff}
-  .hc-t small{display:block;font:400 12.5px/1.4 var(--font-display);color:#B9AEE6;margin-top:2px}
+  .hc-t small{display:block;font:400 12.5px/1.4 var(--font-display);color:rgba(255,255,255,.72);margin-top:2px}
   .hc-tg{display:flex;gap:2px;background:rgba(255,255,255,.08);border-radius:999px;padding:3px}
-  .hc-tg button{all:unset;cursor:pointer;font:500 13px/1 var(--font-display);color:#C9BFF0;padding:7px 12px;border-radius:999px}
+  .hc-tg button{all:unset;cursor:pointer;font:500 13px/1 var(--font-display);color:#fff;padding:7px 12px;border-radius:999px}
   .hc-tg button.on{background:#fff;color:#1D1247}
   .hc-svg{width:100%;height:230px;display:block;overflow:visible}
+  .hc-a{stroke-dasharray:1;stroke-dashoffset:1;animation:arc 1.1s cubic-bezier(.3,.7,.2,1) forwards}
+  .hc-f{opacity:0;animation:fadein .5s ease forwards}
+  @keyframes fadein{to{opacity:1}}
+  .hc-svg.static .hc-a{animation:none;stroke-dashoffset:0}.hc-svg.static .hc-f{animation:none;opacity:1}
   .hc-leg{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px}
-  .hc-leg span{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#E7E2F8}
+  .hc-leg span{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#fff}
   .hc-leg i{width:14px;height:3px;border-radius:2px;display:inline-block}
   .hc-tip{position:absolute;top:0;left:0;pointer-events:none;background:#fff;color:#1D1247;border-radius:10px;padding:10px 12px;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);min-width:170px;opacity:0;transition:opacity .12s;z-index:3}
   .hc-tip b{display:block;font:600 13px var(--font-display);margin-bottom:6px}
   .hc-tip div{display:flex;justify-content:space-between;gap:14px;line-height:1.7;font-variant-numeric:tabular-nums}
   .hc-tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
   /* ---------- markets list ---------- */
+  .ml{background:#fff;border:1px solid rgb(232,230,238);border-radius:16px;box-shadow:rgba(29,18,71,.04) 0 1px 3px;padding:20px 8px 10px}
   .ml-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:8px;padding:0 18px}
   .ml-head h2{font:600 20px/1.2 var(--font-display);color:var(--ink);margin:0}
   .ml-head h2 span{font-weight:500;color:var(--faint);margin-left:8px;font-size:16px}
   .ml-find{font:14px var(--font-display);border:1px solid #E6E4EC;border-radius:999px;padding:8px 14px 8px 34px;width:220px;color:var(--ink);outline:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239C97AE' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.5 10.5 14 14'/%3E%3C/svg%3E") no-repeat 12px center/15px}
   .ml-find:focus{border-color:#C9BFF0;box-shadow:0 0 0 3px rgba(67,40,144,.08)}
-  .ml{--cols:minmax(190px,1.5fr) minmax(110px,.9fr) minmax(100px,.8fr) minmax(120px,.9fr) minmax(180px,1.2fr) minmax(240px,1.5fr) 18px}
-  .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 20px;align-items:center;padding:0 18px}
+  .ml{--cols:minmax(220px,1.6fr) minmax(100px,.85fr) minmax(92px,.75fr) minmax(112px,.85fr) minmax(160px,1.15fr) minmax(220px,1.45fr) 14px}
+  .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 16px;align-items:center;padding:0 18px}
   .ml-cols{padding-top:10px;padding-bottom:10px}
   .ml-cols{border-bottom:1px solid #E6E4EC}
   .ml-cols button{all:unset;cursor:pointer;font:600 11.5px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap}
@@ -58,6 +73,11 @@
   .ml-row{min-height:80px;border-top:1px solid #EFEEF3;text-decoration:none;color:var(--ink);border-radius:12px;transition:background .15s}
   a.ml-row:hover{background:#F7F6FB;border-top-color:transparent}
   a.ml-row:hover+.ml-row{border-top-color:transparent}
+  .c-nm{display:flex;align-items:center;gap:14px;min-width:0}
+  .ml-nmw{min-width:0}
+  .ml-code{flex:none;display:grid;place-items:center;width:44px;height:44px;border-radius:12px;background:#EFEFFE;color:#432890;font:700 12.5px/1 var(--font-display);letter-spacing:.06em;transition:background .15s,color .15s}
+  a.ml-row:hover .ml-code{background:#1D1247;color:#fff}
+  .ml-row.off .ml-code{background:#F3F2EF;color:var(--faint)}
   .ml-nm{font:600 17px/1.25 var(--font-display);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ml-sub{font-size:13px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .ml-ro{display:inline-block;font:500 11px/1 var(--font-display);color:var(--muted);background:#F1F0F4;border-radius:999px;padding:4px 7px;margin-left:8px;vertical-align:3px}
@@ -68,28 +88,30 @@
   .ml-uc .bar{flex:1;height:6px;border-radius:999px;background:#EFEEF3;overflow:hidden;min-width:40px;max-width:110px}
   .ml-uc .bar b{display:block;height:100%;border-radius:999px;background:#8168D6;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
   .ml-uc .pct{font:600 17px/1.2 var(--font-display);font-variant-numeric:tabular-nums;min-width:48px}
-  .rp3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 12px}
+  .rp3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 10px}
   .rp3 .ml-v{font-size:16px}
   .up{color:#2F7A4F}.dn{color:#B42318}
   .ml-go{color:#C9C5D6;font-size:20px;line-height:1;transition:transform .15s,color .15s;justify-self:end}
   a.ml-row:hover .ml-go{color:#432890;transform:translateX(3px)}
   .ml-row.off .ml-nm{color:var(--muted)}
   .ml-row.off .ml-wait{grid-column:2 / -1;font-size:13.5px;color:var(--faint)}
-  .rg-h{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;margin:30px 0 2px;padding:10px 18px;border-radius:10px;transition:background .15s}
+  .rg-h{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;margin:22px 0 2px;padding:10px 18px;border-radius:10px;transition:background .15s}
   .rg-h.first{margin-top:4px}
   .rg-h:hover{background:#F7F6FB}
   .rg-h h3{font:600 13px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);margin:0}
   .rg-h .go{color:#C9C5D6;font-size:18px;line-height:1;transition:transform .15s,color .15s}
   .rg-h:hover .go{color:#432890;transform:translateX(3px)}
   .ml-none{padding:40px 18px;color:var(--muted);font-size:14px;border-top:1px solid #EFEEF3}
-  .hm-foot{margin:28px 0 50px;padding:0 18px;font-size:12.5px;color:var(--faint);line-height:1.6;max-width:820px}
+  .hm-sig{display:flex;align-items:center;gap:10px;margin:30px 18px 0;font:600 12.5px/1 var(--font-display);letter-spacing:.04em;color:var(--ink-2)}
+  .hm-sig img{width:20px;height:20px;border-radius:4px}
+  .hm-foot{margin:10px 0 50px;padding:0 18px;font-size:12.5px;color:var(--faint);line-height:1.6;max-width:820px}
   .hm-wait{color:var(--muted);font-size:14px;padding:40px 18px}
   .sk{display:block;height:12px;border-radius:6px;background:linear-gradient(90deg,#F1F0F4,#F8F7FA,#F1F0F4);background-size:200% 100%;animation:sk 1.2s linear infinite}
   @keyframes sk{to{background-position:-200% 0}}
   @keyframes grow{from{transform:scaleX(0)}}
   @keyframes rise{from{opacity:0;transform:translateY(6px)}}
   .ml-row{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
-  @media (prefers-reduced-motion:reduce){.ml-row,.ml-uc .bar b,.sk{animation:none}}
+  @media (prefers-reduced-motion:reduce){.ml-row,.ml-uc .bar b,.sk,.hm-arcs path,.hc-a,.hc-f{animation:none!important;stroke-dashoffset:0;opacity:1}}
   /* ---------- settings panel ---------- */
   .hset [hidden],.hset[hidden],.hset-scrim[hidden]{display:none!important}
   .hset-scrim{position:fixed;inset:0;background:rgba(20,12,51,.28);opacity:0;transition:opacity .2s;z-index:5500}
@@ -147,8 +169,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231337"></script>
-<script src="access.js?v=202611231337"></script>
+<script src="shared/wb.js?v=202611231341"></script>
+<script src="access.js?v=202611231341"></script>
 </head>
 <body>
 <main class="page">
@@ -165,7 +187,8 @@
     <div class="ml-head"><h2>Markets</h2></div>
     <div style="padding:10px 18px"><span class="sk" style="width:60%;margin:22px 0"></span><span class="sk" style="width:80%;margin:22px 0"></span><span class="sk" style="width:70%;margin:22px 0"></span></div>
   </section>
-  <p class="hm-foot">Asking, occupancy, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Under construction counts active construction only and is shown as a share of existing units. RealPage figures are the metro’s effective rent: actual growth per year over the last three full years, this year’s change, and RealPage’s forecast growth per year from here to the end of its forecast.</p>
+  <div class="hm-sig"><img src="shared/wb-mark.png" alt=""><span>Willow Bridge Property Company · Acquisitions &amp; Development</span></div>
+  <p class="hm-foot">Asking, occupancy, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Under construction counts active construction only and is shown as a share of existing units. RealPage figures are the metro’s effective rent growth per year: actual over the last three full years, this year, and RealPage’s forecast from here to the end of its forecast.</p>
 </main>
 <div class="hset-scrim" id="st-scrim" hidden></div>
 <div class="hset" id="st" role="dialog" aria-modal="true" aria-labelledby="st-title" hidden>
@@ -293,7 +316,8 @@
     document.title = regionTitle(region) + ' · Market Intel Demo · Willow Bridge';
     const withRp = lv.filter((m) => RP[m.id]);
     const chart = withRp.length && withRp.length <= 8;
-    document.getElementById('hm-hero').innerHTML = `<div class="hm-eyebrow">Willow Bridge Market Intel</div><h1>${esc(regionTitle(region))}</h1><p class="lead">${esc(lead || 'No markets yet')}</p>
+    document.getElementById('hm-hero').innerHTML = `${ARCS}<div class="hm-eyebrow hm-brand"><img src="shared/wb-mark.png" alt="">Willow Bridge Market Intel</div><h1>${esc(regionTitle(region))}</h1><p class="lead">${esc(lead || 'No markets yet')}</p>
+      ${stamps(lv)}
       ${chart ? `<div class="hc"><div class="hc-top"><div class="hc-t">RealPage · ${metric === 'yR' ? 'Effective rent growth' : 'Occupancy'}<small>Each market’s metro, by year. Solid is actual, dashed is RealPage’s forecast.</small></div>
         <div class="hc-tg"><button type="button" data-k="yR" class="${metric === 'yR' ? 'on' : ''}">Rent growth</button><button type="button" data-k="oc" class="${metric === 'oc' ? 'on' : ''}">Occupancy</button></div></div>
         <svg class="hc-svg" id="hc-svg"></svg><div class="hc-tip" id="hc-tip"></div><div class="hc-leg" id="hc-leg"></div></div>` : ''}`;
@@ -301,9 +325,22 @@
     document.querySelectorAll('.hc-tg button').forEach((b) => b.onclick = () => { metric = b.dataset.k; paintHero(); });
     drawChart(withRp);
   }
-  const LINE = ['#C7C9FE', '#F2C66D', '#7FD6C2', '#F59AB5', '#9CC3FF', '#FFFFFF', '#E3A6FF', '#B8E07A'];
+  // Willow Bridge palette first (lilac, breeze, land green), then supporting tones
+  const LINE = ['#C7C9FE', '#F9E3A0', '#A9E2B4', '#F5A8B8', '#9CC3FF', '#FFFFFF', '#E3B8FF', '#F2B98C'];
+  // the Willow Bridge mark's arcs, drawn large in the hero
+  const ARCS = `<svg class="hm-arcs" viewBox="0 0 300 300" aria-hidden="true">${[60, 112, 164, 216, 268].map((r) => `<path pathLength="1" d="M ${300 - r} 0 A ${r} ${r} 0 0 0 300 ${r}"/>`).join('')}</svg>`;
+  function stamps(lv) {
+    const per = [...new Set(lv.map((m) => F[m.id].period).filter(Boolean))];
+    const bits = [];
+    if (per.length) bits.push(`CoStar <b>${esc(per.join(', '))}</b>`);
+    if (lv.some((m) => RP[m.id])) bits.push(`RealPage forecast through <b>${Math.max(...lv.filter((m) => RP[m.id]).map((m) => F[m.id].rpLast || NOW_Y))}</b>`);
+    const uc = lv.reduce((a, m) => a + (F[m.id].ucN || 0), 0);
+    if (uc) bits.push(`<b>${int(uc)}</b> projects under construction`);
+    return bits.length ? `<div class="hm-stamp">${bits.map((b) => `<span>${b}</span>`).join('')}</div>` : '';
+  }
   let chartMs = [];
-  function drawChart(ms) {
+  let drawn = 0;
+  function drawChart(ms, again) {
     chartMs = ms;
     const svg = document.getElementById('hc-svg'); if (!svg) return;
     const W = svg.clientWidth || 900, H = svg.clientHeight || 230, L = 44, R = 12, T = 10, B = 26;
@@ -317,21 +354,21 @@
     const step = metric === 'yR' ? (hi - lo > .2 ? .05 : .02) : (hi - lo > .06 ? .02 : .01);
     let g = '';
     g += `<rect x="${X(NOW_Y)}" y="${T}" width="${X(y1) - X(NOW_Y)}" height="${H - T - B}" fill="rgba(255,255,255,.05)" rx="6"/>`;
-    g += `<text x="${X(y1) - 4}" y="${T + 14}" text-anchor="end" fill="#B9AEE6" font-size="11" letter-spacing=".06em">FORECAST</text>`;
+    g += `<text x="${X(y1) - 4}" y="${T + 14}" text-anchor="end" fill="rgba(255,255,255,.72)" font-size="11" letter-spacing=".06em">FORECAST</text>`;
     for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) {
       const lab = metric === 'yR' ? (v > 0.0001 ? '+' : '') + (Math.abs(v) < 1e-9 ? '0' : (v * 100).toFixed(0)) + '%' : (v * 100).toFixed(0) + '%';
-      g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${metric === 'yR' && Math.abs(v) < 1e-9 ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.08)'}"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" fill="#B9AEE6" font-size="11">${lab}</text>`;
+      g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${metric === 'yR' && Math.abs(v) < 1e-9 ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.08)'}"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" fill="rgba(255,255,255,.72)" font-size="11">${lab}</text>`;
     }
-    for (let y = y0; y <= y1; y++) if ((y - y0) % 2 === 0 || y === y1) g += `<text x="${X(y)}" y="${H - 6}" text-anchor="middle" fill="${y === NOW_Y ? '#fff' : '#B9AEE6'}" font-size="11" font-weight="${y === NOW_Y ? 600 : 400}">${y}</text>`;
+    for (let y = y0; y <= y1; y++) if ((y - y0) % 2 === 0 || y === y1) g += `<text x="${X(y)}" y="${H - 6}" text-anchor="middle" fill="${y === NOW_Y ? '#fff' : 'rgba(255,255,255,.72)'}" font-size="11" font-weight="${y === NOW_Y ? 600 : 400}">${y}</text>`;
     ms.forEach((m, i) => {
       const c = LINE[i % LINE.length], pts = []; for (let y = y0; y <= y1; y++) { const v = val(m, y); if (v != null) pts.push([y, v]); }
       const path = (ps) => ps.map((p, j) => (j ? 'L' : 'M') + X(p[0]).toFixed(1) + ' ' + Y(p[1]).toFixed(1)).join(' ');
-      g += `<path d="${path(pts.filter((p) => p[0] <= NOW_Y))}" fill="none" stroke="${c}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
-      g += `<path d="${path(pts.filter((p) => p[0] >= NOW_Y))}" fill="none" stroke="${c}" stroke-width="2.2" stroke-dasharray="5 5" stroke-linecap="round"/>`;
+      g += `<path class="hc-a" style="animation-delay:${i * 90}ms" pathLength="1" d="${path(pts.filter((p) => p[0] <= NOW_Y))}" fill="none" stroke="${c}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+      g += `<path class="hc-f" style="animation-delay:${700 + i * 90}ms" d="${path(pts.filter((p) => p[0] >= NOW_Y))}" fill="none" stroke="${c}" stroke-width="2.4" stroke-dasharray="5 5" stroke-linecap="round"/>`;
       const now = pts.find((p) => p[0] === NOW_Y); if (now) g += `<circle cx="${X(now[0])}" cy="${Y(now[1])}" r="3.5" fill="${c}"/>`;
     });
     g += `<line id="hc-guide" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="rgba(255,255,255,.5)" stroke-dasharray="2 3" opacity="0"/><rect id="hc-hit" x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/>`;
-    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = g;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.innerHTML = g; svg.classList.toggle('static', !!again);
     document.getElementById('hc-leg').innerHTML = ms.map((m, i) => `<span><i style="background:${LINE[i % LINE.length]}"></i>${esc(name(m))}</span>`).join('');
     const tip = document.getElementById('hc-tip'), guide = svg.querySelector('#hc-guide'), hit = svg.querySelector('#hc-hit');
     const fmt = (v) => v == null ? '—' : metric === 'yR' ? pct(v) : (v * 100).toFixed(1) + '%';
@@ -348,8 +385,8 @@
     };
     hit.onmouseleave = () => { tip.style.opacity = 0; guide.setAttribute('opacity', 0); };
   }
-  let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (chartMs.length) drawChart(chartMs); }, 120); });
-  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage effective rent growth', 'c-rp']];
+  let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (chartMs.length) drawChart(chartMs, true); }, 120); });
+  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpFc', 'RealPage rent growth / yr', 'c-rp']];
   const val = (m, k) => k === 'name' ? name(m) : F[m.id][k];
   function ordered(ms) {
     return ms.slice().sort((a, b) => {
@@ -375,11 +412,13 @@
   function rpCell(f) {
     if (f.rpFc == null && f.rpNow == null) return '<div class="ml-v" style="color:var(--faint)">—</div><div class="ml-s">No RealPage data</div>';
     const fig = (v, lab) => `<div><div class="ml-v ${v == null ? '' : v >= 0 ? 'up' : 'dn'}">${pct(v)}</div><div class="ml-s">${lab}</div></div>`;
-    return `<div class="rp3">${fig(f.rpHist, `${yy(NOW_Y - 3)}–${yy(NOW_Y - 1)} /yr`)}${fig(f.rpNow, String(NOW_Y))}${fig(f.rpFc, `${yy(NOW_Y + 1)}–${yy(f.rpLast)} /yr`)}</div>`;
+    return `<div class="rp3">${fig(f.rpHist, `${yy(NOW_Y - 3)}–${String(NOW_Y - 1).slice(2)}`)}${fig(f.rpNow, String(NOW_Y))}${fig(f.rpFc, `${yy(NOW_Y + 1)}–${String(f.rpLast).slice(2)}`)}</div>`;
   }
+  const CODES = { denver: 'DEN', phoenix: 'PHX', slc: 'SLC', dallas: 'DFW', austin: 'AUS', houston: 'HOU', san_antonio: 'SAT', atlanta: 'ATL', atl: 'ATL', miami: 'MIA', ftl: 'FLL', fort_lauderdale: 'FLL', tampa: 'TPA', orlando: 'MCO', charlotte: 'CLT', clt: 'CLT', raleigh: 'RDU', rdu: 'RDU', nashville: 'BNA', nash: 'BNA', dc: 'DCA', richmond: 'RIC', rva: 'RIC' };
+  const codeOf = (m) => (m.config && m.config.code) || CODES[m.id] || name(m).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
   function row(m, i) {
     const f = F[m.id], sub = [stateOf(m), f.period].filter(Boolean).join(' · '), d = `animation-delay:${Math.min(i, 20) * 28}ms`;
-    const nm = `<div class="c-nm"><div class="ml-nm">${esc(name(m))}${f.live && !canEdit(m.id) ? '<span class="ml-ro">View only</span>' : ''}</div><div class="ml-sub">${esc(sub)}</div></div>`;
+    const nm = `<div class="c-nm"><span class="ml-code">${esc(codeOf(m))}</span><div class="ml-nmw"><div class="ml-nm">${esc(name(m))}${f.live && !canEdit(m.id) ? '<span class="ml-ro">View only</span>' : ''}</div><div class="ml-sub">${esc(sub)}</div></div></div>`;
     if (!f.live || !f.exN) return `<div class="ml-row off" style="${d}">${nm}<div class="ml-wait">${f.live ? 'Data not uploaded yet' : 'Not live yet'}</div></div>`;
     const w = f.ucPct != null ? Math.max(2, Math.min(100, f.ucPct / maxUc * 100)) : 0;
     return `<a class="ml-row" href="./?market=${encodeURIComponent(m.id)}" style="${d}">
