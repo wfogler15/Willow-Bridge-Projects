@@ -1669,3 +1669,7 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-spax { display: flex; justify-content: space-between; font-size: 10.5px; color: #9a95ad; margin: 2px 0 2px; }
 .csx-spax .cy { color: #432890; font-weight: 650; }
 .csx-autonote { font-size: 12px; color: #77728a; border-bottom: 1px dotted #b3aec4; cursor: help; }
+/* comp set cards use the dashboard's own card values (10px corners, same border and shadow) */
+#view-compsets .csx > .panel, #view-compsets .csx > div > .panel, #view-compsets .csx-sec, #view-compsets .csx > .panel.csx-headp { border-radius: 10px !important; border-color: rgb(232, 230, 238) !important; box-shadow: rgba(29, 18, 71, 0.03) 0px 1px 2px 0px !important; }
+#view-compsets .csx-headp .csx-nav { border-radius: 0 0 10px 10px; }
+.csx-uf, .csx-rpk, .csx-modal-box { border-radius: 10px; }
