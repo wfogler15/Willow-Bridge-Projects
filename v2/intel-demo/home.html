@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231405">
+<link rel="stylesheet" href="shared/wb.css?v=202611231406">
 <style>
   .page{max-width:1400px}
   /* ---------- top row: regions + settings ---------- */
@@ -66,7 +66,7 @@
   .ml-head h2 span{font-weight:500;color:var(--faint);margin-left:8px;font-size:16px}
   .ml-find{font:14px var(--font-display);border:1px solid #E6E4EC;border-radius:999px;padding:8px 14px 8px 34px;width:220px;color:var(--ink);outline:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239C97AE' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.5 10.5 14 14'/%3E%3C/svg%3E") no-repeat 12px center/15px}
   .ml-find:focus{border-color:#C9BFF0;box-shadow:0 0 0 3px rgba(67,40,144,.08)}
-  .ml{--cols:minmax(190px,1.5fr) minmax(92px,.75fr) minmax(84px,.65fr) minmax(104px,.75fr) minmax(150px,.95fr) minmax(130px,.85fr) minmax(112px,.7fr) minmax(170px,1fr) 14px}
+  .ml{--cols:minmax(176px,1.35fr) minmax(90px,.7fr) minmax(84px,.6fr) minmax(104px,.7fr) minmax(164px,1fr) minmax(122px,.75fr) minmax(104px,.65fr) minmax(196px,1.15fr) 14px}
   .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 24px;align-items:center;padding:0 18px}
   .ml-cols{padding-top:10px;padding-bottom:10px;align-items:end}
   .ml-cols{border-bottom:1px solid #E6E4EC}
@@ -184,8 +184,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231405"></script>
-<script src="access.js?v=202611231405"></script>
+<script src="shared/wb.js?v=202611231406"></script>
+<script src="access.js?v=202611231406"></script>
 </head>
 <body>
 <main class="page">
@@ -203,7 +203,7 @@
     <div style="padding:10px 18px"><span class="sk" style="width:60%;margin:22px 0"></span><span class="sk" style="width:80%;margin:22px 0"></span><span class="sk" style="width:70%;margin:22px 0"></span></div>
   </section>
   <div class="hm-sig"><img src="shared/wb-mark.png" alt=""><span>Willow Bridge Property Company · Acquisitions &amp; Development</span></div>
-  <p class="hm-foot">Asking, occupancy, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Under construction counts active construction only and is shown as a share of existing units. Rent growth is RealPage’s metro effective rent growth, averaged per year: actual over the last three full years and RealPage’s forecast to the end of its forecast. Net absorption is RealPage’s forecast of units absorbed over the forecast years, against the new units it expects to deliver in the same years; the percentage is absorption as a share of new supply (100% or more means demand keeps up).</p>
+  <p class="hm-foot">Asking, occupancy, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Under construction counts active construction only and is shown as a share of existing units. Rent growth is RealPage’s metro effective rent growth, averaged per year: actual over the last three full years and RealPage’s forecast to the end of its forecast. Demand vs supply is RealPage’s forecast net absorption minus its forecast new supply over the forecast years: green means demand outruns new supply, red means new supply outruns demand. Both totals are underneath.</p>
 </main>
 <div class="hset-scrim" id="st-scrim" hidden></div>
 <div class="hset" id="st" role="dialog" aria-modal="true" aria-labelledby="st-title" hidden>
@@ -280,7 +280,7 @@
     const rpHist = h0 && h1 ? Math.pow(h1 / h0, 1 / 3) - 1 : null;   // actual rent growth per year over the last three full years
     let sup = 0, dem = 0, n = 0;
     for (let y = NOW_Y + 1; y <= last; y++) { const a = g(y, 'sp'), b = g(y, 'dm'); if (a != null && b != null) { sup += a; dem += b; n++; } }
-    return { rpFc, rpNow: g(NOW_Y, 'yR'), rpHist, rpLast: last, rpBars: bars, rpSup: n ? sup : null, rpDem: n ? dem : null, rpNet: n ? sup - dem : null };   // more supply than demand is positive (and shown red)
+    return { rpFc, rpNow: g(NOW_Y, 'yR'), rpHist, rpLast: last, rpBars: bars, rpSup: n ? sup : null, rpDem: n ? dem : null, rpNet: n ? dem - sup : null };   // demand less new supply: positive (green) means demand outruns supply
   }
   async function load() {
     const mk = await rows(S('core').from('markets').select('id,label,config').order('id'));
@@ -405,7 +405,7 @@
     hit.onmouseleave = () => { tip.style.opacity = 0; guide.setAttribute('opacity', 0); };
   }
   let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => { if (chartMs.length) drawChart(chartMs, true); }, 120); });
-  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpHist', 'Rent growth<br>actual', 'c-rp'], ['rpFc', 'Rent growth<br>forecast', 'c-rf'], ['rpDem', 'Net absorption<br>forecast', 'c-sd']];
+  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['rpHist', 'Rent growth<br>actual', 'c-rp'], ['rpFc', 'Rent growth<br>forecast', 'c-rf'], ['rpNet', 'Demand vs supply<br>forecast', 'c-sd']];
   const val = (m, k) => k === 'name' ? name(m) : F[m.id][k];
   function ordered(ms) {
     return ms.slice().sort((a, b) => {
@@ -443,11 +443,11 @@
   }
   // RealPage, forecast net absorption over the forecast years, against the new supply delivering in the same years
   function sdCell(f) {
-    if (f.rpDem == null) return none;
-    const cover = f.rpSup ? f.rpDem / f.rpSup : null;
-    return `<div class="ml-v">${kU(f.rpDem)}<i>units</i></div>
-      <div class="ml-s" title="RealPage forecast, ${NOW_Y + 1}–${f.rpLast}: ${int(f.rpDem)} units absorbed vs ${int(f.rpSup)} new units delivered">vs ${kU(f.rpSup)} supply${cover != null ? ` · <b class="${cover >= 1 ? 'up' : 'dn'}">${Math.round(cover * 100)}%</b>` : ''}</div>`;
+    if (f.rpNet == null) return none;
+    return `<div class="ml-v ${f.rpNet >= 0 ? 'up' : 'dn'}">${f.rpNet >= 0 ? '+' : '−'}${kU(Math.abs(f.rpNet))}<i>units</i></div>
+      <div class="ml-s" title="RealPage forecast, ${NOW_Y + 1}–${f.rpLast}: ${int(f.rpDem)} units of demand (net absorption) vs ${int(f.rpSup)} new units delivered">${kU(f.rpDem)} demand vs ${kU(f.rpSup)} supply</div>`;
   }
+
   const CODES = { denver: 'DEN', phoenix: 'PHX', slc: 'SLC', dallas: 'DFW', austin: 'AUS', houston: 'HOU', san_antonio: 'SAT', atlanta: 'ATL', atl: 'ATL', miami: 'MIA', ftl: 'FLL', fort_lauderdale: 'FLL', tampa: 'TPA', orlando: 'MCO', charlotte: 'CLT', clt: 'CLT', raleigh: 'RDU', rdu: 'RDU', nashville: 'BNA', nash: 'BNA', dc: 'DCA', richmond: 'RIC', rva: 'RIC' };
   const codeOf = (m) => (m.config && m.config.code) || CODES[m.id] || name(m).replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
   function row(m, i) {
