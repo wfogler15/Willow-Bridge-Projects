@@ -335,55 +335,57 @@
     const m = blLocal(); if (name) m[cs.id] = name; else delete m[cs.id]; try { localStorage.setItem(BLKEY, JSON.stringify(m)); } catch (e) {}
     touch(cs); render();
   }
+  // RealPage for the baseline submarket (same blend the Trends tab uses); also feeds the page summary
+  function rpFor(name) {
+    const f = name && typeof getRpForecastForWbSubmarket === 'function' ? getRpForecastForWbSubmarket(name) : null;
+    const Y = typeof CURRENT_YEAR !== 'undefined' ? CURRENT_YEAR : new Date().getFullYear();
+    if (!f || !f[Y]) return null;
+    const fy = [1, 2, 3].map((i) => f[Y + i] || {}), fg = fy.map((r) => r.yR).filter((x) => x != null);
+    const cum = fg.length ? fg.reduce((a, x) => a * (1 + x), 1) - 1 : null, avg = fg.length ? Math.pow(1 + cum, 1 / fg.length) - 1 : null;
+    return { f, Y, c: f[Y], fy, cum, avg, s3: fy.reduce((a, r) => a + (r.sp || 0), 0), d3: fy.reduce((a, r) => a + (r.dm || 0), 0) };
+  }
+  const gPct = (x) => (x == null ? '—' : (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(1) + '%');
+  const gCls = (x) => (x == null ? '' : x >= 0 ? 'up' : 'dn');
   function baselineBlock(cs, ps) {
     const bl = baselineOf(cs, ps); if (!bl.name) return '';
     const inSm = all().filter((p) => p.submarket === bl.name), u = (a) => a.reduce((s, p) => s + (p.units || 0), 0);
-    const exU = u(inSm.filter((p) => p.status === 'Existing')), ucU = u(inSm.filter((p) => p.status !== 'Existing' && !isProposed(p))), prU = u(inSm.filter((p) => p.status !== 'Existing' && isProposed(p)));
-    const luU = u(inSm.filter((p) => p.status === 'Existing' && phaseOf(p) === 'lease'));
-    const r = (n) => (exU ? ((n / exU) * 100).toFixed(1) + '%' : '—');
-    const k = (l, v, sub) => hero(l, v, sub);
-    // RealPage: blended for the submarket (same blend the Trends tab uses)
-    let rp = '';
-    const f = typeof getRpForecastForWbSubmarket === 'function' ? getRpForecastForWbSubmarket(bl.name) : null;
-    const Y = typeof CURRENT_YEAR !== 'undefined' ? CURRENT_YEAR : new Date().getFullYear();
-    if (f && f[Y]) {
-      const c = f[Y], g = (x) => (x == null ? '—' : (x >= 0 ? '+' : '−') + Math.abs(x * 100).toFixed(1) + '%');
-      const cls = (x) => (x == null ? '' : x >= 0 ? 'up' : 'dn');
-      const avgSf = stats(inSm.filter((p) => p.status === 'Existing')).sf;
-      const fy = [1, 2, 3].map((i) => f[Y + i] || {}), fg = fy.map((r) => r.yR).filter((x) => x != null);
-      const cum = fg.length ? fg.reduce((a, x) => a * (1 + x), 1) - 1 : null, avg = fg.length ? Math.pow(1 + cum, 1 / fg.length) - 1 : null;
-      const s3 = fy.reduce((a, r) => a + (r.sp || 0), 0), d3 = fy.reduce((a, r) => a + (r.dm || 0), 0);
+    const exP = inSm.filter((p) => p.status === 'Existing');
+    const exU = u(exP), ucU = u(inSm.filter((p) => p.status !== 'Existing' && !isProposed(p) && !isStalled(p))), prU = u(inSm.filter((p) => p.status !== 'Existing' && isProposed(p)));
+    const luU = u(exP.filter((p) => phaseOf(p) === 'lease'));
+    const pr = (n) => (exU ? (n / exU) * 100 : null);
+    const mrow = (l, n, cls) => { const v = pr(n); return `<tr><th>${l}</th><td class="num">${intC(n)}</td><td class="num">${v == null ? '—' : v.toFixed(1) + '%'}</td><td class="csx-mbar"><i class="${cls || ''}" style="width:${v == null ? 0 : Math.min(100, v * 2.5)}%"></i></td></tr>`; };
+    const supply = `<div class="csx-smcol"><h4>Supply against inventory</h4>
+      <table class="csx-mini"><thead><tr><th></th><th class="num">Units</th><th class="num">% of inventory</th><th></th></tr></thead><tbody>
+        <tr class="tot"><th>Existing inventory <small>${exP.length} properties</small></th><td class="num">${intC(exU)}</td><td class="num">100%</td><td></td></tr>
+        ${mrow('In lease-up', luU, 'lu')}${mrow('Under construction', ucU, 'uc')}${mrow('Proposed', prU, 'pr')}${mrow('UC + proposed', ucU + prU, 'all')}
+      </tbody></table><small class="csx-src2">CoStar, all properties in ${E(bl.name)}</small></div>`;
+    const R = rpFor(bl.name);
+    let rp;
+    if (R) {
+      const { f, Y, c, fy, cum, avg, s3, d3 } = R, avgSf = stats(exP).sf;
       const yrs = [Y - 3, Y - 2, Y - 1, Y, Y + 1, Y + 2, Y + 3, Y + 4].filter((y) => f[y]);
       const row = (l, fn) => `<tr><th>${l}</th>${yrs.map((y) => { const v = fn(f[y] || {}); return `<td class="${y > Y ? 'fc' : y === Y ? 'cy' : ''} ${v.c || ''}">${v.t}</td>`; }).join('')}</tr>`;
-      rp = `<div class="csx-rp"><div class="csx-rph"><b>RealPage forecast</b><span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || bl.name)} · ${Y} current year, ${Y + 1}+ forecast</span></div>
-        <div class="csx-hcs">
-          ${hero('Effective rent', c.eR ? '$' + Math.round(c.eR).toLocaleString() + '<u>/mo</u>' : '—', c.eR && avgSf ? '$' + (c.eR / avgSf).toFixed(2) + '/SF at the submarket’s avg unit size' : '')}
-          ${hero(`Rent growth ${Y}`, `<span class="${cls(c.yR)}">${g(c.yR)}</span>`, `YoY vs ${Y - 1}`)}
-          ${hero(`Forecast ${Y + 1}–${Y + 3}`, `<span class="${cls(avg)}">${g(avg)}</span><u>/yr</u>`, cum != null ? `${g(cum)} cumulative` : '')}
-          ${hero('Occupancy', c.oc != null ? (c.oc * 100).toFixed(1) + '<u>%</u>' : '—', fy[2].oc != null ? (fy[2].oc * 100).toFixed(1) + '% forecast ' + (Y + 3) : '')}
-          ${hero(`Supply ${Y + 1}–${Y + 3}`, s3 ? Math.round(s3).toLocaleString() + '<u> units</u>' : '—', d3 ? `${Math.round(d3).toLocaleString()} absorbed · ${(d3 / s3).toFixed(2)}× demand/supply` : '')}
+      rp = `<div class="csx-smcol csx-smrp"><h4>RealPage forecast <span>${E((typeof getRpBlendInfo === 'function' && getRpBlendInfo(bl.name)) || bl.name)}</span></h4>
+        <div class="csx-rpk">
+          <div><span>Effective rent ${Y}</span><b>$${Math.round(c.eR || 0).toLocaleString()}<u>/mo</u></b><small>${c.eR && avgSf ? '$' + (c.eR / avgSf).toFixed(2) + '/SF at avg unit size' : ''}</small></div>
+          <div><span>Rent growth ${Y}</span><b class="${gCls(c.yR)}">${gPct(c.yR)}</b><small>YoY vs ${Y - 1}</small></div>
+          <div><span>Forecast ${Y + 1}–${Y + 3}</span><b class="${gCls(avg)}">${gPct(avg)}<u>/yr</u></b><small>${cum != null ? gPct(cum) + ' cumulative' : ''}</small></div>
+          <div><span>Occupancy</span><b>${c.oc != null ? (c.oc * 100).toFixed(1) + '<u>%</u>' : '—'}</b><small>${fy[2].oc != null ? (fy[2].oc * 100).toFixed(1) + '% in ' + (Y + 3) : ''}</small></div>
+          <div><span>Supply ${Y + 1}–${Y + 3}</span><b>${intC(s3)}</b><small>${d3 && s3 ? `${intC(d3)} absorbed · ${(d3 / s3).toFixed(2)}×` : ''}</small></div>
         </div>
         <div class="table-scroll"><table class="csx-rpt"><thead><tr><th></th>${yrs.map((y) => `<th class="${y > Y ? 'fc' : y === Y ? 'cy' : ''}">${y}${y > Y ? '<i>F</i>' : ''}</th>`).join('')}</tr></thead><tbody>
           ${row('Effective rent', (r) => ({ t: r.eR ? '$' + Math.round(r.eR).toLocaleString() : '—' }))}
-          ${row('Rent growth YoY', (r) => ({ t: g(r.yR), c: cls(r.yR) }))}
+          ${row('Rent growth YoY', (r) => ({ t: gPct(r.yR), c: gCls(r.yR) }))}
           ${row('Occupancy', (r) => ({ t: r.oc != null ? (r.oc * 100).toFixed(1) + '%' : '—' }))}
-          ${row('Supply (units)', (r) => ({ t: r.sp != null ? Math.round(r.sp).toLocaleString() : '—' }))}
-          ${row('Demand (units)', (r) => ({ t: r.dm != null ? Math.round(r.dm).toLocaleString() : '—' }))}
+          ${row('Supply', (r) => ({ t: r.sp != null ? intC(r.sp) : '—' }))}
+          ${row('Demand', (r) => ({ t: r.dm != null ? intC(r.dm) : '—' }))}
         </tbody></table></div></div>`;
-    } else rp = `<div class="csx-hint">No RealPage coverage mapped to ${E(bl.name)}.</div>`;
+    } else rp = `<div class="csx-smcol csx-smrp"><h4>RealPage forecast</h4><div class="csx-hint">No RealPage coverage mapped to ${E(bl.name)}.</div></div>`;
     return `<section class="panel csx-sec csx-bl">
-      <div class="csx-sech" id="csx-s-sm"><div class="csx-sect"><i></i><b>Submarket</b><select class="csx-in csx-blsel" aria-label="Baseline submarket">${smOptions().map((o) => `<option value="${E(o)}"${o === bl.name ? ' selected' : ''}>${E(o)}${o === bl.name && !bl.picked ? ' (auto)' : ''}</option>`).join('')}</select><span class="csx-secnote">Baseline for pipeline-vs-inventory and RealPage</span></div></div>
-      <div class="panel-body">
-        <div class="csx-hcs csx-hcs-bl">
-          ${k('Existing inventory', exU.toLocaleString() + ' units', `${inSm.filter((p) => p.status === 'Existing').length} properties in ${E(bl.name)} (CoStar)`)}
-          ${k('Under construction', ucU.toLocaleString() + ' units', `${r(ucU)} of inventory`)}
-          ${k('Proposed', prU.toLocaleString() + ' units', `${r(prU)} of inventory`)}
-          ${k('UC + proposed', (ucU + prU).toLocaleString() + ' units', `${r(ucU + prU)} of inventory`)}
-          ${k('In lease-up', luU.toLocaleString() + ' units', `${r(luU)} of inventory`)}
-        </div>
-        ${rp}
-        ${window.__WB_CS_NO_SETTINGS ? '<div class="csx-hint warn">The baseline choice is kept in this browser until the database update (comp_sets.settings) is run.</div>' : ''}
-      </div></section>`;
+      <div class="csx-sech" id="csx-s-sm"><div class="csx-sect"><i></i><b>Submarket</b><select class="csx-in csx-blsel" aria-label="Baseline submarket">${smOptions().map((o) => `<option value="${E(o)}"${o === bl.name ? ' selected' : ''}>${E(o)}${o === bl.name && !bl.picked ? ' (auto)' : ''}</option>`).join('')}</select></div><span class="csx-fresh">The baseline for pipeline share and RealPage</span></div>
+      <div class="csx-smgrid">${supply}${rp}</div>
+      ${window.__WB_CS_NO_SETTINGS ? '<div class="csx-hint warn">The submarket choice is kept in this browser until the database update (comp_sets.settings) is run.</div>' : ''}
+    </section>`;
   }
 
   // ---------- section panels ----------
@@ -394,22 +396,28 @@
   const begunOf = (p) => { const b = ed(p).constructionBegin || p.constructionBegin; if (!b) return null; const d = typeof monthYearToDate === 'function' ? monthYearToDate(String(b).split(' ')[0], +String(b).split(' ').pop()) : null; return d; };
   const intC = (v) => (v == null || isNaN(v) ? '—' : Math.round(v).toLocaleString());
   const wa = (ps, f) => { let a = 0, w = 0; ps.forEach((p) => { const v = f(p); if (v != null && !isNaN(v) && p.units) { a += v * p.units; w += p.units; } }); return w ? a / w : null; };
+  const sumLine = (items) => `<span class="csx-sum">${items.map(([v, l]) => `<span><b>${v}</b> ${l}</span>`).join('')}</span>`;
   function panelHead(id, key, title, count, note, cards, extra) {
-    return `<div class="csx-sech" id="${id}"><div class="csx-sect"><i></i><b>${title}</b>${count != null ? `<em>${count}</em>` : ''}${note ? `<span class="csx-secnote">${note}</span>` : ''}</div>${extra || ''}</div>
+    return `<div class="csx-sech" id="${id}"><div class="csx-sect"><i></i><b>${title}</b>${count != null ? `<em>${count}</em>` : ''}</div>${extra || ''}</div>${note ? `<div class="csx-secline">${note}</div>` : ''}
       ${cards ? `<div class="csx-hcs">${cards}</div>` : ''}`;
   }
   // lease-up: properties leasing now plus under-construction buildings, projected at their own pace and at an assumed pace
-  function leaseOutlook(cs, lu, pi) {
+  function outlook(cs, lu, pi) {
     const V = velOf(cs), now = new Date();
     const cur = lu.map((p) => { const l = leaseOf(p); const atV = l.target && !l.done ? addMo(l.asOf, (l.target - l.leased) / V) : null; return { p, l, atV, start: l.d, end: l.done ? null : (l.stab || atV), kind: 'now' }; });
     const fut = pi.filter((p) => !isProposed(p) && !isStalled(p)).map((p) => { const d = leaseStartOf(p) || deliveryOf(p); const end = d && p.units ? addMo(d, (p.units * STAB) / V) : null; return { p, start: d, end, atV: end, kind: 'next' }; });
-    if (!cur.length && !fut.length) return '';
+    if (!cur.length && !fut.length) return null;
     const all2 = cur.concat(fut);
     const vNow = cur.reduce((a, x) => a + (x.l.v || 0), 0), uNow = cur.reduce((a, x) => a + (x.p.units || 0), 0), uNext = fut.reduce((a, x) => a + (x.p.units || 0), 0);
     const leased = cur.reduce((a, x) => a + (x.l.leased || 0), 0);
     const lastOwn = all2.map((x) => x.kind === 'now' ? (x.l.done ? null : x.l.stab || x.atV) : x.atV).filter(Boolean).sort((a, b) => b - a)[0];
     const lastV = all2.map((x) => (x.kind === 'now' && x.l.done ? null : x.atV)).filter(Boolean).sort((a, b) => b - a)[0];
-    const cards = hero('Leasing now', intC(uNow) + '<u> units</u>', cur.length ? `${cur.length} ${cur.length === 1 ? 'property' : 'properties'} · ${uNow ? ((leased / uNow) * 100).toFixed(0) + '% occupied' : ''}` : 'None in this set')
+    return { V, now, cur, fut, all2, vNow, uNow, uNext, leased, lastOwn, lastV };
+  }
+  function leaseOutlook(cs, lu, pi) {
+    const O = outlook(cs, lu, pi); if (!O) return '';
+    const { V, now, cur, fut, all2, vNow, uNow, uNext, leased, lastOwn, lastV } = O;
+    const cardsUnused = hero('Leasing now', intC(uNow) + '<u> units</u>', cur.length ? `${cur.length} ${cur.length === 1 ? 'property' : 'properties'} · ${uNow ? ((leased / uNow) * 100).toFixed(0) + '% occupied' : ''}` : 'None in this set')
       + hero('Coming', intC(uNext) + '<u> units</u>', fut.length ? `${fut.length} under construction` : 'Nothing under construction')
       + hero('Pace now', vNow ? vNow.toFixed(0) + '<u> leases/mo</u>' : '—', cur.length ? 'Combined, since leasing began' : '')
       + hero('All stabilized · own pace', lastOwn ? monYr(lastOwn) : '—', 'Pipeline at ' + V + '/mo (no pace yet)')
@@ -429,7 +437,8 @@
     const rows = cur.map(({ p, l, atV }) => `<tr data-pid="${E(p.id)}"${UI.upd === String(p.id) ? ' class="csx-open"' : ''}>${nameCell(p, E(p.style || ''))}<td class="num">${intC(p.units)}</td><td>${monYr(l.d)}</td><td class="num">${pct(l.o)}${l.o != null ? `<span class="csx-bar1"><i style="width:${Math.min(100, l.o)}%"></i></span>` : ''}</td><td class="num csx-k">${l.v ? l.v.toFixed(1) : '—'}</td><td>${l.done ? '<span class="csx-ok">Stabilized</span>' : l.stab ? monYr(l.stab) : '—'}</td><td>${l.done ? '' : atV ? monYr(atV) : '—'}</td><td class="num">${money(p.avgAskingSF)}</td>${wksCell(p)}${updCell(p)}<td class="csx-ub">${updBtn(p)}</td>${rmCell(p)}</tr>${UI.upd === String(p.id) ? updForm(p, 'lease', 12) : ''}`).join('')
       + (fut.length ? `<tr class="csx-grp"><td colspan="12">Under construction · projected from completion at ${V}/mo</td></tr>` + fut.map(({ p, start, end }) => `<tr data-pid="${E(p.id)}" class="csx-fut">${nameCell(p, E(p.style || ''))}<td class="num">${intC(p.units)}</td><td>${monYr(start)} <small>est.</small></td><td class="num">—</td><td class="num">—</td><td>—</td><td>${monYr(end)}</td><td class="num">—</td><td class="num">—</td>${updCell(p)}<td></td><td></td></tr>`).join('') : '');
     const velSel = `<label class="csx-velsel">Assumed pace <select class="csx-in csx-vel">${[10, 15, 20, 25, 30, 35, 40].map((v) => `<option value="${v}"${v === V ? ' selected' : ''}>${v} leases/mo</option>`).join('')}</select></label>`;
-    return `<section class="panel csx-sec csx-sec-lu">${panelHead('csx-s-lu', 'lu', 'Lease-up outlook', cur.length + fut.length, cur.length ? checked(cur.map((x) => x.p)) : '', cards, velSel)}
+    const line = sumLine([[intC(uNow), 'units leasing now' + (uNow ? ` · ${((leased / uNow) * 100).toFixed(0)}% occupied` : '')], [intC(uNext), 'under construction'], [vNow ? vNow.toFixed(0) : '—', 'leases/mo now'], [lastOwn ? monYr(lastOwn) : '—', 'all at 95%, own pace'], [lastV ? monYr(lastV) : '—', `all at 95%, ${V}/mo`]]);
+    return `<section class="panel csx-sec csx-sec-lu">${panelHead('csx-s-lu', 'lu', 'Lease-up outlook', cur.length + fut.length, line, null, velSel)}
       ${tl}
       <div class="table-scroll"><table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Property</th><th class="num">Units</th><th>Leasing since</th><th class="num">Occ.</th><th class="num">Leases/mo</th><th>95% · own pace</th><th>95% · ${V}/mo</th><th class="num">Asking $/SF</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
   }
@@ -448,7 +457,8 @@
         + hero('Concessions', s.wks == null ? '—' : s.wks.toFixed(1) + '<u> wks free</u>', `${hw} of ${ex.length} checked on websites`)
         + hero('Comps', intC(s.units) + '<u> units</u>', `${ex.length} properties · built ${yrs.length ? Math.min(...yrs) + '–' + Math.max(...yrs) : '—'}`);
       const foot = `<tfoot><tr><td>Total / unit-weighted average</td><td></td><td></td><td></td><td class="num">${intC(s.units)}</td><td class="num">${yrs.length ? Math.round(wa(ex, (p) => p.yearBuilt)) : '—'}</td><td class="num csx-k">${money(s.ask)}</td><td class="num">${s.askU ? '$' + Math.round(s.askU).toLocaleString() : '—'}</td><td class="num">${money(s.eff)}</td><td class="num">${pct(s.occ)}</td><td class="num">${wks(s.wks)}</td><td colspan="3"></td></tr></tfoot>`;
-      out += `<section class="panel csx-sec csx-sec-ex">${panelHead('csx-s-ex', 'ex', 'Rent comps', ex.length, checked(ex) + (ex.some((p) => handWks(p) == null) ? ' · gray weeks free are CoStar’s, not checked' : ''), cards)}
+      const line = sumLine([[money(s.ask), '/SF asking' + (s.askU ? ` ($${Math.round(s.askU).toLocaleString()}/mo)` : '')], [money(s.eff), '/SF effective'], [pct(s.occ), 'occupied'], [wks(s.wks), 'wks free'], [intC(s.units), 'units']]) + `<span class="csx-fresh">${checked(ex)}${ex.some((p) => handWks(p) == null) ? ' · gray weeks free are CoStar’s' : ''}</span>`;
+      out += `<section class="panel csx-sec csx-sec-ex">${panelHead('csx-s-ex', 'ex', 'Rent comps', ex.length, line, null)}
         <div class="table-scroll"><table class="csx-table csx-dense"><thead><tr><th class="csx-pc">Property</th><th>Owner</th><th>Type</th><th class="num">Stories</th><th class="num">Units</th><th class="num">Built</th><th class="num">Asking $/SF</th><th class="num">$/mo</th><th class="num">Eff. $/SF</th><th class="num">Occ.</th><th class="num">Wks free</th><th>Updated</th><th></th><th></th></tr></thead>
         <tbody>${ex.sort((a, b) => (b.avgAskingSF || 0) - (a.avgAskingSF || 0)).map((p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td class="csx-dev">${E(p.owner || '—')}</td><td>${E(p.style || '')}</td><td class="num">${p.stories || '—'}</td><td class="num">${intC(p.units)}</td><td class="num">${p.yearBuilt || '—'}</td><td class="num csx-k">${money(p.avgAskingSF)}</td><td class="num">${p.avgAskingUnit ? '$' + Math.round(p.avgAskingUnit).toLocaleString() : '—'}</td><td class="num">${money(p.avgEffectiveSF)}</td><td class="num${occOf(p) != null && occOf(p) < 90 ? ' csx-lo' : ''}">${pct(occOf(p))}</td>${wksCell(p)}${tail(p)}`, 14)).join('')}</tbody>${foot}</table></div></section>`;
     }
@@ -468,7 +478,8 @@
       const prow = (p) => rowWith(p, `${nameCell(p, E(p.submarket || ''))}<td class="csx-dev">${E(p.developer || '—')}</td><td>${E(p.style || '')}</td><td class="num">${intC(p.units)}</td><td class="num">${acres(p) ? (+acres(p)).toFixed(1) : '—'}</td><td class="num">${den(p) ? den(p).toFixed(0) : '—'}</td><td>${monYr(begunOf(p))}</td><td>${monYr(deliveryOf(p))}</td><td class="csx-note">${E(ed(p).notes || p.notes || '')}</td>${tail(p)}`, 12);
       const head = '<thead><tr><th class="csx-pc">Property</th><th>Developer</th><th>Type</th><th class="num">Units</th><th class="num">Acres</th><th class="num">Units/ac</th><th>Start</th><th>Est. completion</th><th>Notes</th><th>Updated</th><th></th><th></th></tr></thead>';
       const grp = (label, a) => (a.length ? `<tr class="csx-grp"><td colspan="12">${label} · ${a.length} · ${intC(u(a))} units</td></tr>${a.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}` : '');
-      out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', uc.length + pr.length, checked(pi), cards)}
+      const line = sumLine([[intC(u(uc)), 'units under construction' + (base ? ` (${((u(uc) / base) * 100).toFixed(1)}% of ${E(bl)})` : '')], [intC(u(pr)), 'proposed'], [intC(in12), 'delivering in 12 mo'], [next ? monYr(deliveryOf(next)) : '—', 'next delivery' + (next ? ` · ${E(next.name)}` : '')]]) + `<span class="csx-fresh">${checked(pi)}</span>`;
+      out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', uc.length + pr.length, line, null)}
         <div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${grp('Under construction', uc)}${grp('Proposed', pr)}</tbody></table></div>
         ${st.length ? `<details class="csx-stalled"${UI.stalledOpen ? ' open' : ''}><summary>Stalled projects · ${st.length} · ${intC(u(st))} units <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${st.map(prow).join('')}</tbody></table></div></details>` : ''}</section>`;
     }
@@ -482,7 +493,7 @@
     return `
       <div class="csx-crumb"><button type="button" class="csx-back">← All comp sets</button></div>
       <div class="panel csx-headp">
-        <div class="panel-header csx-wshead">
+        <div class="panel-header csx-wshead csx-slim">
           <div class="csx-ttl">
             <input class="csx-title panel-title" value="${E(cs.name)}" aria-label="Set name" maxlength="80">
             <input class="csx-desc" value="${E(cs.description || '')}" placeholder="Add the deal or site this set is for" aria-label="Deal or site" maxlength="120">
@@ -518,14 +529,27 @@
     const old = document.getElementById('csx-hero'); if (old) old.remove();
     if (!slot) return;
     if (cs) {
-      const s = stats(membersOf(cs)), k = (l, v, u, sub) => `<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}${u ? `<span class="unit">${u}</span>` : ''}</div><div class="kpi-sub">${sub}</div></div>`;
+      const ps = membersOf(cs), ex = ps.filter((p) => phaseOf(p) === 'exist'), lu = ps.filter((p) => phaseOf(p) === 'lease'), pi = ps.filter((p) => phaseOf(p) === 'pipe');
+      const st = stats(ex.length ? ex : ps), k = (l, v, u, sub) => `<div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-value">${v}${u ? `<span class="unit">${u}</span>` : ''}</div><div class="kpi-sub">${sub}</div></div>`;
+      // the product type most of the comps are, and what the YOC matrix needs for it
+      let need = null, prod = null, askP = null;
+      try {
+        const col = (p) => (typeof yocColumnFor === 'function' ? yocColumnFor(p.style) : p.style), byP = {};
+        ex.forEach((p) => { const c = col(p); if (YOC_PRODUCT_COLUMNS.includes(c)) byP[c] = (byP[c] || 0) + (p.units || 0); });
+        prod = Object.entries(byP).sort((a, b) => b[1] - a[1]).map((x) => x[0])[0];
+        if (prod) { need = requiredPsfRent(prod, sfFor(prod)); askP = wa(ex.filter((p) => col(p) === prod), (p) => p.avgAskingSF); }
+      } catch (e) {}
+      const gap = need && askP ? (askP / need - 1) * 100 : null;
+      const bl = baselineOf(cs, ps).name, inSm = bl ? all().filter((p) => p.submarket === bl) : [], uu = (a) => a.reduce((x, p) => x + (p.units || 0), 0);
+      const inv = uu(inSm.filter((p) => p.status === 'Existing')), sup = uu(inSm.filter((p) => p.status !== 'Existing' && !isStalled(p)));
+      const O = outlook(cs, lu, pi), R = rpFor(bl);
       const row = document.createElement('div'); row.className = 'kpi-row'; row.id = 'csx-hero';
-      row.innerHTML = k('Properties', s.n, '', `${s.units.toLocaleString()} units${s.uc ? ` · ${s.uc} not yet existing` : ''}`)
-        + k('Asking / SF', s.ask == null ? '—' : '$' + s.ask.toFixed(2), '', s.askU != null ? '$' + Math.round(s.askU).toLocaleString() + '/mo · unit-weighted' : 'unit-weighted')
-        + k('Effective / SF', s.eff == null ? '—' : '$' + s.eff.toFixed(2), '', 'Net of concessions')
-        + k('Occupancy', s.occ == null ? '—' : s.occ.toFixed(1), s.occ == null ? '' : '%', 'Existing only')
-        + k('Concessions', wks(s.wks), s.wks == null ? '' : 'wks', 'Weeks free · unit-weighted')
-        + k('Built', s.yr, '', s.sf ? Math.round(s.sf).toLocaleString() + ' SF avg unit' : '&nbsp;');
+      row.innerHTML = k('Comp asking rent', st.ask == null ? '—' : '$' + st.ask.toFixed(2), '/SF', `${st.askU ? '$' + Math.round(st.askU).toLocaleString() + '/mo · ' : ''}${ex.length} stabilized comps`)
+        + k(prod ? `${prod} needs` : 'Rent needed', need == null ? '—' : '$' + need.toFixed(2), '/SF', gap == null ? `for ${(yocState.targetYoc * 100).toFixed(2)}% YOC` : `<b class="${gap >= 0 ? 'csx-up' : 'csx-dn'}">${Math.abs(gap).toFixed(0)}% ${gap >= 0 ? 'above' : 'below'}</b> · comps vs ${(yocState.targetYoc * 100).toFixed(2)}% YOC`)
+        + k('Comp occupancy', st.occ == null ? '—' : st.occ.toFixed(1), st.occ == null ? '' : '%', `${wks(st.wks)} wks free`)
+        + k('Pipeline share', inv ? ((sup / inv) * 100).toFixed(1) : '—', inv ? '%' : '', `${intC(sup)} units UC + proposed · ${E(bl || '')}`)
+        + k('Lease-up clears', O && O.lastOwn ? monYr(O.lastOwn) : '—', '', O ? `own pace · ${O.lastV ? monYr(O.lastV) : '—'} at ${O.V}/mo` : 'Nothing leasing or under construction')
+        + k('Rent growth forecast', R && R.avg != null ? gPct(R.avg) : '—', R && R.avg != null ? '/yr' : '', R ? `${R.Y + 1}–${R.Y + 3} · ${R.Y} was ${gPct(R.c.yR)}` : 'No RealPage coverage');
       slot.appendChild(row);
     }
     const on = () => { if (hero) hero.classList.toggle('has-kpis', !!slot.children.length); };
@@ -547,20 +571,18 @@
       let a = 0, w = 0; g.forEach((p) => { a += p.avgAskingSF * (p.units || 0); w += p.units || 0; }); const ask = w ? a / w : null;
       const ratio = req && ask ? ask / req : null, gap = ratio == null ? null : (ratio - 1) * 100;
       const fill = ratio == null ? 0 : Math.max(4, Math.min(100, ratio * 100));
-      return `<div class="panel csx-ycard">
-        <div class="csx-ych"><b>${E(prod)}</b><span>${g.length} existing comp${g.length === 1 ? '' : 's'}</span></div>
-        <div class="csx-yck">Rent needed for ${target} YOC</div>
-        <div class="csx-ycv">${req == null ? '—' : '$' + req.toFixed(2)}<span>/SF</span></div>
+      return `<div class="csx-yc">
+        <div class="csx-yc-top"><b>${E(prod)}</b><span>${g.length} existing comp${g.length === 1 ? '' : 's'}</span></div>
+        <div class="csx-yc-nums"><div><small>Needs</small><strong>${req == null ? '—' : '$' + req.toFixed(2)}</strong></div><div><small>Comps ask</small><strong>${ask == null ? '—' : '$' + ask.toFixed(2)}</strong></div><div><small>Gap</small><strong class="${gap == null ? '' : gap >= 0 ? 'ok' : 'bad'}">${gap == null ? '—' : (gap >= 0 ? '+' : '−') + Math.abs(gap).toFixed(0) + '%'}</strong></div></div>
         <div class="csx-ycbar"><i class="${gap == null ? '' : gap >= 0 ? 'ok' : 'bad'}" style="width:${fill}%"></i></div>
-        <div class="csx-ycs">${ask == null ? `No existing ${E(prod.toLowerCase())} comps in this set` : `Comps ask <b>$${ask.toFixed(2)}</b> · <b class="${gap >= 0 ? 'ok' : 'bad'}">${Math.abs(gap).toFixed(0)}% ${gap >= 0 ? 'above' : 'below'}</b> what's needed`}</div>
         ${g.length || later.length ? `<details class="csx-ychits" data-prod="${E(prod)}" ${open ? 'open' : ''}>
-          <summary><b class="${hits.length ? 'ok' : 'bad'}">${hits.length} of ${g.length}</b> existing comps hit $${req ? req.toFixed(2) : '—'}<i aria-hidden="true">▾</i></summary>
+          <summary><b class="${hits.length ? 'ok' : 'bad'}">${hits.length} of ${g.length}</b> comps hit $${req ? req.toFixed(2) : '—'}<i aria-hidden="true">▾</i></summary>
           <ul>${sorted(g).map((p) => li(p, true)).join('')}</ul>
           ${later.length ? `<div class="csx-ycl">Not yet existing, not counted</div><ul>${sorted(later).map((p) => li(p, false)).join('')}</ul>` : ''}
-        </details>` : ''}
+        </details>` : `<div class="csx-yc-none">No ${E(prod.toLowerCase())} comps in this set</div>`}
       </div>`;
     }).join('');
-    return `<div class="csx-ygrid">${cards}<div class="panel csx-ycard csx-ynote"><div class="csx-ych"><b>From the YOC matrix</b></div><div class="csx-ycs">Required rent uses the matrix's current costs, ${target} target and operating assumptions. Comps are this set's existing properties, unit-weighted.</div><button type="button" class="yx-btn csx-toyoc">Open YOC matrix →</button></div></div>`;
+    return `<section class="panel csx-sec csx-yocp"><div class="csx-sech"><div class="csx-sect"><i></i><b>YOC check</b></div><span class="csx-fresh">Rent needed for a ${target} yield on the matrix's current costs, against this set's stabilized comps (unit-weighted, asking $/SF) <button type="button" class="csx-link csx-toyoc">Open YOC matrix →</button></span></div><div class="csx-ygrid2">${cards}</div></section>`;
   }
   function addSearch() {
     return `<div class="csx-add"><div class="csx-ta"><input class="csx-in csx-add-q" placeholder="Search a property by name or address…" value=""><div class="csx-ta-list" hidden></div></div></div>`;
@@ -602,6 +624,13 @@
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const f = list.querySelector('button[data-pid]'); if (f) f.click(); } if (e.key === 'Escape') list.hidden = true; });
     input.addEventListener('blur', () => setTimeout(() => { list.hidden = true; }, 180));
   }
+
+  // sets built here that never reached the database (offline, a failed save): keep retrying until they do
+  const tried = {};
+  function saveLocalOnly() {
+    Object.values(compSets).forEach((cs) => { if (!cs.uuid && !tried[cs.id] && UI.save[cs.id] !== 'saving' && UI.save[cs.id] !== 'pending') { tried[cs.id] = true; saveNow(cs); } });
+  }
+  setTimeout(saveLocalOnly, 5000); setInterval(() => { Object.keys(tried).forEach((k) => { if (compSets[k] && !compSets[k].uuid) delete tried[k]; }); saveLocalOnly(); }, 120000);
 
   // ---------- render ----------
   function render() {

@@ -266,7 +266,7 @@
       let setId;
       if (found) {
         setId = found.id;
-        const { error } = await withSettings(row, (extra) => S('market').from('comp_sets').update({ name: row.name, description: row.description || null, ...extra }).eq('id', setId)); if (error) throw error;
+        const { error } = await withSettings(row, (extra) => S('market').from('comp_sets').update({ name: row.name, description: row.description || null, updated_at: new Date().toISOString(), updated_by: (window.WB && WB.user && WB.user.email) || undefined, ...extra }).eq('id', setId)); if (error) throw error;
         const { error: e2 } = await S('market').from('comp_set_members').delete().eq('comp_set_id', setId); if (e2) throw e2;
       } else {
         const { data, error } = await withSettings(row, (extra) => S('market').from('comp_sets').insert({ market_id: c.market, name: row.name, description: row.description || null, legacy_id: String(row.id), ...extra }).select('id').single());
