@@ -7469,8 +7469,7 @@ let csWsMap = null, csWsView = null, csWsSetId = null;
 function csWorkspaceMapHtml() {
   return `<div class="cm-map-wrap cs-map-wrap">
       <div id="cs-map"></div>
-      <div class="cm-map-key"><span><i class="k-sub"></i>Subject site</span><span><i class="k-in"></i>Comps, in rank order</span></div>
-      <div class="cs-map-note">Edit Set to add or remove comps</div>
+      <div class="cm-map-key"><span><i class="k-sub"></i>Subject site</span><span><i class="k-in ph-exist"></i>Stabilized</span><span><i class="k-in ph-lease"></i>Lease-up</span><span><i class="k-in ph-uc"></i>Under construction</span></div>
     </div>`;
 }
 function csWorkspaceToggle(pid) {
@@ -7500,12 +7499,17 @@ function drawCsWorkspaceMap(cs, props) {
   const miles = p => subj ? subj.distanceTo([p.lat, p.lng]) / 1609.34 : null;
   const tip = p => { const mi = miles(p); return `<b>${escapeHTML(p.name || '(unnamed)')}</b><br>${fmt.int(p.units)} units${p.yearBuilt ? ' · ' + p.yearBuilt : ''}${p.avgAskingSF != null ? ' · $' + (+p.avgAskingSF).toFixed(2) + '/SF asking' : ''}${mi != null ? '<br>' + mi.toFixed(1) + ' mi from ' + escapeHTML(deal.name) : ''}`; };
   const pts = [];
+  // colour by phase (the Comp Sets tab's own logic when loaded); under construction shows, proposed and stalled don't
+  const phase = p => (typeof window.wbCsPhase === 'function' ? window.wbCsPhase(p) : (p.status === 'Existing' ? 'exist' : isPlannedProposed(p) ? 'proposed' : 'uc'));
+  const extra = typeof window.wbCsMapExtras === 'function' ? window.wbCsMapExtras(cs) : [];
+  const seen = new Set(props.map(p => String(p.id)));
+  props = props.concat(extra.filter(p => !seen.has(String(p.id)))).filter(p => { const ph = phase(p); return ph !== 'proposed' && ph !== 'stalled'; });
   props.forEach((p, i) => {
     if (p.lat == null || p.lng == null) return;
     pts.push([p.lat, p.lng]);
     if (subj) L.polyline([subj, [p.lat, p.lng]], { color: '#432890', weight: 1, opacity: 0.45, dashArray: '3 4', interactive: false }).addTo(map);
     const mi = miles(p);
-    L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'cm-pin', html: `<span>${i + 1}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 500 })
+    L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'cm-pin ph-' + phase(p), html: `<span>${i + 1}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 500 })
       .bindPopup(tip(p), { className: 'cs-map-pop', closeButton: false })
       .bindTooltip(`${escapeHTML(p.name || '')}${mi != null ? ' · ' + mi.toFixed(1) + ' mi' : ''}`, { permanent: true, direction: 'right', offset: [10, 0], className: 'cs-map-label' })
       .addTo(map);

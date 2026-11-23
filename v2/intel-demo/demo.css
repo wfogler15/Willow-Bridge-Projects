@@ -1539,3 +1539,10 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-sstrip > em { font-style: normal; font: 600 11.5px var(--x-font); color: #4a4560; background: #fff; border: 1px solid #e4e1ec; border-radius: 999px; padding: 1px 8px; margin-right: 8px; }
 .csx-sstrip .csx-sum b { font-size: 14px; }
 .csx-sec-sc .csx-secline + .csx-sstrip { border-top: 0; }
+/* analysis map: pins and key coloured by phase */
+.cm-pin.ph-exist span { background: #1D1247; }
+.cm-pin.ph-lease span { background: #1f8a7a; }
+.cm-pin.ph-uc span { background: #d08a12; }
+.cm-map-key i.k-in.ph-exist { background: #1D1247 !important; }
+.cm-map-key i.k-in.ph-lease { background: #1f8a7a !important; }
+.cm-map-key i.k-in.ph-uc { background: #d08a12 !important; }

@@ -552,8 +552,8 @@
       const grp = (label, a) => (a.length ? `<tr class="csx-grp"><td colspan="12">${label} · ${a.length} · ${intC(u(a))} units</td></tr>${a.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}` : '');
       const worst = u(uc) + u(pr) + u(st);
       const line = sumLine([[intC(u(uc)), 'units under construction' + (base ? ` (${((u(uc) / base) * 100).toFixed(1)}% of ${E(bl)})` : '')], [intC(in12), 'delivering in 12 mo'], [next ? monYr(deliveryOf(next)) : '—', 'next delivery' + (next ? ` · ${E(next.name)}` : '')], [intC(worst), 'worst case with proposed + stalled' + (base ? ` (${((worst / base) * 100).toFixed(1)}%)` : '')]]) + `<span class="csx-fresh">${checked(pi)}</span>`;
-      const nEx = pipeExcl(cs).size, auto = pi.filter((p) => p._auto).length;
-      const how = `<span class="csx-fresh">${checked(pi)}${auto ? ' · ' + `${auto} pulled in from ${setSubs(ps).map(E).join(', ')}` : ''}${nEx ? ` · ${nEx} removed <button type="button" class="csx-link csx-pxreset">Show again</button>` : ''}</span>`;
+      const nEx = pipeExcl(cs).size;
+      const how = `<span class="csx-fresh">${checked(pi)} · new projects in ${setSubs(ps).map(E).join(', ')} are added automatically${nEx ? ` · ${nEx} removed <button type="button" class="csx-link csx-pxreset">Add back</button>` : ''}</span>`;
       out += `<section class="panel csx-sec csx-sec-pi">${panelHead('csx-s-pi', 'pi', 'Pipeline', uc.length + pr.length, line.replace(/<span class="csx-fresh">[\s\S]*?<\/span>$/, '') + how, null, addBtn)}${UI.addProj ? addProjForm(cs) : ''}
         ${uc.length ? `<div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${uc.sort((x, y) => (deliveryOf(x) || 0) - (deliveryOf(y) || 0)).map(prow).join('')}</tbody></table></div>` : '<div class="csx-none3">Nothing under construction in this set’s area.</div>'}
         ${pr.length ? `<details class="csx-stalled csx-prop"${UI.propOpen ? ' open' : ''}><summary>Proposed · ${pr.length} project${pr.length === 1 ? '' : 's'} · ${intC(u(pr))} units${base ? ` (${((u(pr) / base) * 100).toFixed(1)}% of inventory)` : ''} · not counted as supply <i>▾</i></summary><div class="table-scroll"><table class="csx-table csx-dense">${head}<tbody>${pr.sort((x, y) => (y.units || 0) - (x.units || 0)).map(prow).join('')}</tbody></table></div></details>` : ''}
@@ -669,6 +669,9 @@
     openSaleCompDetail(type, { customId: c.id });
   }
   window.wbCsOpenSet = () => !!(UI.open && compSets[UI.open]);
+  // for the analysis map: phase colours, and the pipeline projects this tab pulls in from the set's submarkets
+  window.wbCsPhase = (p) => { const ph = phaseOf(p); return ph === 'pipe' ? (isStalled(p) ? 'stalled' : isProposed(p) ? 'proposed' : 'uc') : ph; };
+  window.wbCsMapExtras = (cs) => { try { return cs ? autoPipe(cs, membersOf(cs)) : []; } catch (e) { return []; } };
   window.wbCsRefreshSales = () => { SC.pool = null; if (UI.open && getActiveView() === 'compsets') render(); };
   window.wbCsStartProject = (id) => {
     const x = (SC.pool || []).find((y) => y.id === id); if (!x) return;
@@ -765,7 +768,17 @@
   }
 
   // ---------- workspace ----------
+  // pipeline projects in the set's submarkets join the set automatically; removing one keeps it out
+  function syncAutoPipe(cs) {
+    const add = autoPipe(cs, membersOf(cs)).map((p) => p.id);
+    if (!add.length) return 0;
+    cs.propertyIds = [...(cs.propertyIds || []), ...add];
+    cs.settings = { ...(cs.settings || {}), pipeAdded: [...new Set([...((cs.settings && cs.settings.pipeAdded) || []), ...add.map(String)])] };
+    touch(cs); return add.length;
+  }
   function workspace(cs) {
+    const justAdded = syncAutoPipe(cs);
+    if (justAdded) setTimeout(() => { try { updateCompSetUI(); updateCompSetBanner(); renderCompSetList(); paintPill(); wbSaveNote(`Added ${justAdded} pipeline project${justAdded === 1 ? '' : 's'} from the set’s submarkets`); } catch (e) {} }, 0);
     const map = byId(), ps = membersOf(cs, map);
     const missing = (cs.propertyIds || []).length - ps.length;
     return `
@@ -980,7 +993,9 @@
       na.onclick = () => { const add = [...$$('.csx-cand input:checked')].map((c) => { const p = byId().get(c.value); return p ? p.id : c.value; }); if (!add.length) return; cs.propertyIds = [...(cs.propertyIds || []), ...add]; touch(cs); UI.add = ''; UI.near = null; refresh(); };
     }
     $$('.csx-rm:not(.csx-srm)').forEach((b) => (b.onclick = (e) => { e.stopPropagation(); const pid = b.closest('tr').dataset.pid;
-      if ((cs.propertyIds || []).some((x) => String(x) === String(pid))) { cs.propertyIds = (cs.propertyIds || []).filter((x) => String(x) !== String(pid)); touch(cs); refresh(); }
+      if ((cs.propertyIds || []).some((x) => String(x) === String(pid))) {
+        const pp = byId().get(String(pid)); if (pp && pp.status !== 'Existing') setPipeExcl(cs, [...pipeExcl(cs), String(pid)]);   // don't pull it back in
+        cs.propertyIds = (cs.propertyIds || []).filter((x) => String(x) !== String(pid)); touch(cs); refresh(); }
       else { setPipeExcl(cs, [...pipeExcl(cs), String(pid)]); render(); }   // pulled in from the area: keep it off this set
     }));
     const pxr = $('.csx-pxreset'); if (pxr) pxr.onclick = () => { setPipeExcl(cs, []); render(); };
