@@ -1158,3 +1158,52 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 #wb-save-note { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; z-index: 9999; background: #1d1247; color: #fff; font: 500 13px var(--x-font); padding: 9px 16px; border-radius: 999px; box-shadow: 0 8px 24px rgba(29,18,71,.25); transition: opacity .2s, transform .2s; }
 #wb-save-note.on { opacity: 1; transform: translate(-50%, 0); }
 #wb-save-note.bad { background: #a3332b; }
+/* Comp set sections: Existing / Lease-up / Pipeline, each row updatable by hand */
+.csx-secs { padding-top: 0; }
+.csx-sec + .csx-sec { border-top: 1px solid #ece9f3; }
+.csx-sech { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; padding: 16px 20px 8px; }
+.csx-sech b { display: block; font: 600 14px var(--x-font); color: var(--x-ink); }
+.csx-sech span { font-size: 12.5px; color: var(--x-ink-3); }
+.csx-secx { display: flex; gap: 16px; flex-wrap: wrap; }
+.csx-secx span { font-size: 12.5px; color: var(--x-ink-2, #4a4560); }
+.csx-secx b { display: inline; font-size: 12.5px; }
+.csx-table td.csx-upd-c { white-space: nowrap; }
+.csx-upd-c .csx-src { display: block; font-size: 12.5px; color: var(--x-ink); }
+.csx-upd-c small { font-size: 11.5px; color: var(--x-ink-3); }
+.csx-upd-c.old small { color: #8a5a00; }
+.csx-upd-c.old small::after { content: ' · due'; }
+.csx-table td.csx-ub { width: 84px; text-align: right; }
+.csx-updbtn { height: 30px; padding: 0 12px; font-size: 12.5px; }
+.csx-updbtn.on { border-color: var(--x-purple); color: var(--x-purple); }
+.csx-table tr.csx-open td { background: #f7f6fb; }
+.csx-table td.csx-note { white-space: normal; max-width: 260px; font-size: 12.5px; color: var(--x-ink-2, #4a4560); }
+.csx-table small { color: var(--x-ink-3); font-size: 11.5px; }
+.csx-ok { color: #2d7a4b; font-weight: 600; }
+.csx-table tr.csx-uf-row > td { background: #f7f6fb; white-space: normal; padding: 0 20px 18px; }
+.csx-uf { background: #fff; border: 1px solid #e4e1ec; border-radius: 12px; padding: 16px 18px; }
+.csx-uf-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.csx-uf-head b { font: 600 14px var(--x-font); margin-right: auto; }
+.csx-uf-head label { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--x-ink-3); }
+.csx-uf-head .csx-in { height: 32px; }
+.csx-uf-last { font-size: 12px; color: var(--x-ink-3); }
+.csx-uf-cols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 24px; }
+@media (max-width: 1100px) { .csx-uf-cols { grid-template-columns: 1fr; } }
+.csx-uf-mix { width: 100%; border-collapse: collapse; }
+.csx-uf-mix th { font: 600 11px var(--x-font); letter-spacing: .04em; text-transform: uppercase; color: var(--x-ink-3); text-align: left; padding: 0 8px 6px 0; }
+.csx-uf-mix th.num, .csx-uf-mix td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.csx-uf-mix td { padding: 4px 8px 4px 0; font-size: 13px; }
+.csx-uf-mix .csx-in { height: 32px; width: 100%; min-width: 80px; }
+.csx-uf-avg { margin-top: 8px; font-size: 12.5px; color: var(--x-ink-3); }
+.csx-uf-avg b { color: var(--x-ink); }
+.csx-uf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px 14px; align-content: start; }
+.csx-uf-grid label, .csx-uf-notes { display: flex; flex-direction: column; gap: 5px; }
+.csx-uf-grid label span, .csx-uf-notes span { font: 600 11px var(--x-font); letter-spacing: .04em; text-transform: uppercase; color: var(--x-ink-3); }
+.csx-uf-grid label em { font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 400; }
+.csx-uf-grid label small { font-size: 11.5px; color: var(--x-ink-3); }
+.csx-uf-grid .csx-in { height: 34px; width: 100%; }
+.csx-uf-fees { margin-top: 14px; }
+.csx-uf-fees summary { cursor: pointer; font: 600 12.5px var(--x-font); color: var(--x-purple); margin-bottom: 10px; }
+.csx-uf-notes { margin-top: 14px; }
+.csx-uf-notes textarea.csx-in { height: auto; padding: 8px 12px; width: 100%; resize: vertical; }
+.csx-uf .csx-bar { margin-top: 14px; }
+.csx-uf .csx-bar { padding: 0; }
