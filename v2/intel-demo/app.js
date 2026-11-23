@@ -14794,10 +14794,10 @@ function renderModal() {
   const occ = p.vacancy == null ? null : 100 - p.vacancy;
 
   const unitMixRows = [];
-  if (p.unitsStudio) unitMixRows.push(['Studio', p.unitsStudio, p.studioSF, p.studioRent, p.studioRentSF, 'unitsStudio', 'studioSF', 'studioRent', 'studioRentSF']);
-  if (p.units1Bed) unitMixRows.push(['1 Bed', p.units1Bed, p.oneSF, p.oneRent, p.oneRentSF, 'units1Bed', 'oneSF', 'oneRent', 'oneRentSF']);
-  if (p.units2Bed) unitMixRows.push(['2 Bed', p.units2Bed, p.twoSF, p.twoRent, p.twoRentSF, 'units2Bed', 'twoSF', 'twoRent', 'twoRentSF']);
-  if (p.units3Bed) unitMixRows.push(['3 Bed', p.units3Bed, p.threeSF, p.threeRent, p.threeRentSF, 'units3Bed', 'threeSF', 'threeRent', 'threeRentSF']);
+  if (p.unitsStudio || modalState.editing) unitMixRows.push(['Studio', p.unitsStudio, p.studioSF, p.studioRent, p.studioRentSF, 'unitsStudio', 'studioSF', 'studioRent', 'studioRentSF']);
+  if (p.units1Bed || modalState.editing) unitMixRows.push(['1 Bed', p.units1Bed, p.oneSF, p.oneRent, p.oneRentSF, 'units1Bed', 'oneSF', 'oneRent', 'oneRentSF']);
+  if (p.units2Bed || modalState.editing) unitMixRows.push(['2 Bed', p.units2Bed, p.twoSF, p.twoRent, p.twoRentSF, 'units2Bed', 'twoSF', 'twoRent', 'twoRentSF']);
+  if (p.units3Bed || modalState.editing) unitMixRows.push(['3 Bed', p.units3Bed, p.threeSF, p.threeRent, p.threeRentSF, 'units3Bed', 'threeSF', 'threeRent', 'threeRentSF']);
 
   const editing = modalState.editing;
   const isEdited = !!userEdits[p.id];
@@ -14885,15 +14885,16 @@ function renderModal() {
              <button class="modal-close" onclick="closeModal()">CLOSE ×</button>`}
       </div>
     </div>
-    <div class="modal-body">
-      ${editing ? '<div class="edit-notice">Edit mode · changes save to the cloud, override CoStar values throughout the dashboard, and sync to every teammate.</div>' : ''}
+    <div class="modal-body${editing ? ' editing' : ''}">
+      ${editing ? '<div class="edit-notice"><b>Editing</b> · your changes replace CoStar\'s figures for everyone on the team. Leave a field as it is to keep CoStar\'s.</div>' : ''}
 
       ${editing ? `
-      <div class="detail-section-title" style="margin-top:4px;">Property Vitals</div>
+      <div class="detail-section-title" style="margin-top:4px;">Property</div>
       <div class="detail-grid">
         ${cell('Units', p.units, fmt.int, 'units', 'number')}
-        ${cell('Avg Unit SF', p.avgUnitSF, fmt.int, 'avgUnitSF', 'number')}
-        ${cell('Year Built', p.yearBuilt, v => p.monthBuilt && !editing ? fmt.monthYear(p.monthBuilt, v) : (v||'—'), 'yearBuilt', 'number')}
+        <div class="detail-cell"><div class="detail-label">Avg Unit Size (SF)</div><div class="edit-calc" data-calc="sf">${p.avgUnitSF ? fmt.int(p.avgUnitSF) : '—'}</div><div class="edit-hint">From the unit mix</div></div>
+        ${cell('Stories', p.stories, v => v || '—', 'stories', 'number')}
+        ${cell('Year Delivered', p.yearBuilt, v => p.monthBuilt && !editing ? fmt.monthYear(p.monthBuilt, v) : (v||'—'), 'yearBuilt', 'number')}
         ${editing ? (() => {
           // Month Built — only surfaced in edit mode. Stores as numeric 1-12.
           // Reads from p.monthBuilt which may be numeric, 3-letter, or full name.
@@ -14916,21 +14917,20 @@ function renderModal() {
             .join('');
           return `
             <div class="detail-cell">
-              <div class="detail-label">Month Built</div>
+              <div class="detail-label">Month Delivered</div>
               <select class="edit-input" data-field="monthBuilt">${opts}</select>
             </div>
           `;
         })() : ''}
         ${editing ? `
           <div class="detail-cell">
-            <div class="detail-label">Day Built <span style="font-weight:400;color:var(--ink-4);">· optional</span></div>
+            <div class="detail-label">Day Delivered <span class="edit-opt">optional</span></div>
             <input class="edit-input" data-field="dayBuilt" type="number" min="1" max="31" step="1"
                    value="${p.dayBuilt != null && p.dayBuilt !== '' ? escapeHTML(String(p.dayBuilt)) : ''}"
                    placeholder="—">
-            <div style="font-family:'Inter Tight',sans-serif;font-size:12px;color:var(--ink-4);margin-top:3px;letter-spacing:0.03em;">Set for to-the-day absorption tracking</div>
+            <div class="edit-hint">For to-the-day lease-up tracking</div>
           </div>
         ` : ''}
-        ${cell('Stories', p.stories, v => v || '—', 'stories', 'number')}
       </div>
 
       ${editing ? `
@@ -14953,7 +14953,7 @@ function renderModal() {
                   <option value="Planned" ${cur === 'Planned' ? 'selected' : ''}>Proposed</option>
                   <option value="Delivered">Delivered (now existing)</option>
                 </select>
-                <div style="font-family:'Inter Tight',sans-serif;font-size:12px;color:var(--ink-4);margin-top:3px;letter-spacing:0.03em;">Delivered makes it existing; set Year/Month Built to the delivery month</div>
+                <div class="edit-hint">Delivered makes it existing; set the month delivered</div>
               </div>
             `;
           })() : ''}
@@ -14962,23 +14962,30 @@ function renderModal() {
         </div>
       ` : ''}
 
-      <div class="detail-section-title">Rents · Asking · Effective</div>
+      <div class="detail-section-title">Rents <span class="edit-opt">calculated from the unit mix and concessions</span></div>
       <div class="detail-grid">
-        ${cell('Asking / Unit', p.avgAskingUnit, fmt.money, 'avgAskingUnit', 'number')}
-        ${cell('Asking / SF', p.avgAskingSF, fmt.money2, 'avgAskingSF', 'number')}
-        ${cell('Effective / Unit', p.avgEffectiveUnit, fmt.money, 'avgEffectiveUnit', 'number')}
-        ${cell('Effective / SF', p.avgEffectiveSF, fmt.money2, 'avgEffectiveSF', 'number')}
+        <div class="detail-cell"><div class="detail-label">Asking / SF</div><div class="edit-calc" data-calc="askSF">${fmt.money2(p.avgAskingSF)}</div></div>
+        <div class="detail-cell"><div class="detail-label">Asking / Month</div><div class="edit-calc" data-calc="ask">${fmt.money(p.avgAskingUnit)}</div></div>
+        <div class="detail-cell"><div class="detail-label">Effective / SF</div><div class="edit-calc" data-calc="effSF">${fmt.money2(p.avgEffectiveSF)}</div></div>
+        <div class="detail-cell"><div class="detail-label">Effective / Month</div><div class="edit-calc" data-calc="eff">${fmt.money(p.avgEffectiveUnit)}</div></div>
       </div>
 
-      <div class="detail-section-title">Operations</div>
+      <div class="detail-section-title">Occupancy · Concessions</div>
       <div class="detail-grid">
-        ${cell('Vacancy %', p.vacancy, fmt.pct, 'vacancy', 'number')}
         <div class="detail-cell">
           <div class="detail-label">Occupancy %</div>
-          <div class="detail-value">${fmt.pct(occ)}</div>
+          <input class="edit-input" type="number" step="any" data-field="vacancy" data-invert="100" value="${occ == null ? '' : +occ.toFixed(1)}">
         </div>
-        ${cell('Concessions %', p.concessions, fmt.pct, 'concessions', 'number')}
-        ${cell('Pre-Leasing %', p.preLeasing, fmt.pct, 'preLeasing', 'number')}
+        ${(() => {
+          // weeks free is the team's checked figure (same one the comp sets use); it beats CoStar's % everywhere
+          const fe = wbNum(getFees(p.id).weeksFree), cw = p.concessions == null ? null : p.concessions / 100 * 52;
+          return `<div class="detail-cell">
+            <div class="detail-label">Concessions · weeks free</div>
+            <input class="edit-input" type="number" step="0.5" min="0" data-weeks="1" value="${fe == null ? '' : fe}" placeholder="${cw == null ? '' : cw.toFixed(1)}">
+            <div class="edit-hint">${cw == null ? 'CoStar has no figure' : `Blank uses CoStar's ${cw.toFixed(1)} wks`}</div>
+          </div>`;
+        })()}
+        ${cell('Pre-Leasing %', p.preLeasing == null ? null : +(+p.preLeasing).toFixed(1), fmt.pct, 'preLeasing', 'number')}
       </div>
       ` : (() => {
         // At a glance (view mode): rent per SF leads, monthly underneath; concessions in weeks free, not %
@@ -14988,7 +14995,7 @@ function renderModal() {
         const g = (k, v, unit, sub) => `<div class="pcg-c"><div class="pcg-k">${k}</div><div class="pcg-v">${v}${unit ? `<i>${unit}</i>` : ''}</div><div class="pcg-s">${sub || '&nbsp;'}</div></div>`;
         return `<div class="pcg">
           ${g('Units', p.units != null ? fmt.int(p.units) : '—', '', p.stories ? p.stories + ' stories' : '')}
-          ${g('Year Built', built, '', p.preLeasing != null && p.status !== 'Existing' ? fmt.pct(p.preLeasing) + ' pre-leased' : '')}
+          ${g(p.status === 'Existing' ? 'Delivered' : 'Delivery', built, '', p.preLeasing != null && p.status !== 'Existing' ? fmt.pct(p.preLeasing) + ' pre-leased' : (p.status !== 'Existing' ? 'expected' : ''))}
           ${g('Occupancy', occ != null ? occ.toFixed(1) + '%' : '—', '', p.vacancy != null ? p.vacancy.toFixed(1) + '% vacant' : '')}
           ${g('Avg Unit Size', p.avgUnitSF ? fmt.int(p.avgUnitSF) : '—', p.avgUnitSF ? ' SF' : '', '')}
           ${g('Asking', p.avgAskingSF != null ? '$' + p.avgAskingSF.toFixed(2) : '—', p.avgAskingSF != null ? '/SF' : '', mo(p.avgAskingUnit))}
@@ -14997,12 +15004,46 @@ function renderModal() {
         </div>`;
       })()}
 
+      ${unitMixRows.length ? `
+        <div class="detail-section-title">Unit Mix · Rent Detail</div>
+        ${editing ? '<div class="edit-hint" style="margin:-2px 0 8px">Enter rents and sizes here. The property’s average unit size and rents are calculated from this table when you save.</div>' : ''}
+        <table class="unit-mix-table">
+          <thead><tr><th style="text-align:left;">Type</th><th class="num">Units</th><th class="num">Avg SF</th><th class="num">Rent / Unit</th><th class="num">Rent / SF</th></tr></thead>
+          <tbody>
+            ${unitMixRows.map(r => editing ? `
+              <tr>
+                <td>${r[0]}</td>
+                <td class="num"><input class="edit-input edit-input-sm" type="number" data-mix="${r[0]}" data-k="u" data-field="${r[5]}" value="${r[1]==null?'':r[1]}"></td>
+                <td class="num"><input class="edit-input edit-input-sm" type="number" data-mix="${r[0]}" data-k="sf" data-field="${r[6]}" value="${r[2]==null?'':r[2]}"></td>
+                <td class="num"><input class="edit-input edit-input-sm" type="number" data-mix="${r[0]}" data-k="rent" data-field="${r[7]}" value="${r[3]==null?'':r[3]}"></td>
+                <td class="num mx-psf" data-psf="${r[0]}">${fmt.money2(r[2] && r[3] ? r[3] / r[2] : r[4])}</td>
+              </tr>
+            ` : `
+              <tr><td>${r[0]}</td><td class="num">${fmt.int(r[1])}</td><td class="num">${fmt.int(r[2])}</td><td class="num">${fmt.money(r[3])}</td><td class="num">${fmt.money2(r[4])}</td></tr>
+            `).join('')}
+          </tbody>
+          ${!editing && unitMixRows.length > 1 ? (() => {
+            // total row: units summed; size and rents weighted by units (rows missing a figure are left out of that average)
+            let u = 0, su = 0, sfw = 0, ru = 0, rw = 0, pu = 0, pr = 0, ps = 0;
+            unitMixRows.forEach(r => {
+              const n = +r[1] || 0; if (!n) return; u += n;
+              if (+r[2]) { su += n; sfw += n * r[2]; }
+              if (+r[3]) { ru += n; rw += n * r[3]; }
+              if (+r[2] && +r[3]) { pr += n * r[3]; ps += n * r[2]; }
+            });
+            if (!u) return '';
+            return `<tfoot><tr><td>Total</td><td class="num">${fmt.int(u)}</td><td class="num">${su ? fmt.int(sfw / su) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru) : '—'}</td><td class="num">${ps ? fmt.money2(pr / ps) : '—'}</td></tr></tfoot>`;
+          })() : ''}
+        </table>
+      ` : ''}
+
       ${(() => {
         // Lease-Up Performance section — only renders when the property was
         // delivered within the last 12 months. Uses the same math as the
         // Lease-Up table on the Absorption tab. Velocity assumption comes from
         // state.leaseVelocity (default 25 leases/mo) which is toggleable on
         // the Absorption tab — changing it there flows through to this modal.
+        if (editing) return '';
         const delivered = monthYearToDate(p.monthBuilt, p.yearBuilt);
         if (!delivered) return '';
         const cutoff = new Date(TODAY); cutoff.setMonth(cutoff.getMonth() - 12);
@@ -15044,35 +15085,97 @@ function renderModal() {
               : `~${((fwd - NOW) / 86400000 / 30.44).toFixed(1)} months from today`;
           }
         }
-        const sub = t => `<div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-4);margin-top:3px;letter-spacing:0.04em;">${t}</div>`;
+        // same stat row as the top of the card, plus one bar: leased (CoStar), projected to today, the 95% line
+        const g = (k, v, unit, sub2) => `<div class="pcg-c"><div class="pcg-k">${k}</div><div class="pcg-v">${v}${unit ? `<i>${unit}</i>` : ''}</div><div class="pcg-s">${sub2 || '&nbsp;'}</div></div>`;
+        const pctL = Math.max(0, Math.min(100, occ)), pctN = Math.max(pctL, Math.min(100, occNow));
         return `
           <div class="detail-section-title">Lease-Up Performance</div>
-          <div class="detail-grid">
-            <div class="detail-cell">
-              <div class="detail-label">Leased · ${asOf}</div>
-              <div class="detail-value">${fmt.int(leasedUnits)} <span style="font-size:13px;color:var(--ink-3);">of ${fmt.int(p.units)}</span></div>
-              ${sub(`${monthsOpen} months after delivery`)}
-            </div>
-            <div class="detail-cell">
-              <div class="detail-label">Avg Leases / Month</div>
-              <div class="detail-value">${leasesPerMo.toFixed(1)}</div>
-              ${sub(`${mo(delivered)} – ${asOf}`)}
-            </div>
-            <div class="detail-cell">
-              <div class="detail-label">${freshEntry ? 'Leased Today' : 'Leased Today (Proj.)'}</div>
-              <div class="detail-value">${occNow >= 95 ? '95%+' : occNow.toFixed(0) + '%'}</div>
-              ${sub(freshEntry ? `${Math.round(monthsBetween(delivered, NOW))} months open · as entered ${AS.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : `${Math.round(monthsBetween(delivered, NOW))} months open · ${gapMo.toFixed(0)} mo projected`)}
-            </div>
-            <div class="detail-cell">
-              <div class="detail-label">Est. Stabilization</div>
-              <div class="detail-value" style="font-size:18px;">${stabLabel}</div>
-              ${sub(stabSubLabel)}
-            </div>
+          <div class="pcg pcg4">
+            ${g('Leased · ' + asOf, fmt.int(leasedUnits), ` of ${fmt.int(p.units)}`, `${occ.toFixed(1)}% · ${monthsOpen} mo after delivery`)}
+            ${g('Pace', leasesPerMo.toFixed(1), ' leases/mo', `${mo(delivered)} – ${asOf}`)}
+            ${g(freshEntry ? 'Leased today' : 'Leased today (proj.)', occNow >= 95 ? '95%+' : occNow.toFixed(0) + '%', '', freshEntry ? 'as entered' : `${gapMo.toFixed(0)} mo projected`)}
+            ${g('Stabilization', stabLabel, '', stabSubLabel)}
           </div>
-          <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-4);margin-top:-2px;letter-spacing:0.04em;font-style:italic;padding:0 4px;">
-            ${handEntered ? `Vacancy entered by hand on ${asOf}; leased units and pace are measured to that date${freshEntry ? ', shown as entered (no projection) for its first month' : ', projected forward since it is over a month old'}.` : `Leased units and pace are CoStar actuals as of ${asOf}.`} Today and stabilization project forward at ${methodLbl} to 95% — change on the Absorption tab.
+          <div class="lu-bar" role="img" aria-label="${occ.toFixed(0)}% leased, ${occNow.toFixed(0)}% projected today, stabilized at 95%">
+            <span class="lu-fill" style="width:${pctL}%"></span>
+            <span class="lu-proj" style="left:${pctL}%;width:${pctN - pctL}%"></span>
+            <span class="lu-tgt" style="left:95%"><em>95%</em></span>
           </div>
+          <div class="lu-note">${handEntered ? `Hand-entered ${asOf}` : `CoStar as of ${asOf}`} · projected at ${methodLbl} to 95% (set on the Absorption tab)</div>
         `;
+      })()}
+
+      <div class="detail-section-title">Ownership · Operations</div>
+      <div class="detail-grid">
+        ${wideCell('Owner', p.owner, 'owner')}
+        ${wideCell('Developer', p.developer, 'developer')}
+        ${wideCell('Property Manager', p.propertyManager, 'propertyManager')}
+        ${wideCell('Architect', p.architect, 'architect')}
+        <div class="detail-cell" style="grid-column:span 2;">
+          <div class="detail-label">Last Sale</div>
+          <div class="detail-value" style="font-size:13px;">${escapeHTML(p.lastSaleDate ? p.lastSaleDate.split(' ')[0] : '—')}</div>
+        </div>
+        <div style="grid-column:span 2;display:grid;">${cell('Last Sale Price', p.lastSalePrice, fmt.money, 'lastSalePrice', 'number')}</div>
+        <div class="detail-cell" style="grid-column:span 2;">
+          <div class="detail-label">Market</div>
+          <div class="detail-value" style="font-size:13px;">${escapeHTML(p.market || '—')}</div>
+        </div>
+        <div class="detail-cell" style="grid-column:span 2;">
+          <div class="detail-label">Submarket</div>
+          <div class="detail-value" style="font-size:13px;">${escapeHTML(p.submarket || '—')}</div>
+        </div>
+      </div>
+
+      ${editing ? '' : (() => {
+        // RealPage section — show submarket forecast + this property's own
+        // monthly history (if RP covers it). Falls back gracefully when no RP
+        // data is available for the submarket or property.
+        const wbSm = p.submarket;
+        const fc = wbSm ? getRpForecastForWbSubmarket(wbSm) : null;
+        const rp = getRpForCostarProp(p.id);
+        if (!fc && !rp) return '';
+
+        const blendLabel = wbSm ? getRpBlendInfo(wbSm) : null;
+        let html = '<div class="detail-section-title">RealPage · Submarket Forecast</div>';
+
+        if (fc) {
+          // Build a forecast summary row anchored at CURRENT_YEAR (the
+          // present anchor used everywhere on the Trends tab) with horizon
+          // out to 2030. The four cells show: current (anchor), 1-year-back
+          // historical for trailing context, 2030 (long horizon), and the
+          // forward CAGR from CURRENT_YEAR to 2030.
+          const vCurrent = fc[CURRENT_YEAR] ? fc[CURRENT_YEAR].eR : null;
+          const vLastYear = fc[CURRENT_YEAR - 1] ? fc[CURRENT_YEAR - 1].eR : null;
+          const v2030 = fc[2030] ? fc[2030].eR : null;
+          const horizonYears = 2030 - CURRENT_YEAR;
+          const cagrFwd = (vCurrent && v2030 && vCurrent > 0 && horizonYears > 0)
+            ? Math.pow(v2030 / vCurrent, 1 / horizonYears) - 1 : null;
+          const fcSubText = blendLabel
+            ? `Forecast blended from <strong>${escapeHTML(blendLabel)}</strong>`
+            : 'RealPage submarket forecast';
+          html += `<div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">${fcSubText}</div>`;
+          html += '<div class="detail-grid" style="margin-bottom:14px;">';
+          html += `<div class="detail-cell"><div class="detail-label">${CURRENT_YEAR - 1} Actual</div><div class="detail-value">${vLastYear ? '$' + Math.round(vLastYear).toLocaleString() : '—'}</div></div>`;
+          html += `<div class="detail-cell"><div class="detail-label">${CURRENT_YEAR} Current</div><div class="detail-value">${vCurrent ? '$' + Math.round(vCurrent).toLocaleString() : '—'}</div></div>`;
+          html += `<div class="detail-cell"><div class="detail-label">2030 Forecast</div><div class="detail-value">${v2030 ? '$' + Math.round(v2030).toLocaleString() : '—'}</div></div>`;
+          html += `<div class="detail-cell"><div class="detail-label">Forecast ${horizonYears}Y CAGR</div><div class="detail-value" style="color:${cagrFwd == null ? '' : (cagrFwd >= 0 ? '#4a7a5a' : '#9c4a3a')};">${cagrFwd == null ? '—' : (cagrFwd >= 0 ? '+' : '') + (cagrFwd * 100).toFixed(1) + '%'}</div></div>`;
+          html += '</div>';
+
+          // Mini line chart — effective rent 2020 → 2030
+          html += '<div style="position:relative;height:200px;margin-bottom:8px;"><canvas id="modal-rp-forecast-chart"></canvas></div>';
+          html += '<div style="font-family:\'Inter Tight\',sans-serif;font-size:12px;color:var(--ink-4);letter-spacing:0.12em;text-transform:uppercase;text-align:right;">Solid: Through Current · Dashed: RealPage Forecast</div>';
+        }
+
+        if (rp) {
+          html += '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">';
+          html += '<div style="font-family:\'Inter Tight\',sans-serif;font-size:12.5px;color:var(--accent-text);letter-spacing:0.11em;text-transform:uppercase;font-weight:600;margin-bottom:10px;">Property · Monthly History</div>';
+          html += '<div style="font-family:\'Inter Tight\',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:10px;line-height:1.5;">RealPage matched this property to its tracking history. Showing monthly effective rent since 2015.</div>';
+          html += '<div style="position:relative;height:200px;"><canvas id="modal-rp-property-chart"></canvas></div>';
+          html += `<div style="margin-top:8px;text-align:right;"><a href="#" id="modal-rp-deep-link" style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--accent-text);letter-spacing:0.12em;text-transform:uppercase;font-weight:600;text-decoration:none;">Open in Trends Tab →</a></div>`;
+          html += '</div>';
+        }
+
+        return html;
       })()}
 
       ${(() => {
@@ -15212,111 +15315,6 @@ function renderModal() {
         `;
       })()}
 
-      ${editing ? '' : (() => {
-        // RealPage section — show submarket forecast + this property's own
-        // monthly history (if RP covers it). Falls back gracefully when no RP
-        // data is available for the submarket or property.
-        const wbSm = p.submarket;
-        const fc = wbSm ? getRpForecastForWbSubmarket(wbSm) : null;
-        const rp = getRpForCostarProp(p.id);
-        if (!fc && !rp) return '';
-
-        const blendLabel = wbSm ? getRpBlendInfo(wbSm) : null;
-        let html = '<div class="detail-section-title">RealPage · Submarket Forecast</div>';
-
-        if (fc) {
-          // Build a forecast summary row anchored at CURRENT_YEAR (the
-          // present anchor used everywhere on the Trends tab) with horizon
-          // out to 2030. The four cells show: current (anchor), 1-year-back
-          // historical for trailing context, 2030 (long horizon), and the
-          // forward CAGR from CURRENT_YEAR to 2030.
-          const vCurrent = fc[CURRENT_YEAR] ? fc[CURRENT_YEAR].eR : null;
-          const vLastYear = fc[CURRENT_YEAR - 1] ? fc[CURRENT_YEAR - 1].eR : null;
-          const v2030 = fc[2030] ? fc[2030].eR : null;
-          const horizonYears = 2030 - CURRENT_YEAR;
-          const cagrFwd = (vCurrent && v2030 && vCurrent > 0 && horizonYears > 0)
-            ? Math.pow(v2030 / vCurrent, 1 / horizonYears) - 1 : null;
-          const fcSubText = blendLabel
-            ? `Forecast blended from <strong>${escapeHTML(blendLabel)}</strong>`
-            : 'RealPage submarket forecast';
-          html += `<div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">${fcSubText}</div>`;
-          html += '<div class="detail-grid" style="margin-bottom:14px;">';
-          html += `<div class="detail-cell"><div class="detail-label">${CURRENT_YEAR - 1} Actual</div><div class="detail-value">${vLastYear ? '$' + Math.round(vLastYear).toLocaleString() : '—'}</div></div>`;
-          html += `<div class="detail-cell"><div class="detail-label">${CURRENT_YEAR} Current</div><div class="detail-value">${vCurrent ? '$' + Math.round(vCurrent).toLocaleString() : '—'}</div></div>`;
-          html += `<div class="detail-cell"><div class="detail-label">2030 Forecast</div><div class="detail-value">${v2030 ? '$' + Math.round(v2030).toLocaleString() : '—'}</div></div>`;
-          html += `<div class="detail-cell"><div class="detail-label">Forecast ${horizonYears}Y CAGR</div><div class="detail-value" style="color:${cagrFwd == null ? '' : (cagrFwd >= 0 ? '#4a7a5a' : '#9c4a3a')};">${cagrFwd == null ? '—' : (cagrFwd >= 0 ? '+' : '') + (cagrFwd * 100).toFixed(1) + '%'}</div></div>`;
-          html += '</div>';
-
-          // Mini line chart — effective rent 2020 → 2030
-          html += '<div style="position:relative;height:200px;margin-bottom:8px;"><canvas id="modal-rp-forecast-chart"></canvas></div>';
-          html += '<div style="font-family:\'Inter Tight\',sans-serif;font-size:12px;color:var(--ink-4);letter-spacing:0.12em;text-transform:uppercase;text-align:right;">Solid: Through Current · Dashed: RealPage Forecast</div>';
-        }
-
-        if (rp) {
-          html += '<div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">';
-          html += '<div style="font-family:\'Inter Tight\',sans-serif;font-size:12.5px;color:var(--accent-text);letter-spacing:0.11em;text-transform:uppercase;font-weight:600;margin-bottom:10px;">Property · Monthly History</div>';
-          html += '<div style="font-family:\'Inter Tight\',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:10px;line-height:1.5;">RealPage matched this property to its tracking history. Showing monthly effective rent since 2015.</div>';
-          html += '<div style="position:relative;height:200px;"><canvas id="modal-rp-property-chart"></canvas></div>';
-          html += `<div style="margin-top:8px;text-align:right;"><a href="#" id="modal-rp-deep-link" style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--accent-text);letter-spacing:0.12em;text-transform:uppercase;font-weight:600;text-decoration:none;">Open in Trends Tab →</a></div>`;
-          html += '</div>';
-        }
-
-        return html;
-      })()}
-
-      ${unitMixRows.length ? `
-        <div class="detail-section-title">Unit Mix · Rent Detail</div>
-        <table class="unit-mix-table">
-          <thead><tr><th style="text-align:left;">Type</th><th class="num">Units</th><th class="num">Avg SF</th><th class="num">Rent / Unit</th><th class="num">Rent / SF</th></tr></thead>
-          <tbody>
-            ${unitMixRows.map(r => editing ? `
-              <tr>
-                <td>${r[0]}</td>
-                <td class="num"><input class="edit-input edit-input-sm" type="number" data-field="${r[5]}" value="${r[1]==null?'':r[1]}"></td>
-                <td class="num"><input class="edit-input edit-input-sm" type="number" data-field="${r[6]}" value="${r[2]==null?'':r[2]}"></td>
-                <td class="num"><input class="edit-input edit-input-sm" type="number" data-field="${r[7]}" value="${r[3]==null?'':r[3]}"></td>
-                <td class="num"><input class="edit-input edit-input-sm" type="number" data-field="${r[8]}" value="${r[4]==null?'':r[4]}" step="0.01"></td>
-              </tr>
-            ` : `
-              <tr><td>${r[0]}</td><td class="num">${fmt.int(r[1])}</td><td class="num">${fmt.int(r[2])}</td><td class="num">${fmt.money(r[3])}</td><td class="num">${fmt.money2(r[4])}</td></tr>
-            `).join('')}
-          </tbody>
-          ${!editing && unitMixRows.length > 1 ? (() => {
-            // total row: units summed; size and rents weighted by units (rows missing a figure are left out of that average)
-            let u = 0, su = 0, sfw = 0, ru = 0, rw = 0, pu = 0, pr = 0, ps = 0;
-            unitMixRows.forEach(r => {
-              const n = +r[1] || 0; if (!n) return; u += n;
-              if (+r[2]) { su += n; sfw += n * r[2]; }
-              if (+r[3]) { ru += n; rw += n * r[3]; }
-              if (+r[2] && +r[3]) { pr += n * r[3]; ps += n * r[2]; }
-            });
-            if (!u) return '';
-            return `<tfoot><tr><td>Total</td><td class="num">${fmt.int(u)}</td><td class="num">${su ? fmt.int(sfw / su) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru) : '—'}</td><td class="num">${ps ? fmt.money2(pr / ps) : '—'}</td></tr></tfoot>`;
-          })() : ''}
-        </table>
-      ` : ''}
-
-      <div class="detail-section-title">Ownership · Operations</div>
-      <div class="detail-grid">
-        ${wideCell('Owner', p.owner, 'owner')}
-        ${wideCell('Developer', p.developer, 'developer')}
-        ${wideCell('Property Manager', p.propertyManager, 'propertyManager')}
-        ${wideCell('Architect', p.architect, 'architect')}
-        <div class="detail-cell" style="grid-column:span 2;">
-          <div class="detail-label">Last Sale</div>
-          <div class="detail-value" style="font-size:13px;">${escapeHTML(p.lastSaleDate ? p.lastSaleDate.split(' ')[0] : '—')}</div>
-        </div>
-        <div style="grid-column:span 2;display:grid;">${cell('Last Sale Price', p.lastSalePrice, fmt.money, 'lastSalePrice', 'number')}</div>
-        <div class="detail-cell" style="grid-column:span 2;">
-          <div class="detail-label">Market</div>
-          <div class="detail-value" style="font-size:13px;">${escapeHTML(p.market || '—')}</div>
-        </div>
-        <div class="detail-cell" style="grid-column:span 2;">
-          <div class="detail-label">Submarket</div>
-          <div class="detail-value" style="font-size:13px;">${escapeHTML(p.submarket || '—')}</div>
-        </div>
-      </div>
-
       ${editing ? '' : wbHistorySection(p)}
 
       ${editing ? '' : buildSaleCompsSection(p)}
@@ -15330,6 +15328,7 @@ function renderModal() {
     </div>
   `;
 
+  if (editing) { wbMixWire(p); }
   // Initialize the embedded property location map (only in view mode)
   if (!editing) {
     setTimeout(() => initPropertyModalMap(p), 100);
@@ -15668,6 +15667,47 @@ async function initPropertyModalMap(p) {
   setTimeout(() => map.invalidateSize(), 50);
 }
 
+// ---- Unit mix drives the summary figures (Nov 23): rents and unit size are entered per unit type only ----
+const WB_MIX = [
+  ['Studio', 'unitsStudio', 'studioSF', 'studioRent', 'studioRentSF'],
+  ['1 Bed', 'units1Bed', 'oneSF', 'oneRent', 'oneRentSF'],
+  ['2 Bed', 'units2Bed', 'twoSF', 'twoRent', 'twoRentSF'],
+  ['3 Bed', 'units3Bed', 'threeSF', 'threeRent', 'threeRentSF'],
+];
+// rows: [{u, sf, rent}] → unit-weighted averages; weeks free turns asking into effective
+function wbMixSummary(rows, weeks) {
+  let su = 0, sfw = 0, ru = 0, rw = 0, pr = 0, ps = 0;
+  rows.forEach(r => {
+    const n = +r.u || 0; if (!n) return;
+    if (+r.sf) { su += n; sfw += n * r.sf; }
+    if (+r.rent) { ru += n; rw += n * r.rent; }
+    if (+r.sf && +r.rent) { pr += n * r.rent; ps += n * r.sf; }
+  });
+  const sf = su ? sfw / su : null, ask = ru ? rw / ru : null, askSF = ps ? pr / ps : null;
+  const k = weeks == null ? 1 : Math.max(0, 1 - weeks / 52);
+  return { sf, ask, askSF, eff: ask == null ? null : ask * k, effSF: askSF == null ? null : askSF * k };
+}
+function wbMixWire(p) {
+  const root = document.getElementById('modal-content'); if (!root) return;
+  const calc = () => {
+    const rows = WB_MIX.map(([lbl]) => {
+      const v = (k) => { const el = root.querySelector(`[data-mix="${lbl}"][data-k="${k}"]`); return el && el.value !== '' ? +el.value : null; };
+      const r = { u: v('u'), sf: v('sf'), rent: v('rent') };
+      const cell = root.querySelector(`[data-psf="${lbl}"]`);
+      if (cell) cell.textContent = r.sf && r.rent ? fmt.money2(r.rent / r.sf) : '—';
+      return r;
+    });
+    const wk = root.querySelector('[data-weeks]');
+    const weeks = wk ? (wk.value !== '' ? +wk.value : (wk.placeholder !== '' ? +wk.placeholder : null)) : null;
+    const m = wbMixSummary(rows, weeks);
+    if (!rows.some(r => r.u && (r.sf || r.rent))) return;   // no mix entered: keep showing the current figures
+    const put = (k, t) => { const el = root.querySelector(`[data-calc="${k}"]`); if (el) el.textContent = t; };
+    put('sf', m.sf ? fmt.int(m.sf) : '—'); put('ask', fmt.money(m.ask)); put('askSF', fmt.money2(m.askSF));
+    put('eff', fmt.money(m.eff)); put('effSF', fmt.money2(m.effSF));
+  };
+  root.querySelectorAll('[data-mix],[data-weeks]').forEach(el => el.addEventListener('input', calc));
+}
+
 function saveModalEdits() {
   const pid = modalState.pid;
   const raw = RAW_DATA.find(x => String(x.id) === String(pid));
@@ -15688,7 +15728,24 @@ function saveModalEdits() {
   const edits = userEdits[pid] || {};
   let changed = false;
 
+  // concessions in weeks free: stored with the comp-set fee record, not as a CoStar override
+  const wkIn = document.querySelector('#modal-content [data-weeks]');
+  let weeksChanged = false;
+  if (wkIn) {
+    const pidS = String(pid), cur = wbNum((compFees[pidS] || {}).weeksFree), nv = wkIn.value === '' ? null : wbNum(wkIn.value);
+    if (nv !== cur) {
+      weeksChanged = true;
+      if (!compFees[pidS]) compFees[pidS] = {};
+      if (nv == null) delete compFees[pidS].weeksFree; else compFees[pidS].weeksFree = nv;
+      if (!Object.keys(compFees[pidS]).filter(k => k.charAt(0) !== '_').length) delete compFees[pidS];
+      else wbStampMeta(compFees[pidS], ['weeksFree'], 'Property card');
+      saveCompFees();
+      wbDirectSave('fees', (d) => d.saveFees(pidS, compFees[pidS] || {}));
+    }
+  }
+
   inputs.forEach(inp => {
+    if (inp.dataset.weeks) return;
     const field = inp.dataset.field;
     const isNumber = inp.type === 'number';
     const isSelect = inp.tagName === 'SELECT';
@@ -15697,6 +15754,8 @@ function saveModalEdits() {
     else if (isNumber) {
       const n = parseFloat(val);
       val = isNaN(n) ? null : n;
+      // shown as occupancy, stored as vacancy
+      if (val != null && inp.dataset.invert) val = +(+inp.dataset.invert - val).toFixed(4);
     }
     // For a SELECT clearing to empty: treat as "revert override" rather than
     // "override to null" — there's no UX reason to explicitly null out a
@@ -15730,6 +15789,8 @@ function saveModalEdits() {
     }
     // If different from what the user was looking at, save as override.
     // If identical, drop any prior override (revert to default).
+    // figures shown rounded (occupancy, pre-leasing) count as unchanged when they still round to the same number
+    if ((field === 'vacancy' || field === 'preLeasing') && typeof val === 'number' && typeof baseline === 'number' && Math.abs(val - baseline) < 0.051 && !edits.hasOwnProperty(field)) return;
     if (val !== baseline && !(val == null && baseline == null)) {
       if (edits[field] !== val) wbStampMeta(edits, [field], 'Property card');
       edits[field] = val;
@@ -15739,6 +15800,32 @@ function saveModalEdits() {
       changed = true;
     }
   });
+  // Summary figures follow the unit mix: when the mix (or weeks free) changed, recalculate size and rents from it
+  if (document.querySelector('#modal-content [data-mix]')) {
+    const merged = Object.assign({}, raw, edits);
+    const rowsOf = (o) => WB_MIX.map(([, u, sf, rent]) => ({ u: o[u], sf: o[sf], rent: o[rent] }));
+    const mixChanged = JSON.stringify(rowsOf(displayed)) !== JSON.stringify(rowsOf(merged));
+    if (mixChanged || weeksChanged) {
+      const fe = wbNum((compFees[String(pid)] || {}).weeksFree);
+      const weeks = fe != null ? fe : (merged.concessions != null ? merged.concessions / 100 * 52 : null);
+      const m = wbMixSummary(rowsOf(merged), weeks);
+      const setD = (field, v, dp) => {
+        if (v == null || !isFinite(v)) return;
+        v = +v.toFixed(dp);
+        const base = raw[field];
+        if (base != null && Math.abs(+base - v) < Math.pow(10, -dp) / 2 + 1e-9) { if (edits.hasOwnProperty(field)) { delete edits[field]; changed = true; } return; }
+        if (edits[field] !== v) { wbStampMeta(edits, [field], 'Unit mix'); edits[field] = v; changed = true; }
+      };
+      const k = weeks == null ? 1 : Math.max(0, 1 - weeks / 52);
+      if (mixChanged) {
+        WB_MIX.forEach(([, , sf, rent, psf]) => { if (+merged[sf] && +merged[rent]) setD(psf, merged[rent] / merged[sf], 2); });
+        setD('avgUnitSF', m.sf, 0); setD('avgAskingUnit', m.ask, 0); setD('avgAskingSF', m.askSF, 2);
+      }
+      const ask = mixChanged && m.ask != null ? m.ask : merged.avgAskingUnit, askSF = mixChanged && m.askSF != null ? m.askSF : merged.avgAskingSF;
+      if (ask != null) setD('avgEffectiveUnit', ask * k, 0);
+      if (askSF != null) setD('avgEffectiveSF', askSF * k, 2);
+    }
+  }
   // Delivered before CoStar caught up: the building becomes existing (leasing from its Year/Month Built)
   if (edits.pipelineStage === 'Delivered') {
     edits.pipelineStage = 'UC'; edits.status = 'Existing';

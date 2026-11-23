@@ -1703,3 +1703,44 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 
 /* unit mix: total row */
 #modal-content .unit-mix-table tfoot td { font-weight: 600; color: var(--x-ink); border-top: 1px solid var(--x-ink); border-bottom: 0; }
+
+/* ---- Property card, Nov 23: one stat-row style for the top figures and lease-up; calmer edit form ---- */
+#modal-content .pcg { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0 22px; border: 0 !important; border-bottom: 1px solid var(--x-line) !important; border-radius: 0; padding: 18px 0 18px; margin: 0 0 4px; overflow: visible; }
+#modal-content .pcg.pcg4 { grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--x-line) !important; padding: 16px 0 14px; margin: 0; }
+#modal-content .pcg-c { border: 0 !important; padding: 0 !important; gap: 4px; }
+#modal-content .pcg-k { font: 500 11px/1.2 var(--x-font); letter-spacing: .05em; text-transform: uppercase; color: var(--x-ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#modal-content .pcg-v { font: 600 22px/1.15 var(--x-font); letter-spacing: -.01em; color: var(--x-ink); }
+#modal-content .pcg-v i { font-size: 13px; font-weight: 500; color: var(--x-ink-3); margin-left: 2px; }
+#modal-content .pcg-s { font-size: 12px; color: var(--x-ink-3); }
+@media (max-width: 900px) { #modal-content .pcg { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 18px; } }
+
+/* lease-up bar: leased (solid), projected to today (light), 95% stabilized line */
+#modal-content .lu-bar { position: relative; height: 8px; border-radius: 999px; background: #EEEDF2; margin: 14px 0 22px; }
+#modal-content .lu-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: #432890; }
+#modal-content .lu-proj { position: absolute; top: 0; bottom: 0; border-radius: 0 999px 999px 0; background: repeating-linear-gradient(90deg, rgba(67,40,144,.35) 0 4px, rgba(67,40,144,.15) 4px 8px); }
+#modal-content .lu-tgt { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--x-ink); border-radius: 1px; }
+#modal-content .lu-tgt em { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); font: 500 11px/1 var(--x-font); font-style: normal; color: var(--x-ink-3); white-space: nowrap; }
+#modal-content .lu-note { font-size: 12px; color: var(--x-ink-3); margin: 0 0 8px; }
+
+/* edit mode: plain form, no row lines, quiet notice */
+#modal-content .edit-notice { background: transparent; border: 0; border-left: 3px solid #432890; border-radius: 0; padding: 2px 0 2px 12px; margin: 0 0 18px; font-size: 13px; color: var(--x-ink-2); }
+#modal-content .edit-notice b { color: var(--x-ink); font-weight: 600; }
+#modal-content .modal-body.editing .detail-section-title { margin-top: 22px; }
+#modal-content .modal-body.editing .detail-grid { border: 0 !important; gap: 14px 20px !important; padding: 10px 0 4px; }
+#modal-content .modal-body.editing .detail-cell { border: 0 !important; padding: 0 !important; }
+#modal-content .modal-body.editing .detail-label { font: 500 12px/1.2 var(--x-font); color: var(--x-ink-2); letter-spacing: 0; text-transform: none; margin-bottom: 6px; }
+#modal-content .edit-input, #modal-content .detail-cell .edit-input { box-sizing: border-box; width: 100%; height: 38px; padding: 0 12px; background: #fff; border: 1px solid #D9D6E3; border-radius: 8px; font: 500 14px/1 var(--x-font); color: var(--x-ink); transition: border-color .15s, box-shadow .15s; }
+#modal-content select.edit-input { padding-right: 8px; }
+#modal-content .edit-input:hover { border-color: #BDB8CC; }
+#modal-content .edit-input:focus { outline: none; border-color: #432890; box-shadow: 0 0 0 3px rgba(67,40,144,.14); }
+#modal-content .edit-input::placeholder { color: #A9A4B8; }
+#modal-content .edit-input-sm { height: 32px; font-size: 13px; padding: 0 8px; text-align: right; }
+#modal-content .edit-hint { font-size: 12px; color: var(--x-ink-3); margin-top: 5px; }
+#modal-content .edit-opt { font-weight: 400; color: var(--x-ink-3); margin-left: 4px; }
+/* the name field sits in the dark header */
+#modal-content .modal-header .edit-input-large { height: auto; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.28); color: #fff; font: 600 22px/1.2 var(--x-font); padding: 6px 10px; border-radius: 8px; }
+#modal-content .modal-header .edit-input-large:focus { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.18); }
+#modal-content .pcg.pcg4 { border-bottom: 0 !important; padding-bottom: 4px; }
+/* calculated figures in the edit form: read-only, shown like values, not inputs */
+#modal-content .edit-calc { height: 38px; display: flex; align-items: center; font: 600 15px/1 var(--x-font); color: var(--x-ink); font-variant-numeric: tabular-nums; }
+#modal-content .unit-mix-table td.mx-psf { color: var(--x-ink-2); font-variant-numeric: tabular-nums; }
