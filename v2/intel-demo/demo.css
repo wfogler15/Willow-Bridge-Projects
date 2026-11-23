@@ -1605,3 +1605,25 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-ychits li { grid-template-columns: minmax(0, 1fr) 62px auto 44px; }
 .csx-ychits li .csx-yct { margin-left: 0; text-align: right; white-space: nowrap; }
 .csx-ychits li .csx-ycp { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+/* header + tabs in one card; the card sticks with only the tab row showing */
+#view-compsets .csx > .panel.csx-headp { position: sticky; z-index: 30; margin-bottom: 18px !important; border-radius: 14px !important; border: 1px solid #e6e3ee !important; box-shadow: 0 1px 2px rgba(29,18,71,.04) !important; overflow: visible; }
+#view-compsets .csx-headp .csx-nav { position: static; margin: 0; border: 0; border-top: 1px solid #efedf4; border-radius: 0 0 14px 14px; box-shadow: none; padding: 0 12px; background: #fff; }
+#view-compsets .csx-headp .csx-slim { padding-bottom: 16px !important; }
+/* flair: sliding tab underline, sections rising in on first open, gentle hovers */
+#view-compsets .csx-nav { position: relative; }
+#view-compsets .csx-headp .csx-nav a { border-bottom-color: transparent !important; transition: color .2s ease; }
+#view-compsets .csx-headp .csx-nav a.on { color: var(--x-purple); }
+.csx-navbar { position: absolute; left: 0; bottom: 0; height: 2.5px; border-radius: 2px 2px 0 0; background: linear-gradient(90deg, #432890, #7a5ce0); opacity: 0; transition: transform .35s cubic-bezier(.2,.8,.2,1), width .35s cubic-bezier(.2,.8,.2,1), opacity .2s; pointer-events: none; }
+@keyframes csxRise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.csx-anim > .panel, .csx-anim > section, .csx-anim > #csx-s-yoc, .csx-anim > #csx-intel-slot { animation: csxRise .55s cubic-bezier(.2,.8,.2,1) both; }
+.csx-anim > :nth-child(2) { animation-delay: .04s; } .csx-anim > :nth-child(3) { animation-delay: .10s; } .csx-anim > :nth-child(4) { animation-delay: .16s; }
+.csx-anim > :nth-child(5) { animation-delay: .22s; } .csx-anim > :nth-child(6) { animation-delay: .28s; } .csx-anim > :nth-child(7) { animation-delay: .34s; } .csx-anim > :nth-child(n+8) { animation-delay: .40s; }
+#csx-hero .kpi { transition: transform .2s ease; }
+#csx-hero .kpi:hover { transform: translateY(-2px); }
+.csx-dense tbody tr[data-pid] td { transition: background-color .15s ease; }
+.csx-yc .csx-ycbar i, .csx-bar1 i { transition: width .7s cubic-bezier(.2,.8,.2,1); }
+.csx-tl-bar { transform-origin: left center; }
+.csx-anim .csx-tl-bar { animation: csxGrow .8s cubic-bezier(.2,.8,.2,1) .25s both; }
+@keyframes csxGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .csx-anim > *, .csx-anim .csx-tl-bar { animation: none !important; } .csx-navbar { transition: none; } }
+.csx-pre > .panel, .csx-pre > section, .csx-pre > #csx-s-yoc, .csx-pre > #csx-intel-slot { opacity: 0; }

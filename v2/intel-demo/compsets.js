@@ -821,8 +821,8 @@
         ${UI.add === 'near' ? addNear(cs, map) : UI.add === 'map' ? '<div class="csx-hint csx-maphint">Click any property on the map below to add it; click a comp to remove it. <button type="button" class="csx-tomap">Go to map ↓</button></div>' : ''}
         ${ps.length ? '' : (UI.add ? '' : '<div class="csx-empty sm"><b>No properties yet</b><span>Search above, add the properties near a site, or pick them on the map.</span></div>')}
         ${missing > 0 ? `<div class="csx-hint warn">${missing} propert${missing === 1 ? 'y' : 'ies'} in this set ${missing === 1 ? 'isn’t' : 'aren’t'} in the current data (removed or filtered out by a data load).</div>` : ''}
+      ${ps.length ? `<nav class="csx-nav" aria-label="Sections"><a href="#csx-s-ex">Rent comps</a><a href="#csx-s-lu">Lease-up outlook</a><a href="#csx-s-pi">Pipeline</a><a href="#csx-intel-slot">Analysis</a><a href="#csx-s-yoc">YOC check</a><a href="#csx-s-sm">Submarket</a><a href="#csx-s-sc">Sale comps</a><i class="csx-navbar" aria-hidden="true"></i></nav>` : ''}
       </div>
-      ${ps.length ? `<nav class="csx-nav" aria-label="Sections"><a href="#csx-s-ex">Rent comps</a><a href="#csx-s-lu">Lease-up outlook</a><a href="#csx-s-pi">Pipeline</a><a href="#csx-intel-slot">Analysis</a><a href="#csx-s-yoc">YOC check</a><a href="#csx-s-sm">Submarket</a><a href="#csx-s-sc">Sale comps</a></nav>` : ''}
       ${ps.length ? sections(cs, ps) : ''}
       <div id="csx-intel-slot"></div>
       <div id="csx-s-yoc">${yocCheck(ps)}</div>
@@ -946,7 +946,7 @@
     if (UI.open && !compSets[UI.open]) UI.open = null;
     const cs = UI.open && compSets[UI.open];
     view.innerHTML = `<div class="csx">${cs ? workspace(cs) : library()}</div>`;
-    wire(cs); heroKpis(cs);
+    wire(cs); heroKpis(cs); enterAnim(cs);
     // the set's analysis (map, snapshot, fees, concessions, unit mix, positioning, sales, underwriting) lives under the workspace
     let intel = document.getElementById('cs-intel'); const slot = document.getElementById('csx-intel-slot');
     if (!intel && slot) { intel = document.createElement('div'); intel.id = 'cs-intel'; }   // the Demo's Index rebuild dropped the original container
@@ -1023,10 +1023,14 @@
     const vs = $('.csx-vel'); if (vs) vs.onchange = () => { cs.settings = { ...(cs.settings || {}), vel: +vs.value }; touch(cs); render(); };
     const sd = $('.csx-stl'); if (sd) sd.ontoggle = () => { UI.stalledOpen = sd.open; };
     const prd = $('.csx-prop'); if (prd) prd.ontoggle = () => { UI.propOpen = prd.open; };
+    const pinHead = () => { const h = view.querySelector('.csx-headp'), n = h && h.querySelector('.csx-nav'); if (!h || !n) return; h.style.top = (56 - (h.offsetHeight - n.offsetHeight)) + 'px'; };
+    pinHead(); requestAnimationFrame(pinHead);
+    if (!window.__csxPinRz) { window.__csxPinRz = true; window.addEventListener('resize', () => { const h = document.querySelector('#view-compsets .csx-headp'), n = h && h.querySelector('.csx-nav'); if (h && n) h.style.top = (56 - (h.offsetHeight - n.offsetHeight)) + 'px'; }); }
     if (!window.__csxNavSpy) { window.__csxNavSpy = true; let raf = 0; window.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => {
       const links = [...document.querySelectorAll('#view-compsets .csx-nav a')]; if (!links.length) return; let cur = links[0];
       links.forEach((l) => { const t = document.getElementById(l.getAttribute('href').slice(1)); if (t && t.getBoundingClientRect().top < 160) cur = l; });
-      links.forEach((l) => l.classList.toggle('on', l === cur)); }); }, { passive: true }); }
+      links.forEach((l) => l.classList.toggle('on', l === cur)); moveBar(cur); }); }, { passive: true }); }
+    moveBar(view.querySelector('.csx-nav a.on') || view.querySelector('.csx-nav a'));
     $$('.csx-nav a').forEach((a) => (a.onclick = (e) => { const t = document.getElementById(a.getAttribute('href').slice(1)); if (!t) return; e.preventDefault(); window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 110, behavior: 'smooth' }); }));
     const ap = $('.csx-addproj'); if (ap) ap.onclick = () => { UI.addProj = !UI.addProj; render(); const f = $('.csx-ap [data-f=name]'); if (f) f.focus(); };
     const apb = $('.csx-ap'); if (apb) { apb.querySelector('.csx-ap-x').onclick = () => { UI.addProj = false; UI.apPrefill = null; render(); }; apb.querySelector('.csx-ap-save').onclick = () => saveProject(apb, cs); wirePin(apb, null); }
@@ -1077,6 +1081,34 @@
         ll.onchange = () => { const m = ll.value.match(/(-?\d+(?:\.\d+)?)\s*[, ]\s*(-?\d+(?:\.\d+)?)/); if (m) { mk.setLatLng([+m[1], +m[2]]); map.setView([+m[1], +m[2]]); } };
         el._map = map; setTimeout(() => map.invalidateSize(), 50);
       };
+  }
+  function moveBar(a) {
+    const bar = document.querySelector('#view-compsets .csx-navbar'); if (!bar || !a) return;
+    const nav = a.parentElement; bar.style.width = a.offsetWidth - 16 + 'px'; bar.style.transform = `translateX(${a.offsetLeft - nav.scrollLeft + 8}px)`; bar.style.opacity = 1;
+  }
+  // first open of a set: sections rise in and the header figures count up (once, not on every edit)
+  let animatedFor = null, animTimer = null;
+  function countUp() {
+    document.querySelectorAll('#csx-hero .kpi-value').forEach((el) => {
+      const n = el.firstChild; if (!n || n.nodeType !== 3) return;
+      const m = n.textContent.match(/^([^0-9\-]*)(-?[0-9][0-9,]*\.?[0-9]*)(.*)$/); if (!m) return;
+      const target = parseFloat(m[2].replace(/,/g, '')), dec = (m[2].split('.')[1] || '').length, t0 = performance.now(), dur = 700;
+      const step = (t) => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3), v = target * e;
+        n.textContent = m[1] + (dec ? v.toFixed(dec) : Math.round(v).toLocaleString()) + m[3]; if (k < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+  }
+  function enterAnim(cs) {
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!cs || reduce) { animatedFor = cs ? cs.id : null; return; }
+    if (animatedFor === cs.id && !animTimer) return;
+    animatedFor = cs.id;
+    const root = view.querySelector('.csx'); if (root) root.classList.add('csx-pre');   // hidden until the opening renders settle
+    clearTimeout(animTimer);
+    animTimer = setTimeout(() => {
+      animTimer = null; const r = view.querySelector('.csx'); if (!r) return;
+      r.classList.remove('csx-pre'); r.classList.add('csx-anim'); setTimeout(() => r.classList.remove('csx-anim'), 1400); countUp();
+    }, 90);
   }
   // membership changed: the whole dashboard is scoped to this set, so re-render it and this view
   function refresh() { try { updateCompSetUI(); updateCompSetBanner(); renderCompSetList(); } catch (e) {} try { renderAll(); } catch (e) { console.error('[csx]', e); } render(); paintPill(); }
