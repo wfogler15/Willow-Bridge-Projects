@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231323">
+<link rel="stylesheet" href="shared/wb.css?v=202611231325">
 <style>
   .page{max-width:1240px}
   /* ---------- top row: regions + settings ---------- */
@@ -36,7 +36,7 @@
   .hc-leg{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px}
   .hc-leg span{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#E7E2F8}
   .hc-leg i{width:14px;height:3px;border-radius:2px;display:inline-block}
-  .hc-tip{position:absolute;pointer-events:none;background:#fff;color:#1D1247;border-radius:10px;padding:10px 12px;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);min-width:170px;opacity:0;transition:opacity .12s;z-index:3}
+  .hc-tip{position:absolute;top:0;left:0;pointer-events:none;background:#fff;color:#1D1247;border-radius:10px;padding:10px 12px;font-size:12.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);min-width:170px;opacity:0;transition:opacity .12s;z-index:3}
   .hc-tip b{display:block;font:600 13px var(--font-display);margin-bottom:6px}
   .hc-tip div{display:flex;justify-content:space-between;gap:14px;line-height:1.7;font-variant-numeric:tabular-nums}
   .hc-tip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
@@ -148,8 +148,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231323"></script>
-<script src="access.js?v=202611231323"></script>
+<script src="shared/wb.js?v=202611231325"></script>
+<script src="access.js?v=202611231325"></script>
 </head>
 <body>
 <main class="page">
@@ -340,8 +340,10 @@
       guide.setAttribute('x1', X(y)); guide.setAttribute('x2', X(y)); guide.setAttribute('opacity', 1);
       tip.innerHTML = `<b>${y}${y > NOW_Y ? ' · forecast' : y === NOW_Y ? ' · this year' : ''}</b>` + ms.map((m, i) => ({ m, i, v: val(m, y) })).sort((a, b) => (b.v ?? -9) - (a.v ?? -9))
         .map(({ m, i, v }) => `<div><span><i style="background:${LINE[i % LINE.length]}"></i>${esc(name(m))}</span><span>${fmt(v)}</span></div>`).join('');
-      const px = X(y) / W * r.width, left = px > r.width - 200 ? px - 190 : px + 14;
-      tip.style.left = left + 'px'; tip.style.top = (svg.offsetTop + 6) + 'px'; tip.style.opacity = 1;
+      // place the card beside the hover line, near the top of the plot (an SVG has no offsetTop, so measure against the chart box)
+      const box = tip.parentElement.getBoundingClientRect(), px = r.left - box.left + X(y) / W * r.width, tw = tip.offsetWidth || 180;
+      tip.style.left = (px + 14 + tw > box.width ? px - tw - 14 : px + 14) + 'px';
+      tip.style.top = (r.top - box.top + 8) + 'px'; tip.style.opacity = 1;
     };
     hit.onmouseleave = () => { tip.style.opacity = 0; guide.setAttribute('opacity', 0); };
   }
