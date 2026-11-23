@@ -3,154 +3,272 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>All markets · Market Intel Demo · Willow Bridge</title>
+<title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231140">
+<link rel="stylesheet" href="shared/wb.css?v=202611231149">
 <style>
-  .page{max-width:1280px}
-  .hm-hero{background:#1D1247;color:#fff;border-radius:14px;padding:30px 34px 28px;margin:6px 0 22px;position:relative;overflow:hidden}
-  .hm-hero::after{content:"";position:absolute;right:-60px;top:-90px;width:340px;height:340px;border-radius:50%;background:radial-gradient(circle,rgba(129,104,214,.45),rgba(29,18,71,0) 70%);pointer-events:none}
-  .hm-eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#C9BFF0;margin-bottom:8px}
-  .hm-hero h1{font:600 30px/1.15 var(--font-display);margin:0 0 6px;color:#fff}
-  .hm-hero p{font-size:15px;margin:0;color:#E7E2F8}
-  .hm-tot{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-top:24px;border-top:1px solid rgba(255,255,255,.16);position:relative;z-index:1}
-  .hm-tot>div{padding:16px 18px 0 0}
-  .hm-tot>div+div{padding-left:18px;border-left:1px solid rgba(255,255,255,.16)}
-  .hm-tot .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#C9BFF0}
-  .hm-tot .v{font:600 26px/1.2 var(--font-display);color:#fff;font-variant-numeric:tabular-nums;margin-top:4px}
-  .hm-tot .s{font-size:12.5px;color:#C9BFF0;margin-top:2px}
-  .hm-h2{font:600 11px/1 var(--font-display);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:6px 0 12px}
-  .hm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:16px;margin-bottom:30px;align-items:start}
-  .hm-card{display:block;background:#fff;border:1px solid rgb(232,230,238);border-radius:10px;box-shadow:rgba(29,18,71,.03) 0 1px 2px;padding:20px 22px 16px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s,transform .15s}
-  .hm-card:hover{border-color:#C9BFF0;box-shadow:rgba(29,18,71,.08) 0 4px 14px;transform:translateY(-1px)}
-  .hm-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-  .hm-name{font:600 20px/1.2 var(--font-display);color:var(--ink)}
-  .hm-st{font-size:13px;color:var(--muted);margin-top:2px}
-  .hm-tags{display:flex;gap:6px;flex-shrink:0}
-  .hm-tag{font-size:11.5px;padding:3px 8px;border-radius:999px;background:#F3F1FA;color:#432890;white-space:nowrap}
-  .hm-tag.ro{background:#F4F4F2;color:var(--muted)}
-  .hm-figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:16px 0 4px;border-top:1px solid rgb(232,230,238)}
-  .hm-f{padding:12px 12px 12px 0}
-  .hm-f:nth-child(3n+2),.hm-f:nth-child(3n){padding-left:12px;border-left:1px solid rgb(232,230,238)}
-  .hm-f:nth-child(n+4){border-top:1px solid rgb(232,230,238)}
-  .hm-f .k{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-  .hm-f .v{font:600 20px/1.25 var(--font-display);color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:3px}
-  .hm-f .v i{font-style:normal;font-size:12.5px;font-weight:500;color:var(--muted)}
-  .hm-f .s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
-  .hm-go{display:flex;justify-content:flex-end;font-size:13px;font-weight:600;color:#432890;padding-top:8px;border-top:1px solid rgb(232,230,238)}
-  .hm-card.off{cursor:default}
-  .hm-card.off:hover{border-color:rgb(232,230,238);box-shadow:rgba(29,18,71,.03) 0 1px 2px;transform:none}
-  .hm-wait{color:var(--muted);font-size:14px;padding:30px 0}
-  .hm-sets{background:#fff;border:1px solid rgb(232,230,238);border-radius:10px;box-shadow:rgba(29,18,71,.03) 0 1px 2px;margin-bottom:40px;overflow:hidden}
-  .hm-sets a{display:grid;grid-template-columns:minmax(0,2.4fr) 1fr .7fr 1.4fr;gap:12px;align-items:center;padding:12px 20px;text-decoration:none;color:var(--ink);font-size:14px;border-top:1px solid rgb(232,230,238)}
-  .hm-sets a:first-child{border-top:0}
-  .hm-sets a:hover{background:#FAF9FD}
-  .hm-sets .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .hm-sets .mu{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hm-sets .r{text-align:right}
-  @media (max-width:760px){.hm-tot{grid-template-columns:repeat(2,minmax(0,1fr))}.hm-tot>div:nth-child(3){border-left:0;padding-left:0}.hm-sets a{grid-template-columns:1fr auto}.hm-sets a .hx{display:none}}
+  .page{max-width:1240px}
+  /* ---------- region switch ---------- */
+  .rg-bar{display:flex;align-items:center;gap:4px;margin:4px 0 14px;overflow-x:auto;scrollbar-width:none}
+  .rg-bar::-webkit-scrollbar{display:none}
+  .rg-bar button{all:unset;cursor:pointer;white-space:nowrap;font:500 14px/1 var(--font-display);color:var(--muted);padding:9px 14px;border-radius:999px;transition:background .15s,color .15s}
+  .rg-bar button:hover{color:var(--ink);background:#F3F2F8}
+  .rg-bar button.on{background:#1D1247;color:#fff}
+  .rg-bar button .n{font-size:12px;opacity:.6;margin-left:6px}
+  /* ---------- hero ---------- */
+  .hm-hero{background:#1D1247;color:#fff;border-radius:16px;padding:34px 36px 30px;position:relative;overflow:hidden;margin-bottom:34px}
+  .hm-hero::after{content:"";position:absolute;right:-80px;top:-120px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(129,104,214,.42),rgba(29,18,71,0) 70%);pointer-events:none}
+  .hm-eyebrow{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:#C9BFF0}
+  .hm-hero h1{font:600 34px/1.1 var(--font-display);margin:10px 0 8px;color:#fff;letter-spacing:-.01em}
+  .hm-hero .lead{font-size:15px;color:#DCD6F3;margin:0;max-width:760px}
+  .hm-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0 28px;margin-top:30px;position:relative;z-index:1}
+  .hm-kpi .k{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:#B9AEE6}
+  .hm-kpi .v{font:600 30px/1.15 var(--font-display);color:#fff;font-variant-numeric:tabular-nums;margin-top:8px;white-space:nowrap}
+  .hm-kpi .v i{font-style:normal;font-size:15px;font-weight:500;color:#C9BFF0;margin-left:3px}
+  .hm-kpi .s{font-size:13px;color:#B9AEE6;margin-top:4px;white-space:nowrap}
+  /* ---------- markets list ---------- */
+  .ml-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:8px;padding:0 18px}
+  .ml-head h2{font:600 20px/1.2 var(--font-display);color:var(--ink);margin:0}
+  .ml-head h2 span{font-weight:500;color:var(--faint);margin-left:8px;font-size:16px}
+  .ml-find{font:14px var(--font-display);border:1px solid #E6E4EC;border-radius:999px;padding:8px 14px 8px 34px;width:220px;color:var(--ink);outline:none;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%239C97AE' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='7' cy='7' r='4.5'/%3E%3Cpath d='M10.5 10.5 14 14'/%3E%3C/svg%3E") no-repeat 12px center/15px}
+  .ml-find:focus{border-color:#C9BFF0;box-shadow:0 0 0 3px rgba(67,40,144,.08)}
+  .ml{--cols:minmax(200px,1.7fr) minmax(104px,.9fr) minmax(92px,.75fr) minmax(82px,.7fr) minmax(116px,.9fr) minmax(190px,1.35fr) minmax(64px,.45fr) 18px}
+  .ml-cols,.ml-row{display:grid;grid-template-columns:var(--cols);gap:0 20px;align-items:center;padding:0 18px}
+  .ml-cols{padding-top:10px;padding-bottom:10px}
+  .ml-cols button{all:unset;cursor:pointer;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);white-space:nowrap}
+  .ml-cols button:hover,.ml-cols button.on{color:var(--ink-2)}
+  .ml-cols button.on::after{content:" ↓";letter-spacing:0}
+  .ml-cols button.on.asc::after{content:" ↑"}
+  .ml-cols .r,.ml-row .r{text-align:right;justify-self:end}
+  .ml-row{min-height:78px;border-top:1px solid #EFEEF3;text-decoration:none;color:var(--ink);border-radius:12px;transition:background .15s}
+  a.ml-row:hover{background:#F7F6FB;border-top-color:transparent}
+  a.ml-row:hover+.ml-row{border-top-color:transparent}
+  .ml-nm{font:600 17px/1.25 var(--font-display);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ml-sub{font-size:13px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ml-ro{display:inline-block;font:500 11px/1 var(--font-display);color:var(--muted);background:#F1F0F4;border-radius:999px;padding:4px 7px;margin-left:8px;vertical-align:3px}
+  .ml-v{font:600 17px/1.2 var(--font-display);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .ml-v i{font-style:normal;font-weight:500;font-size:12.5px;color:var(--muted);margin-left:2px}
+  .ml-s{font-size:12.5px;color:var(--muted);margin-top:3px;white-space:nowrap;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+  .ml-uc{display:flex;align-items:center;gap:12px}
+  .ml-uc .bar{flex:1;height:6px;border-radius:999px;background:#EFEEF3;overflow:hidden;min-width:48px}
+  .ml-uc .bar b{display:block;height:100%;border-radius:999px;background:#8168D6;transform-origin:left;animation:grow .7s cubic-bezier(.2,.8,.2,1) both}
+  .ml-uc .pct{font:600 17px/1 var(--font-display);font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
+  .ml-go{color:#C9C5D6;font-size:20px;line-height:1;transition:transform .15s,color .15s;justify-self:end}
+  a.ml-row:hover .ml-go{color:#432890;transform:translateX(3px)}
+  .ml-row.off .ml-nm{color:var(--muted)}
+  .ml-row.off .ml-wait{grid-column:2 / -1;font-size:13.5px;color:var(--faint)}
+  /* region groups (All regions view) */
+  .rg-h{display:flex;align-items:baseline;gap:14px;margin:34px 0 4px;padding:0 18px}
+  .rg-h.first{margin-top:6px}
+  .rg-h h3{font:600 13px/1 var(--font-display);letter-spacing:.08em;text-transform:uppercase;color:var(--ink);margin:0}
+  .rg-h span{font-size:13px;color:var(--muted)}
+  .rg-h button{all:unset;cursor:pointer;margin-left:auto;font-size:13px;font-weight:600;color:#432890}
+  .rg-h button:hover{text-decoration:underline}
+  .ml-none{padding:40px 18px;color:var(--muted);font-size:14px;border-top:1px solid #EFEEF3}
+  .hm-foot{margin:28px 0 50px;padding:0 18px;font-size:12.5px;color:var(--faint);line-height:1.6;max-width:820px}
+  .hm-wait{color:var(--muted);font-size:14px;padding:40px 18px}
+  @keyframes grow{from{transform:scaleX(0)}}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}}
+  .ml-row{animation:rise .45s cubic-bezier(.2,.8,.2,1) both}
+  @media (prefers-reduced-motion:reduce){.ml-row,.ml-uc .bar b{animation:none}}
+  @media (max-width:1100px){
+    .hm-kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 24px}
+    .ml{--cols:minmax(170px,1.6fr) minmax(96px,.9fr) minmax(84px,.75fr) minmax(104px,.9fr) minmax(150px,1.2fr) 18px}
+    .ml .c-conc,.ml .c-sets{display:none}
+  }
+  @media (max-width:720px){
+    .hm-hero{padding:26px 22px}
+    .hm-hero h1{font-size:28px}
+    .hm-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .ml-cols{display:none}
+    .ml{--cols:1fr 1fr 18px}
+    .ml-row{padding:14px 14px;row-gap:10px}
+    .ml-row>.c-nm{grid-column:1 / 3}
+    .ml-row>.ml-go{grid-column:3;grid-row:1}
+    .ml-row>.c-ex,.ml-row>.c-uc{display:none}
+    .ml-find{width:150px}
+  }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231140"></script>
+<script src="shared/wb.js?v=202611231149"></script>
 </head>
 <body>
 <main class="page">
-  <section class="hm-hero">
+  <nav class="rg-bar" id="rg-bar" hidden></nav>
+  <section class="hm-hero" id="hm-hero">
     <div class="hm-eyebrow">Willow Bridge Market Intel</div>
-    <h1 id="hm-hello">All markets</h1>
-    <p id="hm-lead">A quick read on every market you cover. Pick one to open it.</p>
-    <div class="hm-tot" id="hm-tot"></div>
+    <h1>Markets</h1>
+    <p class="lead">Loading…</p>
   </section>
-  <div class="hm-h2">Markets</div>
-  <div class="hm-grid" id="hm-grid"><div class="hm-wait">Loading your markets…</div></div>
-  <div id="hm-sets-wrap" hidden>
-    <div class="hm-h2">Recently updated comp sets</div>
-    <div class="hm-sets" id="hm-sets"></div>
-  </div>
+  <section class="ml" id="ml"><div class="hm-wait">Loading your markets…</div></section>
+  <p class="hm-foot">Same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Concessions are weeks free on a 12-month lease. Under construction counts active construction only (proposed projects are left out) and is shown as a share of existing units.</p>
 </main>
 <script>
 (async function () {
   const { sb, user } = await WB.ready('intel', { marketMode: 'single', present: true, brand: 'Willow Bridge Market Intel · Demo' });
   const S = (s) => sb.schema(s);
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const pl = (n, w) => int(n) + ' ' + w + (Math.round(n) === 1 ? '' : 's');
   const int = (n) => n == null ? '—' : Math.round(n).toLocaleString();
+  const num = (v) => { const n = typeof v === 'string' ? parseFloat(v) : v; return n == null || n === '' || isNaN(n) ? null : n; };
+  const slug = (r) => String(r).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const store = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} } };
+  const rows = (p) => Promise.resolve(p).then((r) => (r && r.data) || [], () => []);
+
+  // ---------- who can see what ----------
   const me = String((user && user.email) || '').toLowerCase();
-  const parts = me.split('@')[0].split(/[._-]/).filter(Boolean), first = parts.length > 1 ? parts[0] : '';   // jane.doe → Jane; jpaton → no name
-  const hr = new Date().getHours();
-  document.getElementById('hm-hello').textContent = `Good ${hr < 12 ? 'morning' : hr < 17 ? 'afternoon' : 'evening'}${first.length > 1 ? ', ' + first[0].toUpperCase() + first.slice(1) : ''}`;
-
-  // which markets this person can open, and where they can edit
   const acc = (WB.access || []).filter((a) => !a.email || String(a.email).toLowerCase() === me);
-  const all = acc.some((a) => a.market_id === '*');
-  const role = (id) => acc.some((a) => a.role !== 'view' && (a.market_id === id || (a.market_id === '*' && a.role === 'admin'))) ? 'edit' : 'view';
+  const seesAll = acc.some((a) => a.market_id === '*');
+  const canEdit = (id) => acc.some((a) => a.role !== 'view' && (a.market_id === id || (a.market_id === '*' && a.role === 'admin')));
 
-  const { data: mk } = await S('core').from('markets').select('id,label,config').order('id');
-  const markets = (mk || []).filter((m) => m.config && m.config.active === true && (all || acc.some((a) => a.market_id === m.id)));
-  if (markets.length === 1) { location.replace('./?market=' + encodeURIComponent(markets[0].id)); return; }
-  const ids = markets.map((m) => m.id);
+  const mk = await rows(S('core').from('markets').select('id,label,config').order('id'));
+  // live markets, plus any set up with a region that aren't live yet (shown as "not live yet", so the rollout is visible)
+  const markets = mk.filter((m) => m.config && (m.config.active === true || m.config.region) && (seesAll || acc.some((a) => a.market_id === m.id)));
+  const live = markets.filter((m) => m.config.active === true);
+  if (live.length === 1 && markets.length === 1) { location.replace('./?market=' + encodeURIComponent(live[0].id)); return; }
+  const OTHER = 'Other markets';
+  const regionOf = (m) => (m.config && m.config.region) || OTHER;
+  const name = (m) => (m.label || m.id).split(',')[0];
+  const STATES = { AZ: 'Arizona', CO: 'Colorado', UT: 'Utah', TX: 'Texas', FL: 'Florida', GA: 'Georgia', NC: 'North Carolina', SC: 'South Carolina', TN: 'Tennessee', VA: 'Virginia', MD: 'Maryland', DC: 'District of Columbia', NV: 'Nevada', OR: 'Oregon', WA: 'Washington', CA: 'California', ID: 'Idaho', NM: 'New Mexico', AL: 'Alabama' };
+  const stateOf = (m) => { const s = (m.config && m.config.state) || ((m.label || '').split(',')[1] || '').trim(); return STATES[String(s).toUpperCase()] || s; };
 
-  const num = (v) => { const n = typeof v === 'string' ? parseFloat(v) : v; return n == null || isNaN(n) ? null : n; };
-  const [props, logs, sets, members] = await Promise.all([
-    WB.fetchAll('core', 'properties', 'market_id,status,units,ask:attrs->avgAskingSF,askU:attrs->avgAskingUnit,vac:attrs->vacancy,conc:attrs->concessions', (q) => q.in('market_id', ids).neq('kind', 'land').order('id')).catch(() => []),
-    Promise.resolve(S('public').from('refresh_log').select('market,period,period_sort,created_at').order('period_sort', { ascending: false })).then((r) => (r && r.data) || [], () => []),
-    Promise.resolve(S('market').from('comp_sets').select('id,market_id,name,updated_at,updated_by').in('market_id', ids).order('updated_at', { ascending: false })).then((r) => (r && r.data) || [], () => []),
-    WB.fetchAll('market', 'comp_set_members', 'comp_set_id,property_id', (q) => q.order('comp_set_id').order('property_id')).catch(() => []),
+  // ---------- figures: the same records and rules the dashboard uses ----------
+  const ids = live.map((m) => m.id);
+  const [props, edits, logs, sets] = await Promise.all([
+    ids.length ? WB.fetchAll('core', 'properties', 'id,market_id,status,units,stage:attrs->>pipelineStage,avgAskingSF:attrs->avgAskingSF,avgAskingUnit:attrs->avgAskingUnit,vacancy:attrs->vacancy,concessions:attrs->concessions',
+      (q) => q.in('market_id', ids).neq('kind', 'land').order('id')).catch(() => []) : [],
+    WB.fetchAll('market', 'property_overrides', 'property_id,edits', (q) => q.order('property_id')).catch(() => []),
+    rows(S('public').from('refresh_log').select('market,period,period_sort').order('period_sort', { ascending: false })),
+    ids.length ? rows(S('market').from('comp_sets').select('id,market_id').in('market_id', ids)) : [],
   ]);
-  const nMem = {}; members.forEach((m) => { nMem[m.comp_set_id] = (nMem[m.comp_set_id] || 0) + 1; });
-
-  // same rules as the dashboard's Market Overview: existing only, weighted by units
-  const wavg = (rows, k) => { let v = 0, w = 0; rows.forEach((r) => { const x = num(r[k]); if (x != null && r.units) { v += x * r.units; w += r.units; } }); return w ? v / w : null; };
-  const stat = {};
-  markets.forEach((m) => {
-    const rows = props.filter((p) => p.market_id === m.id);
-    const ex = rows.filter((p) => p.status === 'Existing'), uc = rows.filter((p) => p.status === 'Under Construction');
-    const exU = ex.reduce((s, p) => s + (p.units || 0), 0), ucU = uc.reduce((s, p) => s + (p.units || 0), 0);
-    const vac = wavg(ex, 'vac'), conc = wavg(ex, 'conc');
-    const log = logs.find((l) => l.market === m.id);
-    const cfg = m.config || {};
-    const period = (log && log.period) || (cfg.dashboard && cfg.dashboard.livePeriodLabel) || (cfg.as_of ? new Date(cfg.as_of + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '');
-    stat[m.id] = { exN: ex.length, exU, ucN: uc.length, ucU, psf: wavg(ex, 'ask'), mo: wavg(ex, 'askU'), occ: vac == null ? null : 100 - vac, wks: conc == null ? null : conc / 100 * 52,
-      sets: sets.filter((s) => s.market_id === m.id).length, period };
-  });
-
-  const T = Object.values(stat).reduce((a, s) => ({ exU: a.exU + s.exU, exN: a.exN + s.exN, ucU: a.ucU + s.ucU, ucN: a.ucN + s.ucN, sets: a.sets + s.sets }), { exU: 0, exN: 0, ucU: 0, ucN: 0, sets: 0 });
-  document.getElementById('hm-tot').innerHTML = [
-    ['Markets', markets.length, markets.map((m) => (m.label || m.id).split(',')[0]).join(' · ')],
-    ['Existing units', int(T.exU), int(T.exN) + ' properties'],
-    ['Under construction', int(T.ucU), int(T.ucN) + ' projects · ' + (T.exU ? (T.ucU / T.exU * 100).toFixed(1) : '0') + '% of inventory'],
-    ['Comp sets', T.sets, 'across all markets'],
-  ].map(([k, v, s]) => `<div><div class="k">${k}</div><div class="v">${v}</div><div class="s">${esc(s)}</div></div>`).join('');
-
-  const f = (k, v, unit, s) => `<div class="hm-f"><div class="k">${k}</div><div class="v">${v}${unit ? `<i>${unit}</i>` : ''}</div><div class="s">${s || '&nbsp;'}</div></div>`;
-  document.getElementById('hm-grid').innerHTML = markets.map((m) => {
-    const s = stat[m.id], name = (m.label || m.id).split(',')[0], ro = role(m.id) === 'view';
-    const eyebrow = (m.config && m.config.eyebrow) || '';
-    if (!s.exN) return `<div class="hm-card off"><div class="hm-top"><div><div class="hm-name">${esc(name)}</div><div class="hm-st">${esc(eyebrow)}</div></div><div class="hm-tags"><span class="hm-tag ro">Not uploaded yet</span></div></div></div>`;
-    return `<a class="hm-card" href="./?market=${encodeURIComponent(m.id)}">
-      <div class="hm-top"><div><div class="hm-name">${esc(name)}</div><div class="hm-st">${esc(eyebrow)}</div></div>
-        <div class="hm-tags">${s.period ? `<span class="hm-tag">${esc(s.period)}</span>` : ''}<span class="hm-tag${ro ? ' ro' : ''}">${ro ? 'View only' : 'Can edit'}</span></div></div>
-      <div class="hm-figs">
-        ${f('Asking', s.psf != null ? '$' + s.psf.toFixed(2) : '—', s.psf != null ? '/SF' : '', s.mo != null ? '$' + int(s.mo) + '/mo' : '')}
-        ${f('Occupancy', s.occ != null ? s.occ.toFixed(1) + '%' : '—', '', 'unit-weighted')}
-        ${f('Concessions', s.wks != null ? s.wks.toFixed(1) : '—', s.wks != null ? ' wks' : '', 'free (12-mo)')}
-        ${f('Existing', int(s.exU), ' units', int(s.exN) + ' properties')}
-        ${f('UC', int(s.ucU), ' units', int(s.ucN) + ' projects · ' + (s.exU ? Math.round(s.ucU / s.exU * 100) : 0) + '%')}
-        ${f('Comp sets', s.sets, '', '')}
-      </div>
-      <div class="hm-go">Open ${esc(name)} →</div>
-    </a>`;
-  }).join('');
-
-  const nm = (id) => { const m = markets.find((x) => x.id === id); return m ? (m.label || m.id).split(',')[0] : id; };
-  const when = (t) => { if (!t) return ''; const d = (Date.now() - new Date(t)) / 864e5; return d < 1 ? 'today' : d < 2 ? 'yesterday' : d < 30 ? Math.floor(d) + ' days ago' : new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); };
-  const who = (e) => { const l = String(e || '').split('@')[0]; return l ? l : ''; };
-  const recent = sets.filter((s) => nMem[s.id]).slice(0, 8);
-  if (recent.length) {
-    document.getElementById('hm-sets').innerHTML = recent.map((s) => `<a href="./?market=${encodeURIComponent(s.market_id)}&cs=${encodeURIComponent(s.id)}">
-      <span class="nm">${esc(s.name)}</span><span class="mu">${esc(nm(s.market_id))}</span><span class="mu hx">${nMem[s.id]} properties</span><span class="mu r">${esc(when(s.updated_at))}${who(s.updated_by) ? ' · ' + esc(who(s.updated_by)) : ''}</span></a>`).join('');
-    document.getElementById('hm-sets-wrap').hidden = false;
+  const ED = {}; edits.forEach((o) => { if (o && o.edits) ED[o.property_id] = o.edits; });
+  // a team edit wins over the CoStar value (status, units, pipeline stage, rents, vacancy, concessions)
+  const P = props.map((p) => {
+    const e = ED[p.id] || {}, pick = (k, v) => (k in e && e[k] !== '' && e[k] != null) ? e[k] : v;
+    return { market_id: p.market_id, status: pick('status', p.status), units: num(pick('units', p.units)), stage: pick('pipelineStage', p.stage),
+      ask: num(pick('avgAskingSF', p.avgAskingSF)), askU: num(pick('avgAskingUnit', p.avgAskingUnit)), vac: num(pick('vacancy', p.vacancy)), conc: num(pick('concessions', p.concessions)) };
+  }).filter((p) => !(p.stage && p.stage !== 'UC'));   // a project marked Proposed/Stalled lives only in Pipeline, even if CoStar calls it under construction
+  function figures(rs) {
+    const ex = rs.filter((p) => p.status === 'Existing'), uc = rs.filter((p) => p.status === 'Under Construction');
+    const w = (k) => { let v = 0, t = 0; ex.forEach((r) => { const x = r[k]; if (x != null && r.units) { v += x * r.units; t += r.units; } }); return t ? v / t : null; };
+    const exU = ex.reduce((s, p) => s + (p.units || 0), 0), ucU = uc.reduce((s, p) => s + (p.units || 0), 0), vac = w('vac'), conc = w('conc');
+    return { exN: ex.length, exU, ucN: uc.length, ucU, ucPct: exU ? ucU / exU * 100 : null, psf: w('ask'), mo: w('askU'), occ: vac == null ? null : 100 - vac, vac, wks: conc == null ? null : conc / 100 * 52 };
   }
-})().catch((e) => { console.error(e); const g = document.getElementById('hm-grid'); if (g) g.innerHTML = '<div class="hm-wait">Couldn’t load the markets. Refresh to try again.</div>'; });
+  const byMarket = {}; P.forEach((p) => { (byMarket[p.market_id] = byMarket[p.market_id] || []).push(p); });
+  const F = {};
+  markets.forEach((m) => {
+    const cfg = m.config || {}, log = logs.find((l) => l.market === m.id);
+    F[m.id] = Object.assign(figures(byMarket[m.id] || []), {
+      live: cfg.active === true, sets: sets.filter((s) => s.market_id === m.id).length,
+      period: (log && log.period) || (cfg.dashboard && cfg.dashboard.livePeriodLabel) || (cfg.as_of ? new Date(cfg.as_of + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : ''),
+    });
+  });
+  window.__WB_HOME = F;   // for checking the figures against each market's Overview
+
+  // ---------- regions ----------
+  const regions = [...new Set(markets.map(regionOf))].sort((a, b) => (a === OTHER) - (b === OTHER) || a.localeCompare(b));
+  // a person's home region: where the markets they edit sit (Jim edits Denver and Phoenix → West)
+  const homeRegions = [...new Set(live.filter((m) => acc.some((a) => a.market_id === m.id && a.role !== 'view')).map(regionOf))];
+  const q = new URLSearchParams(location.search);
+  let region = (q.get('region') && regions.find((r) => slug(r) === q.get('region'))) || regions.find((r) => r === store.get('wb_home_region')) || (homeRegions.length === 1 ? homeRegions[0] : null) || (regions.length === 1 ? regions[0] : 'all');
+  if (region !== 'all' && !regions.includes(region)) region = 'all';
+  let sort = { key: 'name', asc: true }, find = '';
+  const regionTitle = (r) => r === 'all' ? (regions.length > 1 ? 'All regions' : 'Your markets') : (/region$/i.test(r) || r === OTHER ? r : r + ' Region');
+
+  function paintBar() {
+    const bar = document.getElementById('rg-bar');
+    if (regions.length < 2) { bar.hidden = true; return; }
+    bar.hidden = false;
+    bar.innerHTML = [['all', 'All regions', markets.length]].concat(regions.map((r) => [r, r, markets.filter((m) => regionOf(m) === r).length]))
+      .map(([k, l, n]) => `<button type="button" data-r="${esc(k)}" class="${k === region ? 'on' : ''}">${esc(l)}<span class="n">${n}</span></button>`).join('');
+    bar.querySelectorAll('button').forEach((b) => b.onclick = () => setRegion(b.dataset.r));
+  }
+  function setRegion(r) {
+    region = r; store.set('wb_home_region', r);
+    const u = new URL(location.href); if (r === 'all') u.searchParams.delete('region'); else u.searchParams.set('region', slug(r)); history.replaceState(null, '', u);
+    paintBar(); paintHero(); paintList();
+  }
+
+  const inView = () => markets.filter((m) => region === 'all' || regionOf(m) === region);
+  const kpi = (k, v, unit, s) => `<div class="hm-kpi"><div class="k">${k}</div><div class="v">${v}${unit ? `<i>${unit}</i>` : ''}</div><div class="s">${s || '&nbsp;'}</div></div>`;
+  function paintHero() {
+    const ms = inView(), lv = ms.filter((m) => F[m.id].live);
+    const T = figures(lv.flatMap((m) => byMarket[m.id] || []));
+    const names = lv.map(name), soon = ms.length - lv.length;
+    const lead = region === 'all' && regions.length > 1
+      ? `${lv.length} live market${lv.length === 1 ? '' : 's'} across ${regions.length} regions${soon ? ` · ${soon} on the way` : ''}`
+      : (names.length <= 6 ? names.join(' · ') : `${names.length} live markets`) + (soon ? ` · ${soon} on the way` : '');
+    document.title = regionTitle(region) + ' · Market Intel Demo · Willow Bridge';
+    document.getElementById('hm-hero').innerHTML = `
+      <div class="hm-eyebrow">Willow Bridge Market Intel</div>
+      <h1>${esc(regionTitle(region))}</h1>
+      <p class="lead">${esc(lead)}</p>
+      <div class="hm-kpis">
+        ${kpi('Asking rent', T.psf != null ? '$' + T.psf.toFixed(2) : '—', T.psf != null ? '/SF' : '', T.mo != null ? '$' + int(T.mo) + ' per month' : '')}
+        ${kpi('Occupancy', T.occ != null ? T.occ.toFixed(1) + '%' : '—', '', T.vac != null ? T.vac.toFixed(1) + '% vacant' : '')}
+        ${kpi('Concessions', T.wks != null ? T.wks.toFixed(1) : '—', T.wks != null ? 'wks free' : '', 'on a 12-month lease')}
+        ${kpi('Existing units', int(T.exU), '', int(T.exN) + ' properties')}
+        ${kpi('Under construction', int(T.ucU), 'units', T.ucPct != null ? T.ucPct.toFixed(1) + '% of existing · ' + pl(T.ucN, 'project') : '')}
+      </div>`;
+  }
+
+  const COLS = [['name', 'Market', ''], ['psf', 'Asking', 'c-ask'], ['occ', 'Occupancy', 'c-occ'], ['wks', 'Concessions', 'c-conc'], ['exU', 'Existing', 'c-ex'], ['ucPct', 'Under construction', 'c-uc'], ['sets', 'Comp sets', 'c-sets r']];
+  const val = (m, k) => k === 'name' ? name(m) : F[m.id][k];
+  function ordered(ms) {
+    return ms.slice().sort((a, b) => {
+      const la = F[a.id].live && F[a.id].exN, lb = F[b.id].live && F[b.id].exN;
+      if (!!la !== !!lb) return la ? -1 : 1;   // markets without data sit at the bottom
+      const x = val(a, sort.key), y = val(b, sort.key);
+      if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1;
+      const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
+      return sort.asc ? c : -c;
+    });
+  }
+  let maxUc = 1;
+  function row(m, i) {
+    const f = F[m.id], sub = [stateOf(m), f.period].filter(Boolean).join(' · '), d = `animation-delay:${Math.min(i, 20) * 28}ms`;
+    const nm = `<div class="c-nm"><div class="ml-nm">${esc(name(m))}${f.live && !canEdit(m.id) ? '<span class="ml-ro">View only</span>' : ''}</div><div class="ml-sub">${esc(sub)}</div></div>`;
+    if (!f.live || !f.exN) return `<div class="ml-row off" style="${d}">${nm}<div class="ml-wait">${f.live ? 'Data not uploaded yet' : 'Not live yet'}</div></div>`;
+    const w = f.ucPct != null ? Math.max(2, Math.min(100, f.ucPct / maxUc * 100)) : 0;
+    return `<a class="ml-row" href="./?market=${encodeURIComponent(m.id)}" style="${d}">
+      ${nm}
+      <div class="c-ask"><div class="ml-v">${f.psf != null ? '$' + f.psf.toFixed(2) + '<i>/SF</i>' : '—'}</div><div class="ml-s">${f.mo != null ? '$' + int(f.mo) + '/mo' : '&nbsp;'}</div></div>
+      <div class="c-occ"><div class="ml-v">${f.occ != null ? f.occ.toFixed(1) + '%' : '—'}</div><div class="ml-s">${f.vac != null ? f.vac.toFixed(1) + '% vacant' : '&nbsp;'}</div></div>
+      <div class="c-conc"><div class="ml-v">${f.wks != null ? f.wks.toFixed(1) + '<i>wks</i>' : '—'}</div><div class="ml-s">free</div></div>
+      <div class="c-ex"><div class="ml-v">${int(f.exU)}<i>units</i></div><div class="ml-s">${f.exN === 1 ? '1 property' : int(f.exN) + ' properties'}</div></div>
+      <div class="c-uc"><div class="ml-uc"><span class="bar"><b style="width:${w}%;animation-delay:${120 + Math.min(i, 20) * 28}ms"></b></span><span class="pct">${f.ucPct != null ? f.ucPct.toFixed(1) + '%' : '—'}</span></div><div class="ml-s">${pl(f.ucU, 'unit')} · ${pl(f.ucN, 'project')}</div></div>
+      <div class="c-sets r"><div class="ml-v">${f.sets || '<span style="color:var(--faint);font-weight:500">0</span>'}</div><div class="ml-s">&nbsp;</div></div>
+      <span class="ml-go" aria-hidden="true">›</span>
+    </a>`;
+  }
+  function paintList() {
+    const all = inView(), needle = find.trim().toLowerCase();
+    const ms = needle ? all.filter((m) => (name(m) + ' ' + stateOf(m) + ' ' + regionOf(m)).toLowerCase().includes(needle)) : all;
+    maxUc = Math.max(1, ...markets.map((m) => F[m.id].ucPct || 0));
+    const head = `<div class="ml-head"><h2>Markets<span>${all.length}</span></h2>${all.length > 6 ? `<input class="ml-find" type="search" placeholder="Find a market" value="${esc(find)}" aria-label="Find a market">` : ''}</div>
+      <div class="ml-cols">${COLS.map(([k, l, c]) => `<button type="button" data-k="${k}" class="${c} ${sort.key === k ? 'on' + (sort.asc ? ' asc' : '') : ''}">${l}</button>`).join('')}<span></span></div>`;
+    let body = '', i = 0;
+    if (!ms.length) body = `<div class="ml-none">No markets match “${esc(find)}”.</div>`;
+    else if (region === 'all' && regions.length > 1) {
+      let first = true;
+      regions.forEach((r) => {
+        const rs = ordered(ms.filter((m) => regionOf(m) === r)); if (!rs.length) return;
+        const T = figures(rs.filter((m) => F[m.id].live).flatMap((m) => byMarket[m.id] || []));
+        const bits = [`${rs.length} market${rs.length === 1 ? '' : 's'}`, T.exU ? int(T.exU) + ' units' : '', T.psf != null ? '$' + T.psf.toFixed(2) + '/SF' : '', T.ucPct != null && T.exU ? T.ucPct.toFixed(1) + '% under construction' : ''].filter(Boolean).join(' · ');
+        body += `<div class="rg-h${first ? ' first' : ''}"><h3>${esc(r)}</h3><span>${esc(bits)}</span>${r !== OTHER ? `<button type="button" data-r="${esc(r)}">Open region →</button>` : ''}</div>`;
+        body += rs.map((m) => row(m, i++)).join('');
+        first = false;
+      });
+    } else body = ordered(ms).map((m) => row(m, i++)).join('');
+    const el = document.getElementById('ml');
+    el.innerHTML = head + body;
+    el.querySelectorAll('.ml-cols button').forEach((b) => b.onclick = () => { const k = b.dataset.k; sort = sort.key === k ? { key: k, asc: !sort.asc } : { key: k, asc: k === 'name' }; paintList(); });
+    el.querySelectorAll('.rg-h button').forEach((b) => b.onclick = () => { setRegion(b.dataset.r); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+    const inp = el.querySelector('.ml-find');
+    if (inp) inp.oninput = () => { find = inp.value; const pos = inp.selectionStart; paintList(); const n = document.querySelector('.ml-find'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
+  }
+  paintBar(); paintHero(); paintList();
+})().catch((e) => { console.error(e); const g = document.getElementById('ml'); if (g) g.innerHTML = '<div class="hm-wait">Couldn’t load the markets. Refresh to try again.</div>'; });
 </script>
 </body>
 </html>
