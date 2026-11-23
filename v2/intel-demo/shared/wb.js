@@ -52,7 +52,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202611231425');
+    add(ROOT + 'shared/wb-chrome.css?v=202611231431');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
@@ -177,11 +177,10 @@
         <div class="card">
           <img src="${ROOT}shared/wb-mark.png" alt="">
           <h1>Willow Bridge Market Intel</h1>
-          <p>Sign in with your Willow Bridge email. Leave the password blank and we'll email you a code.</p>
+          <p id="wb-step">Enter your Willow Bridge email and we'll send you a sign-in code.</p>
           <form id="wb-f1">
             <input class="input" type="email" name="email" required placeholder="you@willowbridgepc.com" autocomplete="email">
-            <input class="input" type="password" name="password" placeholder="Password (leave blank to get an emailed code)" autocomplete="current-password">
-            <button class="btn primary" type="submit">Sign in</button>
+            <button class="btn primary" type="submit">Email me a code</button>
           </form>
           <form id="wb-f2" hidden>
             <input class="input" name="code" required inputmode="numeric" autocomplete="one-time-code" placeholder="Code from the email" pattern="[0-9]{6,10}">
@@ -201,18 +200,12 @@
         e.preventDefault();
         email = f1.email.value.trim();
         const btn = $('button', f1); btn.disabled = true;
-        if (f1.password.value) {
-          const { error: pErr } = await sb.auth.signInWithPassword({ email, password: f1.password.value });
-          btn.disabled = false;
-          if (pErr) return say(pErr.message, true);
-          history.replaceState(null, '', location.pathname + location.search);
-          return location.reload();
-        }
         const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
         btn.disabled = false;
         if (error) return say(error.message, true);
         f1.hidden = true; f2.hidden = false; f2.code.focus();
-        say(`We emailed a code to ${email}. Enter it here; ignore any link in the email.`);
+        $('#wb-step', el).textContent = `We sent a code to ${email}. Enter it below to sign in.`;
+        say('Check your junk folder if it isn’t there in a minute.');
       };
       f2.onsubmit = async (e) => {
         e.preventDefault();
@@ -223,7 +216,7 @@
         history.replaceState(null, '', location.pathname + location.search);
         location.reload();
       };
-      $('#wb-back', el).onclick = () => { f2.hidden = true; f1.hidden = false; say(''); };
+      $('#wb-back', el).onclick = () => { f2.hidden = true; f1.hidden = false; $('#wb-step', el).textContent = 'Enter your Willow Bridge email and we\'ll send you a sign-in code.'; say(''); };
     });
   }
 
