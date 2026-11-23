@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611231327">
+<link rel="stylesheet" href="shared/wb.css?v=202611231334">
 <style>
   .page{max-width:1240px}
   /* ---------- top row: regions + settings ---------- */
@@ -147,8 +147,8 @@
   }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611231327"></script>
-<script src="access.js?v=202611231327"></script>
+<script src="shared/wb.js?v=202611231334"></script>
+<script src="access.js?v=202611231334"></script>
 </head>
 <body>
 <main class="page">
@@ -165,7 +165,7 @@
     <div class="ml-head"><h2>Markets</h2></div>
     <div style="padding:10px 18px"><span class="sk" style="width:60%;margin:22px 0"></span><span class="sk" style="width:80%;margin:22px 0"></span><span class="sk" style="width:70%;margin:22px 0"></span></div>
   </section>
-  <p class="hm-foot">Asking, occupancy, concessions, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Concessions are weeks free on a 12-month lease. Under construction counts active construction only and is shown as a share of existing units. RealPage figures are the metro’s effective rent: actual growth per year over the last three full years, this year’s change, and RealPage’s forecast growth per year from here to the end of its forecast.</p>
+  <p class="hm-foot">Asking, occupancy, concessions, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Concessions are weeks free on a 12-month lease, across all existing properties, with Class A and B delivered in the last five years underneath. Under construction counts active construction only and is shown as a share of existing units. RealPage figures are the metro’s effective rent: actual growth per year over the last three full years, this year’s change, and RealPage’s forecast growth per year from here to the end of its forecast.</p>
 </main>
 <div class="hset-scrim" id="st-scrim" hidden></div>
 <div class="hset" id="st" role="dialog" aria-modal="true" aria-labelledby="st-title" hidden>
@@ -204,7 +204,7 @@
   const share = (x, w) => (x == null || !num(w)) ? null : num(x) / num(w);
   function fromSummary(r) {
     const exU = num(r.ex_units) || 0, ucU = num(r.uc_units) || 0, vac = share(r.vac_x, r.vac_w), conc = share(r.conc_x, r.conc_w);
-    return { exN: r.ex_n || 0, exU, ucN: r.uc_n || 0, ucU, ucPct: exU ? ucU / exU * 100 : null, psf: share(r.ask_x, r.ask_w), mo: share(r.mo_x, r.mo_w), vac, occ: vac == null ? null : 100 - vac, wks: conc == null ? null : conc / 100 * 52, sets: r.comp_sets || 0 };
+    return { exN: r.ex_n || 0, exU, ucN: r.uc_n || 0, ucU, ucPct: exU ? ucU / exU * 100 : null, psf: share(r.ask_x, r.ask_w), mo: share(r.mo_x, r.mo_w), vac, occ: vac == null ? null : 100 - vac, wks: conc == null ? null : conc / 100 * 52, ncWks: share(r.nc_x, r.nc_w) == null ? null : share(r.nc_x, r.nc_w) / 100 * 52, ncN: r.nc_n || 0, sets: r.comp_sets || 0 };
   }
   // fallback if the summary function isn't there: the same rules, worked out in the browser (slower)
   async function summaryInBrowser(ids) {
@@ -386,7 +386,7 @@
       ${nm}
       <div class="c-ask"><div class="ml-v">${f.psf != null ? '$' + f.psf.toFixed(2) + '<i>/SF</i>' : '—'}</div><div class="ml-s">${f.mo != null ? '$' + int(f.mo) + '/mo' : '&nbsp;'}</div></div>
       <div class="c-occ"><div class="ml-v">${f.occ != null ? f.occ.toFixed(1) + '%' : '—'}</div><div class="ml-s">${f.vac != null ? f.vac.toFixed(1) + '% vacant' : '&nbsp;'}</div></div>
-      <div class="c-conc"><div class="ml-v">${f.wks != null ? f.wks.toFixed(1) + '<i>wks</i>' : '—'}</div><div class="ml-s">free</div></div>
+      <div class="c-conc"><div class="ml-v">${f.wks != null ? f.wks.toFixed(1) + '<i>wks</i>' : '—'}</div><div class="ml-s" title="Class A and B delivered in the last five years (${f.ncN} properties)">${f.ncWks != null ? 'New A/B ' + f.ncWks.toFixed(1) + ' wks' : 'free'}</div></div>
       <div class="c-ex"><div class="ml-v">${int(f.exU)}<i>units</i></div><div class="ml-s">${f.exN === 1 ? '1 property' : int(f.exN) + ' properties'}</div></div>
       <div class="c-uc"><div class="ml-uc"><span class="pct">${f.ucPct != null ? f.ucPct.toFixed(1) + '%' : '—'}</span><span class="bar"><b style="width:${w}%;animation-delay:${120 + Math.min(i, 20) * 28}ms"></b></span></div><div class="ml-s">${pl(f.ucU, 'unit')} · ${pl(f.ucN, 'project')}</div></div>
       <div class="c-rp">${rpCell(f)}</div>
