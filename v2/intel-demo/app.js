@@ -15009,7 +15009,15 @@ function renderModal() {
         <div class="detail-section-title">Unit Mix · Rent Detail</div>
         ${editing ? '<div class="edit-hint" style="margin:-2px 0 8px">Enter rents and sizes here. The property’s average unit size and rents are calculated from this table when you save.</div>' : ''}
         <table class="unit-mix-table">
-          <thead><tr><th style="text-align:left;">Type</th><th class="num">Units</th><th class="num">Avg SF</th><th class="num">Rent / SF</th><th class="num">Rent / Unit</th></tr></thead>
+          ${(() => {
+            // effective rents by unit type: the property's effective / asking ratio (same figure as the top row), else weeks free
+            const a = +p.avgAskingSF, e = +p.avgEffectiveSF, w = concWeeks(p);
+            const au = +p.avgAskingUnit, eu = +p.avgEffectiveUnit, wf = w != null ? Math.max(0, 1 - w / 52) : null;
+            const fs = a > 0 && e > 0 ? e / a : wf, fu = au > 0 && eu > 0 ? eu / au : (fs != null ? fs : wf);
+            window.__mixEff = editing || fs == null ? null : fs; window.__mixEffU = fu;
+            return '';
+          })()}
+          <thead><tr><th style="text-align:left;">Type</th><th class="num">Units</th><th class="num">Avg SF</th><th class="num">${editing ? 'Rent / SF' : 'Asking / SF'}</th><th class="num">${editing ? 'Rent / Unit' : 'Asking / Unit'}</th>${!editing && window.__mixEff != null ? '<th class="num">Effective / SF</th><th class="num">Effective / Unit</th>' : ''}</tr></thead>
           <tbody>
             ${unitMixRows.map(r => editing ? `
               <tr>
@@ -15020,7 +15028,7 @@ function renderModal() {
                 <td class="num"><input class="edit-input edit-input-sm" type="number" data-mix="${r[0]}" data-k="rent" data-field="${r[7]}" value="${r[3]==null?'':r[3]}"></td>
               </tr>
             ` : `
-              <tr><td>${r[0]}</td><td class="num">${fmt.int(r[1])}</td><td class="num">${fmt.int(r[2])}</td><td class="num mx-pri">${fmt.money2(r[4])}</td><td class="num">${fmt.money(r[3])}</td></tr>
+              <tr><td>${r[0]}</td><td class="num">${fmt.int(r[1])}</td><td class="num">${fmt.int(r[2])}</td><td class="num mx-pri">${fmt.money2(r[4])}</td><td class="num">${fmt.money(r[3])}</td>${window.__mixEff != null ? `<td class="num mx-pri mx-eff">${r[4] ? fmt.money2(r[4] * window.__mixEff) : '—'}</td><td class="num mx-eff">${r[3] ? fmt.money(r[3] * window.__mixEffU) : '—'}</td>` : ''}</tr>
             `).join('')}
           </tbody>
           ${!editing && unitMixRows.length > 1 ? (() => {
@@ -15033,7 +15041,7 @@ function renderModal() {
               if (+r[2] && +r[3]) { pr += n * r[3]; ps += n * r[2]; }
             });
             if (!u) return '';
-            return `<tfoot><tr><td>Total</td><td class="num">${fmt.int(u)}</td><td class="num">${su ? fmt.int(sfw / su) : '—'}</td><td class="num">${ps ? fmt.money2(pr / ps) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru) : '—'}</td></tr></tfoot>`;
+            return `<tfoot><tr><td>Total</td><td class="num">${fmt.int(u)}</td><td class="num">${su ? fmt.int(sfw / su) : '—'}</td><td class="num">${ps ? fmt.money2(pr / ps) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru) : '—'}</td>${window.__mixEff != null ? `<td class="num">${ps ? fmt.money2(pr / ps * window.__mixEff) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru * window.__mixEffU) : '—'}</td>` : ''}</tr></tfoot>`;
           })() : ''}
         </table>
       ` : ''}
@@ -15636,6 +15644,7 @@ async function initPropertyModalMap(p) {
     zoomControl: true,
     preferCanvas: true
   });
+  mapEl.__lmap = map;
 
   const streetLayer = wbStreetLayer();
   const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {

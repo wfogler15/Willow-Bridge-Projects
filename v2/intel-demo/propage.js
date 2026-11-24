@@ -83,34 +83,65 @@
       return;
     }
     if (editing) { secs.forEach((s) => body.appendChild(s)); return; }
-    // full page: figures across the top, then two columns
-    const LEFT = ['mix', 'leaseup', 'realpage', 'trends', 'other'];
-    const RIGHT = ['map', 'owner', 'website', 'after-website', 'history', 'sales'];
-    const grid = document.createElement('div'); grid.className = 'pc-grid';
-    const L = document.createElement('div'); L.className = 'pc-col pc-left';
-    const R = document.createElement('div'); R.className = 'pc-col pc-right';
-    secs.forEach((s) => {
-      const k = s.dataset.sec;
-      if (k === 'top') body.appendChild(s);
-      else if (RIGHT.includes(k)) R.appendChild(s);
-      else if (LEFT.includes(k)) L.appendChild(s);
-      else L.appendChild(s);
+    // full page: figures across the top, then two rows of two columns. In each row both columns end on the same line
+    // (the last card in the shorter column stretches). Row 1: unit mix, lease-up, RealPage | map, ownership.
+    // Row 2: website (and anything else) | history, sale comps.
+    const ROWS = [
+      [['mix', 'leaseup', 'realpage'], ['map', 'owner']],
+      [['website', 'after-website', 'trends', 'other'], ['history', 'sales']],
+    ];
+    const byKey = {}; secs.forEach((sec) => { const k = sec.dataset.sec; if (k === 'top') body.appendChild(sec); else (byKey[k] = byKey[k] || []).push(sec); });
+    const known = new Set(ROWS.flat(2));
+    Object.keys(byKey).forEach((k) => { if (!known.has(k)) ROWS[1][0].push(k); });
+    // the map grows to fill the right column so ownership ends level with RealPage; keep Leaflet in step with its size
+    setTimeout(() => {
+      const me = document.getElementById('prop-modal-map'); if (!me || me.__pcxRO || !window.ResizeObserver) return;
+      me.__pcxRO = new ResizeObserver(() => { try { me.__lmap && me.__lmap.invalidateSize(); } catch (e) { /* map not ready */ } });
+      me.__pcxRO.observe(me);
+    }, 0);
+    ROWS.forEach(([lk, rk]) => {
+      const L = document.createElement('div'); L.className = 'pc-col pc-left';
+      const R = document.createElement('div'); R.className = 'pc-col pc-right';
+      lk.forEach((k) => (byKey[k] || []).forEach((sec) => L.appendChild(sec)));
+      rk.forEach((k) => (byKey[k] || []).forEach((sec) => R.appendChild(sec)));
+      if (!L.children.length && !R.children.length) return;
+      const grid = document.createElement('div'); grid.className = 'pc-grid';
+      if (!L.children.length || !R.children.length) grid.classList.add('pc-one');
+      grid.appendChild(L); grid.appendChild(R); body.appendChild(grid);
     });
-    // right column order: map, ownership, website, history, sales
-    RIGHT.forEach((k) => { const s = R.querySelector(`[data-sec="${k}"]`); if (s) R.appendChild(s); });
-    grid.appendChild(L); grid.appendChild(R); body.appendChild(grid);
 
-    // previous / next through the current filter
+    // previous / next through the list it came from: a compact pager in the header, next to Actions and Back
     const i = list.indexOf(pid);
-    const bar = document.createElement('div'); bar.className = 'pc-bar';
-    bar.innerHTML = `<button type="button" class="pc-nav" data-go="-1" ${i > 0 ? '' : 'disabled'}>‹ Previous</button>
-      <span class="pc-pos">${i >= 0 && list.length > 1 ? `${(i + 1).toLocaleString('en-US')} of ${list.length.toLocaleString('en-US')} in the current filter` : ''}</span>
-      <button type="button" class="pc-nav" data-go="1" ${i >= 0 && i < list.length - 1 ? '' : 'disabled'}>Next ›</button>`;
-    bar.querySelectorAll('.pc-nav').forEach((b) => { b.onclick = () => { const j = i + +b.dataset.go; if (list[j]) go(list[j], true); }; });
-    content.insertBefore(bar, content.firstChild);
+    const acts2 = content.querySelector('.modal-actions');
+    if (acts2 && list.length > 1 && i >= 0) {
+      const pg = document.createElement('div'); pg.className = 'pc-pager';
+      pg.innerHTML = `<button type="button" class="pc-nav" data-go="-1" title="Previous property" ${i > 0 ? '' : 'disabled'}>‹</button><span class="pc-pos">${(i + 1).toLocaleString('en-US')} of ${list.length.toLocaleString('en-US')}</span><button type="button" class="pc-nav" data-go="1" title="Next property" ${i < list.length - 1 ? '' : 'disabled'}>›</button>`;
+      pg.querySelectorAll('.pc-nav').forEach((b) => { b.onclick = () => { const j = i + +b.dataset.go; if (list[j]) go(list[j], true); }; });
+      acts2.insertBefore(pg, acts2.firstChild);
+    }
   };
 
+  // previous / next follow the list the card was opened from (comp set table, property index...), in its on-screen order
+  let lastRow = null;
+  const idOf = (el) => (el.dataset && el.dataset.pid) || (((el.getAttribute && el.getAttribute('onclick')) || '').match(/Detail\('([^']+)'/) || [])[1] || null;
+  document.addEventListener('click', (e) => {
+    if (e.target.closest && e.target.closest('#modal')) return;
+    const row = e.target.closest && e.target.closest('[data-pid], [onclick*="Detail(\'"]');
+    if (row && idOf(row)) lastRow = row;
+  }, true);
+  function rowList(pid) {
+    if (!lastRow || !lastRow.isConnected) return null;
+    const box = (lastRow.tagName === 'TR' && lastRow.closest('[id^="view-"]')) || lastRow.closest('tbody, table, ul, ol') || lastRow.parentElement; if (!box) return null;
+    const tag = lastRow.tagName;
+    const ids = [];
+    box.querySelectorAll(`${tag}[data-pid], ${tag}[onclick*="Detail('"]`).forEach((el) => {
+      if (!el.getClientRects().length) return;   // hidden rows (filtered out) are skipped
+      const id = idOf(el); if (id && !ids.includes(String(id))) ids.push(String(id));
+    });
+    return ids.includes(String(pid)) && ids.length > 1 ? ids : null;
+  }
   function currentList(pid) {
+    const fromRows = rowList(pid); if (fromRows) return fromRows;
     try { const ids = (typeof getFiltered === 'function' ? getFiltered() : []).map((x) => String(x.id)); if (ids.includes(String(pid))) return ids; } catch (e) { /* fall through */ }
     return [String(pid)];
   }

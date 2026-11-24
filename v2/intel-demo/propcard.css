@@ -48,7 +48,9 @@
 #modal-content.pcx .modal-body.pcx-body { background: var(--c-canvas); padding: 0 !important; display: flex; flex-direction: column; gap: var(--gap); }
 #modal-content.pcx .pc-hide { display: none !important; }
 #modal-content.pcx .pc-col { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
-#modal-content.pcx .pc-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: var(--gap); align-items: start; }
+#modal-content.pcx .pc-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: var(--gap); align-items: stretch; }
+#modal-content.pcx .pc-grid > .pc-col > .pc-sec:last-child { flex: 1 0 auto; }
+#modal-content.pcx .pc-grid > .pc-col:empty { display: none; }
 
 /* ---------- cards ---------- */
 #modal-content.pcx .pcx-body .pc-sec:not([data-sec=top]) { background: var(--c-card); border: 1px solid var(--c-line); border-radius: var(--r); overflow: hidden; box-shadow: 0 1px 2px rgba(22,19,31,.04); margin: 0 !important; }
@@ -145,12 +147,22 @@
 #modal.prop-page .pcx-head .modal-title { font-size: 30px !important; }
 #modal.prop-page .pc-sec[data-sec=top] { margin: 0 !important; box-shadow: 0 1px 2px rgba(22,19,31,.04); }
 #modal.prop-page .wb-backbar { display: none !important; }
-/* previous / next: a plain toolbar on the canvas */
-#modal-content.pcx .pc-bar { display: flex; align-items: center; gap: 12px; padding: 0 0 14px !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; }
-#modal-content.pcx .pc-pos { flex: 1; text-align: center; font-size: 12.5px; color: var(--c-mute); }
-#modal-content.pcx .pc-nav { font: 500 13px/1 var(--x-font); color: var(--c-ink2); background: #fff; border: 1px solid var(--c-line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
-#modal-content.pcx .pc-nav:hover:not([disabled]) { border-color: #BDB8CC; color: var(--c-ink); }
-#modal-content.pcx .pc-nav[disabled] { opacity: .45; cursor: default; }
+/* previous / next: compact pager in the hero header */
+#modal-content.pcx .pc-pager { display: inline-flex; align-items: stretch; height: 34px; margin-right: 0; border: 1px solid rgba(255,255,255,.24); border-radius: 8px; overflow: hidden; }
+#modal-content.pcx .pc-nav { width: 32px; font: 400 20px/1 var(--x-font); color: #fff; background: rgba(255,255,255,.08); border: 0; cursor: pointer; padding: 0 0 2px; }
+#modal-content.pcx .pc-nav:hover:not([disabled]) { background: rgba(255,255,255,.18); }
+#modal-content.pcx .pc-nav[disabled] { opacity: .35; cursor: default; }
+#modal-content.pcx .pc-pos { display: inline-flex; align-items: center; padding: 0 10px; font: 500 12.5px/1 var(--x-font); color: #fff; white-space: nowrap; border-left: 1px solid rgba(255,255,255,.18); border-right: 1px solid rgba(255,255,255,.18); }
+#modal.prop-page { padding: 0 !important; }
+#modal.prop-page #modal-content.pcx { margin-top: 20px !important; }
 @media (max-width: 1000px) { #modal-content.pcx .pc-grid { grid-template-columns: 1fr; } }
 /* editing on the full page: the form is one white card under the hero */
 #modal.prop-page #modal-content.pcx .modal-body.editing { background: #fff; border: 1px solid #E6E4EE; border-top: 0; border-radius: 0 0 14px 14px; padding: 24px 32px 32px !important; }
+/* unit mix: effective columns set off from asking by a rule */
+#modal-content.pcx .unit-mix-table th:nth-child(6), #modal-content.pcx .unit-mix-table td:nth-child(6) { border-left: 1px solid var(--c-line2); }
+#modal-content.pcx .unit-mix-table td.mx-eff { background: #FBFAFD; }
+/* row 1, right column: the map card takes the spare height, ownership keeps its own and ends level with the left column */
+#modal-content.pcx .pc-grid > .pc-right:has(> [data-sec=map]) > .pc-sec:last-child { flex: 0 0 auto; }
+#modal-content.pcx .pc-grid > .pc-right > [data-sec=map] { flex: 1 0 auto !important; display: flex; flex-direction: column; }
+#modal-content.pcx .pc-grid > .pc-right > [data-sec=map] .leaflet-container,
+#modal-content.pcx .pc-grid > .pc-right > [data-sec=map] #prop-modal-map { flex: 1 1 auto; height: auto !important; min-height: 320px; }
