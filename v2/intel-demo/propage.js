@@ -44,6 +44,14 @@
     const body = content.querySelector('.modal-body'); if (!body) return;
     const editing = body.classList.contains('editing');
     const page = isPage();
+    // design hooks (propcard.css): header, body and the container; cleared when another popup reuses the box
+    const head = content.querySelector('.modal-header'); if (head) head.classList.add('pcx-head');
+    if (!editing) body.classList.add('pcx-body');
+    content.classList.add('pcx');
+    if (!content.__pcxObs) {
+      content.__pcxObs = new MutationObserver(() => { if (!content.querySelector('.pcx-head')) content.classList.remove('pcx', 'pc-page', 'pc-summary'); });
+      content.__pcxObs.observe(content, { childList: true });
+    }
     content.classList.toggle('pc-page', page);
     content.classList.toggle('pc-summary', !page && !editing);
     const pid = String(p.id);
@@ -76,8 +84,8 @@
     }
     if (editing) { secs.forEach((s) => body.appendChild(s)); return; }
     // full page: figures across the top, then two columns
-    const LEFT = ['mix', 'leaseup', 'website', 'after-website', 'realpage', 'trends', 'other'];
-    const RIGHT = ['map', 'owner', 'history', 'sales'];
+    const LEFT = ['mix', 'leaseup', 'realpage', 'trends', 'other'];
+    const RIGHT = ['map', 'owner', 'website', 'after-website', 'history', 'sales'];
     const grid = document.createElement('div'); grid.className = 'pc-grid';
     const L = document.createElement('div'); L.className = 'pc-col pc-left';
     const R = document.createElement('div'); R.className = 'pc-col pc-right';
@@ -88,7 +96,7 @@
       else if (LEFT.includes(k)) L.appendChild(s);
       else L.appendChild(s);
     });
-    // right column order: map first, then ownership, history
+    // right column order: map, ownership, website, history, sales
     RIGHT.forEach((k) => { const s = R.querySelector(`[data-sec="${k}"]`); if (s) R.appendChild(s); });
     grid.appendChild(L); grid.appendChild(R); body.appendChild(grid);
 

@@ -1,0 +1,156 @@
+/* =====================================================================
+   Property card design system (Nov 24, from scratch). Loads after demo.css.
+   One framework for the quick summary (modal) and the full page:
+     canvas   light gray behind everything
+     hero     brand-purple header (name, address, facts, actions) with the key figures attached below it
+     cards    every section is a white card: same header, same padding, same gaps
+     grid     full page = two columns of cards (wide left, narrow right), 16px gutters everywhere
+   Scoped to the property card only (.pcx on the box, .pcx-head on the header, .pcx-body on the body).
+   ===================================================================== */
+#modal-content.pcx {
+  --c-canvas: #F3F2F7; --c-card: #fff; --c-line: #E6E4EE; --c-line2: #F0EEF5;
+  --c-ink: #16131F; --c-ink2: #3C3850; --c-mute: #6B6880; --c-brand: #1D1247; --c-accent: #432890;
+  --gap: 16px; --pad: 20px; --r: 12px;
+}
+
+/* ---------- hero: brand header ---------- */
+#modal-content.pcx .modal-header.pcx-head { background: var(--c-brand) !important; border: 0 !important; box-shadow: none !important; padding: 24px 28px 22px !important; border-radius: 14px 14px 0 0 !important; }
+#modal-content.pcx .pcx-head .modal-title { color: #fff !important; font: 600 24px/1.2 var(--x-font) !important; letter-spacing: -.01em !important; margin: 0 0 6px !important; }
+#modal-content.pcx .pcx-head .modal-addr { color: #fff !important; font: 400 14px/1.4 var(--x-font) !important; }
+#modal-content.pcx .pcx-head .badge { color: #fff !important; font: 500 13px/1.4 var(--x-font) !important; }
+#modal-content.pcx .pcx-head .badge + .badge::before { color: rgba(255,255,255,.4) !important; }
+#modal-content.pcx .pcx-head .badge-existing { color: #8EDBAE !important; }
+#modal-content.pcx .pcx-head .badge-construction { color: #F4CB78 !important; }
+#modal-content.pcx .pcx-head .badge-affordable { color: #F3A99B !important; }
+#modal-content.pcx .pcx-head .edited-pill { background: rgba(255,255,255,.14) !important; color: #fff !important; }
+#modal-content.pcx .pcx-head .csx-mtag { background: rgba(255,255,255,.1) !important; color: #fff !important; margin-top: 12px !important; }
+#modal-content.pcx .pcx-head .csx-mtag span { color: #fff !important; opacity: .7 !important; }
+#modal-content.pcx .pcx-head .modal-btn, #modal-content.pcx .pcx-head .modal-close { background: rgba(255,255,255,.08) !important; border: 1px solid rgba(255,255,255,.24) !important; color: #fff !important; }
+#modal-content.pcx .pcx-head .modal-btn:hover, #modal-content.pcx .pcx-head .modal-close:hover { background: rgba(255,255,255,.16) !important; border-color: rgba(255,255,255,.4) !important; color: #fff !important; }
+#modal-content.pcx .pcx-head .modal-btn-primary { background: #fff !important; border-color: #fff !important; color: var(--c-brand) !important; }
+#modal-content.pcx .pcx-head .modal-btn-primary:hover { background: #F1F0F5 !important; color: var(--c-brand) !important; }
+#modal-content.pcx .pcx-head .modal-close:not(.pc-back) { background: transparent !important; border-color: transparent !important; }
+#modal-content.pcx .pcx-head .modal-close:not(.pc-back)::before { color: #fff !important; }
+#modal-content.pcx .pcx-head .modal-close:not(.pc-back):hover { background: rgba(255,255,255,.12) !important; }
+#modal-content.pcx .pcx-head .edit-input-large { border-color: transparent !important; }
+
+/* ---------- key figures, attached under the hero ---------- */
+#modal-content.pcx .pc-sec[data-sec=top] { background: var(--c-card); border: 1px solid var(--c-line); border-top: 0; border-radius: 0 0 14px 14px; overflow: hidden; }
+#modal-content.pcx .pc-sec[data-sec=top] .pcg { display: flex !important; flex-wrap: wrap; gap: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; background: none; border-radius: 0 !important; }
+#modal-content.pcx .pc-sec[data-sec=top] .pcg-c { flex: 1 0 auto; padding: 18px 20px 16px !important; border: 0 !important; border-left: 1px solid var(--c-line2) !important; gap: 3px; }
+#modal-content.pcx .pc-sec[data-sec=top] .pcg-c:first-child { border-left: 0 !important; }
+#modal-content.pcx .pcg-k { font: 600 11px/1.2 var(--x-font) !important; letter-spacing: .06em !important; text-transform: uppercase !important; color: var(--c-mute) !important; }
+#modal-content.pcx .pcg-v { font: 600 24px/1.15 var(--x-font) !important; letter-spacing: -.01em !important; color: var(--c-brand) !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#modal-content.pcx .pcg-v i { font-size: 12.5px !important; font-weight: 500 !important; color: var(--c-mute) !important; margin-left: 2px; }
+#modal-content.pcx .pcg-s { font-size: 12.5px !important; color: var(--c-mute) !important; white-space: nowrap; }
+
+/* ---------- canvas + layout ---------- */
+#modal-content.pcx .modal-body.pcx-body { background: var(--c-canvas); padding: 0 !important; display: flex; flex-direction: column; gap: var(--gap); }
+#modal-content.pcx .pc-hide { display: none !important; }
+#modal-content.pcx .pc-col { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+#modal-content.pcx .pc-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: var(--gap); align-items: start; }
+
+/* ---------- cards ---------- */
+#modal-content.pcx .pcx-body .pc-sec:not([data-sec=top]) { background: var(--c-card); border: 1px solid var(--c-line); border-radius: var(--r); overflow: hidden; box-shadow: 0 1px 2px rgba(22,19,31,.04); margin: 0 !important; }
+/* card header */
+#modal-content.pcx .pcx-body .detail-section-title { display: flex; align-items: center; gap: 10px; margin: 0 !important; padding: 14px var(--pad) 13px !important;
+  font: 600 14px/1.25 var(--x-font) !important; letter-spacing: 0 !important; text-transform: none !important; color: var(--c-ink) !important;
+  border: 0 !important; border-bottom: 1px solid var(--c-line2) !important; background: var(--c-card); }
+#modal-content.pcx .pcx-body .detail-section-title::before { content: ''; flex: none; width: 3px; height: 14px; border-radius: 2px; background: var(--c-accent); }
+/* card content: one inset for everything */
+#modal-content.pcx .pcx-body .pc-sec > :not(.detail-section-title):not(.wbw):not(.unit-mix-table):not(.leaflet-container):not(.pcg):not(.detail-grid):not(.lu-note),
+#modal-content.pcx .pcx-body .wbw > :not(.detail-section-title) { margin-left: var(--pad) !important; margin-right: var(--pad) !important; }
+#modal-content.pcx .pcx-body .pc-sec > .detail-section-title + *,
+#modal-content.pcx .pcx-body .wbw > .detail-section-title + * { margin-top: 16px !important; }
+#modal-content.pcx .pcx-body .pc-sec > .detail-section-title + .pcg, #modal-content.pcx .pcx-body .pc-sec > .detail-section-title + .detail-grid { margin-top: 0 !important; }
+#modal-content.pcx .pcx-body .pc-sec > :last-child:not(.unit-mix-table):not(.leaflet-container):not(.lu-note),
+#modal-content.pcx .pcx-body .wbw > :last-child { margin-bottom: var(--pad) !important; }
+
+/* tables run edge to edge inside the card */
+#modal-content.pcx .pcx-body .unit-mix-table { width: 100%; margin: 0 !important; border-collapse: collapse; }
+#modal-content.pcx .pcx-body .detail-section-title + .unit-mix-table { margin-top: 0 !important; }
+#modal-content.pcx .unit-mix-table th, #modal-content.pcx .unit-mix-table td { padding: 11px 14px !important; text-align: right; font-variant-numeric: tabular-nums; }
+#modal-content.pcx .unit-mix-table th:first-child, #modal-content.pcx .unit-mix-table td:first-child { text-align: left !important; padding-left: var(--pad) !important; }
+#modal-content.pcx .unit-mix-table th:last-child, #modal-content.pcx .unit-mix-table td:last-child { padding-right: var(--pad) !important; }
+#modal-content.pcx .unit-mix-table thead th { background: #FAFAFC !important; font: 600 11px/1.2 var(--x-font) !important; letter-spacing: .06em !important; text-transform: uppercase !important; color: var(--c-mute) !important; border-bottom: 1px solid var(--c-line2) !important; }
+#modal-content.pcx .unit-mix-table tbody td { font-size: 14px; color: var(--c-ink2); border-bottom: 1px solid var(--c-line2) !important; background: none; }
+#modal-content.pcx .unit-mix-table tbody tr:hover td { background: #FBFAFD; }
+#modal-content.pcx .unit-mix-table td.mx-pri { font-weight: 600; color: var(--c-brand) !important; }
+#modal-content.pcx .unit-mix-table tfoot td { background: #F6F5FA !important; border-top: 1px solid var(--c-line) !important; border-bottom: 0 !important; font-weight: 700 !important; color: var(--c-brand) !important; }
+
+/* lease-up: figures, bar, a footer note */
+#modal-content.pcx .pcg.pcg4 { display: grid !important; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 !important; margin: 0 !important; padding: 18px var(--pad) 4px !important; border: 0 !important; }
+#modal-content.pcx .pcg.pcg4 .pcg-c { padding: 0 16px !important; border: 0 !important; border-left: 1px solid var(--c-line2) !important; }
+#modal-content.pcx .pcg.pcg4 .pcg-c:first-child { padding-left: 0 !important; border-left: 0 !important; }
+#modal-content.pcx .pcg.pcg4 .pcg-v { font-size: 22px !important; }
+#modal-content.pcx .lu-bar { height: 10px; margin-top: 18px !important; margin-bottom: 28px !important; background: #ECEAF3; border-radius: 999px; }
+#modal-content.pcx .lu-fill { background: var(--c-brand); }
+#modal-content.pcx .lu-tgt { background: var(--c-brand); }
+#modal-content.pcx .lu-tgt em { top: 17px; }
+#modal-content.pcx .lu-note { margin: 0 !important; padding: 11px var(--pad) !important; border-top: 1px solid var(--c-line2); background: #FAFAFC; font-size: 12px; color: var(--c-mute); }
+
+/* label / value lists (ownership, RealPage figures): a two-column list with row rules */
+#modal-content.pcx .pcx-body .detail-grid { gap: 0 !important; border: 0 !important; border-radius: 0 !important; background: none !important; }
+#modal-content.pcx .pcx-body .pc-sec > .detail-grid { margin: 0 !important; }
+#modal-content.pcx .pcx-body .detail-cell { background: none !important; border: 0 !important; border-bottom: 1px solid var(--c-line2) !important; padding: 12px var(--pad) 11px !important; }
+#modal-content.pcx .pcx-body .detail-label { font: 600 11px/1.2 var(--x-font) !important; letter-spacing: .06em !important; text-transform: uppercase !important; color: var(--c-mute) !important; margin: 0 0 5px !important; }
+#modal-content.pcx .pcx-body .detail-value { font: 500 14px/1.35 var(--x-font) !important; color: var(--c-ink); }
+#modal-content.pcx .pc-sec[data-sec=owner] .detail-grid { grid-template-columns: 1fr 1fr !important; }
+#modal-content.pcx .pc-sec[data-sec=owner] .detail-grid > :not(.detail-cell) { border-bottom: 1px solid var(--c-line2); }
+#modal-content.pcx .pc-sec[data-sec=owner] .detail-grid > * { grid-column: auto !important; }
+#modal-content.pcx .pc-sec[data-sec=owner] .detail-grid > :not(.detail-cell) { display: block !important; }
+#modal-content.pcx .pc-sec[data-sec=owner] .detail-grid > :not(.detail-cell) > .detail-cell { border: 0 !important; height: 100%; }
+#modal-content.pcx .pc-sec[data-sec=owner] .detail-grid > :nth-child(odd) { border-right: 1px solid var(--c-line2) !important; }
+#modal-content.pcx .pc-sec[data-sec=owner] .detail-grid > :nth-last-child(-n+2) { border-bottom: 0 !important; }
+#modal-content.pcx .pc-sec[data-sec=realpage] .detail-grid { grid-template-columns: repeat(4, 1fr) !important; border-top: 1px solid var(--c-line2) !important; border-bottom: 1px solid var(--c-line2) !important; margin: 14px 0 6px !important; }
+#modal-content.pcx .pc-sec[data-sec=realpage] .detail-cell { border-bottom: 0 !important; border-left: 1px solid var(--c-line2) !important; }
+#modal-content.pcx .pc-sec[data-sec=realpage] .detail-cell:first-child { border-left: 0 !important; }
+#modal-content.pcx .pc-sec[data-sec=realpage] .detail-value { font: 600 20px/1.2 var(--x-font) !important; color: var(--c-brand); }
+
+/* map fills its card */
+#modal-content.pcx .pcx-body .leaflet-container { margin: 0 !important; border: 0 !important; border-radius: 0 !important; height: 320px !important; }
+
+/* website card (narrow column): text over the button */
+#modal-content.pcx .pcx-body .wbw > .detail-section-title { margin: 0 !important; }
+#modal-content.pcx .pcx-body .wbw-off { flex-direction: column; align-items: flex-start; gap: 12px; padding: 0 !important; border: 0 !important; }
+#modal-content.pcx .pcx-body .wbw-off p { font-size: 13px; color: var(--c-ink2); }
+#modal-content.pcx .pcx-body .wbw-btn { background: var(--c-brand); border-radius: 8px; }
+#modal-content.pcx .pcx-body .wbw .pcg.pcg4 { padding-left: 0 !important; padding-right: 0 !important; grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 16px !important; }
+#modal-content.pcx .pcx-body .wbw .pcg.pcg4 .pcg-c:nth-child(3) { padding-left: 0 !important; border-left: 0 !important; }
+#modal-content.pcx .pcx-body .wbw > .unit-mix-table { margin-left: 0 !important; margin-right: 0 !important; width: 100%; }
+#modal-content.pcx .pcx-body .wbw .unit-mix-table th, #modal-content.pcx .pcx-body .wbw .unit-mix-table td { padding-left: 8px !important; padding-right: 8px !important; font-size: 13px; }
+#modal-content.pcx .pcx-body .wbw .unit-mix-table th:first-child, #modal-content.pcx .pcx-body .wbw .unit-mix-table td:first-child { padding-left: var(--pad) !important; }
+#modal-content.pcx .pcx-body .wbw .unit-mix-table th:last-child, #modal-content.pcx .pcx-body .wbw .unit-mix-table td:last-child { padding-right: var(--pad) !important; }
+#modal-content.pcx .pcx-body .wbw-h { flex-wrap: wrap; row-gap: 4px; }
+#modal-content.pcx .pcx-body .wbw-h .wbw-src { order: 3; flex-basis: 100%; padding-left: 13px; font-size: 12px; color: var(--c-mute); }
+#modal-content.pcx .pcx-body .wbw-acts { margin-left: auto; }
+
+/* history */
+#modal-content.pcx .pcx-body .wb-life-sec { font-size: 13.5px; color: var(--c-ink2); }
+
+/* =================== quick summary (modal) =================== */
+#modal:not(.prop-page) #modal-content.pcx:has(.pcx-body) { max-width: 980px !important; background: var(--c-canvas) !important; }
+#modal:not(.prop-page) #modal-content.pcx .modal-body.pcx-body { padding: 0 24px 24px !important; }
+#modal:not(.prop-page) #modal-content.pcx .pc-sec[data-sec=top] { margin: 0 -24px !important; border-left: 0; border-right: 0; border-radius: 0; }
+#modal-content.pcx .pc-more { margin: 0 !important; }
+#modal-content.pcx .pc-more-btn { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; font: 600 14px/1.3 var(--x-font); color: #fff; background: var(--c-brand); border: 0; border-radius: var(--r); padding: 15px var(--pad); cursor: pointer; }
+#modal-content.pcx .pc-more-btn span { font-weight: 400; font-size: 12.5px; color: #fff; opacity: .8; }
+#modal-content.pcx .pc-more-btn:hover { background: #2A1C63; }
+
+/* =================== full page =================== */
+#modal.prop-page { align-items: flex-start !important; justify-content: center !important; overflow-y: auto !important; background: #F3F2F7 !important; backdrop-filter: none !important; }
+#modal.prop-page #modal-content.pcx { width: min(1320px, calc(100vw - 48px)) !important; max-width: none !important; max-height: none !important; height: auto !important; overflow: visible !important;
+  margin: 16px auto 64px !important; background: transparent !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+#modal.prop-page .pcx-head { padding: 28px 32px 24px !important; }
+#modal.prop-page .pcx-head .modal-title { font-size: 30px !important; }
+#modal.prop-page .pc-sec[data-sec=top] { margin: 0 !important; box-shadow: 0 1px 2px rgba(22,19,31,.04); }
+#modal.prop-page .wb-backbar { display: none !important; }
+/* previous / next: a plain toolbar on the canvas */
+#modal-content.pcx .pc-bar { display: flex; align-items: center; gap: 12px; padding: 0 0 14px !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; }
+#modal-content.pcx .pc-pos { flex: 1; text-align: center; font-size: 12.5px; color: var(--c-mute); }
+#modal-content.pcx .pc-nav { font: 500 13px/1 var(--x-font); color: var(--c-ink2); background: #fff; border: 1px solid var(--c-line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+#modal-content.pcx .pc-nav:hover:not([disabled]) { border-color: #BDB8CC; color: var(--c-ink); }
+#modal-content.pcx .pc-nav[disabled] { opacity: .45; cursor: default; }
+@media (max-width: 1000px) { #modal-content.pcx .pc-grid { grid-template-columns: 1fr; } }
+/* editing on the full page: the form is one white card under the hero */
+#modal.prop-page #modal-content.pcx .modal-body.editing { background: #fff; border: 1px solid #E6E4EE; border-top: 0; border-radius: 0 0 14px 14px; padding: 24px 32px 32px !important; }
