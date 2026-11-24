@@ -1800,3 +1800,28 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 #modal-content .modal-body.editing .detail-section-title { margin-top: 32px !important; }
 #modal-content .detail-section-title + :not(table):not(.pcg):not(.detail-grid):not(.lu-bar) { margin-top: 12px; }
 #modal-content .wbw-special { margin-top: 10px; }
+
+/* ---- Edit mode: update from CoStar by paste (costarpaste.js) ---- */
+#modal-content .cpx { border: 1px dashed #C9C5D6; border-radius: 10px; padding: 12px 14px; margin: 0 0 6px; background: #FBFAFD; }
+#modal-content .cpx.cpx-done { border-style: solid; border-color: #D9D6E3; background: #fff; }
+#modal-content .cpx-h { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--x-ink-2); }
+#modal-content .cpx-h b { font-size: 14px; color: var(--x-ink); font-weight: 600; }
+#modal-content .cpx-h kbd { font: 500 11px/1 var(--x-font); border: 1px solid #D9D6E3; border-bottom-width: 2px; border-radius: 4px; padding: 2px 5px; background: #fff; color: var(--x-ink); }
+#modal-content .cpx-in { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; resize: none; height: 40px; padding: 10px 12px; border: 1px solid #D9D6E3; border-radius: 8px; font: 500 13px/1.3 var(--x-font); color: var(--x-ink); background: #fff; }
+#modal-content .cpx-in:focus { outline: none; border-color: #432890; box-shadow: 0 0 0 3px rgba(67,40,144,.14); }
+#modal-content .cpx-again { margin-left: auto; font: 500 12px/1 var(--x-font); color: var(--x-ink-2); background: transparent; border: 1px solid var(--x-line); border-radius: 6px; padding: 5px 9px; cursor: pointer; }
+#modal-content .cpx-found { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 13px; color: var(--x-ink); }
+#modal-content .cpx-found em { font-style: normal; color: var(--x-ink-3); margin-right: 6px; }
+#modal-content .cpx-miss { margin-top: 8px; font-size: 12px; color: var(--x-ink-3); }
+#modal-content .edit-input.cpx-filled { border-color: #C99A2E; background: #FFF8E6; }
+
+/* ---- Tables on the property card: a total row that reads as a total ---- */
+#modal-content .unit-mix-table tfoot td { border-top: 2px solid #1D1247 !important; border-bottom: 0 !important; background: #F4F3F8 !important; font-weight: 700 !important; color: var(--x-ink) !important; padding-top: 12px !important; padding-bottom: 12px !important; }
+#modal-content .unit-mix-table tfoot td:first-child { border-radius: 0; }
+#modal-content .unit-mix-table tbody tr:last-child td { border-bottom: 0 !important; }
+/* header row: quiet labels so the figures carry the table */
+#modal-content .unit-mix-table thead th { font-weight: 500 !important; color: var(--x-ink-3) !important; font-size: 12.5px !important; }
+#modal-content .cpx-done .cpx-h { display: grid; grid-template-columns: 1fr auto; align-items: center; row-gap: 4px; }
+#modal-content .cpx-done .cpx-h span { grid-column: 1 / -1; }
+#modal-content .cpx-found span { white-space: nowrap; }
+#modal-content .cpx-found span:last-child { white-space: normal; flex-basis: 100%; }

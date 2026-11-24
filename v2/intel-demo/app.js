@@ -14887,6 +14887,7 @@ function renderModal() {
     </div>
     <div class="modal-body${editing ? ' editing' : ''}">
       ${editing ? '<div class="edit-notice"><b>Editing</b> · your changes replace CoStar\'s figures for everyone on the team. Leave a field as it is to keep CoStar\'s.</div>' : ''}
+      ${editing ? '<div id="cpx"></div>' : ''}
 
       ${editing ? `
       <div class="detail-section-title" style="margin-top:4px;">Property</div>
@@ -15330,7 +15331,7 @@ function renderModal() {
     </div>
   `;
 
-  if (editing) { wbMixWire(p); }
+  if (editing) { wbMixWire(p); if (window.wbCostarPasteWire) window.wbCostarPasteWire(p); }
   else if (window.wbWebFill) window.wbWebFill(p);   // website tracking (webtrack.js)
   // Initialize the embedded property location map (only in view mode)
   if (!editing) {
@@ -15750,7 +15751,7 @@ function saveModalEdits() {
   inputs.forEach(inp => {
     if (inp.dataset.weeks) return;
     const field = inp.dataset.field;
-    const isNumber = inp.type === 'number';
+    const isNumber = inp.type === 'number' || inp.dataset.type === 'number';   // hidden fields from a CoStar paste carry data-type
     const isSelect = inp.tagName === 'SELECT';
     let val = inp.value;
     if (val === '') val = null;
