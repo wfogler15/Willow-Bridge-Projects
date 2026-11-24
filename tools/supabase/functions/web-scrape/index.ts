@@ -1,5 +1,5 @@
 // web-scrape: reads tracked property websites and saves a snapshot per run (market.web_snapshots).
-// Runs daily from pg_cron (6:15am Mountain); the property card can also ask for one run of a single track.
+// Runs daily from pg_cron (6:15am Mountain, with the scheduler key); the property card can also ask for one run of a single track (editors only).
 // No Claude or third-party service involved: plain fetch + a reader per website platform.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
@@ -10,6 +10,7 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 type Unit = { unit: string; plan?: string; beds?: number | null; sf?: number | null; rent?: number | null; available?: string | null };
 
 async function get(url: string): Promise<string> {
+  if (!/^https?:\/\//i.test(url)) throw new Error('Only web addresses (http/https) can be read');
   const ac = new AbortController(); const t = setTimeout(() => ac.abort(), 25000);
   try {
     const r = await fetch(url, { headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml,*/*;q=0.8', 'Accept-Language': 'en-US,en;q=0.9' }, redirect: 'follow', signal: ac.signal });
@@ -123,6 +124,24 @@ async function runTrack(t: any) {
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', 'Access-Control-Allow-Methods': 'POST, OPTIONS' };
 const J = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
 
+// who may call: "Read now" needs a signed-in user with edit rights on the track's market;
+// the full daily run needs the scheduler's key (kept in core.app_secrets, readable only server-side)
+async function canEdit(req: Request, marketId: string): Promise<boolean> {
+  const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!jwt) return false;
+  const { data: u } = await sb.auth.getUser(jwt);
+  const email = u && u.user && u.user.email ? u.user.email.toLowerCase() : null;
+  if (!email) return false;
+  const { data: rows } = await sb.schema('core').from('market_access').select('email, market_id, role');
+  return (rows || []).some((r: any) => String(r.email).toLowerCase() === email && (r.market_id === '*' || r.market_id === marketId) && (r.role === 'edit' || r.role === 'admin'));
+}
+async function isScheduler(req: Request): Promise<boolean> {
+  const k = req.headers.get('x-cron-key') || '';
+  if (!k) return false;
+  const { data } = await sb.schema('core').from('app_secrets').select('value').eq('name', 'web_scrape_cron_key').maybeSingle();
+  return !!data && data.value === k;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   let body: any = {}; try { body = await req.json(); } catch (_) { /* scheduled call has no body */ }
@@ -131,10 +150,12 @@ Deno.serve(async (req) => {
     // one track on demand (from the property card); at most once every 10 minutes
     const { data: t } = await M.from('web_tracks').select('*').eq('id', body.track_id).maybeSingle();
     if (!t) return J({ error: 'unknown track' }, 404);
+    if (!(await canEdit(req, t.market_id))) return J({ error: 'You need edit access to this market to read the website' }, 403);
     if (t.last_run_at && Date.now() - Date.parse(t.last_run_at) < 10 * 60e3) return J({ skipped: 'ran in the last 10 minutes' });
     results.push(await runTrack(t));
     return J({ results });
   }
+  if (!(await isScheduler(req))) return J({ error: 'not allowed' }, 403);
   const { data: tracks } = await M.from('web_tracks').select('*').eq('enabled', true);
   const today = new Date().toISOString().slice(0, 10);
   for (const t of tracks || []) {

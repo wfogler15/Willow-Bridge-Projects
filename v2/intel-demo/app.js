@@ -114,8 +114,8 @@ for (const [rpId, d] of Object.entries(RP_PROPERTIES)) {
 // from. Updated whenever a new CoStar refresh is integrated. The Trends section
 // of the property modal uses this to know which snapshots are "historical"
 // (different period than live) vs. "duplicate" (same period — pointless to show).
-const LIVE_DATA_PERIOD_LABEL = 'Q2 2026';
-const LIVE_DATA_PERIOD_SORT = 202602;
+const LIVE_DATA_PERIOD_LABEL = `Q${Math.floor(TODAY.getMonth() / 3) + 1} ${TODAY.getFullYear()}`;   // from the market's CoStar as-of date
+const LIVE_DATA_PERIOD_SORT = TODAY.getFullYear() * 100 + Math.floor(TODAY.getMonth() / 3) + 1;
 
 /* =================================================================
    CLOUD SYNC — SUPABASE INTEGRATION
@@ -2686,7 +2686,22 @@ function avg(arr) {
   return vals.reduce((a,b) => a + b, 0) / vals.length;
 }
 
+// Rent per SF across properties = total monthly rent / total square feet (each property's $/SF weighted by
+// units × avg unit size). Weighting $/SF by unit count alone overstates it (small-unit buildings count too much).
+// A property with no unit size uses the group's average size so it still counts.
+const WB_PSF_KEYS = new Set(['avgAskingSF', 'avgEffectiveSF']);
+function psfWeightedAvg(items, valueKey, unitsKey) {
+  const ok = items.filter(it => it && it[valueKey] != null && !isNaN(it[valueKey]) && it[unitsKey] != null && !isNaN(it[unitsKey]) && +it[unitsKey] > 0);
+  if (!ok.length) return null;
+  const sized = ok.filter(it => +it.avgUnitSF > 0);
+  const fallbackSF = sized.length ? sized.reduce((a, it) => a + +it.avgUnitSF * +it[unitsKey], 0) / sized.reduce((a, it) => a + +it[unitsKey], 0) : 1;
+  let num = 0, den = 0;
+  for (const it of ok) { const w = +it[unitsKey] * (+it.avgUnitSF > 0 ? +it.avgUnitSF : fallbackSF); num += +it[valueKey] * w; den += w; }
+  return den > 0 ? num / den : null;
+}
+
 function weightedAvg(items, valueKey, weightKey) {
+  if (weightKey === 'units' && WB_PSF_KEYS.has(valueKey)) return psfWeightedAvg(items, valueKey, weightKey);
   let totalW = 0, totalV = 0;
   for (const it of items) {
     const v = it[valueKey], w = it[weightKey];
@@ -3837,7 +3852,7 @@ function getAbsorptionData() {
     if (hasDay) {
       const days = Math.max(0, daysBetween(d, asOf));
       monthsRaw = days / 30.44;
-      months = Math.max(1, days) / 30.44;  // clamp the days, then convert
+      months = Math.max(1, days / 30.44);  // at least one month, same as the month-only path
     } else {
       monthsRaw = monthsBetween(d, asOf);
       months = Math.max(1, monthsRaw);
@@ -7252,7 +7267,7 @@ function renderTrendsPropertyTimeline(rpProp, rpId) {
     // labels start at y=56 (clearing the year-tick text at y=36).
     const y = Math.floor(e.ym / 100), m = e.ym % 100;
     const monthAbbr = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m - 1];
-    const labelText = `${e.label}${e.subLabel ? ' · ' + e.subLabel : ''}<br><span style="color:var(--ink-4);font-weight:500;">${monthAbbr} ${y}</span>`;
+    const labelText = `${escapeHTML(e.label)}${e.subLabel ? ' · ' + escapeHTML(e.subLabel) : ''}<br><span style="color:var(--ink-4);font-weight:500;">${monthAbbr} ${y}</span>`;
     const labelTop = e.labelSide === 'above' ? 0 : 56;
     const labelTransform = e.labelSide === 'above' ? 'translate(-50%, 0)' : 'translateX(-50%)';
     html += `<div style="position:absolute;left:${e.x}px;top:${labelTop}px;transform:${labelTransform};font-family:'Inter Tight',sans-serif;font-size:12px;color:var(--ink-1);font-weight:700;letter-spacing:0.02em;text-align:center;white-space:nowrap;line-height:1.4;pointer-events:none;">${labelText}</div>`;
@@ -7312,6 +7327,7 @@ function compSetProperties(setId) {
 // Unit-weighted average — the right default for rent and SF across a set,
 // since a 450-unit tower shouldn't count the same as a 60-unit walk-up.
 function wtdAvg(items, valueKey, weightKey) {
+  if (weightKey === 'units' && WB_PSF_KEYS.has(valueKey)) return psfWeightedAvg(items, valueKey, weightKey);
   let num = 0, den = 0;
   items.forEach(it => {
     const v = it[valueKey], w = it[weightKey];
@@ -9941,7 +9957,9 @@ function exportCompSetPdf() {
     const mi = subj && p.lat != null && p.lng != null ? subj.distanceTo([p.lat, p.lng]) / 1609.34 : null;
     return { p, i: i + 1, occ: p.vacancy == null ? null : 100 - p.vacancy, askSF: p.avgAskingSF, askU: p.avgAskingUnit, effSF, effU: effUnit, weeks: cx.weeksFree, mi, u: p.units || 0 };
   });
-  const W = (k) => wtdAvg(rows.filter(r => r[k] != null && !isNaN(r[k])), k, 'u');
+  const W = (k) => (k === 'askSF' || k === 'effSF')
+    ? psfWeightedAvg(rows.filter(r => r[k] != null && !isNaN(r[k])).map(r => ({ v: r[k], u: r.u, avgUnitSF: r.p.avgUnitSF })), 'v', 'u')
+    : wtdAvg(rows.filter(r => r[k] != null && !isNaN(r[k])), k, 'u');
   const meta = csSetMeta(props);
   const avg = { occ: W('occ'), askSF: W('askSF'), askU: W('askU'), effSF: W('effSF'), effU: W('effU'), weeks: W('weeks'),
     sf: wtdAvg(props.filter(p => p.avgUnitSF), 'avgUnitSF', 'units'), yr: wtdAvg(props.filter(p => p.yearBuilt), 'yearBuilt', 'units') };
@@ -9967,7 +9985,7 @@ function exportCompSetPdf() {
 
   const th = `<tr><th class="no">#</th><th class="nm">Property</th><th>Built</th><th>Units</th><th>Avg SF</th><th>Occ.</th><th>Asking $/SF</th><th class="mo">$/mo</th><th>Effective $/SF</th><th class="mo">$/mo</th><th>Wks free</th>${subj ? '<th>Miles</th>' : ''}</tr>`;
   const tr = r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${E([r.p.address, r.p.submarket].filter(Boolean).join(' · '))}</span></td><td>${r.p.yearBuilt || '–'}</td><td>${n0(r.p.units)}</td><td>${n0(r.p.avgUnitSF)}</td><td>${r.occ == null ? '–' : r.occ.toFixed(1) + '%'}</td><td class="pr">${psf(r.askSF)}</td><td class="mo">${usd(r.askU)}</td><td class="pr">${psf(r.effSF)}</td><td class="mo">${usd(r.effU)}</td><td>${wks(r.weeks)}</td>${subj ? `<td>${r.mi == null ? '–' : r.mi.toFixed(1)}</td>` : ''}</tr>`;
-  const avgRow = `<tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units</span></td><td>${avg.yr ? Math.round(avg.yr) : '–'}</td><td>${n0(meta.units)}</td><td>${n0(avg.sf)}</td><td>${avg.occ == null ? '–' : avg.occ.toFixed(1) + '%'}</td><td class="pr">${psf(avg.askSF)}</td><td class="mo">${usd(avg.askU)}</td><td class="pr">${psf(avg.effSF)}</td><td class="mo">${usd(avg.effU)}</td><td>${wks(avg.weeks)}</td>${subj ? '<td></td>' : ''}</tr>`;
+  const avgRow = `<tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units ($/SF by square feet)</span></td><td>${avg.yr ? Math.round(avg.yr) : '–'}</td><td>${n0(meta.units)}</td><td>${n0(avg.sf)}</td><td>${avg.occ == null ? '–' : avg.occ.toFixed(1) + '%'}</td><td class="pr">${psf(avg.askSF)}</td><td class="mo">${usd(avg.askU)}</td><td class="pr">${psf(avg.effSF)}</td><td class="mo">${usd(avg.effU)}</td><td>${wks(avg.weeks)}</td>${subj ? '<td></td>' : ''}</tr>`;
   // A 16:9 page holds about 13 two-line rows plus the average, so longer sets continue on another page.
   const dense = rows.length > 7 ? ' dense' : '', PER = 12;
   const parts = []; for (let k = 0; k < rows.length; k += PER) parts.push(rows.slice(k, k + PER));
@@ -15010,11 +15028,22 @@ function renderModal() {
         ${editing ? '<div class="edit-hint" style="margin:-2px 0 8px">Enter rents and sizes here. The property’s average unit size and rents are calculated from this table when you save.</div>' : ''}
         <table class="unit-mix-table">
           ${(() => {
-            // effective rents by unit type: the property's effective / asking ratio (same figure as the top row), else weeks free
+            // Effective rents by unit type. CoStar's own effective rent per type when the rents and concessions are
+            // CoStar's; when someone entered weeks free or changed rents by hand, asking × the property's
+            // effective/asking ratio (the same ratio as the top figures; weeks free when there is no effective rent).
             const a = +p.avgAskingSF, e = +p.avgEffectiveSF, w = concWeeks(p);
             const au = +p.avgAskingUnit, eu = +p.avgEffectiveUnit, wf = w != null ? Math.max(0, 1 - w / 52) : null;
             const fs = a > 0 && e > 0 ? e / a : wf, fu = au > 0 && eu > 0 ? eu / au : (fs != null ? fs : wf);
-            window.__mixEff = editing || fs == null ? null : fs; window.__mixEffU = fu;
+            let handEdited = false;
+            try { const ue = (typeof userEdits !== 'undefined' && userEdits[p.id]) || {}; handEdited = Object.keys(ue).some(k => /Rent|concessions|avgEffective/.test(k)) || concessionStats(p).source === 'entered'; } catch (_) {}
+            const PFX = { 'Studio': 'studio', '1 Bed': 'one', '2 Bed': 'two', '3 Bed': 'three' };
+            const effOf = (r) => {
+              const k = PFX[r[0]], tu = k && !handEdited ? +p[k + 'EffUnit'] : 0, ts = k && !handEdited ? +p[k + 'EffSF'] : 0;
+              const u2 = tu > 0 ? tu : (+r[3] && fu != null ? r[3] * fu : null);
+              const s2 = ts > 0 ? ts : (u2 != null && +r[2] ? u2 / r[2] : (+r[4] && fs != null ? r[4] * fs : null));
+              return { u: u2, sf: s2 };
+            };
+            window.__mixEff = editing || (fs == null && fu == null) ? null : effOf;
             return '';
           })()}
           <thead><tr><th style="text-align:left;">Type</th><th class="num">Units</th><th class="num">Avg SF</th><th class="num">${editing ? 'Rent / SF' : 'Asking / SF'}</th><th class="num">${editing ? 'Rent / Unit' : 'Asking / Unit'}</th>${!editing && window.__mixEff != null ? '<th class="num">Effective / SF</th><th class="num">Effective / Unit</th>' : ''}</tr></thead>
@@ -15028,20 +15057,21 @@ function renderModal() {
                 <td class="num"><input class="edit-input edit-input-sm" type="number" data-mix="${r[0]}" data-k="rent" data-field="${r[7]}" value="${r[3]==null?'':r[3]}"></td>
               </tr>
             ` : `
-              <tr><td>${r[0]}</td><td class="num">${fmt.int(r[1])}</td><td class="num">${fmt.int(r[2])}</td><td class="num mx-pri">${fmt.money2(r[4])}</td><td class="num">${fmt.money(r[3])}</td>${window.__mixEff != null ? `<td class="num mx-pri mx-eff">${r[4] ? fmt.money2(r[4] * window.__mixEff) : '—'}</td><td class="num mx-eff">${r[3] ? fmt.money(r[3] * window.__mixEffU) : '—'}</td>` : ''}</tr>
+              <tr><td>${r[0]}</td><td class="num">${fmt.int(r[1])}</td><td class="num">${fmt.int(r[2])}</td><td class="num mx-pri">${fmt.money2(r[4])}</td><td class="num">${fmt.money(r[3])}</td>${window.__mixEff ? (() => { const x = window.__mixEff(r); return `<td class="num mx-pri mx-eff">${x.sf != null ? fmt.money2(x.sf) : '—'}</td><td class="num mx-eff">${x.u != null ? fmt.money(x.u) : '—'}</td>`; })() : ''}</tr>
             `).join('')}
           </tbody>
           ${!editing && unitMixRows.length > 1 ? (() => {
             // total row: units summed; size and rents weighted by units (rows missing a figure are left out of that average)
-            let u = 0, su = 0, sfw = 0, ru = 0, rw = 0, pu = 0, pr = 0, ps = 0;
+            let u = 0, su = 0, sfw = 0, ru = 0, rw = 0, pr = 0, ps = 0, eu2 = 0, ew = 0, epr = 0, eps = 0;
             unitMixRows.forEach(r => {
               const n = +r[1] || 0; if (!n) return; u += n;
               if (+r[2]) { su += n; sfw += n * r[2]; }
               if (+r[3]) { ru += n; rw += n * r[3]; }
               if (+r[2] && +r[3]) { pr += n * r[3]; ps += n * r[2]; }
+              if (window.__mixEff) { const x = window.__mixEff(r); if (x.u != null) { eu2 += n; ew += n * x.u; if (+r[2]) { epr += n * x.u; eps += n * r[2]; } } }
             });
             if (!u) return '';
-            return `<tfoot><tr><td>Total</td><td class="num">${fmt.int(u)}</td><td class="num">${su ? fmt.int(sfw / su) : '—'}</td><td class="num">${ps ? fmt.money2(pr / ps) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru) : '—'}</td>${window.__mixEff != null ? `<td class="num">${ps ? fmt.money2(pr / ps * window.__mixEff) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru * window.__mixEffU) : '—'}</td>` : ''}</tr></tfoot>`;
+            return `<tfoot><tr><td>Total</td><td class="num">${fmt.int(u)}</td><td class="num">${su ? fmt.int(sfw / su) : '—'}</td><td class="num">${ps ? fmt.money2(pr / ps) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru) : '—'}</td>${window.__mixEff ? `<td class="num">${eps ? fmt.money2(epr / eps) : '—'}</td><td class="num">${eu2 ? fmt.money(ew / eu2) : '—'}</td>` : ''}</tr></tfoot>`;
           })() : ''}
         </table>
       ` : ''}
@@ -23900,7 +23930,7 @@ function txRenderBoard() {
   const fmt2 = v => v == null ? '<span class="mm-dim">—</span>' : '$' + v.toFixed(2);
   const CELL = {
     name: p => `${picking ? `<span class="mm-ck${picked.has(String(p.id)) ? ' on' : ''}"></span>` : ''}<div class="mm-nm">${E(p.name || '(Unnamed)')}</div><div class="mm-ad">${E(p.address || '')}</div>`,
-    submarket: p => E(p.submarket || '—'), class: p => E(p.class || '—'),
+    class: p => E(p.class || '—'),
     submarket: p => `<span class="mm-cut" title="${E(p.submarket || '')}">${E(p.submarket || '—')}</span>`,
     developer: p => p.developer ? `<span class="mm-cut" title="${E(p.developer)}">${E(p.developer)}</span>` : '<span class="mm-dim">—</span>',
     status: p => { const s = stat(p); return `<span class="mm-st ${s === 'UC' ? 'uc' : s === 'Proposed' ? 'pr' : 'ex'}">${s === 'UC' ? 'Under construction' : s}</span>`; },
@@ -24441,7 +24471,7 @@ function txRenderBoard() {
   // ---------- Excel (ExcelJS, loaded on demand) ----------
   function loadExcelJS() {
     if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
-    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'; s.onload = () => res(window.ExcelJS); s.onerror = () => rej(new Error('Could not load the Excel library')); document.head.appendChild(s); });
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'vendor/exceljs-4.4.0.js'; s.onload = () => res(window.ExcelJS); s.onerror = () => rej(new Error('Could not load the Excel library')); document.head.appendChild(s); });
   }
   async function exportXlsx() {
     const D = collect();
@@ -24782,7 +24812,7 @@ function txRenderBoard() {
   // ---------- Excel ----------
   function loadExcelJS() {
     if (window.ExcelJS) return Promise.resolve(window.ExcelJS);
-    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js'; s.onload = () => res(window.ExcelJS); s.onerror = () => rej(new Error('Could not load the Excel library')); document.head.appendChild(s); });
+    return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'vendor/exceljs-4.4.0.js'; s.onload = () => res(window.ExcelJS); s.onerror = () => rej(new Error('Could not load the Excel library')); document.head.appendChild(s); });
   }
   async function exportXlsx(view) {
     const S = SPEC[view](); const ExcelJS = await loadExcelJS(); const date = new Date(); const asOf = asOfTxt();

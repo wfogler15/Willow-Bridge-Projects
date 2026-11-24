@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Markets · Market Intel Demo · Willow Bridge</title>
 <link rel="icon" href="shared/wb-mark.png">
-<link rel="stylesheet" href="shared/wb.css?v=202611241143">
+<link rel="stylesheet" href="shared/wb.css?v=202611241355">
 <style>
   .page{max-width:1400px}
   /* ---------- top row: regions + settings ---------- */
@@ -197,9 +197,9 @@
     .rgx{grid-template-columns:1fr 150px}
   }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="shared/wb.js?v=202611241143"></script>
-<script src="access.js?v=202611241143"></script>
+<script src='vendor/supabase-0b460f03.js'></script>
+<script src="shared/wb.js?v=202611241355"></script>
+<script src="access.js?v=202611241355"></script>
 </head>
 <body>
 <main class="page">
@@ -217,7 +217,7 @@
     <div style="padding:10px 18px"><span class="sk" style="width:60%;margin:22px 0"></span><span class="sk" style="width:80%;margin:22px 0"></span><span class="sk" style="width:70%;margin:22px 0"></span></div>
   </section>
   <div class="hm-sig"><img src="shared/wb-mark.png" alt=""><span>Willow Bridge Property Company · Acquisitions &amp; Development</span></div>
-  <p class="hm-foot">Asking, occupancy, existing and under construction use the same math as each market’s Overview: existing properties weighted by units, with the team’s property edits applied. Under construction counts active construction only and is shown as a share of existing units. Rent growth is RealPage’s metro effective rent growth, averaged per year: actual over the last three full years and RealPage’s forecast to the end of its forecast. Demand vs supply is RealPage’s forecast net absorption minus its forecast new supply over the forecast years: green means demand outruns new supply, red means new supply outruns demand. Both totals are underneath.</p>
+  <p class="hm-foot">Asking, occupancy, existing and under construction use the same math as each market’s Overview: existing properties weighted by units (asking rent per SF by square feet), with the team’s property edits applied. Under construction counts active construction only and is shown as a share of existing units. Rent growth is RealPage’s metro effective rent growth, averaged per year: actual over the last three full years and RealPage’s forecast to the end of its forecast. Demand vs supply is RealPage’s forecast net absorption minus its forecast new supply over the forecast years: green means demand outruns new supply, red means new supply outruns demand. Both totals are underneath.</p>
 </main>
 <div class="hset-scrim" id="st-scrim" hidden></div>
 <div class="hset" id="st" role="dialog" aria-modal="true" aria-labelledby="st-title" hidden>
@@ -262,7 +262,7 @@
   // fallback if the summary function isn't there: the same rules, worked out in the browser (slower)
   async function summaryInBrowser(ids) {
     const [props, edits, sets] = await Promise.all([
-      WB.fetchAll('core', 'properties', 'id,market_id,status,units,stage:attrs->>pipelineStage,avgAskingSF:attrs->avgAskingSF,avgAskingUnit:attrs->avgAskingUnit,vacancy:attrs->vacancy,concessions:attrs->concessions', (q) => q.in('market_id', ids).neq('kind', 'land').order('id')).catch(() => []),
+      WB.fetchAll('core', 'properties', 'id,market_id,status,units,avg_unit_sf,stage:attrs->>pipelineStage,avgAskingSF:attrs->avgAskingSF,avgAskingUnit:attrs->avgAskingUnit,vacancy:attrs->vacancy,concessions:attrs->concessions', (q) => q.in('market_id', ids).neq('kind', 'land').order('id')).catch(() => []),
       WB.fetchAll('market', 'property_overrides', 'property_id,edits', (q) => q.order('property_id')).catch(() => []),
       rows(S('market').from('comp_sets').select('id,market_id').in('market_id', ids)),
     ]);
@@ -276,7 +276,16 @@
       if (st === 'Under Construction') { o.uc_n++; o.uc_units += u; }
       if (st !== 'Existing') return;
       o.ex_n++; o.ex_units += u; if (!(u > 0)) return;
-      [['avgAskingSF', 'ask'], ['avgAskingUnit', 'mo'], ['vacancy', 'vac'], ['concessions', 'conc']].forEach(([k, s]) => { const v = num(pick(k, p[k])); if (v != null) { o[s + '_x'] += v * u; o[s + '_w'] += u; } });
+      [['avgAskingUnit', 'mo'], ['vacancy', 'vac'], ['concessions', 'conc']].forEach(([k, s]) => { const v = num(pick(k, p[k])); if (v != null) { o[s + '_x'] += v * u; o[s + '_w'] += u; } });
+      // asking $/SF: weighted by square feet (units × unit size) so it equals total rent / total SF
+      const a = num(pick('avgAskingSF', p.avgAskingSF)), sf = num(pick('avgUnitSF', p.avg_unit_sf));
+      if (a != null) (o._ask = o._ask || []).push([a, u, sf > 0 ? sf : null]);
+    });
+    Object.values(out).forEach((o) => {
+      const rs = o._ask || [], sized = rs.filter((r) => r[2]);
+      const avgSF = sized.length ? sized.reduce((t, r) => t + r[1] * r[2], 0) / sized.reduce((t, r) => t + r[1], 0) : 1;
+      rs.forEach(([a, u, sf]) => { const w = u * (sf || avgSF); o.ask_x += a * w; o.ask_w += w; });
+      delete o._ask;
     });
     sets.forEach((s) => { if (out[s.market_id]) out[s.market_id].comp_sets++; });
     return Object.values(out);

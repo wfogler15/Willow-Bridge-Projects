@@ -115,6 +115,7 @@
       const r = await fetch(WB.SB_URL + '/functions/v1/web-scrape', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (s && s.session ? s.session.access_token : '') }, body: JSON.stringify({ track_id: cur.track.id }) });
       const j = await r.json().catch(() => ({}));
       if (j.skipped) WB.toast && WB.toast('Read in the last 10 minutes already');
+      else if (j.error) WB.toast && WB.toast(j.error);
     } catch (e) { /* the scheduled run will pick it up */ }
     await load(cur.p, true);
   }

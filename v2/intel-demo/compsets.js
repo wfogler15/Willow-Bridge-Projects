@@ -22,9 +22,10 @@
 
   function stats(ps) {
     const wa = (f) => { let s = 0, w = 0; ps.forEach((p) => { const v = f(p); if (v != null && !isNaN(v) && p.units) { s += v * p.units; w += p.units; } }); return w ? s / w : null; };
+    const psf = (k) => (typeof psfWeightedAvg === 'function' ? psfWeightedAvg(ps, k, 'units') : wa((p) => p[k]));   // $/SF: total rent / total SF
     const yrs = ps.map((p) => p.yearBuilt).filter(Boolean).sort((a, b) => a - b);
     const ex = ps.filter((p) => p.status === 'Existing');
-    return { n: ps.length, units: ps.reduce((s, p) => s + (p.units || 0), 0), ask: wa((p) => p.avgAskingSF), askU: wa((p) => p.avgAskingUnit), eff: wa((p) => p.avgEffectiveSF),
+    return { n: ps.length, units: ps.reduce((s, p) => s + (p.units || 0), 0), ask: psf('avgAskingSF'), askU: wa((p) => p.avgAskingUnit), eff: psf('avgEffectiveSF'),
       occ: (() => { let s = 0, w = 0; ex.forEach((p) => { const o = occOf(p); if (o != null && p.units) { s += o * p.units; w += p.units; } }); return w ? s / w : null; })(),
       sf: wa((p) => p.avgUnitSF), wks: wa(wksOf), yr: yrs.length ? (yrs[0] === yrs[yrs.length - 1] ? String(yrs[0]) : `${yrs[0]}–${yrs[yrs.length - 1]}`) : '—',
       uc: ps.filter((p) => p.status !== 'Existing').length };
