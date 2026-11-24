@@ -1783,3 +1783,20 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 .csx-pchip-x:hover { background: #E2E0EA; color: var(--x-ink); }
 .csx-psel { font: 500 12.5px/1 var(--x-font); color: var(--x-ink-2); background: #fff; border: 1px dashed #C9C5D6; border-radius: 999px; padding: 5px 10px; cursor: pointer; max-width: 200px; }
 .csx-parea-n { flex-basis: 100%; font-size: 12px; color: var(--x-ink-3); }
+
+/* ---- Property card sections (Nov 23 evening): bigger headings, a clear rule under each, more space between sections ---- */
+#modal-content .detail-section-title { font: 600 16px/1.2 var(--x-font) !important; letter-spacing: -.005em !important; text-transform: none !important; color: var(--x-ink) !important;
+  border-bottom: 2px solid #1D1247 !important; padding: 0 0 9px !important; margin: 40px 0 0 !important; }
+#modal-content .modal-body > .detail-section-title:first-child, #modal-content .edit-notice + .detail-section-title { margin-top: 8px !important; }
+/* the heading's rule is the section line now: drop the extra lines that sat right under it */
+#modal-content .detail-section-title + .pcg, #modal-content .detail-section-title + .pcg.pcg4,
+#modal-content .detail-section-title + .wbw-off, #modal-content .detail-section-title + .wbw-form,
+#modal-content .detail-section-title + .detail-grid { border-top: 0 !important; }
+#modal-content .detail-section-title + .unit-mix-table, #modal-content .detail-section-title + .edit-hint { margin-top: 6px; }
+#modal-content .detail-section-title + .pcg.pcg4 { padding-top: 14px; }
+/* Website heading: source line and buttons sit on the heading row, quieter than the title */
+#modal-content .wbw-h { align-items: center; }
+#modal-content .wbw-h .wbw-src { font-weight: 400; font-size: 12.5px; }
+#modal-content .modal-body.editing .detail-section-title { margin-top: 32px !important; }
+#modal-content .detail-section-title + :not(table):not(.pcg):not(.detail-grid):not(.lu-bar) { margin-top: 12px; }
+#modal-content .wbw-special { margin-top: 10px; }
