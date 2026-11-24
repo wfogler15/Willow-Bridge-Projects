@@ -1917,3 +1917,63 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 #modal:not(.prop-page) #modal-content:has(.modal-header[data-prop]) { max-width: 980px !important; }
 #modal-content .lu-tgt em { top: 17px !important; }
 #modal-content .modal-body.editing { padding-top: 20px; }
+
+/* =====================================================================
+   Nov 24 polish: branded property card and modals.
+   Brand: deep purple #1D1247 (ink of the brand), #432890 (accent), Aptos.
+   ===================================================================== */
+.modal .modal-header { box-shadow: inset 0 4px 0 #1D1247 !important; padding-top: 30px !important; }
+.modal .modal-title { color: #1D1247 !important; }
+
+/* top figures: a tinted band, cells split by thin rules; cells size to their figure so nothing collides */
+#modal-content .pcg:not(.pcg4) { display: flex !important; flex-wrap: wrap; gap: 0 !important; background: #F6F5FA; border: 1px solid #ECEAF3 !important; border-radius: 12px !important; padding: 0 !important; margin: 22px 0 6px !important; overflow: hidden; }
+#modal-content .pcg:not(.pcg4) .pcg-c { flex: 1 0 auto; padding: 16px 18px 15px !important; border-left: 1px solid #E4E1EE !important; min-width: 0; }
+#modal-content .pcg:not(.pcg4) .pcg-c:first-child { border-left: 0 !important; }
+#modal-content .pcg-k { font: 600 10.5px/1.2 var(--x-font) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: #6B6880 !important; }
+#modal-content .pcg-v { font: 600 22px/1.15 var(--x-font) !important; color: #1D1247 !important; white-space: nowrap; margin-top: 2px; }
+#modal-content .pcg-v i { font-size: 12px !important; font-weight: 500 !important; color: #6B6880 !important; }
+#modal-content .pcg-s { font-size: 12px !important; color: #6B6880 !important; white-space: nowrap; }
+/* lease-up figures: same type, no band, thin rules between */
+#modal-content .pcg.pcg4 { gap: 0 !important; padding: 16px 0 6px !important; }
+#modal-content .pcg.pcg4 .pcg-c { padding: 0 18px !important; border-left: 1px solid #ECEAF3 !important; }
+#modal-content .pcg.pcg4 .pcg-c:first-child { padding-left: 0 !important; border-left: 0 !important; }
+
+/* section headings: brand ink, rule stays */
+#modal-content .detail-section-title { color: #1D1247 !important; font-size: 16px !important; }
+
+/* tables */
+#modal-content .unit-mix-table { border-collapse: collapse; }
+#modal-content .unit-mix-table thead th { font: 600 10.5px/1.2 var(--x-font) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: #6B6880 !important; padding-top: 12px !important; padding-bottom: 10px !important; border-bottom: 1px solid #E4E1EE !important; }
+#modal-content .unit-mix-table tbody td { border-bottom: 1px solid #F0EEF5 !important; padding-top: 11px !important; padding-bottom: 11px !important; font-size: 14px; }
+#modal-content .unit-mix-table tbody tr:hover td { background: #FAFAFC; }
+#modal-content .unit-mix-table td.mx-pri { color: #1D1247 !important; }
+#modal-content .unit-mix-table tfoot td { background: #F6F5FA !important; color: #1D1247 !important; }
+
+/* label / value lists (ownership, RealPage figures) */
+#modal-content .modal-body:not(.editing) .detail-grid { border: 0 !important; border-radius: 0 !important; gap: 0 28px !important; background: none !important; }
+#modal-content .modal-body:not(.editing) .detail-cell { background: none !important; border: 0 !important; border-bottom: 1px solid #F0EEF5 !important; padding: 12px 0 11px !important; }
+#modal-content .modal-body:not(.editing) .detail-label { font: 600 10.5px/1.2 var(--x-font) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: #6B6880 !important; margin-bottom: 5px !important; }
+#modal-content .modal-body:not(.editing) .detail-value { font: 500 14.5px/1.35 var(--x-font) !important; color: #16131F; }
+#modal-content .modal-body:not(.editing) [data-sec=realpage] .detail-value { font: 600 20px/1.2 var(--x-font) !important; color: #1D1247; }
+#modal-content [data-sec=realpage] .detail-grid { margin-top: 6px; }
+
+/* lease-up bar in brand colors */
+#modal-content .lu-bar { height: 10px; background: #ECEAF3; }
+#modal-content .lu-fill { background: #1D1247; }
+#modal-content .lu-proj { background: repeating-linear-gradient(90deg, rgba(67,40,144,.45) 0 4px, rgba(67,40,144,.18) 4px 8px); }
+#modal-content .lu-tgt { background: #1D1247; }
+
+/* map */
+#modal-content .leaflet-container { border-radius: 12px; overflow: hidden; border: 1px solid #ECEAF3; }
+
+/* website "track" and other primary buttons match the brand */
+#modal-content .wbw-btn, #modal-content .pc-more-btn { background: #1D1247; }
+#modal-content .pc-more-btn { border-radius: 12px; padding: 16px 20px; box-shadow: 0 1px 2px rgba(29,18,71,.2); }
+
+/* full page */
+#modal.prop-page { background: #F2F1F6 !important; }
+#modal.prop-page #modal-content { box-shadow: 0 1px 2px rgba(29,18,71,.06), 0 8px 28px rgba(29,18,71,.06) !important; border: 1px solid #E7E5EE !important; overflow: hidden !important; }
+#modal.prop-page .modal-header { box-shadow: none !important; border-top: 4px solid #1D1247; }
+#modal.prop-page .modal-title { font-size: 30px !important; }
+#modal-content .pc-bar { background: #fff !important; }
+#modal-content .pc-pos { color: #6B6880; }
