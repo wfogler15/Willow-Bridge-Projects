@@ -127,7 +127,7 @@
     s.src = 'app.js?v=' + (window.WB_BUILD || '1');
     s.onload = () => {
       const c = document.createElement('script'); c.src = 'compsets.js?v=' + (window.WB_BUILD || '1');
-      c.onload = c.onerror = () => { const w = document.createElement('script'); w.src = 'webtrack.js?v=' + (window.WB_BUILD || '1'); w.onload = w.onerror = () => { const k = document.createElement('script'); k.src = 'costarpaste.js?v=' + (window.WB_BUILD || '1'); k.onload = k.onerror = start; document.body.appendChild(k); }; document.body.appendChild(w); };
+      c.onload = c.onerror = () => { const w = document.createElement('script'); w.src = 'webtrack.js?v=' + (window.WB_BUILD || '1'); w.onload = w.onerror = () => { const k = document.createElement('script'); k.src = 'costarpaste.js?v=' + (window.WB_BUILD || '1'); k.onload = k.onerror = () => { const pp = document.createElement('script'); pp.src = 'propage.js?v=' + (window.WB_BUILD || '1'); pp.onload = pp.onerror = start; document.body.appendChild(pp); }; document.body.appendChild(k); }; document.body.appendChild(w); };
       document.body.appendChild(c);
     };
     const start = () => { try { buildShell(); sentenceCase(); } finally { document.documentElement.classList.add('wbi-ready'); requestAnimationFrame(() => overlay.remove()); } document.addEventListener('click', scLater, true); };

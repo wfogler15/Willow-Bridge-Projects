@@ -139,7 +139,7 @@ Deno.serve(async (req) => {
   const today = new Date().toISOString().slice(0, 10);
   for (const t of tracks || []) {
     const gapH = t.last_run_at ? (Date.now() - Date.parse(t.last_run_at)) / 36e5 : 1e9;
-    if (gapH < (t.frequency === 'weekly' ? 6.5 * 24 : 20)) continue;
+    if (gapH < (t.frequency === 'weekly' ? 6.5 * 24 : 12)) continue;   // daily: anything not read in the last 12 hours
     if (t.until && today > t.until) { await M.from('web_tracks').update({ enabled: false, last_error: 'Stopped: reached its end date' }).eq('id', t.id); continue; }
     const occ = t.stop_at_occ != null ? await occupancyOf(t.property_id) : null;
     if (occ != null && occ >= +t.stop_at_occ) { await M.from('web_tracks').update({ enabled: false, last_error: `Stopped: ${occ.toFixed(0)}% occupied` }).eq('id', t.id); continue; }

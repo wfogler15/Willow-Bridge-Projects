@@ -1825,3 +1825,95 @@ body[data-wb-view="compsets"] .yx-exp, body[data-wb-view="compsets"] .wbi-sum { 
 #modal-content .cpx-done .cpx-h span { grid-column: 1 / -1; }
 #modal-content .cpx-found span { white-space: nowrap; }
 #modal-content .cpx-found span:last-child { white-space: normal; flex-basis: 100%; }
+
+/* ---- Property card: quick summary in the modal, full page (propage.js) ---- */
+#modal-content.pc-summary .pc-hide { display: none; }
+#modal-content .pc-more { margin: 28px 0 6px; }
+#modal-content .pc-more-btn { width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; text-align: left; font: 600 14px/1.3 var(--x-font); color: #fff; background: #1D1247; border: 0; border-radius: 10px; padding: 14px 18px; cursor: pointer; }
+#modal-content .pc-more-btn span { font-weight: 400; font-size: 12.5px; color: rgba(255,255,255,.75); }
+#modal-content .pc-more-btn:hover { background: #2A1C63; }
+#modal-content .pc-open { white-space: nowrap; }
+
+/* full page: the card fills the screen, scrolls as a page */
+#modal.prop-page { align-items: flex-start !important; justify-content: center !important; overflow-y: auto !important; background: #F4F3F8 !important; backdrop-filter: none !important; }
+#modal.prop-page #modal-content { width: min(1360px, calc(100vw - 48px)) !important; max-width: none !important; max-height: none !important; height: auto !important; overflow: visible !important; margin: 20px auto 64px !important; border-radius: 16px !important; box-shadow: 0 1px 3px rgba(29,18,71,.06) !important; }
+#modal.prop-page .modal-body { padding-left: 36px !important; padding-right: 36px !important; }
+#modal.prop-page .modal-header { padding-left: 36px !important; padding-right: 36px !important; }
+#modal-content .pc-bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 1px solid var(--x-line); background: #fff; border-radius: 16px 16px 0 0; }
+#modal-content .pc-pos { flex: 1; text-align: center; font-size: 12.5px; color: var(--x-ink-3); }
+#modal-content .pc-nav { font: 500 13px/1 var(--x-font); color: var(--x-ink-2); background: #fff; border: 1px solid var(--x-line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+#modal-content .pc-nav:hover:not([disabled]) { border-color: #BDB8CC; color: var(--x-ink); }
+#modal-content .pc-nav[disabled] { opacity: .4; cursor: default; }
+#modal-content .pc-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 0 48px; align-items: start; }
+#modal-content .pc-col > .pc-sec:first-child > .detail-section-title:first-child,
+#modal-content .pc-col > .pc-sec:first-child > .wbw > .detail-section-title:first-child { margin-top: 28px !important; }
+#modal-content .pc-right .prop-modal-map, #modal-content .pc-right #prop-modal-map { height: 340px !important; }
+@media (max-width: 1000px) { #modal-content .pc-grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* =====================================================================
+   Modals, Nov 24 redesign: one calm look for every popup.
+   White header with the name, a plain line of facts under it, quiet buttons on the right,
+   then the content. No dark block, no pill stack.
+   ===================================================================== */
+.modal { border: 0 !important; border-radius: 14px !important; box-shadow: 0 24px 64px rgba(22,19,31,.22), 0 2px 6px rgba(22,19,31,.06) !important; }
+.modal .modal-header { background: #fff !important; border-bottom: 1px solid #E7E5EE !important; padding: 26px 32px 20px !important; align-items: flex-start !important; gap: 24px !important; border-radius: 14px 14px 0 0; }
+.modal .modal-title { font: 600 24px/1.2 var(--x-font) !important; letter-spacing: -.012em !important; color: #16131F !important; margin: 0 0 6px !important; }
+.modal .modal-title em { font-style: normal; color: inherit; font-weight: inherit; }
+.modal .modal-addr { font: 400 14px/1.4 var(--x-font) !important; letter-spacing: 0 !important; text-transform: none !important; color: #5D5A6E !important; }
+.modal .modal-eyebrow { font: 600 11.5px/1.2 var(--x-font) !important; letter-spacing: .08em !important; color: #6B6880 !important; margin-bottom: 8px !important; }
+.modal .modal-sub { font: 400 14px/1.45 var(--x-font) !important; color: #5D5A6E !important; opacity: 1 !important; }
+/* facts line: Class B · Existing · Mid-Rise · Murray */
+.modal .modal-header .badge { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; border-radius: 0 !important;
+  font: 500 13.5px/1.4 var(--x-font) !important; letter-spacing: 0 !important; text-transform: none !important; color: #3C3850 !important; }
+.modal .modal-header .badge + .badge::before { content: '·'; margin: 0 9px 0 3px; color: #B5B1C2; font-weight: 400; }
+.modal .modal-header .badge-existing { color: #2F7A4D !important; }
+.modal .modal-header .badge-construction { color: #8A6400 !important; }
+.modal .modal-header .badge-affordable { color: #9C4A3A !important; }
+.modal .modal-header .edited-pill { background: #F1F0F5 !important; color: #5D5A6E !important; border: 0 !important; font: 500 11.5px/1 var(--x-font) !important; padding: 4px 8px !important; border-radius: 999px !important; vertical-align: 4px; margin-left: 6px; }
+.modal .csx-mtag { background: #F1F0F5 !important; border: 0 !important; color: #16131F !important; font: 500 12.5px var(--x-font) !important; padding: 4px 10px !important; margin-top: 12px !important; }
+.modal .csx-mtag span { color: #6B6880; opacity: 1 !important; }
+/* buttons: quiet outlines; the one main action is dark */
+.modal .modal-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.modal .modal-header .modal-btn, .modal .modal-header .modal-close { height: 34px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px !important; background: #fff !important; border: 1px solid #D9D6E3 !important;
+  color: #2B2740 !important; font: 500 13px/1 var(--x-font) !important; letter-spacing: 0 !important; text-transform: none !important; border-radius: 8px !important; box-shadow: none !important; white-space: nowrap; }
+.modal .modal-header .modal-btn:hover, .modal .modal-header .modal-close:hover { border-color: #B9B4C9 !important; background: #FAFAFC !important; color: #16131F !important; }
+.modal .modal-header .modal-btn-primary { background: #1D1247 !important; border-color: #1D1247 !important; color: #fff !important; }
+.modal .modal-header .modal-btn-primary:hover { background: #2A1C63 !important; border-color: #2A1C63 !important; color: #fff !important; }
+/* close is a plain × (whatever its label says) */
+.modal .modal-header .modal-close:not(.pc-back) { width: 34px; padding: 0 !important; justify-content: center; font-size: 0 !important; border-color: transparent !important; }
+.modal .modal-header .modal-close:not(.pc-back)::before { content: '\00d7'; font: 400 24px/1 var(--x-font); color: #5D5A6E; }
+.modal .modal-header .modal-close:not(.pc-back):hover { background: #F1F0F5 !important; border-color: transparent !important; }
+.modal .modal-header .modal-close:not(.pc-back):hover::before { color: #16131F; }
+.modal .modal-menu-btn .mm-caret { font-size: 10px; color: #8C889C; margin-left: 2px; }
+/* name field while editing */
+#modal-content .modal-header .edit-input-large { background: #fff !important; border: 1px solid #D9D6E3 !important; color: #16131F !important; font: 600 22px/1.2 var(--x-font) !important; padding: 6px 10px !important; }
+#modal-content .modal-header .edit-input-large:focus { border-color: #432890 !important; box-shadow: 0 0 0 3px rgba(67,40,144,.14) !important; }
+
+/* property card body */
+#modal-content .modal-body { padding: 8px 32px 28px; }
+#modal-content .pcg { padding: 22px 0 20px !important; }
+#modal-content .pcg-k { font: 500 12px/1.2 var(--x-font) !important; letter-spacing: 0 !important; text-transform: none !important; color: #6B6880 !important; }
+#modal-content .pcg-v { font: 600 24px/1.15 var(--x-font) !important; color: #16131F !important; }
+#modal-content .pcg-v i { font-size: 13px !important; color: #6B6880 !important; }
+#modal-content .pcg-s { font-size: 12.5px !important; color: #6B6880 !important; }
+/* tables: labels left, figures right */
+#modal-content .unit-mix-table th, #modal-content .unit-mix-table td { padding-left: 12px !important; padding-right: 12px !important; }
+#modal-content .unit-mix-table th:first-child, #modal-content .unit-mix-table td:first-child { text-align: left !important; padding-left: 4px !important; width: 26%; }
+#modal-content .unit-mix-table th.num, #modal-content .unit-mix-table td.num { text-align: right !important; font-variant-numeric: tabular-nums; }
+#modal-content .unit-mix-table th:last-child, #modal-content .unit-mix-table td:last-child { padding-right: 4px !important; }
+#modal-content .unit-mix-table tfoot td:first-child { padding-left: 4px !important; }
+#modal-content .unit-mix-table td.mx-pri { font-weight: 600; color: #16131F; }
+#modal-content .unit-mix-table tbody td { color: #2B2740; }
+#modal-content .unit-mix-table .edit-input-sm { max-width: 110px; margin-left: auto; display: block; }
+#modal-content .lu-tgt em { top: 12px; }
+
+/* summary: "open the full page" in the header is a quiet link-button; the bar at the bottom is the main call */
+#modal-content .pc-open { color: #2B2740 !important; }
+/* full page: the slim bar above the header */
+#modal-content .pc-bar { background: #FAFAFC !important; padding: 10px 28px !important; border-bottom: 1px solid #E7E5EE !important; border-radius: 16px 16px 0 0; }
+#modal.prop-page .modal-header { border-radius: 0 !important; padding-top: 30px !important; }
+#modal.prop-page .modal-title { font-size: 28px !important; }
+#modal.prop-page .wb-backbar { display: none !important; }
+#modal:not(.prop-page) #modal-content:has(.modal-header[data-prop]) { max-width: 980px !important; }
+#modal-content .lu-tgt em { top: 17px !important; }
+#modal-content .modal-body.editing { padding-top: 20px; }

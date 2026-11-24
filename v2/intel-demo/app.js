@@ -7548,7 +7548,7 @@ function modalMenu(items) {
   ).join('');
   if (!rows) return '';
   return `<div class="modal-menu-wrap">
-    <button class="modal-btn modal-menu-btn" onclick="toggleModalMenu(event)" title="Actions">⚙ ACTIONS</button>
+    <button class="modal-btn modal-menu-btn" onclick="toggleModalMenu(event)" title="Actions">Actions <span class="mm-caret">▾</span></button>
     <div class="modal-menu">${rows}</div>
   </div>`;
 }
@@ -14871,9 +14871,9 @@ function renderModal() {
       </div>
       <div class="modal-actions">
         ${editing
-          ? `<button class="modal-btn modal-btn-primary" onclick="saveModalEdits()">SAVE</button>
-             <button class="modal-btn" onclick="toggleEditMode()">CANCEL</button>`
-          : `${modalState.backStack.length ? '<button class="modal-btn" onclick="modalGoBack()">‹ BACK</button>' : ''}
+          ? `<button class="modal-btn" onclick="toggleEditMode()">Cancel</button>
+             <button class="modal-btn modal-btn-primary" onclick="saveModalEdits()">Save changes</button>`
+          : `${modalState.backStack.length ? '<button class="modal-btn" onclick="modalGoBack()">‹ Back</button>' : ''}
              ${modalMenu([
                { label: '✎ Edit Property', action: 'onclick="toggleEditMode()"' },
                p._wbOnly ? { label: '✎ Edit Deal Record', action: `onclick="openWbDealModal('${escapeHTML(String(p.id))}')"`, title: 'Edit every field of this user-added deal' } : null,
@@ -15009,18 +15009,18 @@ function renderModal() {
         <div class="detail-section-title">Unit Mix · Rent Detail</div>
         ${editing ? '<div class="edit-hint" style="margin:-2px 0 8px">Enter rents and sizes here. The property’s average unit size and rents are calculated from this table when you save.</div>' : ''}
         <table class="unit-mix-table">
-          <thead><tr><th style="text-align:left;">Type</th><th class="num">Units</th><th class="num">Avg SF</th><th class="num">Rent / Unit</th><th class="num">Rent / SF</th></tr></thead>
+          <thead><tr><th style="text-align:left;">Type</th><th class="num">Units</th><th class="num">Avg SF</th><th class="num">Rent / SF</th><th class="num">Rent / Unit</th></tr></thead>
           <tbody>
             ${unitMixRows.map(r => editing ? `
               <tr>
                 <td>${r[0]}</td>
                 <td class="num"><input class="edit-input edit-input-sm" type="number" data-mix="${r[0]}" data-k="u" data-field="${r[5]}" value="${r[1]==null?'':r[1]}"></td>
                 <td class="num"><input class="edit-input edit-input-sm" type="number" data-mix="${r[0]}" data-k="sf" data-field="${r[6]}" value="${r[2]==null?'':r[2]}"></td>
-                <td class="num"><input class="edit-input edit-input-sm" type="number" data-mix="${r[0]}" data-k="rent" data-field="${r[7]}" value="${r[3]==null?'':r[3]}"></td>
                 <td class="num mx-psf" data-psf="${r[0]}">${fmt.money2(r[2] && r[3] ? r[3] / r[2] : r[4])}</td>
+                <td class="num"><input class="edit-input edit-input-sm" type="number" data-mix="${r[0]}" data-k="rent" data-field="${r[7]}" value="${r[3]==null?'':r[3]}"></td>
               </tr>
             ` : `
-              <tr><td>${r[0]}</td><td class="num">${fmt.int(r[1])}</td><td class="num">${fmt.int(r[2])}</td><td class="num">${fmt.money(r[3])}</td><td class="num">${fmt.money2(r[4])}</td></tr>
+              <tr><td>${r[0]}</td><td class="num">${fmt.int(r[1])}</td><td class="num">${fmt.int(r[2])}</td><td class="num mx-pri">${fmt.money2(r[4])}</td><td class="num">${fmt.money(r[3])}</td></tr>
             `).join('')}
           </tbody>
           ${!editing && unitMixRows.length > 1 ? (() => {
@@ -15033,7 +15033,7 @@ function renderModal() {
               if (+r[2] && +r[3]) { pr += n * r[3]; ps += n * r[2]; }
             });
             if (!u) return '';
-            return `<tfoot><tr><td>Total</td><td class="num">${fmt.int(u)}</td><td class="num">${su ? fmt.int(sfw / su) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru) : '—'}</td><td class="num">${ps ? fmt.money2(pr / ps) : '—'}</td></tr></tfoot>`;
+            return `<tfoot><tr><td>Total</td><td class="num">${fmt.int(u)}</td><td class="num">${su ? fmt.int(sfw / su) : '—'}</td><td class="num">${ps ? fmt.money2(pr / ps) : '—'}</td><td class="num">${ru ? fmt.money(rw / ru) : '—'}</td></tr></tfoot>`;
           })() : ''}
         </table>
       ` : ''}
@@ -15331,6 +15331,7 @@ function renderModal() {
     </div>
   `;
 
+  if (window.wbPropLayout) window.wbPropLayout(p);   // quick summary in the modal / two columns on the full page (propage.js)
   if (editing) { wbMixWire(p); if (window.wbCostarPasteWire) window.wbCostarPasteWire(p); }
   else if (window.wbWebFill) window.wbWebFill(p);   // website tracking (webtrack.js)
   // Initialize the embedded property location map (only in view mode)
