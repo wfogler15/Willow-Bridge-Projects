@@ -1405,7 +1405,7 @@ svg.leaflet-image-layer.leaflet-interactive path {
 .marker-cluster span {
 	line-height: 30px;
 	}</style>
-<!-- Supabase JS client — used for shared cloud sync of opportunities, comp sets,
+<!-- Supabase JS client — used for shared cloud sync of comp sets,
      sale comps, and property edits. Loaded async; the dashboard works
      offline-first via localStorage and syncs when reachable. Uses the
      latest 2.x line which supports the new sb_publishable_* key format. -->
@@ -4940,27 +4940,6 @@ thead th:first-child { text-align: left; }
 .comp-picker-meta { font-size: 11px; color: var(--ink-4); margin-left: auto; text-align: right; }
 .comp-picker-empty { padding: 12px; font-family: 'Inter Tight', sans-serif; font-size: 12px; color: var(--ink-4); }
 
-/* ---- collapsible / reorderable modal sections ---- */
-.opp-sec { margin-top: 22px; }
-.opp-sec-head {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  border-bottom: 1px solid var(--accent); padding-bottom: 8px; margin-bottom: 12px;
-}
-.opp-sec.collapsed .opp-sec-head { margin-bottom: 0; }
-.opp-sec-toggle {
-  display: flex; align-items: center; gap: 9px; background: transparent; border: 0;
-  padding: 0; cursor: pointer; flex: 1; min-width: 0; text-align: left;
-}
-.opp-sec-chev { color: var(--accent-text); font-size: 10px; transition: transform 0.15s; flex: none; }
-.opp-sec.collapsed .opp-sec-chev { transform: rotate(-90deg); }
-.opp-sec-titletext {
-  font-family: 'Inter Tight', sans-serif; font-size: 11.5px; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--accent-text); font-weight: 600;
-  display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap;
-}
-.opp-sec-toggle:hover .opp-sec-titletext { color: var(--accent-deep-text); }
-.opp-sec-tools { display: flex; align-items: center; gap: 6px; flex: none; }
-
 /* Per-row reorder controls inside a comp table (edit mode only) — sit next to
    the remove ✕ button so users can move an individual comp up/down within
    its list without touching the section order. */
@@ -5741,56 +5720,6 @@ thead th:first-child { text-align: left; }
   background: var(--accent);
   color: #ffffff;
   border-color: var(--accent-text);
-}
-
-/* Opportunities map legend — pinned bottom-left over the map, white background
-   for tile contrast, compact two-column grid of the 10 statuses with their
-   color dot. Sits above Leaflet zoom controls in stack order. */
-.opp-map-legend {
-  position: absolute;
-  bottom: 14px;
-  left: 14px;
-  z-index: 500;
-  background: #ffffff;
-  border: 1px solid rgba(0,0,0,0.12);
-  border-radius: 3px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-  padding: 10px 12px 8px;
-  max-width: 260px;
-  font-family: 'Inter Tight', sans-serif;
-}
-.opp-map-legend-title {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  font-weight: 600;
-  margin-bottom: 6px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--line);
-}
-.opp-map-legend-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 3px 14px;
-}
-.opp-legend-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-2);
-  white-space: nowrap;
-}
-.opp-legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1.5px solid #ffffff;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.12);
-  flex-shrink: 0;
 }
 
 /* Market Map class legend — pinned bottom-left over the property map. Mirrors
@@ -6668,7 +6597,6 @@ tbody tr,
       <button class="tab" data-view="submarkets">Market Map</button>
       <button class="tab" data-view="properties">Property Index</button>
       <button class="tab" data-view="salecomps">Sale Comps</button>
-      <button class="tab" data-view="opportunities">Opportunities</button>
     </div>
 
     <!-- Content -->
@@ -8362,207 +8290,6 @@ tbody tr,
 }
 
 
-/* ===== Comp Set ↔ Opportunity benchmark ===== */
-.ocs-link-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
-.ocs-hint {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 12.5px;
-  line-height: 1.6;
-  color: var(--ink-3);
-  padding: 10px 14px;
-  background: var(--bg-2);
-  border-left: 3px solid var(--line-strong);
-  border-radius: 2px;
-}
-.ocs-tools-note {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-4, var(--ink-3));
-  font-weight: 600;
-}
-
-.ocs-cards {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 14px;
-}
-.ocs-card {
-  padding: 12px 14px;
-  background: var(--bg-2);
-  border-radius: 3px;
-  border-left: 3px solid var(--line-strong);
-}
-.ocs-card-accent { border-left-color: var(--accent-text); }
-.ocs-card-label {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  margin-bottom: 5px;
-}
-.ocs-card-value {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 23px;
-  font-weight: 500;
-  line-height: 1.05;
-  color: var(--ink-1);
-}
-.ocs-card-value.pos { color: var(--positive); }
-.ocs-card-value.neg { color: var(--negative); }
-.ocs-card-unit { font-size: 11.5px; color: var(--ink-3); font-weight: 600; margin-left: 5px; }
-.ocs-card-sub {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 11.5px;
-  color: var(--ink-3);
-  margin-top: 5px;
-}
-.ocs-bps { font-weight: 600; }
-.ocs-bps.pos { color: var(--positive); }
-.ocs-bps.neg { color: var(--negative); }
-
-.ocs-verdict {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 13px;
-  line-height: 1.6;
-  padding: 12px 16px;
-  border-radius: 3px;
-  margin-bottom: 18px;
-  color: var(--ink-2);
-  border-left: 3px solid var(--line-strong);
-  background: var(--bg-2);
-}
-.ocs-verdict strong { color: var(--ink-1); }
-.ocs-verdict.ok { border-left-color: var(--positive); background: rgba(74,122,90,0.07); }
-.ocs-verdict.short { border-left-color: var(--negative); background: rgba(180,70,70,0.06); }
-.ocs-verdict.warn { border-left-color: #946b00; background: rgba(148,107,0,0.07); }
-
-.ocs-sub {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-  margin: 18px 0 10px;
-}
-.ocs-sub-note {
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  color: var(--ink-3);
-  margin-left: 6px;
-}
-.ocs-table td, .ocs-table th { font-size: 12.5px; }
-.ocs-table .num.pos { color: var(--positive); font-weight: 600; }
-.ocs-table .num.neg { color: var(--negative); font-weight: 600; }
-.ocs-row-note {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 11px;
-  color: var(--ink-3);
-  font-weight: 400;
-  margin-top: 1px;
-}
-.ocs-row-required td { background: rgba(67,40,144,0.06); }
-.ocs-row-uw td { background: rgba(127,127,127,0.05); }
-.ocs-row-allin td { background: rgba(74,122,90,0.05); }
-.ocs-bars { margin-bottom: 4px; }
-.ocs-source {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 11.5px;
-  line-height: 1.65;
-  color: var(--ink-3);
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-
-/* Underwriting tab inside the comp set panel */
-.ocs-strip-label {
-  display: block;
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  margin-bottom: 4px;
-}
-.ocs-strip-value {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 19px;
-  font-weight: 500;
-  color: var(--ink-1);
-}
-.ocs-strip-value em { font-style: normal; font-size: 11.5px; color: var(--ink-3); margin-left: 3px; }
-
-.ocs-deal-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 14px;
-}
-.ocs-deal-name {
-  font-size: 19px;
-  color: var(--ink-1);
-  letter-spacing: -0.01em;
-  margin-bottom: 3px;
-}
-.ocs-deal-sub { font-family: 'Inter Tight', sans-serif; font-size: 12px; color: var(--ink-3); }
-.ocs-deal-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.ocs-deal-verdict {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-  padding: 14px 18px;
-  border-radius: 3px;
-  border-left: 3px solid var(--line-strong);
-  background: var(--bg-2);
-  margin-bottom: 14px;
-}
-.ocs-deal-verdict.ok { border-left-color: var(--positive); background: rgba(74,122,90,0.07); }
-.ocs-deal-verdict.short { border-left-color: var(--negative); background: rgba(180,70,70,0.06); }
-.ocs-deal-big {
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 21px;
-  font-weight: 500;
-  color: var(--ink-1);
-  line-height: 1.05;
-}
-.ocs-deal-big.pos { color: var(--positive); }
-.ocs-deal-big.neg { color: var(--negative); }
-.ocs-deal-big em { font-style: normal; font-size: 11.5px; color: var(--ink-3); margin-left: 4px; }
-.ocs-mini { margin-top: 4px; }
-
-/* Linked-deal chip in the comp set hero */
-.cs-linked-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: 'Inter Tight', sans-serif;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  padding: 3px 9px;
-  border-radius: 2px;
-  background: rgba(74,122,90,0.13);
-  border: 1px solid rgba(74,122,90,0.4);
-  color: var(--positive);
-}
-
-@media (max-width: 1180px) {
-  .ocs-cards { grid-template-columns: repeat(2, 1fr); }
-  .ocs-deal-verdict { grid-template-columns: repeat(2, 1fr); }
-}
-
 </style>
       <!-- ============ PROPERTY INDEX ============ -->
       <div class="view" id="view-properties">
@@ -8794,113 +8521,6 @@ tbody tr,
         </div>
       </div>
 
-      <!-- ============ OPPORTUNITIES ============ -->
-      <div class="view" id="view-opportunities">
-        <!-- Top KPI strip — counts and totals of tracked opportunities -->
-        <div class="kpi-row" id="opp-kpis" style="grid-template-columns:repeat(4,1fr);"></div>
-
-        <!-- Map panel -->
-        <div class="panel">
-          <div class="panel-header" style="gap:14px;flex-wrap:wrap;flex-direction:column;align-items:stretch;">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
-              <div>
-                <div class="panel-title">Investment &amp; Development <em>Opportunities</em></div>
-                <div class="panel-sub">Internal tracker · Cloud-synced · Click any pin or row for full detail</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;">
-                <div class="toggle-group" id="opp-type-filter">
-                  <button class="toggle-btn active" data-filter="all">All</button>
-                  <button class="toggle-btn" data-filter="development">Development</button>
-                  <button class="toggle-btn" data-filter="investment">Investment</button>
-                </div>
-                <!-- Comps overlay toggle — layers Property Index data on the map alongside opportunities.
-                     'existing' shows existing buildings only · 'uc' adds Under Construction (default)
-                     · 'all' also adds Proposed pipeline (often stalled, distinct purple-grey color) -->
-                <div class="toggle-group" id="opp-comps-toggle" title="Overlay market comps (existing + pipeline) on the map">
-                  <button class="toggle-btn" data-comps="off">Comps Off</button>
-                  <button class="toggle-btn" data-comps="existing">Existing</button>
-                  <button class="toggle-btn active" data-comps="uc">+ UC</button>
-                  <button class="toggle-btn" data-comps="all">+ Proposed</button>
-                </div>
-              </div>
-            </div>
-            <div id="opp-instruction-banner" style="display:none;padding:10px 14px;background:rgba(67,40,144,0.08);border:1px dashed var(--accent);border-radius:3px;color:var(--accent-text);font-family:'Inter Tight',sans-serif;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;font-weight:600;">
-              Click anywhere on the map to drop a pin for this opportunity. <button id="opp-cancel-drop" style="margin-left:12px;background:none;border:1px solid var(--accent);color:var(--accent-text);padding:2px 10px;cursor:pointer;font-family:inherit;font-size:12.5px;letter-spacing:0.12em;text-transform:uppercase;border-radius:2px;">Cancel</button>
-            </div>
-          </div>
-          <div class="panel-body" style="padding:0;">
-            <div class="map-container">
-              <div id="opp-map" style="height:560px;width:100%;background:#e8e4dc;position:relative;"></div>
-              <!-- Status color legend — sits at bottom-left of the map so the
-                   pronounced color scheme is decodable without clicking pins.
-                   Compact two-column layout to fit all 10 statuses. -->
-              <div class="opp-map-legend" id="opp-map-legend">
-                <div class="opp-map-legend-title">Status</div>
-                <div class="opp-map-legend-grid">
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#1f9d5a;"></span>Closed</span>
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#3ab87c;"></span>Pre-Dev Close</span>
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#e97c1c;"></span>Under Contract</span>
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#e85b8d;"></span>LOI</span>
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#432890;"></span>Negotiating</span>
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#6a4fc0;"></span>Underwriting</span>
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#3b82f6;"></span>Sourcing</span>
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#d6921f;"></span>Monitor</span>
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#737373;"></span>Passed</span>
-                  <span class="opp-legend-row"><span class="opp-legend-dot" style="background:#4a1a3d;"></span>Dead</span>
-                </div>
-              </div>
-              <button class="map-expand-btn map-expand-btn-float" data-target="opp-map" title="Expand to full screen (Esc to exit)">
-                <span class="exp-icon">⛶</span> EXPAND
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- List panel — same visual language as Pipeline Detail -->
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="panel-title">Opportunities <em>List</em></div>
-              <div class="panel-sub"><span id="opp-list-count">0</span> tracked sites · Click any row for full detail · Sort by clicking any column</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:nowrap;">
-              <input type="text" id="opp-search" class="search-input" placeholder="Search name, address, broker, submarket…" style="max-width:340px;margin-bottom:0;">
-              <button class="sc-add-btn" id="opp-add-btn" title="Add a new opportunity — you'll be asked to click the map to drop a pin"><span style="font-size:14px;line-height:1;">＋</span> ADD OPPORTUNITY</button>
-              <div class="export-picker" style="position:relative;display:inline-block;">
-                <button class="sc-export-btn" id="opp-export-btn" title="Download opportunities — choose Excel or PDF"><span style="font-size:13px;line-height:1;">↓</span> EXPORT</button>
-                <div id="opp-export-menu" style="display:none;position:absolute;top:calc(100% + 4px);right:0;background:#fff;border:1px solid var(--line-strong);border-radius:3px;box-shadow:0 6px 20px rgba(20,15,30,0.12);z-index:50;min-width:170px;overflow:hidden;">
-                  <button class="export-menu-item" data-format="csv" style="display:block;width:100%;text-align:left;background:transparent;border:0;padding:10px 14px;cursor:pointer;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600;">Excel · CSV</button>
-                  <button class="export-menu-item" data-format="pdf" style="display:block;width:100%;text-align:left;background:transparent;border:0;padding:10px 14px;cursor:pointer;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-2);font-weight:600;border-top:1px solid var(--line);">PDF Report</button>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="panel-body tight">
-            <div class="table-scroll">
-              <table id="table-opportunities">
-                <thead>
-                  <tr>
-                    <th class="sortable" data-sort="name">Site / Deal</th>
-                    <th class="sortable" data-sort="oppType">Type</th>
-                    <th class="sortable" data-sort="submarket">Submarket</th>
-                    <th class="sortable" data-sort="productType">Product</th>
-                    <th class="sortable" data-sort="status">Status</th>
-                    <th class="sortable num" data-sort="size">Size</th>
-                    <th class="sortable num" data-sort="units">Units</th>
-                    <th class="sortable num" data-sort="askingPrice">Asking / Guidance</th>
-                    <th class="sortable num" data-sort="pricePerUnit">$ / Unit</th>
-                    <th class="sortable num" data-sort="yieldOnCost">YoC</th>
-                    <th class="sortable" data-sort="broker">Broker</th>
-                    <th class="sortable num" data-sort="dateAdded">Added</th>
-                    <th class="sortable num" data-sort="callForOfferDate">Call for Offer</th>
-                  </tr>
-                </thead>
-                <tbody></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <div class="footer">
@@ -8930,7 +8550,7 @@ tbody tr,
   <div class="modal" id="cm-modal-content"></div>
 </div>
 
-<link rel="stylesheet" href="shared/wb-chrome.css?v=202611241355">
+<link rel="stylesheet" href="shared/wb-chrome.css?v=202611250304">
 <!-- Market intel in the v2 design language. The page shell (rail, header, filter menus) is built by buildShell() in loader.js. -->
 <style id="wb-minimal">
 /* Market intel in the v2 design language. One block, applied last; the page shell is built in loader.js.
@@ -9170,8 +8790,6 @@ body { background:#fff; color:var(--ink-1); }
 .wbi-fpanel .search-input::placeholder { color:#6B6583 !important; }
 .wbi-ffoot #clear-filters { color:#3A3456 !important; }
 .wbi-fpanel .wbi-fdone { background:#1D1247 !important; color:#fff !important; }
-/* Demo copy: Sale Comps is back in the rail; Opportunities stays hidden */
-.tab[data-view="opportunities"] { display:none !important; }
 .wbi-hero-kpis { margin-top:14px !important; padding-top:14px !important; }
 .wbi-hero .kpi-label { margin-bottom:4px !important; }
 .wbi-hero .kpi-value { font-size:28px !important; }
@@ -9190,16 +8808,16 @@ body { background:#fff; color:var(--ink-1); }
 #top-rent-basis button { border:0; background:none; padding:2px 0; border-bottom:1.5px solid transparent; font:500 12px 'Inter Tight', Inter, sans-serif; color:#8A86A0; cursor:pointer; }
 #top-rent-basis button.on { color:#1D1247; font-weight:600; border-bottom-color:#1D1247; }
 </style>
-<script src="shared/wb.js?v=202611241355"></script>
-<script src="shared/legacy-db.js?v=202611241355"></script>
-<script>window.WB_BUILD = '202611241355';</script>
-<link rel="stylesheet" href="demo.css?v=202611241355">
-<link rel="stylesheet" href="propcard.css?v=202611241355">
+<script src="shared/wb.js?v=202611250304"></script>
+<script src="shared/legacy-db.js?v=202611250304"></script>
+<script>window.WB_BUILD = '202611250304';</script>
+<link rel="stylesheet" href="demo.css?v=202611250304">
+<link rel="stylesheet" href="propcard.css?v=202611250304">
 <link rel="stylesheet" href='vendor/maplibre-gl-4.7.1.css'>
 <script src='vendor/maplibre-gl-4.7.1.js'></script>
 <script src='vendor/leaflet-maplibre-gl-0.0.22.js'></script>
-<script src="access.js?v=202611241355"></script>
-<script src="loader.js?v=202611241355"></script>
+<script src="access.js?v=202611250304"></script>
+<script src="loader.js?v=202611250304"></script>
 
 
 

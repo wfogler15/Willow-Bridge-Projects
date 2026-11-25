@@ -63,13 +63,12 @@
     document.body.appendChild(overlay);
 
     const t0 = performance.now();
-    const [mrow, props, rp, trends, lifeDeals, lifeSales] = await Promise.all([
+    const [mrow, props, rp, trends, lifeSales] = await Promise.all([
       sb.schema('core').from('markets').select('*').eq('id', market).single(),
       WB.fetchAll('core', 'properties', '*', (x) => x.eq('market_id', market).neq('kind', 'land').order('costar_id')),
       WB.fetchAll('market', 'rp_property_data', 'realpage_id,data', (x) => x.eq('market_id', market).order('realpage_id')),
       WB.fetchAll('market', 'rp_trends', 'geography,data', (x) => x.eq('market_id', market)),
-      // the same building over time: each time it was marketed (Pipeline) and each sale (Sale Comps)
-      Promise.resolve([]),   // deals are Canopy-only: the Demo shows sale history from comps, not pursuits
+      // the same building over time: each recorded sale (Sale Comps). Canopy deals never load here.
       WB.fetchAll('comps', 'sale_comps', 'property_id,sale_date,sale_price,price_per_unit,cap_rate,cap_rate_t12,buyer', (x) => x.eq('market_id', market).eq('comp_type', 'investment').not('property_id', 'is', null)).catch(() => []),
     ]);
     if (mrow.error) throw mrow.error;
@@ -95,11 +94,9 @@
         market: (p.attrs && p.attrs.market) || mrow.data.label,
       });
     }
-    // per-property lifecycle, keyed by core.properties id: active deal (on market) and last recorded sale
-    const ACTIVE = ['prospect', 'screening', 'underwriting', 'loi', 'under_contract'];
+    // per-property lifecycle, keyed by core.properties id: last recorded sale
     const history = {};
-    const H = (id) => (history[id] = history[id] || { deals: 0, sales: 0, onMarket: null, lastSale: null });
-    for (const d of lifeDeals) { const h = H(d.property_id); h.deals++; if (ACTIVE.includes(d.stage) && (!h.onMarket || (d.first_seen || '') > (h.onMarket.first_seen || ''))) h.onMarket = d; }
+    const H = (id) => (history[id] = history[id] || { sales: 0, lastSale: null });
     for (const c of lifeSales) { if (!c.sale_date) continue; const h = H(c.property_id); h.sales++; if (!h.lastSale || c.sale_date > h.lastSale.sale_date) h.lastSale = c; }
     window.__WBD = {
       market, label: mrow.data.label, title: cfg.title || mrow.data.title, msa_label: cfg.msa_label || cfg.title,
@@ -153,7 +150,7 @@
     const ttl = document.createElement('div'); ttl.className = 'wbi-rail-title'; ttl.textContent = (window.__WBD && window.__WBD.title) || 'Market Intel';
     mkt.append(ttl, WB.marketToggle()); rail.appendChild(mkt);
     const tabBy = Object.fromEntries($$('.tab', tabs).map((t) => [t.dataset.view, t]));
-    [['Market', ['overview', 'trends', 'submarkets', 'properties']], ['Supply', ['absorption', 'pipeline']], ['Underwriting', ['compsets', 'yoc', 'salecomps', 'opportunities']]]
+    [['Market', ['overview', 'trends', 'submarkets', 'properties']], ['Supply', ['absorption', 'pipeline']], ['Underwriting', ['compsets', 'yoc', 'salecomps']]]
       .forEach(([label, ids]) => {
         const h = document.createElement('div'); h.className = 'wbi-rail-h'; h.textContent = label; rail.appendChild(h);
         ids.forEach((id) => { if (tabBy[id]) { rail.appendChild(tabBy[id]); delete tabBy[id]; } });
@@ -169,8 +166,7 @@
       pipeline: '<path d="M3 13.5V6.5l5-3.5 5 3.5v7"/><path d="M6.5 13.5v-4h3v4"/>',
       compsets: '<rect x="2.5" y="3" width="4.5" height="4.5" rx="1"/><rect x="9" y="3" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9.5" width="4.5" height="4.5" rx="1"/><path d="M11.25 9.5v4.5M9 11.75h4.5"/>',
       yoc: '<rect x="3" y="2.5" width="10" height="11" rx="1.5"/><path d="M5.5 5.5h5M5.5 8.5h1M8 8.5h1M10.5 8.5h0M5.5 11h1M8 11h1"/>',
-      salecomps: '<path d="M8.5 2.5h4.5v4.5l-6 6-4.5-4.5z"/><circle cx="10.6" cy="5" r=".9"/>',
-      opportunities: '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/>'
+      salecomps: '<path d="M8.5 2.5h4.5v4.5l-6 6-4.5-4.5z"/><circle cx="10.6" cy="5" r=".9"/>'
     };
     $$('.tab', rail).forEach((t) => { const p = IC[t.dataset.view]; if (p && !t.querySelector('.wbi-ic')) t.insertAdjacentHTML('afterbegin', `<svg class="wbi-ic" viewBox="0 0 16 16" aria-hidden="true">${p}</svg>`); });
     inner.appendChild(rail);

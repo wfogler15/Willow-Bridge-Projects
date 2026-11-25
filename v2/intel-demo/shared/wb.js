@@ -6,14 +6,7 @@
 (function () {
   const SB_URL = 'https://wmydniiakotcliraajaa.supabase.co';
   const SB_KEY = 'sb_publishable_FWrjAmI9VJZpXWJ5Q7AmFg_2zluUmIL';
-  const PAGES = [
-    { id: 'home', label: 'Overview', href: '' },
-    { id: 'intel', label: 'Market Intel', href: 'intel/' },
-    { id: 'scout', label: 'Site Scout', href: 'scout/' },
-    { id: 'comps', label: 'Sale Comps', href: 'comps/' },
-    { id: 'pipeline', label: 'Opportunities', href: 'pipeline/' },
-    { id: 'dev', label: 'Radar', href: 'development/' },
-  ];
+  const PAGES = [];   // Demo copy: no links to Canopy's tools (Opportunities, Radar, Site Scout…)
 
   // Root of the v2 site, worked out from where this script was loaded.
   const scriptSrc = document.currentScript && document.currentScript.src;
@@ -52,7 +45,7 @@
   // Shared chrome stylesheet, loaded once per page.
   (function chrome() {
     const add = (href) => { const abs = new URL(href, location.href).href; if ([...document.querySelectorAll('link[rel=stylesheet]')].some((l) => l.href === abs)) return; const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); };
-    add(ROOT + 'shared/wb-chrome.css?v=202611241355');
+    add(ROOT + 'shared/wb-chrome.css?v=202611250304');
     // one favicon everywhere (the Canopy mark), unless a page brings its own
     if (!document.querySelector('link[rel~="icon"]')) { const i = document.createElement('link'); i.rel = 'icon'; i.href = ROOT + 'shared/wb-mark.png'; document.head.appendChild(i); }
   })();
@@ -303,7 +296,8 @@
     setTimeout(() => $('.wbh-x', el).focus(), 0);
     const [pr, ev, sales] = await Promise.all([
       sb.schema('core').from('properties').select('id,name,address,city,state,units,year_built,owner,market_id,kind,attrs').eq('id', pid).maybeSingle(),
-      sb.schema('core').from('property_events').select('*').eq('property_id', pid).order('on_date', { ascending: false }),
+      // Demo: only the building and its sales; Canopy deals (Opportunities) and Radar cases stay out
+      sb.schema('core').from('property_events').select('*').eq('property_id', pid).in('ref_table', ['property', 'sale_comp']).order('on_date', { ascending: false }),
       sb.schema('comps').from('sale_comps').select('id,sale_date,sale_price,price_per_unit,cap_rate,cap_rate_t12,buyer').eq('property_id', pid).order('sale_date', { ascending: false }),
     ]);
     if (pr.error || !pr.data) { $('#wb-hist-t', el).textContent = 'Property history'; body.innerHTML = `<p class="wbh-empty">${esc((pr.error && pr.error.message) || 'Property not found.')}</p>`; return; }
@@ -312,7 +306,6 @@
     $('.wbh-sub', el).textContent = [p.address && p.address !== p.name ? p.address : null, p.city, ((MARKETS.find((m) => m.id === p.market_id) || {}).short || null)].filter((v, i, a) => v && a.indexOf(v) === i).filter(Boolean).join(', ');
     const facts = [[p.units ? fmt.int(p.units) : null, 'Units'], [p.year_built || null, 'Built'], [p.owner || null, 'Owner' + (p.attrs && p.attrs.owner_since ? ` since ${monYr(p.attrs.owner_since)}` : '')]]
       .filter(([v]) => v != null && v !== '');
-    const marketed = events.filter((e) => e.kind === 'marketed').length, pursued = events.filter((e) => e.kind === 'pursued').length;
     const last = S[0];
     let lastTxt = null;
     if (last) {
@@ -321,16 +314,12 @@
       lastTxt = `last sale ${fmt.usd(last.sale_price)}${bits.length ? ` (${bits.join(', ')})` : ''} in ${monYr(last.sale_date)}`;
     }
     const times = (n) => (n === 1 ? 'once' : `${n} times`);
-    const summary = [marketed ? `marketed ${times(marketed)}` : null, pursued ? `pursued as a site ${times(pursued)}` : null,
-      S.length ? `sold ${times(S.length)}` : 'no sales on record', lastTxt].filter(Boolean).join(' · ');
-    const href = () => null;   // Demo copy: no links into Canopy (Opportunities, Sale Comps, Radar)
-    const open = { deal: 'Open deal', sale_comp: 'Open comp', dev_project: 'Open case' };
+    const summary = [S.length ? `sold ${times(S.length)}` : 'no sales on record', lastTxt].filter(Boolean).join(' · ');
     body.innerHTML = (facts.length ? `<dl class="wbh-facts">${facts.map(([v, l]) => `<div><dt>${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : '')
       + `<p class="wbh-sum">${esc(summary.charAt(0).toUpperCase() + summary.slice(1))}.</p>`
       + (events.length ? `<ol class="wbh-tl">${events.map((e) => {
-        const h = href(e);
         return `<li class="k-${esc(e.kind)}"><span class="wbh-d">${esc(e.kind === 'built' ? String(e.on_date || '').slice(0, 4) : monYr(e.on_date))}</span>`
-          + `<div><b>${esc(e.title)}</b>${e.detail ? `<p>${esc(e.detail)}</p>` : ''}${h ? `<a href="${h}">${open[e.ref_table]}</a>` : ''}</div></li>`;
+          + `<div><b>${esc(e.title)}</b>${e.detail ? `<p>${esc(e.detail)}</p>` : ''}</div></li>`;
       }).join('')}</ol>` : '<p class="wbh-empty">Nothing on record for this property yet.</p>');
   }
 

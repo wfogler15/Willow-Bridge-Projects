@@ -21,7 +21,6 @@ function wbGL(style) {
 }
 // Streets: full-color street map with buildings and parks (default on every map)
 function wbStreetLayer() { return wbHasGL() ? wbGL(WB_OFM + 'liberty') : wbEsriLightGray(); }
-function wbStreetsLayer() { return wbStreetLayer(); }
 // Light: clean gray canvas (option on the Market Map)
 function wbLightLayer() { return wbHasGL() ? wbGL(WB_OFM + 'positron') : wbEsriLightGray(); }
 // Satellite: Esri imagery with crisp vector road and place labels on top
@@ -120,8 +119,7 @@ const LIVE_DATA_PERIOD_SORT = TODAY.getFullYear() * 100 + Math.floor(TODAY.getMo
 /* =================================================================
    CLOUD SYNC — SUPABASE INTEGRATION
    =================================================================
-   The dashboard syncs four data stores to Supabase so the team shares state:
-     - opportunities      (table: opportunities)
+   The dashboard syncs three data stores to Supabase so the team shares state:
      - comp sets          (table: comp_sets)
      - sale comps         (tables: custom_comps + sale_comp_edits)
      - property edits     (table: property_edits)
@@ -146,8 +144,6 @@ const LIVE_DATA_PERIOD_SORT = TODAY.getFullYear() * 100 + Math.floor(TODAY.getMo
    - Every record carries `market: 'phoenix'` so future Nashville/Denver/
      Charlotte rollouts don't require a schema migration
 ================================================================= */
-const SUPABASE_URL = 'https://wmydniiakotcliraajaa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndteWRuaWlha290Y2xpcmFhamFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDg2MzgsImV4cCI6MjA5NTM4NDYzOH0.HhbCUXJ2bxZ9sbPUYdyuGyqJE0Ell7_6raoSGTR9xnU';
 const ACTIVE_MARKET = window.__WBD.market;
 // Microsoft 365 sign-in is built and ready, but requires an Entra ID app
 // registration + Supabase Azure-provider config that don't exist yet (see
@@ -1909,19 +1905,6 @@ function feeMath(p) {
   const hasData = FEE_SCHEMA.some(s => wbNum(f[s.key]) != null) || !!f.utilityMethod || !!f.feeNotes;
   return { f, recurring, onetime, amortized, totalOther, eff, allIn, allInSF, premiumPct, hasData };
 }
-
-async function pushCompFeesCloud(pid, fees) {
-  if (!syncState.enabled || !pid) return;
-  await syncOp('compfees.push', async () => {
-    const { error } = await supabaseClient.from('comp_fees').upsert({
-      property_id: String(pid),
-      market: ACTIVE_MARKET,
-      fees: fees || {},
-      editor_name: syncState.editorName || 'Anonymous'
-    });
-    if (error) throw error;
-  });
-}
 async function pullCompFeesFromCloud() {
   if (!syncState.enabled) return;
   const result = await syncOp('compfees.pull', async () => {
@@ -1994,18 +1977,6 @@ async function pushPropertyEdit(propId, edits) {
     if (error) throw error;
   });
 }
-
-async function deletePropertyEditCloud(propId) {
-  if (!syncState.enabled || !propId) return;
-  await syncOp('propedit.delete', async () => {
-    const { error } = await supabaseClient.from('property_edits')
-      .delete()
-      .eq('property_id', String(propId))
-      .eq('market', ACTIVE_MARKET);
-    if (error) throw error;
-  });
-}
-
 async function pullPropertyEditsFromCloud() {
   if (!syncState.enabled) return;
   const result = await syncOp('propedit.pull', async () => {
@@ -2459,7 +2430,6 @@ async function pushCompSet(set) {
       name: set.name,
       description: set.description || null,
       property_ids: set.propertyIds || [],
-      deal_id: set.dealId,          // undefined = leave the link alone; null = unlink
       editor_name: syncState.editorName || 'Anonymous'
     });
     if (error) throw error;
@@ -2500,7 +2470,6 @@ async function pullCompSetsFromCloud() {
       name: row.name,
       description: row.description || '',
       propertyIds: Array.isArray(row.property_ids) ? row.property_ids : [],
-      dealId: row.deal_id || null,   // the pipeline deal this set is tied to (one set per deal)
       uuid: row.uuid || null,
       settings: (row.data && row.data.settings) || {},   // baseline submarket etc. (Comp Sets tab)
       createdBy: row.editor_name,
@@ -4538,7 +4507,7 @@ function renderPipeline() {
   const submarketEmpty = document.getElementById('chart-pipeline-submarket-empty');
   const pipelineIsEmpty = pipelineMode === 'property' ? pipelinePropRows.length === 0 : subSorted.length === 0;
   if (submarketEmpty) submarketEmpty.textContent = pipelineMode === 'property'
-    ? 'No pipeline deals match the current filters.'
+    ? 'No pipeline projects match the current filters.'
     : 'No pipeline projects match current filters.';
   if (pipelineIsEmpty) {
     if (submarketEmpty) submarketEmpty.style.display = 'flex';
@@ -7308,8 +7277,7 @@ function renderTrendsPropertyTimeline(rpProp, rpId) {
 
 // Properties in the active set, in saved order, with edits + taxonomy applied.
 function compSetProperties(setId) {
-  // Defaults to the active set, but any set can be read by id — the
-  // opportunity benchmark needs a set that isn't currently on screen.
+  // Defaults to the active set, but any set can be read by id.
   const id = setId || ((state.compSetMode === 'viewing') ? state.activeCompSetId : null);
   if (!id) return [];
   const cs = compSets[id];
@@ -7364,10 +7332,6 @@ function csStatusOf(p) {
   if (p.status === 'Existing') return 'Existing';
   return isPlannedProposed(p) ? 'Proposed' : 'UC';
 }
-function csStatusLabel(s) {
-  return s === 'UC' ? 'Under Construction' : s;
-}
-
 // A min–max track with the set average marked on it. Reads instantly in a
 // walkthrough: "here's the spread, here's where the set sits inside it."
 function csRangeTrack(min, max, val, fmtFn) {
@@ -7397,7 +7361,6 @@ function renderCompSetIntel() {
   const props = compSetProperties();
   if (!state.csIntelTab) state.csIntelTab = 'snapshot';
   const tab = state.csIntelTab;
-  const linkedDeals = oppsForCompSet(state.activeCompSetId);
 
   const actions = `
     <button class="cs-build-btn" id="cs-manage-btn" title="Add or remove properties, rename the set">
@@ -7416,7 +7379,7 @@ function renderCompSetIntel() {
         <div class="panel-header" style="gap:14px;flex-wrap:wrap;">
           <div>
             <div class="panel-title">${document.body.dataset.wbView === 'compsets' ? 'Analysis' : `Comp Set · <em>${escapeHTML(cs.name)}</em>`}</div>
-            <div class="panel-sub">Empty set · click properties on the map to add them${compSetDealName(cs) ? ' · Tied to ' + escapeHTML(compSetDealName(cs)) : ''}</div>
+            <div class="panel-sub">Empty set · click properties on the map to add them</div>
           </div>
           <div class="cs-actions">${actions}</div>
         </div>
@@ -7434,8 +7397,7 @@ function renderCompSetIntel() {
     ['concessions', 'Concessions'],
     ['mix', 'Unit Mix'],
     ['position', 'Positioning'],
-    ['sales', 'Sales'],
-    ['uw', 'Underwriting' + (linkedDeals.length ? ' · ' + linkedDeals.length : '')]
+    ['sales', 'Sales']
   ];
   const tabRow = tabs.map(([k, lbl]) =>
     `<button class="toggle-btn ${tab === k ? 'active' : ''}" data-cs-tab="${k}">${lbl}</button>`
@@ -7450,8 +7412,7 @@ function renderCompSetIntel() {
     `${meta.submarkets.length} ${meta.submarkets.length === 1 ? 'Submarket' : 'Submarkets'}`,
     meta.status.UC ? `${meta.status.UC} UC` : null,
     meta.status.Proposed ? `${meta.status.Proposed} Proposed` : null,
-    meta.wbDeals ? `${meta.wbDeals} WB Deal${meta.wbDeals === 1 ? '' : 's'}` : null,
-    linkedDeals.length ? `Linked to ${escapeHTML(linkedDeals[0].name || 'a deal')}${linkedDeals.length > 1 ? ` +${linkedDeals.length - 1}` : ''}` : null
+    meta.wbDeals ? `${meta.wbDeals} added by hand` : null
   ].filter(Boolean).join(' · ');
 
   let body = '';
@@ -7459,7 +7420,6 @@ function renderCompSetIntel() {
   else if (tab === 'fees') body = renderCsFees(props);
   else if (tab === 'concessions') body = renderCsConcessions(props);
   else if (tab === 'mix') body = renderCsRentMatrix(props);
-  else if (tab === 'uw') body = renderCsUnderwriting(props);
   else if (tab === 'sales') body = renderCsSales(props);
   else body = renderCsPositioning(props);
 
@@ -7487,21 +7447,8 @@ let csWsMap = null, csWsView = null, csWsSetId = null;
 function csWorkspaceMapHtml() {
   return `<div class="cm-map-wrap cs-map-wrap">
       <div id="cs-map"></div>
-      <div class="cm-map-key"><span><i class="k-sub"></i>Subject site</span><span><i class="k-in ph-exist"></i>Stabilized</span><span><i class="k-in ph-lease"></i>Lease-up</span><span><i class="k-in ph-uc"></i>Under construction</span></div>
+      <div class="cm-map-key"><span><i class="k-in ph-exist"></i>Stabilized</span><span><i class="k-in ph-lease"></i>Lease-up</span><span><i class="k-in ph-uc"></i>Under construction</span></div>
     </div>`;
-}
-function csWorkspaceToggle(pid) {
-  const cs = compSets[state.activeCompSetId];
-  if (!cs) return;
-  const ids = (cs.propertyIds || []).map(String);
-  const at = ids.indexOf(pid);
-  if (at >= 0) ids.splice(at, 1); else ids.push(pid);
-  cs.propertyIds = ids;
-  cs.updatedAt = Date.now();
-  saveCompSets();
-  pushCompSet(cs);
-  renderCompSetList();
-  renderAll();
 }
 function drawCsWorkspaceMap(cs, props) {
   const host = document.getElementById('cs-map');
@@ -7511,11 +7458,8 @@ function drawCsWorkspaceMap(cs, props) {
   const map = L.map(host, { zoomControl: true, preferCanvas: true, attributionControl: false });
   csWsMap = map;
   wbStreetLayer().addTo(map);
-  // view only: the set's members and, when the set is tied to a site, the subject and how far each comp sits from it
-  const deal = cmDealOpp(cs.dealId);
-  const subj = deal && deal.lat != null && deal.lng != null ? L.latLng(deal.lat, deal.lng) : null;
-  const miles = p => subj ? subj.distanceTo([p.lat, p.lng]) / 1609.34 : null;
-  const tip = p => { const mi = miles(p); return `<b>${escapeHTML(p.name || '(unnamed)')}</b><br>${fmt.int(p.units)} units${p.yearBuilt ? ' · ' + p.yearBuilt : ''}${p.avgAskingSF != null ? ' · $' + (+p.avgAskingSF).toFixed(2) + '/SF asking' : ''}${mi != null ? '<br>' + mi.toFixed(1) + ' mi from ' + escapeHTML(deal.name) : ''}`; };
+  // view only: the set's members
+  const tip = p => { return `<b>${escapeHTML(p.name || '(unnamed)')}</b><br>${fmt.int(p.units)} units${p.yearBuilt ? ' · ' + p.yearBuilt : ''}${p.avgAskingSF != null ? ' · $' + (+p.avgAskingSF).toFixed(2) + '/SF asking' : ''}`; };
   const pts = [];
   // colour by phase (the Comp Sets tab's own logic when loaded); under construction shows, proposed and stalled don't
   const phase = p => (typeof window.wbCsPhase === 'function' ? window.wbCsPhase(p) : (p.status === 'Existing' ? 'exist' : isPlannedProposed(p) ? 'proposed' : 'uc'));
@@ -7525,18 +7469,11 @@ function drawCsWorkspaceMap(cs, props) {
   props.forEach((p, i) => {
     if (p.lat == null || p.lng == null) return;
     pts.push([p.lat, p.lng]);
-    if (subj) L.polyline([subj, [p.lat, p.lng]], { color: '#432890', weight: 1, opacity: 0.45, dashArray: '3 4', interactive: false }).addTo(map);
-    const mi = miles(p);
     L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'cm-pin ph-' + phase(p), html: `<span>${i + 1}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 500 })
       .bindPopup(tip(p), { className: 'cs-map-pop', closeButton: false })
-      .bindTooltip(`${escapeHTML(p.name || '')}${mi != null ? ' · ' + mi.toFixed(1) + ' mi' : ''}`, { permanent: true, direction: 'right', offset: [10, 0], className: 'cs-map-label' })
+      .bindTooltip(`${escapeHTML(p.name || '')}`, { permanent: true, direction: 'right', offset: [10, 0], className: 'cs-map-label' })
       .addTo(map);
   });
-  if (subj) {
-    pts.push([deal.lat, deal.lng]);
-    L.marker([deal.lat, deal.lng], { icon: L.divIcon({ className: 'cm-subject', html: '<span></span>', iconSize: [18, 18], iconAnchor: [9, 9] }), zIndexOffset: 1000 })
-      .bindTooltip(`<b>${escapeHTML(deal.name)}</b><br>Subject (pipeline deal)`, { direction: 'top', className: 'cm-tip' }).addTo(map);
-  }
   const frame = () => {
     if (csWsView) map.setView(csWsView.c, csWsView.z, { animate: false });
     else if (pts.length > 1) map.fitBounds(L.latLngBounds(pts).pad(0.3), { maxZoom: 14, animate: false });
@@ -7584,119 +7521,6 @@ window.toggleModalMenu = toggleModalMenu;
 document.addEventListener('click', () => {
   document.querySelectorAll('.modal-menu-wrap.open').forEach(w => w.classList.remove('open'));
 });
-
-/* =================================================================
-   PHOENIX RECORD PURGE
-   =================================================================
-   This dashboard is the Denver / Front Range instance, but opportunities
-   and sale comps live in browser storage and Supabase under a shared key,
-   so Phoenix-market records seeded from the original Phoenix build can
-   surface here. This removes them once — for the whole team, since the
-   deletes are pushed to the cloud — and asks first, because a delete
-   that syncs is not something to do silently.
-   ================================================================= */
-const PHX_CITIES = [
-  'phoenix', 'scottsdale', 'tempe', 'mesa', 'chandler', 'gilbert', 'glendale',
-  'peoria', 'surprise', 'goodyear', 'avondale', 'buckeye', 'tolleson',
-  'queen creek', 'maricopa', 'casa grande', 'apache junction', 'fountain hills',
-  'paradise valley', 'sun city', 'sun city west', 'litchfield park', 'el mirage',
-  'anthem', 'laveen', 'ahwatukee', 'cave creek', 'carefree', 'youngtown',
-  'guadalupe', 'tortilla flat', 'san tan valley', 'vistancia'
-];
-
-// Positive identification only — a record is Phoenix if it says so. Anything
-// ambiguous is left alone rather than risking a real Denver deal.
-function looksPhoenix(rec) {
-  return false;   // v2: both markets live here; never purge
-
-  if (!rec) return false;
-  const txt = v => (v == null ? '' : String(v)).trim().toLowerCase();
-  const state = txt(rec.state);
-  const market = txt(rec.market);
-  const sub = txt(rec.submarket);
-  const city = txt(rec.city);
-
-  // Colorado wins outright. Several city names exist in both metros —
-  // Glendale and Superior are both real Front Range municipalities — so a
-  // record that identifies as Colorado is never treated as Phoenix, no
-  // matter what its city string says.
-  if (state === 'co' || state === 'colorado') return false;
-  if (market.includes(', co') || market.includes('colorado')) return false;
-  if (sub && typeof WB_SUBMARKETS !== 'undefined' && WB_SUBMARKETS.some(s => s.toLowerCase() === sub)) return false;
-
-  if (state === 'az' || state === 'arizona') return true;
-  if (market.includes('phoenix') || market.includes(', az') || market.endsWith(' az')) return true;
-  if (sub.startsWith('phoenix-') || sub.startsWith('scottsdale-')) return true;
-  if (city && PHX_CITIES.includes(city)) return true;
-  if (sub && PHX_CITIES.includes(sub)) return true;
-  return false;
-}
-
-function findPhoenixRecords() {
-  const opps = (typeof opportunities !== 'undefined' ? opportunities : []).filter(looksPhoenix);
-  const inv = Object.values(customComps.investment || {}).filter(looksPhoenix);
-  const land = Object.values(customComps.land || {}).filter(looksPhoenix);
-  return { opps, inv, land, total: opps.length + inv.length + land.length };
-}
-
-async function purgePhoenixRecords(silent) {
-  const found = findPhoenixRecords();
-  if (found.total === 0) {
-    if (!silent) alert('No Phoenix-market opportunities or sale comps found in this dashboard.');
-    return 0;
-  }
-  const lines = [
-    `Remove ${found.total} Phoenix-market record${found.total === 1 ? '' : 's'} from this dashboard?`,
-    '',
-    `  Opportunities:        ${found.opps.length}`,
-    `  Investment sale comps: ${found.inv.length}`,
-    `  Land sale comps:       ${found.land.length}`,
-    '',
-    'This deletes them for the whole team and cannot be undone.'
-  ];
-  if (found.opps.length) {
-    lines.push('', 'Opportunities to be removed:');
-    found.opps.slice(0, 12).forEach(o => lines.push(`  · ${o.name || '(unnamed)'}${o.city ? ' — ' + o.city : ''}`));
-    if (found.opps.length > 12) lines.push(`  · …and ${found.opps.length - 12} more`);
-  }
-  if (!confirm(lines.join('\n'))) return 0;
-
-  for (const o of found.opps) {
-    const at = opportunities.findIndex(x => x.id === o.id);
-    if (at >= 0) opportunities.splice(at, 1);
-    try { await deleteOpportunityCloud(o.id); } catch (e) { console.error('[phx purge] opp', e); }
-  }
-  for (const c of found.inv) {
-    delete customComps.investment[c.id];
-    try { await deleteCustomCompCloud('investment', c.id); } catch (e) { console.error('[phx purge] inv', e); }
-  }
-  for (const c of found.land) {
-    delete customComps.land[c.id];
-    try { await deleteCustomCompCloud('land', c.id); } catch (e) { console.error('[phx purge] land', e); }
-  }
-
-  saveOpportunities();
-  saveCompStorage();
-  try { localStorage.setItem('wb_dashboard_phx_purged_v1', String(Date.now())); } catch (e) {}
-  try { renderAll(); renderOpportunities(); renderSaleComps(); } catch (e) {}
-  console.log(`[phx purge] removed ${found.total} record(s)`);
-  return found.total;
-}
-window.purgePhoenixRecords = purgePhoenixRecords;
-
-// Offer the cleanup once. If the user declines, the flag isn't written, so
-// it can still be run later from Settings without nagging every reload.
-function maybeOfferPhoenixPurge() {
-  try {
-    if (localStorage.getItem('wb_dashboard_phx_purged_v1')) return;
-  } catch (e) {}
-  const found = findPhoenixRecords();
-  if (found.total === 0) {
-    try { localStorage.setItem('wb_dashboard_phx_purged_v1', String(Date.now())); } catch (e) {}
-    return;
-  }
-  setTimeout(() => { purgePhoenixRecords(true); }, 1200);
-}
 
 /* ---------- Concession helpers ---------- */
 // CoStar publishes concessions as a percentage of gross rent. Willow Bridge
@@ -8522,28 +8346,25 @@ function renderCsPositioning(props) {
    ================================================================= */
 // `ids` is an ordered array, not a Set: the sequence is the team's manual
 // ranking of the comps, best first, and every downstream reader preserves it.
-const manageSetState = { id: null, isNew: false, name: '', ids: [], search: '', status: 'all', dealId: null, dealQuery: '' };
+const manageSetState = { id: null, isNew: false, name: '', ids: [], search: '', status: 'all' };
 
 // openManageCompSet()                    — edit the active set (banner / sidebar buttons)
 // openManageCompSet(id)                  — edit that set
-// openManageCompSet(null, {isNew, dealId, name}) — start a new set, optionally tied to a pipeline deal
+// openManageCompSet(null, {isNew, name}) — start a new set
 function openManageCompSet(idArg, opts) {
   opts = opts || {};
   const id = typeof idArg === 'string' ? idArg : state.activeCompSetId;
   if (opts.isNew) {
     manageSetState.id = null; manageSetState.isNew = true;
     manageSetState.name = opts.name || ''; manageSetState.ids = (opts.ids || []).map(String);
-    manageSetState.dealId = opts.dealId || null;
   } else {
     if (!id || !compSets[id]) return;
     manageSetState.id = id; manageSetState.isNew = false;
     manageSetState.name = compSets[id].name;
     manageSetState.ids = compSets[id].propertyIds.map(String);
-    manageSetState.dealId = compSets[id].dealId || null;
   }
   manageSetState.search = '';
   manageSetState.status = 'all';
-  manageSetState.dealQuery = '';
   cmMapView = null;
   renderManageCompSet();
   const modal = document.getElementById('cm-modal');
@@ -8635,10 +8456,6 @@ function renderManageCompSet() {
     .map(([k, lbl]) => `<button class="cm-chip ${manageSetState.status === k ? 'active' : ''}" data-cm-status="${k}">${lbl}</button>`)
     .join('');
 
-  const dealOpp = cmDealOpp(manageSetState.dealId);
-  const otherSet = manageSetState.dealId
-    ? Object.values(compSets).find(cs => cs.dealId === manageSetState.dealId && cs.id !== manageSetState.id) : null;
-  const dealOpts = cmDealList().map(o => `<option value="${escapeHTML(cmDealLabel(o))}"></option>`).join('');
   if (cmMap) { cmMapView = { c: cmMap.getCenter(), z: cmMap.getZoom() }; try { cmMap.remove(); } catch (e) {} cmMap = null; }
 
   el.innerHTML = `
@@ -8647,13 +8464,6 @@ function renderManageCompSet() {
         <div class="cs-eyebrow">${manageSetState.isNew ? 'New Comp Set' : 'Edit Comp Set'}</div>
         <input class="cm-name-input" type="text" id="cm-name" value="${escapeHTML(manageSetState.name)}" placeholder="Comp set name">
         <div class="cm-header-meta"><strong>${members.length}</strong> ${members.length === 1 ? 'property' : 'properties'} · <strong>${memberUnits.toLocaleString()}</strong> units · ranked best first</div>
-        <div class="cm-deal">
-          <label for="cm-deal-input">Pipeline deal</label>
-          ${dealOpp
-            ? `<span class="cm-deal-name">${escapeHTML(dealOpp.name)}</span><span class="cm-deal-meta">${dealOpp.oppType === 'investment' ? 'Investment' : 'Development'}${dealOpp.status ? ' · ' + escapeHTML(dealOpp.status) : ''}</span><button type="button" class="cm-deal-clear" id="cm-deal-clear">Unlink</button>`
-            : `<input id="cm-deal-input" list="cm-deal-list" placeholder="Search pipeline deals to tie this set to one" value="${escapeHTML(manageSetState.dealQuery)}"><datalist id="cm-deal-list">${dealOpts}</datalist>`}
-          ${otherSet ? `<div class="cm-deal-warn">Saving replaces “${escapeHTML(otherSet.name)}” as this deal's comp set.</div>` : ''}
-        </div>
       </div>
       <div class="cm-header-actions">
         <button class="cs-action cs-action-primary" id="cm-save">Save Set</button>
@@ -8662,7 +8472,7 @@ function renderManageCompSet() {
     </div>
     <div class="cm-map-wrap">
       <div id="cm-map"></div>
-      <div class="cm-map-key"><span><i class="k-sub"></i>Subject</span><span><i class="k-in"></i>In the set</span><span><i class="k-out"></i>Matches the search (click to add)</span></div>
+      <div class="cm-map-key"><span><i class="k-in"></i>In the set</span><span><i class="k-out"></i>Matches the search (click to add)</span></div>
     </div>
     <div class="cm-body">
       <div class="cm-col">
@@ -8693,21 +8503,12 @@ function renderManageCompSet() {
     </div>
   `;
   wireManageCompSet();
-  drawManageCompSetMap(members, candidates, dealOpp);
+  drawManageCompSetMap(members, candidates);
 }
 
-/* ---------- comp set editor: map + pipeline deal link ---------- */
+/* ---------- comp set editor: map ---------- */
 let cmMap = null, cmMapView = null;
-function cmDealList() {
-  if (typeof opportunities === 'undefined') return [];
-  const rank = o => (o.oppType === 'investment' ? 0 : 1);
-  return opportunities.filter(o => o && o._dealId).slice().sort((a, b) => rank(a) - rank(b) || String(a.name || '').localeCompare(String(b.name || '')));
-}
-function cmDealLabel(o) { return `${o.name || 'Untitled'} — ${o.oppType === 'investment' ? 'Investment' : 'Development'} · ${o.status || ''}`; }
-function cmDealOpp(dealId) { return dealId && typeof opportunities !== 'undefined' ? opportunities.find(o => o._dealId === dealId) || null : null; }
-function compSetDealName(cs) { const o = cs && cmDealOpp(cs.dealId); return o ? o.name : ''; }
-
-function drawManageCompSetMap(members, candidates, dealOpp) {
+function drawManageCompSetMap(members, candidates) {
   const host = document.getElementById('cm-map');
   if (!host || typeof L === 'undefined') return;
   const map = L.map(host, { zoomControl: true, preferCanvas: true, attributionControl: false });
@@ -8732,11 +8533,6 @@ function drawManageCompSetMap(members, candidates, dealOpp) {
     L.marker([p.lat, p.lng], { icon: L.divIcon({ className: 'cm-pin', html: `<span>${i + 1}</span>`, iconSize: [22, 22], iconAnchor: [11, 11] }), zIndexOffset: 500 })
       .bindTooltip(tip(p) + '<br><i>Click to remove</i>', { direction: 'top', className: 'cm-tip' }).on('click', () => toggle(String(p.id))).addTo(map);
   });
-  if (dealOpp && dealOpp.lat != null && dealOpp.lng != null) {
-    pts.push([dealOpp.lat, dealOpp.lng]);
-    L.marker([dealOpp.lat, dealOpp.lng], { icon: L.divIcon({ className: 'cm-subject', html: '<span></span>', iconSize: [18, 18], iconAnchor: [9, 9] }), zIndexOffset: 1000 })
-      .bindTooltip(`<b>${escapeHTML(dealOpp.name)}</b><br>Subject (pipeline deal)`, { direction: 'top', className: 'cm-tip' }).addTo(map);
-  }
   const view = cmMapView;
   const frame = () => {
     if (view) map.setView(view.c, view.z, { animate: false });
@@ -8806,25 +8602,6 @@ function wireManageCompSet() {
     });
   });
 
-  const dealIn = document.getElementById('cm-deal-input');
-  if (dealIn) {
-    const pick = () => {
-      const v = dealIn.value.trim();
-      const o = cmDealList().find(x => cmDealLabel(x) === v);
-      manageSetState.dealQuery = v;
-      if (o) {
-        manageSetState.dealId = o._dealId; manageSetState.dealQuery = '';
-        if (!manageSetState.name.trim()) manageSetState.name = o.name + ' comp set';
-        cmMapView = null;   // refit around the subject
-        renderManageCompSet();
-      }
-    };
-    dealIn.addEventListener('change', pick);
-    dealIn.addEventListener('input', () => { if (cmDealList().some(x => cmDealLabel(x) === dealIn.value.trim())) pick(); else manageSetState.dealQuery = dealIn.value; });
-  }
-  const dealClear = document.getElementById('cm-deal-clear');
-  if (dealClear) dealClear.addEventListener('click', () => { manageSetState.dealId = null; renderManageCompSet(); });
-
   const save = document.getElementById('cm-save');
   if (save) save.addEventListener('click', saveManageCompSet);
   const cancel = document.getElementById('cm-cancel');
@@ -8844,21 +8621,9 @@ function saveManageCompSet() {
     id = 'cs-' + Date.now();
     compSets[id] = { id, name, propertyIds: [], createdBy: syncState.editorName || 'Anonymous', createdAt: Date.now(), updatedAt: Date.now() };
   }
-  const dealId = manageSetState.dealId || null;
-  const prevDeal = compSets[id].dealId || null;
   compSets[id].name = name;
   compSets[id].propertyIds = [...manageSetState.ids];
-  compSets[id].dealId = dealId;
   compSets[id].updatedAt = Date.now();
-  // one set per deal: the deal leaves any other set; keep Intel's opportunity links in step
-  if (dealId) Object.values(compSets).forEach(cs => { if (cs.id !== id && cs.dealId === dealId) cs.dealId = null; });
-  if (typeof opportunities !== 'undefined' && (dealId || prevDeal)) {
-    opportunities.forEach(o => {
-      if (dealId && o._dealId === dealId) o.compSetId = id;
-      else if (o.compSetId === id) o.compSetId = null;
-    });
-    saveOpportunities();
-  }
   saveCompSets();
   pushCompSet(compSets[id]);
   closeManageCompSet();
@@ -8869,459 +8634,8 @@ function saveManageCompSet() {
 }
 window.saveManageCompSet = saveManageCompSet;
 
-/* =================================================================
-   COMP SET ↔ OPPORTUNITY LINKAGE
-   =================================================================
-   A comp set answers "what does this market actually achieve." An
-   opportunity answers "what does this deal need to achieve." Binding
-   them turns two separate screens into one underwriting question:
-
-       at the rents this comp set is proving out,
-       does this deal clear its yield hurdle?
-
-   The math deliberately reuses requiredRentForOpp()'s own component
-   breakdown — land, hard cost, soft, unit size, vacancy, opex, other
-   income — so a deal's per-deal overrides carry straight through and
-   this never becomes a parallel model that drifts from the YOC matrix.
-   ================================================================= */
-
-function compSetForOpp(o) {
-  if (!o || !o.compSetId) return null;
-  return compSets[o.compSetId] || null;
-}
-function oppsForCompSet(csId) {
-  if (!csId || typeof opportunities === 'undefined') return [];
-  return opportunities.filter(o => o.compSetId === csId);
-}
-
-// Link / unlink from either side. Writes through the normal opportunity
-// persistence path so it syncs like any other deal edit.
-function linkCompSetToOpp(oppId, csId) {
-  const o = opportunities.find(x => x.id === oppId);
-  if (!o) return;
-  o.compSetId = csId || null;
-  o.updatedBy = syncState.editorName || 'Anonymous';
-  o.updatedAt = Date.now();
-  // one set per deal, one deal per set: keep the local copies in step with market.comp_sets.deal_id
-  if (o._dealId) {
-    Object.values(compSets).forEach(cs => { if (cs.dealId === o._dealId && cs.id !== csId) cs.dealId = null; });
-    if (csId && compSets[csId]) {
-      compSets[csId].dealId = o._dealId;
-      opportunities.forEach(x => { if (x !== o && x.compSetId === csId) x.compSetId = null; });
-    }
-    saveCompSets();
-  }
-  saveOpportunities();
-  pushOpportunity(o);
-  if (!csId && supabaseClient && supabaseClient.linkDealCompSet) supabaseClient.linkDealCompSet(oppId, null).catch(() => {});
-  if (typeof renderCompSetList === 'function') { try { renderCompSetList(); updateCompSetBanner(); } catch (e) {} }
-}
-window.linkCompSetToOpp = linkCompSetToOpp;
-
-// Rent statistics for a set, expressed the way underwriting needs them:
-// per SF, unit-weighted, with the low/high envelope and the all-in figure
-// that includes the fee schedule.
-function compSetRentStats(props) {
-  const withRent = props.filter(p => p.avgEffectiveSF != null);
-  if (!withRent.length) return null;
-  const psfAvg = wtdAvg(withRent, 'avgEffectiveSF', 'units');
-  const psfVals = withRent.map(p => p.avgEffectiveSF);
-  // Asking is the primary read for this team — effective is carried alongside
-  // so the concession-adjusted view is always one row away.
-  const withAsk = props.filter(p => p.avgAskingSF != null);
-  const askAvg = wtdAvg(withAsk, 'avgAskingSF', 'units');
-  const askVals = withAsk.map(p => p.avgAskingSF);
-
-  // All-in adds fee income back on a $/SF basis, for whichever comps have a
-  // schedule loaded. Averaged only across those comps so it isn't diluted.
-  const feeRows = props.map(p => ({ p, m: feeMath(p) })).filter(x => x.m.hasData && x.m.allInSF != null);
-  const allInPsf = feeRows.length
-    ? wtdAvg(feeRows.map(x => ({ v: x.m.allInSF, u: x.p.units })), 'v', 'u')
-    : null;
-
-  return {
-    count: withRent.length,
-    total: props.length,
-    psfAvg,
-    psfMin: Math.min(...psfVals),
-    psfMax: Math.max(...psfVals),
-    askAvg,
-    askCount: withAsk.length,
-    askMin: askVals.length ? Math.min(...askVals) : null,
-    askMax: askVals.length ? Math.max(...askVals) : null,
-    allInPsf,
-    allInCount: feeRows.length
-  };
-}
-
-// Yield on cost for THIS deal at an arbitrary achievable rent. Mirrors the
-// stabilized cash flow in computeOppProfile exactly: opex is taken on gross
-// potential (rent + other income), and the result divides by the deal's own
-// total cost per unit.
-function yocAtPsfForDeal(rr, psf) {
-  if (!rr || !rr.components || psf == null || isNaN(psf)) return null;
-  const c = rr.components;
-  if (!c.tcPerUnit) return null;
-  const rentGpr = psf * 12 * c.sf;
-  const grossPotential = rentGpr + (c.oiPerUnit || 0);
-  const noi = grossPotential * (1 - c.vacancy - c.opex);
-  return noi / c.tcPerUnit;
-}
-
-// The full bridge between a deal and its comp set.
-function compSetBenchmark(o) {
-  const cs = compSetForOpp(o);
-  if (!cs) return null;
-  const props = compSetProperties(cs.id);
-  if (!props.length) return { cs, props, empty: true };
-
-  const stats = compSetRentStats(props);
-  const rrRaw = requiredRentForOpp(o);
-  const rr = (rrRaw && rrRaw.components) ? rrRaw : null;
-  const blocked = (rrRaw && !rrRaw.components)
-    ? (rrRaw.needsLand ? 'land' : (rrRaw.needsUnits ? 'units' : 'other'))
-    : (rrRaw ? null : 'product');
-
-  // Comp rents are observed today; required rent is an at-delivery number.
-  // Grow the market to delivery so the comparison is like-for-like, using the
-  // dashboard's own trend assumption (a no-op when trending is switched off).
-  const grow = psf => {
-    try { return trendGrow(psf, o.submarket); } catch (e) { return psf; }
-  };
-  const trended = (typeof yocState !== 'undefined') && yocState.trendEnabled;
-
-  const sf = rr ? rr.components.sf : (o.uwAvgUnitSize || (typeof yocState !== 'undefined' ? yocState.unitSize : null));
-  const target = rr ? rr.targetYoc : null;
-
-  const scenario = (label, psfToday, note, opts) => {
-    opts = opts || {};
-    const psfDelivery = opts.alreadyAtDelivery ? psfToday : grow(psfToday);
-    const yoc = yocAtPsfForDeal(rr, psfDelivery);
-    return {
-      label, note,
-      psfToday: opts.alreadyAtDelivery ? null : psfToday,
-      psfDelivery,
-      perUnit: (psfDelivery != null && sf) ? psfDelivery * sf : null,
-      yoc,
-      bps: (yoc != null && target != null) ? (yoc - target) * 10000 : null,
-      kind: opts.kind || 'market'
-    };
-  };
-
-  const scenarios = [];
-  if (stats) {
-    if (stats.askAvg != null) {
-      scenarios.push(scenario('Asking — Low', stats.askMin, 'weakest asking rent in the set'));
-      scenarios.push(scenario('Asking — Average', stats.askAvg, `unit-weighted across ${stats.askCount} comps`));
-      scenarios.push(scenario('Asking — High', stats.askMax, 'strongest asking rent in the set'));
-    }
-    scenarios.push(scenario('Effective — Average', stats.psfAvg,
-      `net of concessions · ${stats.count} comps`, { kind: 'allin' }));
-  }
-  if (o.uwRentsPerSF != null) {
-    scenarios.push(scenario('Your UW Rent', o.uwRentsPerSF, 'as underwritten', { alreadyAtDelivery: true, kind: 'uw' }));
-  }
-  if (rr) {
-    scenarios.push({
-      label: 'Required Rent', note: `to clear ${(target * 100).toFixed(2)}% YoC`,
-      psfToday: null, psfDelivery: rr.requiredPsf,
-      perUnit: sf ? rr.requiredPsf * sf : null,
-      yoc: target, bps: 0, kind: 'required'
-    });
-  }
-
-  // Headline runs on asking rent — the basis this team underwrites to. The
-  // effective figure stays on the ladder so the concession drag is visible.
-  const marketToday = stats ? (stats.askAvg != null ? stats.askAvg : stats.psfAvg) : null;
-  const marketBasis = (stats && stats.askAvg != null) ? 'asking' : 'effective';
-  const marketDelivery = marketToday != null ? grow(marketToday) : null;
-  const yocAtMarket = yocAtPsfForDeal(rr, marketDelivery);
-  const gapPsf = (rr && marketDelivery != null) ? marketDelivery - rr.requiredPsf : null;
-  const premiumPct = (rr && marketDelivery) ? ((rr.requiredPsf - marketDelivery) / marketDelivery) * 100 : null;
-
-  // Per-comp view: what would this deal yield at each individual comp's rent?
-  const basisPsf = p => (marketBasis === 'asking' && p.avgAskingSF != null) ? p.avgAskingSF : p.avgEffectiveSF;
-  const perComp = props
-    .filter(p => basisPsf(p) != null)
-    .map(p => {
-      const today = basisPsf(p);
-      const delivery = grow(today);
-      const yoc = yocAtPsfForDeal(rr, delivery);
-      const m = feeMath(p);
-      return {
-        p, today, delivery, yoc,
-        allInSF: m.hasData ? m.allInSF : null,
-        allInYoc: m.hasData && m.allInSF != null ? yocAtPsfForDeal(rr, grow(m.allInSF)) : null,
-        bps: (yoc != null && target != null) ? (yoc - target) * 10000 : null,
-        clears: (rr && delivery >= rr.requiredPsf)
-      };
-    })
-    .sort((a, b) => b.today - a.today);
-
-  const clearing = rr ? perComp.filter(x => x.clears).length : null;
-
-  return {
-    cs, props, stats, rr, blocked, trended, sf, target, marketBasis,
-    scenarios, perComp, clearing,
-    marketToday, marketDelivery, yocAtMarket, gapPsf, premiumPct,
-    empty: false
-  };
-}
-
-/* ---------- Opportunity modal section ---------- */
-function renderOppCompSetSection(o, editing) {
-  const sets = Object.values(compSets).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-  const linked = compSetForOpp(o);
-
-  // In edit mode the picker is a normal [data-field] input, so it round-trips
-  // through saveOpportunityEdits with everything else on the deal.
-  const picker = editing
-    ? `<select class="edit-input" data-field="compSetId" style="max-width:340px;">
-         <option value="">— No comp set linked —</option>
-         ${sets.map(s => `<option value="${escapeHTML(s.id)}" ${o.compSetId === s.id ? 'selected' : ''}>${escapeHTML(s.name)} · ${s.propertyIds.length}</option>`).join('')}
-       </select>`
-    : `<select class="edit-input ocs-picker" data-ocs-link="${escapeHTML(o.id)}" style="max-width:340px;">
-         <option value="">— No comp set linked —</option>
-         ${sets.map(s => `<option value="${escapeHTML(s.id)}" ${o.compSetId === s.id ? 'selected' : ''}>${escapeHTML(s.name)} · ${s.propertyIds.length}</option>`).join('')}
-       </select>`;
-
-  if (!sets.length) {
-    return oppSec('compset', 'Comp Set Benchmark',
-      `<div class="ocs-hint">No comp sets saved yet. Build one from the Property Index, then link it here to test this deal's required rent against what the market is actually achieving.</div>`);
-  }
-
-  if (!linked) {
-    return oppSec('compset', 'Comp Set Benchmark',
-      `<div class="ocs-link-row">${picker}</div>
-       <div class="ocs-hint">Link a comp set and this section will back-solve whether the deal clears its yield hurdle at the rents those comps are proving out — plus the implied YoC at each individual comp's rent.</div>`);
-  }
-
-  const b = compSetBenchmark(o);
-  if (!b || b.empty) {
-    return oppSec('compset', 'Comp Set Benchmark',
-      `<div class="ocs-link-row">${picker}</div>
-       <div class="ocs-hint">“${escapeHTML(linked.name)}” has no properties in it yet.</div>`);
-  }
-
-  const pct = v => v == null ? '—' : (v * 100).toFixed(2) + '%';
-  const bpsTag = bps => {
-    if (bps == null) return '';
-    const cls = bps >= 0 ? 'pos' : 'neg';
-    return `<span class="ocs-bps ${cls}">${bps >= 0 ? '+' : '−'}${Math.abs(Math.round(bps))} bps</span>`;
-  };
-
-  // ---- Headline cards ----
-  const cards = `
-    <div class="ocs-cards">
-      <div class="ocs-card">
-        <div class="ocs-card-label">${b.marketBasis === 'asking' ? 'Asking Rent' : 'Effective Rent'} · Comp Set</div>
-        <div class="ocs-card-value">$${b.marketToday != null ? b.marketToday.toFixed(2) : '—'}<span class="ocs-card-unit">/SF</span></div>
-        <div class="ocs-card-sub">${b.stats ? `unit-weighted · ${b.stats.count} comps` : ''}${b.trended && b.marketDelivery != null ? ` · $${b.marketDelivery.toFixed(2)} at delivery` : ''}</div>
-      </div>
-      <div class="ocs-card ${b.rr ? 'ocs-card-accent' : ''}">
-        <div class="ocs-card-label">Required Rent</div>
-        <div class="ocs-card-value">${b.rr ? '$' + b.rr.requiredPsf.toFixed(2) : '—'}<span class="ocs-card-unit">/SF</span></div>
-        <div class="ocs-card-sub">${b.rr ? `to clear ${pct(b.target)} YoC` : 'needs deal cost inputs'}</div>
-      </div>
-      <div class="ocs-card">
-        <div class="ocs-card-label">YoC at Market Rent</div>
-        <div class="ocs-card-value ${b.yocAtMarket != null && b.target != null ? (b.yocAtMarket >= b.target ? 'pos' : 'neg') : ''}">${pct(b.yocAtMarket)}</div>
-        <div class="ocs-card-sub">${b.yocAtMarket != null && b.target != null ? bpsTag((b.yocAtMarket - b.target) * 10000) + ' vs target' : 'needs deal cost inputs'}</div>
-      </div>
-      <div class="ocs-card">
-        <div class="ocs-card-label">Comps Clearing Hurdle</div>
-        <div class="ocs-card-value">${b.clearing == null ? '—' : `${b.clearing}<span class="ocs-card-unit">of ${b.perComp.length}</span>`}</div>
-        <div class="ocs-card-sub">${b.clearing == null ? 'needs deal cost inputs' : 'comps at or above required rent'}</div>
-      </div>
-    </div>`;
-
-  // ---- Verdict ----
-  let verdict = '';
-  if (b.rr && b.yocAtMarket != null) {
-    const clears = b.yocAtMarket >= b.target;
-    verdict = `
-      <div class="ocs-verdict ${clears ? 'ok' : 'short'}">
-        At the comp set's unit-weighted ${b.marketBasis} rent of <strong>$${b.marketToday.toFixed(2)}/SF</strong>${b.trended ? ` (<strong>$${b.marketDelivery.toFixed(2)}</strong> trended to delivery)` : ''},
-        this deal pencils to a <strong>${pct(b.yocAtMarket)}</strong> yield on cost —
-        ${clears
-          ? `<strong>${Math.round((b.yocAtMarket - b.target) * 10000)} bps above</strong> the ${pct(b.target)} hurdle. The set supports the underwriting.`
-          : `<strong>${Math.abs(Math.round((b.yocAtMarket - b.target) * 10000))} bps below</strong> the ${pct(b.target)} hurdle. Clearing it needs <strong>$${b.rr.requiredPsf.toFixed(2)}/SF</strong>, a <strong>${b.premiumPct != null ? b.premiumPct.toFixed(1) : '—'}% premium</strong> to the set.`}
-      </div>`;
-  } else if (b.blocked) {
-    const msg = {
-      land: 'Add a land price (UW land price, our offer, or pricing guidance) to compute yield against these comps.',
-      units: 'Add proposed units so the land total can convert to a per-unit basis.',
-      product: 'Set a recognized Product Type on this deal to enable the yield back-solve.',
-      other: 'Missing an underwriting input needed for the yield back-solve.'
-    }[b.blocked];
-    verdict = `<div class="ocs-verdict warn">${msg} Market rents from the set are shown below in the meantime.</div>`;
-  }
-
-  // ---- Scenario ladder ----
-  const scenarioRows = b.scenarios.map(s => `
-    <tr class="ocs-row-${s.kind}">
-      <td><strong>${escapeHTML(s.label)}</strong><div class="ocs-row-note">${escapeHTML(s.note || '')}</div></td>
-      <td class="num">${s.psfToday == null ? '—' : '$' + s.psfToday.toFixed(2)}</td>
-      <td class="num">${s.psfDelivery == null ? '—' : '$' + s.psfDelivery.toFixed(2)}</td>
-      <td class="num">${s.perUnit == null ? '—' : fmt.money(s.perUnit)}</td>
-      <td class="num ${s.yoc != null && b.target != null ? (s.yoc >= b.target ? 'pos' : 'neg') : ''}">${pct(s.yoc)}</td>
-      <td class="num">${bpsTag(s.bps)}</td>
-    </tr>`).join('');
-
-  const ladder = `
-    <div class="ocs-sub">Rent Scenarios · Yield on This Deal</div>
-    <div class="table-scroll">
-      <table class="data-table ocs-table">
-        <thead><tr>
-          <th>Scenario</th>
-          <th class="num">$/SF Today</th>
-          <th class="num">$/SF at Delivery</th>
-          <th class="num">$/Unit / Mo</th>
-          <th class="num">Yield on Cost</th>
-          <th class="num">vs Target</th>
-        </tr></thead>
-        <tbody>${scenarioRows}</tbody>
-      </table>
-    </div>`;
-
-  // ---- Per-comp bars, priced in $/SF against the required rent line ----
-  const maxPsf = Math.max(...b.perComp.map(x => x.delivery), b.rr ? b.rr.requiredPsf : 0) * 1.05;
-  const reqPos = (b.rr && maxPsf) ? (b.rr.requiredPsf / maxPsf) * 100 : null;
-  const compBars = b.perComp.map(x => {
-    const w = maxPsf ? (x.delivery / maxPsf) * 100 : 0;
-    const cls = b.rr ? (x.clears ? 'above' : 'below') : '';
-    return `
-      <div class="cs-bar-row">
-        <div class="cs-bar-name" title="${escapeHTML(x.p.name || '')}">${escapeHTML(x.p.name || '(unnamed)')}${x.p._wbOnly ? '<span class="wb-deal-pill">WB</span>' : ''}</div>
-        <div class="cs-bar-track">
-          <div class="cs-bar-fill ${cls}" style="width:${w}%;"></div>
-          ${reqPos != null ? `<div class="cs-bar-avg" style="left:${reqPos}%;"></div>` : ''}
-        </div>
-        <div class="cs-bar-value">$${x.delivery.toFixed(2)}</div>
-        <div class="cs-bar-delta ${cls}">${x.yoc == null ? '' : pct(x.yoc)}</div>
-      </div>`;
-  }).join('');
-
-  const compChart = `
-    <div class="ocs-sub">Comp-by-Comp · Implied Yield${b.rr ? ` <span class="ocs-sub-note">dashed line is the $${b.rr.requiredPsf.toFixed(2)}/SF required rent</span>` : ''}</div>
-    <div class="cs-bars ocs-bars">${compBars}</div>`;
-
-  const srcNote = b.rr ? `
-    <div class="ocs-source">
-      Yield uses this deal's own cost basis — ${fmt.money(b.rr.components.tcPerUnit)}/unit all-in
-      (land ${fmt.money(b.rr.components.landPerUnit)} · ${fmt.money2(b.rr.components.hc)}/NRSF hard · ${fmt.money(b.rr.components.soft)}/unit soft)
-      at ${Math.round(b.rr.components.sf)} SF average, ${(b.rr.components.vacancy * 100).toFixed(1)}% vacancy and ${(b.rr.components.opex * 100).toFixed(1)}% opex.
-      ${b.trended ? 'Comp rents are trended to delivery using the YOC matrix growth assumption.' : 'Trending is off — comp rents are compared as-is.'}
-    </div>` : '';
-
-  const tools = `<span class="ocs-tools-note">${escapeHTML(linked.name)} · ${b.props.length} comps</span>`;
-
-  return oppSec('compset', 'Comp Set Benchmark',
-    `<div class="ocs-link-row">
-       ${picker}
-       <button class="cs-action" data-ocs-open="${escapeHTML(linked.id)}">Open Comp Set →</button>
-     </div>
-     ${cards}
-     ${verdict}
-     ${ladder}
-     ${compChart}
-     ${srcNote}`,
-    tools);
-}
-
-// Wire the section's controls after the opportunity modal paints.
-function wireOppCompSetSection() {
-  document.querySelectorAll('[data-ocs-link]').forEach(sel => {
-    sel.addEventListener('change', () => {
-      linkCompSetToOpp(sel.dataset.ocsLink, sel.value || null);
-      renderOpportunityModal();
-    });
-  });
-  document.querySelectorAll('[data-ocs-open]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const csId = btn.dataset.ocsOpen;
-      // The opportunity modal shares the main #modal backdrop, so the normal
-      // close path cleans up its map instance too.
-      try { closeModal(); } catch (e) {}
-      // Jump to the Property Index with that set active, landing on Underwriting.
-      const tab = document.querySelector('.tab[data-view="properties"]');
-      if (tab) tab.click();
-      activateCompSet(csId);
-      state.csIntelTab = 'uw';
-      renderCompSetIntel();
-      const host = document.getElementById('cs-intel');
-      if (host) host.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  });
-}
-
-/* ---------- Comp Set panel: Underwriting tab ---------- */
-// The mirror image of the opportunity-side section. Standing in the comp set,
-// this answers "which of my deals does this set support, and by how much."
-
-// RealPage's forward CAGR for a submarket, or null when there's no coverage.
-// Mirrors the RP branch of effectiveGrowthRate, but returns null instead of
-// silently falling back so the caller can say so out loud.
-function csRpGrowth(submarket) {
-  try {
-    if (!submarket || typeof getRpForecastForWbSubmarket !== 'function') return null;
-    const fc = getRpForecastForWbSubmarket(submarket);
-    if (!fc) return null;
-    const horizonYear = 2030;
-    const years = horizonYear - CURRENT_YEAR;
-    if (years <= 0) return null;
-    const vStart = fc[CURRENT_YEAR] ? fc[CURRENT_YEAR].eR : null;
-    const vEnd = fc[horizonYear] ? fc[horizonYear].eR : null;
-    if (!vStart || !vEnd || vStart <= 0) return null;
-    return Math.pow(vEnd / vStart, 1 / years) - 1;
-  } catch (e) { return null; }
-}
-
-// Resolve the growth assumption for one deal. RealPage is per-submarket, so
-// two deals in the same set can legitimately trend at different rates.
-function csGrowthFor(submarket) {
-  if (state.csTrendGrowth === 'rp') {
-    const r = csRpGrowth(submarket);
-    if (r != null) return { rate: r, label: `RealPage · ${(r * 100).toFixed(1)}%` };
-    return { rate: 0.03, label: 'no RealPage coverage · 3.0% assumed' };
-  }
-  const pct = parseFloat(state.csTrendGrowth);
-  const rate = isNaN(pct) ? 0.03 : pct / 100;
-  return { rate, label: `${(rate * 100).toFixed(1)}% annual` };
-}
-
-// Grow today's observed market rent forward and test it against the deal's
-// required rent — which is cost-derived and therefore fixed in time. Two
-// numbers come out of it: when the market gets there at the chosen rate, and
-// what rate it would take to get there by the chosen horizon.
-function csRentTrajectory(b, rate, years) {
-  if (!b || b.marketToday == null) return null;
-  const rows = [];
-  for (let t = 0; t <= years; t++) {
-    const psf = b.marketToday * Math.pow(1 + rate, t);
-    const yoc = yocAtPsfForDeal(b.rr, psf);
-    rows.push({
-      t, psf,
-      perUnit: b.sf ? psf * b.sf : null,
-      yoc,
-      bps: (yoc != null && b.target != null) ? (yoc - b.target) * 10000 : null,
-      clears: b.rr ? psf >= b.rr.requiredPsf : null
-    });
-  }
-  let crossover = null;
-  if (b.rr && b.marketToday > 0) {
-    const ratio = b.rr.requiredPsf / b.marketToday;
-    if (ratio <= 1) crossover = 0;
-    else if (rate > 0) crossover = Math.log(ratio) / Math.log(1 + rate);
-  }
-  const neededGrowth = (b.rr && b.marketToday > 0 && years > 0)
-    ? Math.pow(b.rr.requiredPsf / b.marketToday, 1 / years) - 1
-    : null;
-  return { rows, crossover, neededGrowth, rate, years };
-}
-
 /* ---------- Sales tab: each comp's land and investment sale, plus a hand-picked investment sale set
-   (market.comp_set_sales) to test the linked deal's underwritten basis. Most rent comps haven't sold,
+   (market.comp_set_sales). Most rent comps haven't sold,
    so the hand-picked set is what carries the investment benchmark. ---------- */
 const CS_SALE_COLS = 'id,property_id,comp_type,name,address,city,submarket,lat,lng,sale_date,sale_price,units,proposed_units,acres,year_built,price_per_unit,price_per_sf,price_per_land_sf,cap_rate,cap_rate_t12,buyer,seller,excluded,portfolio';
 const csSalesCache = {};
@@ -9363,19 +8677,6 @@ function csMiles(a, b) {
   const h = Math.sin(dLa / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLo / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-/* the deal's underwritten basis: total cost per unit for a development deal, price per unit for an acquisition */
-function csBasis(o) {
-  if (!o) return null;
-  const units = csNum(o.units);
-  if ((o.oppType || 'development') === 'development') {
-    const total = csNum(o.totalProjectCostPerUnit) ?? (csNum(o.uwTotalCost) && units ? o.uwTotalCost / units : null);
-    const sf = csNum(o.uwAvgUnitSize) ?? csNum(o.avgSf);
-    const land = csNum(o.underwrittenLandPricePerUnit) ?? (csNum(o.uwLandPrice) && units ? o.uwLandPrice / units : (csNum(o.pricingGuidance) && units ? o.pricingGuidance / units : null));
-    return { dev: true, name: o.name, perUnit: total, perSf: total && sf ? total / sf : null, landPerUnit: land };
-  }
-  const price = csNum(o.offerPricePerUnit) ?? (csNum(o.pricingGuidance) && units ? o.pricingGuidance / units : null);
-  return { dev: false, name: o.name, perUnit: price, perSf: null, landPerUnit: null };
-}
 function renderCsSales(props) {
   const cs = compSets[state.activeCompSetId];
   const key = csSalesKey(cs, props);
@@ -9387,9 +8688,9 @@ function renderCsSales(props) {
   if (c.loading) return '<div class="cs-footnote">Loading sales…</div>';
   if (c.error) return `<div class="cs-footnote">Couldn't load sales: ${escapeHTML(c.error)}</div>`;
 
-  const deal = oppsForCompSet(cs.id)[0] || cmDealOpp(cs.dealId);
-  const basis = csBasis(deal);
-  const subj = deal && deal.lat != null ? { lat: +deal.lat, lng: +deal.lng } : null;
+  // distances are measured from the middle of the set
+  const pts0 = props.filter(p => p.lat != null && p.lng != null);
+  const subj = pts0.length ? { lat: pts0.reduce((t, p) => t + +p.lat, 0) / pts0.length, lng: pts0.reduce((t, p) => t + +p.lng, 0) / pts0.length } : null;
   const latest = (rows, type) => rows.filter(s => s.comp_type === type && s.sale_date).sort((a, b) => b.sale_date.localeCompare(a.sale_date));
 
   /* 1. what each comp in the set traded for: land (what the developer paid) and the latest investment sale */
@@ -9419,26 +8720,24 @@ function renderCsSales(props) {
       </div>
     </div>`;
 
-  /* 2. our own investment sale comp set, benchmarked against the deal's basis */
+  /* 2. the investment sales picked for this set */
   const picks = c.picks.filter(s => s.comp_type !== 'land');   // land picks live in the Comp Sets tab's Sale comps section
   const pu = picks.map(csSalePerUnit).filter(v => v != null), caps = picks.map(csSaleCap).filter(v => v != null), psf = picks.map(s => csNum(s.price_per_sf)).filter(v => v != null);
   const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
   const avgPU = avg(pu), avgCap = avg(caps), avgSF = avg(psf), avgLand = avg(landPer);
-  const vs = basis && basis.perUnit && avgPU ? basis.perUnit / avgPU - 1 : null;
   const kpi = (label, value, sub) => `<div class="kpi"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-sub">${sub || '&nbsp;'}</div></div>`;
   const kpis = `<div class="kpi-row kpi-4">
-      ${kpi(basis && basis.dev ? 'Our Basis (Total Cost)' : 'Our Basis', basis && basis.perUnit ? csK(basis.perUnit) + '<span class="unit">/unit</span>' : '—', basis ? (basis.perUnit ? escapeHTML(basis.name || '') + (basis.perSf ? ' · ' + fmt.money(basis.perSf) + '/SF' : '') : 'no underwritten cost on ' + escapeHTML(basis.name || 'the deal')) : 'link a deal to this set')}
       ${kpi('Investment Sales', avgPU ? csK(avgPU) + '<span class="unit">/unit</span>' : '—', picks.length ? `average of ${picks.length} sale${picks.length === 1 ? '' : 's'}${avgSF ? ' · ' + fmt.money(avgSF) + '/SF' : ''}` : 'add sales below')}
-      ${kpi('Basis vs Sales', vs == null ? '—' : (vs > 0 ? '+' : '') + (vs * 100).toFixed(0) + '%', vs == null ? '&nbsp;' : vs > 0 ? 'we build above what these trade for' : 'we build below what these trade for')}
-      ${kpi('Avg Cap', avgCap ? avgCap.toFixed(2) + '%' : '—', basis && basis.dev && basis.landPerUnit ? 'our land ' + csK(basis.landPerUnit) + '/door' + (avgLand ? ' · comps ' + csK(avgLand) : '') : (avgLand ? 'comps paid ' + csK(avgLand) + '/door for land' : '&nbsp;'))}
+      ${kpi('Avg $/SF', avgSF ? fmt.money(avgSF) + '<span class="unit">/SF</span>' : '—', picks.length ? 'investment sales' : '&nbsp;')}
+      ${kpi('Avg Cap', avgCap ? avgCap.toFixed(2) + '%' : '—', picks.length ? 'investment sales' : '&nbsp;')}
+      ${kpi('Land', avgLand ? csK(avgLand) + '<span class="unit">/door</span>' : '—', avgLand ? 'what the comps paid for their land' : 'no land sales on these comps')}
     </div>`;
   const pickRows = picks.map(s => {
-    const v = csSalePerUnit(s), d = csMiles(subj, s), delta = basis && basis.perUnit && v ? basis.perUnit / v - 1 : null;
+    const v = csSalePerUnit(s), d = csMiles(subj, s);
     return `<tr>
       <td>${escapeHTML(s.name || s.address || '(unnamed)')}${s.portfolio ? ' <span title="Portfolio allocation">P</span>' : ''}</td><td>${escapeHTML(s.submarket || s.city || '')}</td>
       <td>${csSaleMonth(s.sale_date)}</td><td>${fmt.int(s.units)}</td><td>${s.year_built || '—'}</td><td>${csMoneyM(csNum(s.sale_price))}</td><td>${csK(v)}</td><td>${csNum(s.price_per_sf) ? fmt.money(+s.price_per_sf) : '—'}</td>
       <td>${csSaleCap(s) ? csSaleCap(s).toFixed(2) + '%' : '—'}</td><td>${d == null ? '—' : d.toFixed(1) + ' mi'}</td>
-      <td>${delta == null ? '—' : (delta > 0 ? '+' : '') + (delta * 100).toFixed(0) + '%'}</td>
       <td><button class="cs-action" data-sale-del="${s.id}" title="Remove from this set">×</button></td></tr>`;
   }).join('');
   const ownSales = rows.flatMap(r => r.inv.slice(0, 1)).filter(s => !picks.some(x => x.id === s.id));
@@ -9447,7 +8746,7 @@ function renderCsSales(props) {
     <div class="panel">
       <div class="panel-header" style="flex-wrap:wrap;gap:10px;"><div>
         <div class="panel-title-sm">Investment Sale <em>Comps</em></div>
-        <div class="panel-sub">Sales we pick for this set · $/unit vs our basis${subj ? ' · distance from ' + escapeHTML(deal.name || 'the site') : ''}</div>
+        <div class="panel-sub">Sales we pick for this set · distance from the middle of the set</div>
       </div>
       <div class="cs-actions">
         ${ownSales.length ? `<button class="cs-action" data-sale-addown>+ Add the comps' own sales (${ownSales.length})</button>` : ''}
@@ -9455,10 +8754,10 @@ function renderCsSales(props) {
       </div></div>
       <div class="panel-body" style="overflow-x:auto;">
         ${picks.length ? `<table class="data-table">
-          <thead><tr><th>Property</th><th>Submarket</th><th>Sold</th><th>Units</th><th>Built</th><th>Price</th><th>$/unit</th><th>$/SF</th><th>Cap</th><th>Distance</th><th>Our basis vs</th><th></th></tr></thead>
+          <thead><tr><th>Property</th><th>Submarket</th><th>Sold</th><th>Units</th><th>Built</th><th>Price</th><th>$/unit</th><th>$/SF</th><th>Cap</th><th>Distance</th><th></th></tr></thead>
           <tbody>${pickRows}</tbody>
-          <tfoot><tr><td><strong>Average</strong></td><td></td><td></td><td></td><td></td><td></td><td><strong>${csK(avgPU)}</strong></td><td>${avgSF ? fmt.money(avgSF) : '—'}</td><td>${avgCap ? avgCap.toFixed(2) + '%' : '—'}</td><td></td><td><strong>${vs == null ? '—' : (vs > 0 ? '+' : '') + (vs * 100).toFixed(0) + '%'}</strong></td><td></td></tr></tfoot>
-        </table>` : '<div class="cs-footnote">No investment sales picked yet. Add nearby trades of similar product to see how our basis compares.</div>'}
+          <tfoot><tr><td><strong>Average</strong></td><td></td><td></td><td></td><td></td><td></td><td><strong>${csK(avgPU)}</strong></td><td>${avgSF ? fmt.money(avgSF) : '—'}</td><td>${avgCap ? avgCap.toFixed(2) + '%' : '—'}</td><td></td><td></td></tr></tfoot>
+        </table>` : '<div class="cs-footnote">No investment sales picked yet. Add nearby trades of similar product.</div>'}
         ${picker}
       </div>
     </div>`;
@@ -9471,7 +8770,6 @@ function csSalePickerHtml(picks, subj, props) {
       .catch(e => { csSalePool = []; WB.toast && WB.toast("Couldn't load sales: " + (e.message || e)); });
     return '<div class="cs-footnote">Loading this market\'s investment sales…</div>';
   }
-  /* no linked site: measure from the middle of the set */
   const pts = props.filter(p => p.lat != null);
   const ctr = subj || (pts.length ? { lat: pts.reduce((t, p) => t + +p.lat, 0) / pts.length, lng: pts.reduce((t, p) => t + +p.lng, 0) / pts.length } : null);
   const have = new Set(picks.map(s => s.id));
@@ -9480,7 +8778,7 @@ function csSalePickerHtml(picks, subj, props) {
     .sort((a, b) => (a.d ?? 1e9) - (b.d ?? 1e9) || b.s.sale_date.localeCompare(a.s.sale_date))
     .slice(0, 150);
   return `<div class="cs-tab-toolbar" style="margin-top:14px;">
-      <div class="cs-tab-toolbar-note">Nearest first${subj ? '' : ' (from the middle of the set)'} · ${csSalePool.length.toLocaleString()} investment sales in this market</div>
+ <div class="cs-tab-toolbar-note">Nearest first (from the middle of the set) · ${csSalePool.length.toLocaleString()} investment sales in this market</div>
       <input class="cs-side-picker" id="cs-sale-q" type="search" placeholder="Filter by name, submarket, buyer" style="min-width:240px;">
     </div>
     <div style="max-height:360px;overflow:auto;">
@@ -9537,211 +8835,6 @@ function wireCsSales(host) {
     const q = e.target.value.trim().toLowerCase();
     host.querySelectorAll('#cs-sale-pool tbody tr').forEach(tr => { tr.style.display = !q || tr.dataset.q.includes(q) ? '' : 'none'; });
   });
-}
-
-function renderCsUnderwriting(props) {
-  const csId = state.activeCompSetId;
-  const linkedOpps = oppsForCompSet(csId);
-  const stats = compSetRentStats(props);
-
-  const allOpps = (typeof opportunities !== 'undefined' ? opportunities : [])
-    .slice()
-    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-  const linkPicker = `
-    <div class="cs-tab-toolbar">
-      <div class="cs-tab-toolbar-note">Linking a deal benchmarks its required rent against what these comps achieve.</div>
-      <select class="cs-side-picker cs-link-select" id="cs-link-opp">
-        <option value="">— Link a deal to this set —</option>
-        ${allOpps.filter(o => o.compSetId !== csId).map(o =>
-          `<option value="${escapeHTML(o.id)}">${escapeHTML(o.name || '(unnamed)')}${o.submarket ? ' · ' + escapeHTML(o.submarket) : ''}${o.status ? ' · ' + escapeHTML(o.status) : ''}</option>`).join('')}
-      </select>
-    </div>`;
-
-  if (!stats) {
-    return `<div class="cs-footnote">These comps have no effective rent data, so there's nothing to underwrite against yet.</div>`;
-  }
-
-  const kpi = (label, value, unit, sub) => `
-    <div class="kpi">
-      <div class="kpi-label">${label}</div>
-      <div class="kpi-value">${value}${unit ? `<span class="unit">${unit}</span>` : ''}</div>
-      <div class="kpi-sub">${sub || '&nbsp;'}</div>
-    </div>`;
-
-  // Proforma rent leads: it's the number the deal was underwritten on, and
-  // everything else on the tab is measured against it.
-  const uwRents = linkedOpps.map(o => o.uwRentsPerSF).filter(v => v != null);
-  const proforma = uwRents.length ? uwRents.reduce((a, b) => a + b, 0) / uwRents.length : null;
-  const proformaSub = proforma == null
-    ? (linkedOpps.length ? 'set a UW rent on the deal' : 'link a deal to populate')
-    : (uwRents.length > 1 ? `average across ${uwRents.length} deals` : escapeHTML(linkedOpps[0].name || ''));
-
-  const marketRow = `
-    <div class="kpi-row kpi-4">
-      ${kpi('Proforma Rent', proforma == null ? '—' : fmt.money2(proforma), '/SF', proformaSub)}
-      ${kpi('Set Asking Rent', stats.askAvg == null ? '—' : fmt.money2(stats.askAvg), '/SF', 'unit-weighted')}
-      ${kpi('Asking Range', stats.askMin == null ? '—' : `${fmt.money2(stats.askMin)} – ${fmt.money2(stats.askMax)}`, '', 'low to high')}
-      ${kpi('Set Effective', fmt.money2(stats.psfAvg), '/SF', 'net of concessions')}
-    </div>`;
-
-  if (!linkedOpps.length) {
-    return `
-      ${marketRow}
-      ${linkPicker}
-      <div class="cs-footnote">
-        No deals are linked to this set. Link one and you'll see whether its required rent clears
-        what these comps are achieving — and how many years of rent growth it would take to get there.
-      </div>`;
-  }
-
-  const pct = v => v == null ? '—' : (v * 100).toFixed(2) + '%';
-
-  // Trend controls. RealPage only appears when at least one linked deal's
-  // submarket actually has coverage.
-  const rpAvailable = linkedOpps.some(o => csRpGrowth(o.submarket) != null);
-  const growthOpts = ['2', '2.5', '3', '3.5', '4'];
-  const trendControls = `
-    <div class="cs-tab-toolbar cs-traj-toolbar">
-      <div class="cs-tab-toolbar-note">
-        Trend the set's asking rent forward from today and test it against each deal's required rent.
-      </div>
-      <div class="cs-traj-controls">
-        <span class="cs-ctrl-label">Growth</span>
-        <div class="toggle-group cs-mini-toggle">
-          ${growthOpts.map(g => `<button class="toggle-btn ${String(state.csTrendGrowth) === g ? 'active' : ''}" data-cs-growth="${g}">${g}%</button>`).join('')}
-          ${rpAvailable ? `<button class="toggle-btn ${state.csTrendGrowth === 'rp' ? 'active' : ''}" data-cs-growth="rp" title="RealPage submarket forecast CAGR">RealPage</button>` : ''}
-        </div>
-        <span class="cs-ctrl-label">Horizon</span>
-        <div class="toggle-group cs-mini-toggle">
-          ${[1, 2, 3, 4, 5].map(y => `<button class="toggle-btn ${state.csTrendYears === y ? 'active' : ''}" data-cs-years="${y}">${y} yr</button>`).join('')}
-        </div>
-      </div>
-    </div>`;
-
-  const dealPanels = linkedOpps.map(o => {
-    const b = compSetBenchmark(o);
-    if (!b || b.empty) return '';
-    const clears = (b.rr && b.yocAtMarket != null) ? b.yocAtMarket >= b.target : null;
-    const bpsVal = (b.yocAtMarket != null && b.target != null) ? Math.round((b.yocAtMarket - b.target) * 10000) : null;
-
-    const rows = b.scenarios.filter(s => s.kind !== 'required').map(s => `
-      <tr>
-        <td>${escapeHTML(s.label)}</td>
-        <td class="num">${s.psfDelivery == null ? '—' : fmt.money2(s.psfDelivery)}</td>
-        <td class="num">${s.perUnit == null ? '—' : fmt.money(s.perUnit)}</td>
-        <td class="num ${s.yoc != null && b.target != null ? (s.yoc >= b.target ? 'pos' : 'neg') : ''}">${pct(s.yoc)}</td>
-      </tr>`).join('');
-
-    // ---- Rent trajectory ----
-    let trajBlock = '';
-    if (b.rr) {
-      const g = csGrowthFor(o.submarket);
-      const traj = csRentTrajectory(b, g.rate, state.csTrendYears);
-      if (traj) {
-        let firstClear = -1;
-        const trajRows = traj.rows.map((r, i) => {
-          const isFirst = r.clears && firstClear === -1;
-          if (isFirst) firstClear = i;
-          return `
-            <tr class="${r.clears ? 'cs-traj-clear' : ''}${isFirst ? ' cs-traj-first' : ''}">
-              <td>${r.t === 0 ? 'Today' : 'Year ' + r.t}${isFirst ? '<span class="cs-traj-flag">clears</span>' : ''}</td>
-              <td class="num">${fmt.money2(r.psf)}</td>
-              <td class="num">${r.perUnit == null ? '—' : fmt.money(r.perUnit)}</td>
-              <td class="num ${r.yoc != null && b.target != null ? (r.yoc >= b.target ? 'pos' : 'neg') : ''}">${pct(r.yoc)}</td>
-              <td class="num ${r.bps == null ? '' : (r.bps >= 0 ? 'pos' : 'neg')}">${r.bps == null ? '—' : (r.bps >= 0 ? '+' : '−') + Math.abs(Math.round(r.bps)) + ' bps'}</td>
-            </tr>`;
-        }).join('');
-
-        // The read: when does the market get there, and what would it take.
-        let verdict;
-        if (traj.crossover === 0) {
-          verdict = `The set already asks <strong>${fmt.money2(b.marketToday)}/SF</strong> against a required
-            <strong>${fmt.money2(b.rr.requiredPsf)}/SF</strong> — this deal clears on today's rents, before any growth.`;
-        } else if (traj.crossover != null && traj.crossover <= state.csTrendYears) {
-          verdict = `At <strong>${g.label}</strong>, the set's asking rent reaches the required
-            <strong>${fmt.money2(b.rr.requiredPsf)}/SF</strong> in <strong>${traj.crossover.toFixed(1)} years</strong>
-            — around <strong>${CURRENT_YEAR + Math.ceil(traj.crossover)}</strong>.`;
-        } else if (traj.crossover != null) {
-          verdict = `At <strong>${g.label}</strong>, the set doesn't reach the required
-            <strong>${fmt.money2(b.rr.requiredPsf)}/SF</strong> inside ${state.csTrendYears} years —
-            it takes <strong>${traj.crossover.toFixed(1)} years</strong>.`;
-        } else {
-          verdict = `With no growth assumed, the set stays below the required
-            <strong>${fmt.money2(b.rr.requiredPsf)}/SF</strong> indefinitely.`;
-        }
-        if (traj.neededGrowth != null && traj.crossover !== 0) {
-          verdict += ` Clearing it within ${state.csTrendYears} year${state.csTrendYears === 1 ? '' : 's'}
-            would take <strong>${(traj.neededGrowth * 100).toFixed(1)}% annually</strong>.`;
-        }
-
-        trajBlock = `
-          <div class="cs-block-title">Rent Trajectory <span class="cs-block-note">${escapeHTML(g.label)} · from today's asking rent</span></div>
-          <table class="data-table ocs-mini cs-traj-table">
-            <thead><tr>
-              <th>Horizon</th><th class="num">Market $/SF</th><th class="num">$/Unit / Mo</th>
-              <th class="num">YoC</th><th class="num">vs Target</th>
-            </tr></thead>
-            <tbody>${trajRows}</tbody>
-          </table>
-          <div class="cs-callout cs-traj-note">${verdict}</div>`;
-      }
-    }
-
-    const body = b.rr ? `
-      <div class="cs-stat">
-        <span class="cs-stat-label">Required Rent</span>
-        <span class="cs-stat-value">${fmt.money2(b.rr.requiredPsf)}<em>/SF to clear ${pct(b.target)}</em></span>
-      </div>
-      <div class="cs-stat">
-        <span class="cs-stat-label">YoC at Set Rent</span>
-        <span class="cs-stat-value ${clears ? 'pos' : 'neg'}">${pct(b.yocAtMarket)}<em>${bpsVal == null ? '' : (bpsVal >= 0 ? '+' : '−') + Math.abs(bpsVal) + ' bps vs target'}</em></span>
-      </div>
-      <div class="cs-stat">
-        <span class="cs-stat-label">Comps Clearing Hurdle</span>
-        <span class="cs-stat-value">${b.clearing}<em>of ${b.perComp.length}</em></span>
-      </div>
-      <div class="cs-stat">
-        <span class="cs-stat-label">Verdict</span>
-        <span class="cs-stat-value ${clears ? 'pos' : 'neg'}">${clears ? 'Set supports it' : 'Set falls short'}<em>${b.premiumPct != null && b.premiumPct > 0 ? b.premiumPct.toFixed(1) + '% premium needed' : ''}</em></span>
-      </div>
-      <table class="data-table ocs-mini">
-        <thead><tr><th>Scenario</th><th class="num">$/SF</th><th class="num">$/Unit / Mo</th><th class="num">YoC</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      ${trajBlock}`
-      : `<div class="cs-callout">This deal is missing an underwriting input (land cost, units, or product type), so yield can't be solved against the set yet.</div>`;
-
-    return `
-      <div class="panel">
-        <div class="panel-header" style="gap:12px;flex-wrap:wrap;">
-          <div style="min-width:0;">
-            <div class="panel-title-sm">${escapeHTML(o.name || '(unnamed)')}</div>
-            <div class="panel-sub">${escapeHTML(o.oppType === 'investment' ? 'Investment' : 'Development')}${o.status ? ' · ' + escapeHTML(o.status) : ''}${o.submarket ? ' · ' + escapeHTML(o.submarket) : ''}${o.units ? ' · ' + Number(o.units).toLocaleString() + ' Units' : ''}</div>
-          </div>
-          <div class="cs-actions">
-            <button class="cs-action" data-cs-openopp="${escapeHTML(o.id)}">Open Deal</button>
-            <button class="cs-action" data-cs-unlink="${escapeHTML(o.id)}">Unlink</button>
-          </div>
-        </div>
-        <div class="panel-body">${body}</div>
-      </div>`;
-  }).filter(Boolean).join('');
-
-  const trendNote = (typeof yocState !== 'undefined' && yocState.trendEnabled)
-    ? ' The YOC matrix also has trending switched on, so the scenario table above already carries it to delivery; the trajectory always starts from today so the two are read separately.'
-    : '';
-
-  return `
-    ${marketRow}
-    ${trendControls}
-    <div class="cs-deal-grid">${dealPanels}</div>
-    ${linkPicker}
-    <div class="cs-footnote">
-      Required rent is cost-derived and fixed in time, so the trajectory holds it steady and grows the market to it.
-      Crossover is the point the set's unit-weighted asking rent reaches that threshold at the selected rate.${trendNote}
-    </div>
-  `;
 }
 
 /* ---------- Wiring ---------- */
@@ -9846,32 +8939,6 @@ function wireCsIntel() {
       if (again) again.focus();
     });
   });
-
-  // Underwriting tab — link, unlink, and jump to a deal.
-  const linkSel = document.getElementById('cs-link-opp');
-  if (linkSel) {
-    linkSel.addEventListener('change', () => {
-      if (!linkSel.value) return;
-      linkCompSetToOpp(linkSel.value, state.activeCompSetId);
-      renderCompSetIntel();
-      try { renderOpportunities(); } catch (e) {}
-    });
-  }
-  host.querySelectorAll('[data-cs-unlink]').forEach(b => {
-    b.addEventListener('click', () => {
-      linkCompSetToOpp(b.dataset.csUnlink, null);
-      renderCompSetIntel();
-      try { renderOpportunities(); } catch (e) {}
-    });
-  });
-  host.querySelectorAll('[data-cs-openopp]').forEach(b => {
-    b.addEventListener('click', () => {
-      const oppId = b.dataset.csOpenopp;
-      const tab = document.querySelector('.tab[data-view="opportunities"]');
-      if (tab) tab.click();
-      try { openOpportunityDetail(oppId); } catch (e) {}
-    });
-  });
 }
 
 // One CSV with the whole workspace: property vitals, the fee schedule, and
@@ -9942,8 +9009,6 @@ function exportCompSetPdf() {
   const props = compSetProperties();
   const cs = compSets[state.activeCompSetId];
   if (!props.length || !cs) return;
-  const deal = cmDealOpp(cs.dealId);
-  const subj = deal && deal.lat != null && deal.lng != null ? L.latLng(deal.lat, deal.lng) : null;
   const E = escapeHTML;
   const n0 = v => v == null || isNaN(v) ? '–' : Math.round(v).toLocaleString('en-US');
   const usd = v => v == null || isNaN(v) ? '–' : '$' + Math.round(v).toLocaleString('en-US');
@@ -9954,8 +9019,7 @@ function exportCompSetPdf() {
     const cx = concessionStats(p);
     const effUnit = cx.source === 'entered' ? cx.eff : p.avgEffectiveUnit;
     const effSF = cx.source === 'entered' ? (cx.eff != null && p.avgUnitSF ? cx.eff / p.avgUnitSF : null) : p.avgEffectiveSF;
-    const mi = subj && p.lat != null && p.lng != null ? subj.distanceTo([p.lat, p.lng]) / 1609.34 : null;
-    return { p, i: i + 1, occ: p.vacancy == null ? null : 100 - p.vacancy, askSF: p.avgAskingSF, askU: p.avgAskingUnit, effSF, effU: effUnit, weeks: cx.weeksFree, mi, u: p.units || 0 };
+    return { p, i: i + 1, occ: p.vacancy == null ? null : 100 - p.vacancy, askSF: p.avgAskingSF, askU: p.avgAskingUnit, effSF, effU: effUnit, weeks: cx.weeksFree, u: p.units || 0 };
   });
   const W = (k) => (k === 'askSF' || k === 'effSF')
     ? psfWeightedAvg(rows.filter(r => r[k] != null && !isNaN(r[k])).map(r => ({ v: r[k], u: r.u, avgUnitSF: r.p.avgUnitSF })), 'v', 'u')
@@ -9969,7 +9033,7 @@ function exportCompSetPdf() {
   const subline = [meta.submarkets.length === 1 ? meta.submarkets[0] : meta.submarkets.length + ' submarkets', props.length + ' properties', n0(meta.units) + ' units',
     meta.vintageMin ? (meta.vintageMin === meta.vintageMax ? meta.vintageMin : meta.vintageMin + '–' + meta.vintageMax) : null].filter(Boolean).join('  ·  ');
   const source = 'Source: CoStar' + (asOf ? ', ' + asOf : '') + '. Averages weighted by units. Concessions shown as weeks free.';
-  const head = (kicker, compact) => `<header${compact ? ' class="cmp"' : ''}><div><p class="k">${E(kicker)}</p><h1>${E(cs.name)}</h1><p class="sub">${E(subline)}${deal ? '  ·  Subject: ' + E(deal.name) : ''}</p></div><img src="shared/wb-mark.png" alt=""></header>`;
+  const head = (kicker, compact) => `<header${compact ? ' class="cmp"' : ''}><div><p class="k">${E(kicker)}</p><h1>${E(cs.name)}</h1><p class="sub">${E(subline)}</p></div><img src="shared/wb-mark.png" alt=""></header>`;
   const foot = (n) => `<footer><span>${E(source)}</span><span>Willow Bridge · ${E(today)} · ${n}</span></footer>`;
 
   const kpi = (l, v, s) => `<div class="kpi"><p class="l">${l}</p><p class="v">${v}</p>${s ? `<p class="s">${s}</p>` : ''}</div>`;
@@ -9983,9 +9047,9 @@ function exportCompSetPdf() {
         ${kpi('Avg unit size', n0(avg.sf) + '<small> SF</small>', avg.yr ? 'Avg vintage ' + Math.round(avg.yr) : '')}
       </div></div>${foot(1)}</section>`;
 
-  const th = `<tr><th class="no">#</th><th class="nm">Property</th><th>Built</th><th>Units</th><th>Avg SF</th><th>Occ.</th><th>Asking $/SF</th><th class="mo">$/mo</th><th>Effective $/SF</th><th class="mo">$/mo</th><th>Wks free</th>${subj ? '<th>Miles</th>' : ''}</tr>`;
-  const tr = r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${E([r.p.address, r.p.submarket].filter(Boolean).join(' · '))}</span></td><td>${r.p.yearBuilt || '–'}</td><td>${n0(r.p.units)}</td><td>${n0(r.p.avgUnitSF)}</td><td>${r.occ == null ? '–' : r.occ.toFixed(1) + '%'}</td><td class="pr">${psf(r.askSF)}</td><td class="mo">${usd(r.askU)}</td><td class="pr">${psf(r.effSF)}</td><td class="mo">${usd(r.effU)}</td><td>${wks(r.weeks)}</td>${subj ? `<td>${r.mi == null ? '–' : r.mi.toFixed(1)}</td>` : ''}</tr>`;
-  const avgRow = `<tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units ($/SF by square feet)</span></td><td>${avg.yr ? Math.round(avg.yr) : '–'}</td><td>${n0(meta.units)}</td><td>${n0(avg.sf)}</td><td>${avg.occ == null ? '–' : avg.occ.toFixed(1) + '%'}</td><td class="pr">${psf(avg.askSF)}</td><td class="mo">${usd(avg.askU)}</td><td class="pr">${psf(avg.effSF)}</td><td class="mo">${usd(avg.effU)}</td><td>${wks(avg.weeks)}</td>${subj ? '<td></td>' : ''}</tr>`;
+  const th = `<tr><th class="no">#</th><th class="nm">Property</th><th>Built</th><th>Units</th><th>Avg SF</th><th>Occ.</th><th>Asking $/SF</th><th class="mo">$/mo</th><th>Effective $/SF</th><th class="mo">$/mo</th><th>Wks free</th></tr>`;
+  const tr = r => `<tr><td class="no">${r.i}</td><td class="nm"><b>${E(r.p.name || '')}</b><span>${E([r.p.address, r.p.submarket].filter(Boolean).join(' · '))}</span></td><td>${r.p.yearBuilt || '–'}</td><td>${n0(r.p.units)}</td><td>${n0(r.p.avgUnitSF)}</td><td>${r.occ == null ? '–' : r.occ.toFixed(1) + '%'}</td><td class="pr">${psf(r.askSF)}</td><td class="mo">${usd(r.askU)}</td><td class="pr">${psf(r.effSF)}</td><td class="mo">${usd(r.effU)}</td><td>${wks(r.weeks)}</td></tr>`;
+  const avgRow = `<tr class="avg"><td class="no"></td><td class="nm"><b>Set average</b><span>Weighted by units ($/SF by square feet)</span></td><td>${avg.yr ? Math.round(avg.yr) : '–'}</td><td>${n0(meta.units)}</td><td>${n0(avg.sf)}</td><td>${avg.occ == null ? '–' : avg.occ.toFixed(1) + '%'}</td><td class="pr">${psf(avg.askSF)}</td><td class="mo">${usd(avg.askU)}</td><td class="pr">${psf(avg.effSF)}</td><td class="mo">${usd(avg.effU)}</td><td>${wks(avg.weeks)}</td></tr>`;
   // A 16:9 page holds about 13 two-line rows plus the average, so longer sets continue on another page.
   const dense = rows.length > 7 ? ' dense' : '', PER = 12;
   const parts = []; for (let k = 0; k < rows.length; k += PER) parts.push(rows.slice(k, k + PER));
@@ -10054,7 +9118,6 @@ function exportCompSetPdf() {
     #cs-print .t.mix td.mx b { display:block; font-weight:600; }
     #cs-print .t.mix td.mx span { display:block; font-size:8.5pt; color:#8A86A0; }
     #cs-print .csp-pin span { display:flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:50%; background:#1D1247; color:#fff; font:600 10.5px Aptos, Inter, sans-serif; box-shadow:0 0 0 2px #fff, 0 1px 3px rgba(0,0,0,.35); }
-    #cs-print .csp-subj span { display:block; width:14px; height:14px; border-radius:50%; background:#6C47FF; box-shadow:0 0 0 3px #fff, 0 0 0 7px rgba(108,71,255,.3); }
     #cs-print .csp-lab { background:#fff; border:0; box-shadow:0 1px 3px rgba(0,0,0,.25); color:#1D1247; font:600 10px Aptos, Inter, sans-serif; padding:2px 6px; border-radius:3px; }
     #cs-print .csp-lab::before { display:none; }`;
 
@@ -10070,14 +9133,8 @@ function exportCompSetPdf() {
   rows.forEach(r => {
     if (r.p.lat == null || r.p.lng == null) return;
     pts.push([r.p.lat, r.p.lng]);
-    if (subj) L.polyline([subj, [r.p.lat, r.p.lng]], { color: '#432890', weight: 1, opacity: .35, dashArray: '3 4', interactive: false }).addTo(map);
     L.marker([r.p.lat, r.p.lng], { icon: L.divIcon({ className: 'csp-pin', html: `<span>${r.i}</span>`, iconSize: [20, 20], iconAnchor: [10, 10] }) }).addTo(map);
   });
-  if (subj) {
-    pts.push([subj.lat, subj.lng]);
-    L.marker(subj, { icon: L.divIcon({ className: 'csp-subj', html: '<span></span>', iconSize: [14, 14], iconAnchor: [7, 7] }), zIndexOffset: 1000 })
-      .bindTooltip(E(deal.name), { permanent: true, direction: 'right', offset: [10, 0], className: 'csp-lab' }).addTo(map);
-  }
   map.invalidateSize();
   if (pts.length > 1) map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 15, animate: false });
   else if (pts.length) map.setView(pts[0], 14, { animate: false });
@@ -11403,15 +10460,6 @@ function setDerivedField(field, computedVal) {
   }
 }
 
-// Kept for back-compat with any older code paths that still call this
-function setEditInputIfEmpty(field, computedVal) {
-  const inp = document.querySelector(`#sc-modal-content .edit-input[data-field="${field}"]`);
-  if (!inp) return;
-  if (document.activeElement === inp) return;
-  if (inp.value !== '' && inp.value != null) return;
-  setDerivedField(field, computedVal);
-}
-
 function attachSaleCompLiveCalc() {
   const type = scModalState.type;
   const isInv = type === 'investment';
@@ -11754,2240 +10802,10 @@ function exportSaleCompsCsv() {
   setTimeout(() => URL.revokeObjectURL(url), 100);
 }
 
-/* =================================================================
-   OPPORTUNITIES — internal investment & development pipeline tracker
-   Mostly client-side: a localStorage-backed list of pinned sites that
-   the user can add, edit, and delete from. Renders to:
-   (1) a map with one marker per opportunity (color-coded by type/status)
-   (2) a sortable table below the map
-   (3) a detail modal when a pin / row / chart bar is clicked.
-   ================================================================= */
-const OPP_STORAGE_KEY = 'wb_dashboard_opportunities_v1';
-let opportunities = [];   // populated from localStorage at boot
-
-function loadOpportunities() {
-  try {
-    const raw = localStorage.getItem(OPP_STORAGE_KEY);
-    if (raw) opportunities = JSON.parse(raw);
-    if (!Array.isArray(opportunities)) opportunities = [];
-  } catch (e) { opportunities = []; }
-}
-
-function saveOpportunities() {
-  try { localStorage.setItem(OPP_STORAGE_KEY, JSON.stringify(opportunities)); }
-  catch (e) { /* quota / private mode — silent fail, in-memory state still works */ }
-}
-
-// ----------------------------------------------------------------------------
-// CLOUD SYNC — OPPORTUNITIES
-// ----------------------------------------------------------------------------
-// Strategy:
-//  - localStorage is the write-through cache; saveOpportunities() updates it
-//    immediately so the UI doesn't wait on the network
-//  - pushOpportunity(opp) upserts a single row to Supabase async; called on
-//    add + edit
-//  - deleteOpportunityCloud(id) deletes the row from Supabase async
-//  - pullOpportunitiesFromCloud() fetches every row, replaces local state,
-//    and re-renders (called on page load + on realtime push)
-//  - We don't reconcile per-field — opportunities are small JSON blobs and
-//    last-write-wins is the agreed conflict policy
-
-async function pushOpportunity(opp) {
-  if (!syncState.enabled || !opp || !opp.id) return;
-  await syncOp('opp.push', async () => {
-    const { error } = await supabaseClient.from('opportunities').upsert({
-      id: opp.id,
-      market: ACTIVE_MARKET,
-      data: opp,
-      editor_name: syncState.editorName || 'Anonymous'
-    });
-    if (error) throw error;
-  });
-}
-
-async function deleteOpportunityCloud(id) {
-  if (!syncState.enabled || !id) return;
-  await syncOp('opp.delete', async () => {
-    const { error } = await supabaseClient.from('opportunities')
-      .delete()
-      .eq('id', id)
-      .eq('market', ACTIVE_MARKET);
-    if (error) throw error;
-  });
-}
-
-async function pullOpportunitiesFromCloud() {
-  if (!syncState.enabled) return;
-  const result = await syncOp('opp.pull', async () => {
-    const { data, error } = await supabaseClient.from('opportunities')
-      .select('*')
-      .eq('market', ACTIVE_MARKET);
-    if (error) throw error;
-    return data;
-  });
-  if (!result) return;
-  // Server is source of truth — replace local state entirely.
-  // Each row's `data` column is the full opportunity object.
-  //
-  // Defensive coercion on the way in: earlier versions of saveOpportunityEdits
-  // only coerced 7 specific fields, so newer numeric fields (totalProjectCost,
-  // uwRentsPerSF, yieldOnCost, etc.) were silently stored as strings after
-  // any edit. That broke KPI aggregations via string concat ("0" + "220M"
-  // + "248M" = "022019800024889..." → 2.5e+128). Clean every numeric
-  // opportunity field as we hydrate from the cloud so the in-memory state
-  // is always typed correctly regardless of what's in Supabase.
-  const NUMERIC_OPP_FIELDS = [
-    'size', 'units', 'askingPrice', 'pricePerUnit', 'yearBuilt', 'lat', 'lng',
-    'offerPrice', 'offerPricePerUnit', 'offerPricePerSF',
-    'pricingGuidance', 'pricingGuidancePerUnit', 'pricingGuidancePerSF',
-    'underwrittenLandPrice', 'underwrittenLandPricePerUnit', 'underwrittenLandPricePerSF',
-    'uwRentsPerSF', 'uwAvgUnitSize', 'uwHardCostPerNRSF',
-    'uwTargetYoc', 'uwVacancy', 'uwOpex', 'uwOtherIncomePerUnit',
-    'uwLandTotalOverride', 'uwOtherHcPerUnit', 'uwSoftPerUnit',
-    'yieldOnCost', 'totalProjectCost', 'totalProjectCostPerUnit'
-  ];
-  const coerce = d => {
-    if (!d) return d;
-    for (const fld of NUMERIC_OPP_FIELDS) {
-      const v = d[fld];
-      if (v == null || v === '') { d[fld] = null; continue; }
-      if (typeof v === 'number') continue;
-      // String → number
-      const n = parseFloat(String(v).replace(/[$,%\s]/g, ''));
-      d[fld] = isNaN(n) ? null : n;
-    }
-    return d;
-  };
-  opportunities = result.map(row => coerce(row.data)).filter(d => d && d.id);
-  saveOpportunities();
-  // Re-render the Opportunities tab if it's mounted
-  if (typeof renderOpportunities === 'function') {
-    try { renderOpportunities(); } catch (e) {}
-  }
-}
-
-// Initial migration: if user has local opportunities but cloud is empty,
-// push them up. Otherwise cloud wins.
-async function reconcileOpportunitiesOnBoot() {
-  if (!syncState.enabled) return;
-  try {
-    // Fetch FULL cloud state (data + updated_at), not just IDs, so we can
-    // detect locally-newer rows. Previously a local edit made when sync was
-    // offline got silently skipped if the cloud already had a row for that id.
-    const { data: cloudRows, error } = await supabaseClient.from('opportunities')
-      .select('id, data, updated_at')
-      .eq('market', ACTIVE_MARKET);
-    if (error) {
-      console.error('[opp.boot] Supabase returned error:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
-      syncState.status = 'error';
-      syncState.lastError = error.message || 'Unknown sync error';
-      updateSyncIndicator();
-      return;
-    }
-    const cloudById = {};
-    for (const r of (cloudRows || [])) {
-      if (r.id) cloudById[r.id] = r;
-    }
-    let pushed = 0;
-    for (const opp of opportunities) {
-      if (!opp.id) continue;
-      const cloud = cloudById[opp.id];
-      if (!cloud) {
-        // Local-only — auto-push
-        await pushOpportunity(opp);
-        pushed += 1;
-      } else {
-        // Already in cloud — compare data + timestamps. If local is newer or
-        // content has drifted, push local up. Last-write-wins via updatedAt.
-        const localStr = JSON.stringify(opp);
-        const cloudStr = JSON.stringify(cloud.data || {});
-        const localUpdatedAt = opp.updatedAt || 0;
-        const cloudUpdatedAt = cloud.updated_at ? new Date(cloud.updated_at).getTime() : 0;
-        if (localStr !== cloudStr && localUpdatedAt >= cloudUpdatedAt) {
-          await pushOpportunity(opp);
-          pushed += 1;
-        }
-      }
-    }
-    if (pushed > 0) {
-      console.log(`[opp.boot] Reconciled ${pushed} local opportunity record(s) → cloud`);
-    }
-    // Then pull the merged truth back down
-    await pullOpportunitiesFromCloud();
-  } catch (e) {
-    console.error('[opp.boot] Threw exception:', e && e.message ? e.message : e, e);
-    syncState.status = 'error';
-    syncState.lastError = e && e.message ? e.message : String(e);
-    updateSyncIndicator();
-  }
-}
-
-// Realtime subscription — when any teammate adds/edits/deletes an opportunity,
-// re-pull and re-render so everyone sees fresh data automatically.
-function subscribeOpportunitiesRealtime() {
-  if (!syncState.enabled) return;
-  try {
-    supabaseClient
-      .channel('opp-changes')
-      .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'opportunities', filter: `market=eq.${ACTIVE_MARKET}` },
-          () => { pullOpportunitiesFromCloud(); }
-      )
-      .subscribe();
-  } catch (e) {
-    console.warn('Realtime subscribe failed:', e);
-  }
-}
-
-// Opportunity state — tracks the "pin drop" workflow + map/markers/filter
-const oppState = {
-  awaitingPin: false,        // true while user is clicking the map to drop a pin
-  pendingDraft: null,        // draft opportunity object while drop-pin mode is active
-  map: null,                 // the Leaflet map instance
-  markersById: {},           // markerId → Leaflet marker, for cleanup
-  typeFilter: 'all',         // 'all' | 'development' | 'investment'
-  compsOverlay: 'uc',       // 'off' | 'existing' | 'uc' (existing+UC, default) | 'all' (+proposed)
-  compsLayer: null,          // Leaflet LayerGroup holding all comp markers — toggleable as a unit
-  search: ''
-};
-
-function genOppId() {
-  return 'opp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
-}
-
-function blankOpportunity() {
-  return {
-    id: genOppId(),
-    name: '',
-    address: '',
-    submarket: '',
-    city: '',
-    oppType: 'development',   // 'development' or 'investment'
-    status: 'Sourcing',       // Sourcing · Underwriting · Negotiating · LOI · Under Contract · Closed · Passed · Monitor · Closed - Pre Development
-    size: null,               // for development: acres; for investment: units
-    units: null,              // proposed (development) or existing (investment)
-    askingPrice: null,
-    pricePerUnit: null,
-    productType: '',          // Garden / Mid-Rise / High-Rise / Townhome
-    broker: '',
-    brokerContact: '',
-    seller: '',
-    yearBuilt: null,          // investment only
-    notes: '',
-    lat: null,
-    lng: null,
-    dateAdded: new Date().toISOString().slice(0, 10),
-    deadline: '',
-    // ------------------------------------------------------------------------
-    // Underwriting Economics — populated for development pursuits where the
-    // team has run an UW. All optional. Stored as numbers; rendered with
-    // appropriate formatters in the modal.
-    // ------------------------------------------------------------------------
-    offerPrice: null,                // our offer (when in negotiation)
-    offerPricePerUnit: null,
-    offerPricePerSF: null,
-    pricingGuidance: null,           // seller / broker guidance
-    pricingGuidancePerUnit: null,
-    pricingGuidancePerSF: null,
-    underwrittenLandPrice: null,     // our UW value
-    underwrittenLandPricePerUnit: null,
-    underwrittenLandPricePerSF: null,
-    uwRentsPerSF: null,              // assumed rent / sf
-    uwAvgUnitSize: null,             // assumed avg unit SF
-    uwHardCostPerNRSF: null,         // hard cost / net rentable SF
-    // Per-deal Required-Rent assumption overrides. When null, the required-rent
-    // solve falls back to the YOC matrix globals. All stored as PERCENTS
-    // (e.g. 6.05 not 0.0605) except otherIncome which is $/unit/yr.
-    uwTargetYoc: null,               // deal-specific hurdle (%), e.g. 6.05
-    uwVacancy: null,                 // deal-specific vacancy (%)
-    uwOpex: null,                    // deal-specific opex ratio (%)
-    uwOtherIncomePerUnit: null,      // deal-specific other income ($/unit/yr)
-    uwLandTotalOverride: null,       // land TOTAL $ override (defaults from UW land price); ÷ proposed units
-    uwOtherHcPerUnit: null,          // other hard cost ($/unit) override
-    uwSoftPerUnit: null,             // soft cost ($/unit) override
-    retail: '',                      // 'Y' / 'N' — ground floor retail
-    yieldOnCost: null,               // YoC, stored as decimal (e.g. 0.065)
-    totalProjectCost: null,          // total all-in
-    totalProjectCostPerUnit: null,
-    onOffMarket: '',                 // 'On' or 'Off' or ''
-    callForOfferDate: '',
-    closingDate: '',
-    constructionStartDate: '',
-    dealType: '',                    // e.g. 'Development Southwest'
-    // Comp set this deal is benchmarked against. Null until linked; drives the
-    // Comp Set Benchmark section and the set's own Underwriting tab.
-    compSetId: null
-  };
-}
-
-const OPP_STATUSES = [
-  'Sourcing',
-  'Underwriting',
-  'Negotiating',
-  'LOI',
-  'Under Contract',
-  'Closed',
-  'Closed - Pre Development',
-  'Monitor',
-  'Passed',
-  'Dead'
-];
-
-// Color mapping — saturated, distinct hues per status. The palette is tuned
-// to be pronounced on Leaflet's map tiles (which run cooler/muted), so each
-// marker reads at a glance without zooming. Hue choices roughly encode urgency:
-//   green family   → wins (Closed, Pre-Dev close)
-//   orange + coral → hot pursuit (Under Contract, LOI)
-//   purple family  → active pursuit (Negotiating, Underwriting)
-//   sky blue       → early exploration (Sourcing)
-//   amber gold     → watch list (Monitor)
-//   gray / plum    → set aside (Passed, Dead)
-function oppMarkerColor(opp) {
-  switch (opp.status) {
-    case 'Closed':                    return '#1f9d5a';   // vibrant emerald — win
-    case 'Closed - Pre Development':  return '#3ab87c';   // lighter emerald — pre-dev win
-    case 'Under Contract':            return '#e97c1c';   // bright orange — close to closing
-    case 'LOI':                       return '#e85b8d';   // coral-pink — offer extended
-    case 'Negotiating':               return '#432890';   // brand purple — core pursuit
-    case 'Underwriting':              return '#6a4fc0';   // medium violet — active UW
-    case 'Sourcing':                  return '#3b82f6';   // sky blue — exploration
-    case 'Monitor':                   return '#d6921f';   // amber gold — watch list
-    case 'Passed':                    return '#737373';   // cool gray — declined
-    case 'Dead':                      return '#4a1a3d';   // dark plum — off the table
-  }
-  // Fallback if a status doesn't match the known set
-  return opp.oppType === 'investment' ? '#432890' : '#d6921f';
-}
-
-function getFilteredOpportunities() {
-  const s = (oppState.search || '').toLowerCase().trim();
-  return opportunities.filter(o => {
-    if (oppState.typeFilter !== 'all' && o.oppType !== oppState.typeFilter) return false;
-    if (oppState.search.toLowerCase().trim() !== '') {
-      const fields = [o.name, o.address, o.broker, o.brokerContact, o.seller, o.submarket, o.city, o.notes];
-      if (!fields.some(v => v && v.toLowerCase().includes(s))) return false;
-    }
-    return true;
-  });
-}
-
-function renderOpportunities() {
-  renderOppKpis();
-  renderOppList();
-  // Map re-renders lazily — only build/refresh when the tab is active
-  if (getActiveView() === 'opportunities') {
-    initOrUpdateOppMap();
-  }
-}
-
-function renderOppKpis() {
-  const list = getFilteredOpportunities();
-  const elKpi = document.getElementById('opp-kpis');
-  if (!elKpi) return;
-
-  // Branch on the active type filter — each mode has its own most-useful set
-  // of KPIs. Underlying data is the same `list` (already filtered by the toggle).
-  const mode = oppState.typeFilter;  // 'all' | 'development' | 'investment'
-
-  // Shared helper: render a top-N submarket list as a small horizontal bar chart.
-  // Used in dev + investment modes for the Top Submarkets · Live KPI tile.
-  // Each row: submarket name (left) + units · deals (right) + width-proportional fill bar.
-  // Top row anchors at 100% width; others scale relative to it.
-  const renderTopSmRows = (topSubmarkets) => {
-    if (topSubmarkets.length === 0) {
-      return '<div style="font-size:13px;color:var(--ink-4);font-family:\'Inter Tight\',sans-serif;padding:6px 0;">No live submarkets</div>';
-    }
-    const maxUnits = topSubmarkets[0][1].units || 1;
-    return topSubmarkets.map(([sm, s], i) => {
-      const pct = Math.max(8, (s.units / maxUnits) * 100);
-      const isTop = i === 0;
-      return `
-        <div class="topsm-row" style="margin-bottom:5px;">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;gap:8px;">
-            <span style="font-family:'Inter Tight',sans-serif;font-size:13px;color:${isTop ? 'var(--accent-text)' : 'var(--ink-1)'};font-weight:${isTop ? '700' : '600'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;">${escapeHTML(sm)}</span>
-            <span style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-3);font-weight:700;letter-spacing:0.04em;white-space:nowrap;flex-shrink:0;">${s.units.toLocaleString()}u · ${s.count}d</span>
-          </div>
-          <div style="height:5px;background:var(--bg-2);border-radius:1px;overflow:hidden;">
-            <div style="width:${pct.toFixed(1)}%;height:100%;background:${isTop ? 'var(--accent)' : 'var(--accent-2)'};border-radius:1px;"></div>
-          </div>
-        </div>
-      `;
-    }).join('');
-  };
-
-  if (mode === 'development') {
-    // Status buckets — Development view emphasizes the pipeline funnel
-    const pursuing = list.filter(o =>
-      o.status !== 'Closed' &&
-      o.status !== 'Closed - Pre Development' &&
-      o.status !== 'Passed' &&
-      o.status !== 'Dead' &&
-      o.status !== 'Monitor'
-    );
-    const monitoring = list.filter(o => o.status === 'Monitor');
-    const passed = list.filter(o => o.status === 'Passed' || o.status === 'Dead');
-    const closed = list.filter(o => o.status === 'Closed' || o.status === 'Closed - Pre Development');
-
-    // Proposed-units breakdown by status bucket
-    const sumUnits = arr => arr.reduce((s, o) => s + (o.units || 0), 0);
-    const closedUnits = sumUnits(closed);
-    const monitoringUnits = sumUnits(monitoring);
-    const passedUnits = sumUnits(passed);
-    const pursuingUnits = sumUnits(pursuing);
-    const totalUnits = closedUnits + monitoringUnits + passedUnits + pursuingUnits;
-
-    // Top submarkets by proposed units (only "live" status — exclude passed,
-    // since those are off-the-table and would skew the geography read)
-    const liveBySubmarket = {};
-    for (const o of list) {
-      if (o.status === 'Passed' || o.status === 'Dead') continue;
-      if (!o.submarket) continue;
-      if (!liveBySubmarket[o.submarket]) liveBySubmarket[o.submarket] = { units: 0, count: 0 };
-      liveBySubmarket[o.submarket].units += (o.units || 0);
-      liveBySubmarket[o.submarket].count += 1;
-    }
-    const topSubmarkets = Object.entries(liveBySubmarket)
-      .sort((a, b) => b[1].units - a[1].units)
-      .slice(0, 3);
-
-    // Total capital = sum of Total Project Cost (all-in, not just land)
-    const totalCapital = list.reduce((s, o) => s + (o.totalProjectCost || 0), 0);
-    const dealsWithTpc = list.filter(o => o.totalProjectCost != null).length;
-    const topSmHtml = renderTopSmRows(topSubmarkets);
-
-    elKpi.innerHTML = `
-      <div class="kpi">
-        <div class="kpi-label">Tracked Opportunities</div>
-        <div class="kpi-value">${list.length}</div>
-        <div class="kpi-sub">${pursuing.length} pursuing · ${monitoring.length} monitoring · ${passed.length} passed · ${closed.length} closed</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Proposed Units</div>
-        <div class="kpi-value">${totalUnits.toLocaleString()}</div>
-        <div class="kpi-sub">${closedUnits.toLocaleString()} closed · ${monitoringUnits.toLocaleString()} mon · ${passedUnits.toLocaleString()} passed · ${pursuingUnits.toLocaleString()} pursuing</div>
-      </div>
-      <div class="kpi" style="padding-bottom:10px;">
-        <div class="kpi-label">Top Submarkets · Live</div>
-        <div style="margin-top:8px;">${topSmHtml}</div>
-        <div class="kpi-sub" style="margin-top:6px;">excl. passed · by proposed units</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Total Capital</div>
-        <div class="kpi-value">${fmtSalePrice(totalCapital)}</div>
-        <div class="kpi-sub">aggregate Total Project Cost · ${dealsWithTpc} of ${list.length} deals with TPC</div>
-      </div>
-    `;
-    return;
-  }
-
-  if (mode === 'investment') {
-    // Status buckets — Investment view
-    const pursuing = list.filter(o =>
-      o.status !== 'Closed' &&
-      o.status !== 'Closed - Pre Development' &&
-      o.status !== 'Passed' &&
-      o.status !== 'Dead' &&
-      o.status !== 'Monitor'
-    );
-    const monitoring = list.filter(o => o.status === 'Monitor');
-    const passed = list.filter(o => o.status === 'Passed' || o.status === 'Dead');
-    const closed = list.filter(o => o.status === 'Closed' || o.status === 'Closed - Pre Development');
-
-    const sumUnits = arr => arr.reduce((s, o) => s + (o.units || 0), 0);
-    const totalUnits = sumUnits(list);
-
-    // Top submarkets — by unit count
-    const liveBySubmarket = {};
-    for (const o of list) {
-      if (o.status === 'Passed' || o.status === 'Dead') continue;
-      if (!o.submarket) continue;
-      if (!liveBySubmarket[o.submarket]) liveBySubmarket[o.submarket] = { units: 0, count: 0 };
-      liveBySubmarket[o.submarket].units += (o.units || 0);
-      liveBySubmarket[o.submarket].count += 1;
-    }
-    const topSubmarkets = Object.entries(liveBySubmarket)
-      .sort((a, b) => b[1].units - a[1].units)
-      .slice(0, 3);
-    const topSmHtml = renderTopSmRows(topSubmarkets);
-
-    const totalAsking = list.reduce((s, o) => s + (o.askingPrice || o.pricingGuidance || 0), 0);
-    elKpi.innerHTML = `
-      <div class="kpi">
-        <div class="kpi-label">Tracked Opportunities</div>
-        <div class="kpi-value">${list.length}</div>
-        <div class="kpi-sub">${pursuing.length} pursuing · ${monitoring.length} monitoring · ${passed.length} passed · ${closed.length} closed</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Existing Units</div>
-        <div class="kpi-value">${totalUnits.toLocaleString()}</div>
-        <div class="kpi-sub">aggregate units across all tracked acquisitions</div>
-      </div>
-      <div class="kpi" style="padding-bottom:10px;">
-        <div class="kpi-label">Top Submarkets · Live</div>
-        <div style="margin-top:8px;">${topSmHtml}</div>
-        <div class="kpi-sub" style="margin-top:6px;">excl. passed · by existing units</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Asking + Guidance</div>
-        <div class="kpi-value">${fmtSalePrice(totalAsking)}</div>
-        <div class="kpi-sub">aggregate asking + pricing guidance · ${list.length} deals</div>
-      </div>
-    `;
-    return;
-  }
-
-  // mode === 'all' — keep the original cross-cutting summary
-  const dev = list.filter(o => o.oppType === 'development');
-  const inv = list.filter(o => o.oppType === 'investment');
-  const totalAsking = list.reduce((s, o) => s + (o.askingPrice || o.pricingGuidance || 0), 0);
-  const pursuing = list.filter(o =>
-    o.status !== 'Closed' &&
-    o.status !== 'Closed - Pre Development' &&
-    o.status !== 'Passed' &&
-    o.status !== 'Dead' &&
-    o.status !== 'Monitor'
-  );
-  const monitoring = list.filter(o => o.status === 'Monitor');
-  const passed = list.filter(o => o.status === 'Passed' || o.status === 'Dead');
-  const closed = list.filter(o => o.status === 'Closed' || o.status === 'Closed - Pre Development');
-  // Capital split — Development = sum of Total Project Cost (all-in),
-  // Investment = sum of asking + guidance. Mixing them gave a meaningless
-  // headline number. The card surfaces them as a stat-pair instead.
-  const devTpc = dev.reduce((s, o) => s + (o.totalProjectCost || 0), 0);
-  const invCapital = inv.reduce((s, o) => s + (o.askingPrice || o.pricingGuidance || 0), 0);
-
-  elKpi.innerHTML = `
-    <div class="kpi">
-      <div class="kpi-label">Tracked Opportunities</div>
-      <div class="kpi-value">${list.length}</div>
-      <div class="kpi-sub">${pursuing.length} pursuing · ${monitoring.length} monitoring · ${passed.length} passed · ${closed.length} closed</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Development Deals</div>
-      <div class="kpi-value">${dev.length}</div>
-      <div class="kpi-sub">${dev.reduce((s,o)=>s+(o.size||0),0).toFixed(1)} acres · ${dev.reduce((s,o)=>s+(o.units||0),0).toLocaleString()} proposed units</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Investment Deals</div>
-      <div class="kpi-value">${inv.length}</div>
-      <div class="kpi-sub">${inv.reduce((s,o)=>s+(o.units||0),0).toLocaleString()} units total</div>
-    </div>
-    <div class="kpi">
-      <div class="kpi-label">Aggregate Capital</div>
-      <div style="display:flex;gap:14px;align-items:baseline;margin-top:2px;flex-wrap:wrap;">
-        <div>
-          <div style="font-family:'Inter Tight',sans-serif;font-size:22px;font-weight:500;line-height:1.1;color:var(--accent-text);">${fmtSalePrice(devTpc)}</div>
-          <div style="font-family:'Inter Tight',sans-serif;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-top:3px;">Dev · TPC</div>
-        </div>
-        <div style="font-family:'Inter Tight',sans-serif;font-size:18px;color:var(--ink-4);">·</div>
-        <div>
-          <div style="font-family:'Inter Tight',sans-serif;font-size:22px;font-weight:500;line-height:1.1;color:var(--ink-1);">${fmtSalePrice(invCapital)}</div>
-          <div style="font-family:'Inter Tight',sans-serif;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-top:3px;">Inv · Asking/Guide</div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function renderOppList() {
-  const tbody = document.querySelector('#table-opportunities tbody');
-  if (!tbody) return;
-  const list = getFilteredOpportunities();
-  document.getElementById('opp-list-count').textContent = list.length;
-
-  // Default sort: by status priority, then by dateAdded desc. User clicking
-  // a column header overrides this by setting state.sort.table='opportunities'.
-  //
-  // Status order — most active/important on top, dead/passed at the bottom:
-  //   Closed > Closed-Pre-Dev > Under Contract > LOI (Offered) > Negotiating
-  //   > Underwriting > Sourcing > Monitor > Passed > Dead > anything else
-  const STATUS_ORDER = {
-    'Closed': 1,
-    'Closed - Pre Development': 2,
-    'Under Contract': 3,
-    'LOI': 4,
-    'Negotiating': 5,
-    'Underwriting': 6,
-    'Sourcing': 7,
-    'Monitor': 8,
-    'Passed': 9,
-    'Dead': 10
-  };
-  let sorted;
-  if (state.sort.table === 'opportunities') {
-    // User clicked a column — defer to that
-    sorted = applySortComp(list, 'opportunities', 'dateAdded', 'desc');
-  } else {
-    // Default — status priority then dateAdded desc
-    sorted = [...list].sort((a, b) => {
-      const aP = STATUS_ORDER[a.status] ?? 99;
-      const bP = STATUS_ORDER[b.status] ?? 99;
-      if (aP !== bP) return aP - bP;
-      // Same status — newer dateAdded first
-      const ad = a.dateAdded || '';
-      const bd = b.dateAdded || '';
-      if (ad === bd) return 0;
-      return ad > bd ? -1 : 1;
-    });
-  }
-
-  if (sorted.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" class="empty">No opportunities yet. Click "+ ADD OPPORTUNITY" to drop your first pin.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = sorted.map(o => {
-    const sizeDisplay = o.oppType === 'development'
-      ? (o.size != null ? `${o.size.toFixed(2)} ac` : '—')
-      : (o.units != null ? `${o.units.toLocaleString()} units` : '—');
-    const statusColor = o.status === 'Closed' || o.status === 'Closed - Pre Development' ? 'var(--positive)'
-      : o.status === 'Passed' ? 'var(--ink-4)'
-      : o.status === 'Dead' ? 'var(--negative)'
-      : o.status === 'Monitor' ? 'var(--warn)'
-      : o.status === 'Under Contract' || o.status === 'LOI' ? 'var(--warn)'
-      : 'var(--accent-text)';
-    // Asking / Guidance — use askingPrice if present, else pricingGuidance.
-    // Annotate guidance values with "(guidance)" so users know it's not firm.
-    const priceDisplay = o.askingPrice != null
-      ? fmtSalePrice(o.askingPrice)
-      : (o.pricingGuidance != null
-          ? `${fmtSalePrice(o.pricingGuidance)} <span style="color:var(--ink-4);font-size:12px;">(guidance)</span>`
-          : '—');
-    const ppuDisplay = o.pricePerUnit != null
-      ? '$' + Math.round(o.pricePerUnit).toLocaleString()
-      : (o.pricingGuidancePerUnit != null
-          ? '$' + Math.round(o.pricingGuidancePerUnit).toLocaleString()
-          : '—');
-    const yocDisplay = o.yieldOnCost == null
-      ? '—'
-      : (Number(o.yieldOnCost) * 100).toFixed(2) + '%';
-    return `
-      <tr data-opp-id="${escapeHTML(o.id)}" class="opp-row" style="cursor:pointer;">
-        <td>
-          <div class="prop-name">${escapeHTML(o.name || '(unnamed)')}</div>
-          <div class="prop-name-sub">${escapeHTML(o.address || (o.dealType ? o.dealType : '—'))}</div>
-        </td>
-        <td><span style="display:inline-block;padding:2px 8px;font-size:12.5px;letter-spacing:0.1em;text-transform:uppercase;font-weight:600;border-radius:2px;${o.oppType === 'investment' ? 'background:rgba(67,40,144,0.12);color:var(--accent-text);' : 'background:rgba(148,107,0,0.15);color:var(--warn);'}">${o.oppType}</span></td>
-        <td>${escapeHTML(o.submarket || '—')}</td>
-        <td style="font-size:12.5px;">${escapeHTML(o.productType || '—')}</td>
-        <td><span style="color:${statusColor};font-weight:600;font-size:13px;">${escapeHTML(o.status)}</span></td>
-        <td class="num">${sizeDisplay}</td>
-        <td class="num">${o.units == null ? '—' : o.units.toLocaleString()}</td>
-        <td class="num">${priceDisplay}</td>
-        <td class="num">${ppuDisplay}</td>
-        <td class="num" style="color:${o.yieldOnCost != null ? 'var(--accent-text)' : 'var(--ink-4)'};font-weight:${o.yieldOnCost != null ? '700' : '400'};">${yocDisplay}</td>
-        <td>${escapeHTML(o.broker || '—')}</td>
-        <td class="num">${o.dateAdded || '—'}</td>
-        <td class="num">${o.callForOfferDate || '—'}</td>
-      </tr>
-    `;
-  }).join('');
-
-  // Wire row clicks
-  tbody.querySelectorAll('.opp-row').forEach(tr => {
-    tr.addEventListener('click', () => {
-      openOpportunityDetail(tr.dataset.oppId);
-    });
-  });
-}
-
-// ----- Map: initialize or update markers without rebuilding map -----
-function initOrUpdateOppMap() {
-  const host = document.getElementById('opp-map');
-  if (!host) return;
-
-  // Build the map only once per session
-  if (!oppState.map) {
-    oppState.map = L.map(host, {
-      center: window.__WBD.center,
-      zoom: 10,
-      zoomControl: true,
-      preferCanvas: true
-    });
-    const street = wbStreetLayer();
-    const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: 'Tiles &copy; Esri',
-      maxZoom: 19
-    });
-    const labels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '',
-      maxZoom: 19
-    });
-    const satWithLabels = L.layerGroup([sat, labels]);
-    street.addTo(oppState.map);
-    L.control.layers(
-      { 'Street': street, 'Satellite': satWithLabels },
-      null,
-      { position: 'topright', collapsed: false }
-    ).addTo(oppState.map);
-
-    // Pin-drop click handler — only fires when user clicks +ADD OPPORTUNITY first
-    oppState.map.on('click', (e) => {
-      if (!oppState.awaitingPin || !oppState.pendingDraft) return;
-      const draft = oppState.pendingDraft;
-      draft.lat = e.latlng.lat;
-      draft.lng = e.latlng.lng;
-      // Exit drop mode
-      oppState.awaitingPin = false;
-      oppState.pendingDraft = null;
-      const banner = document.getElementById('opp-instruction-banner');
-      if (banner) banner.style.display = 'none';
-      // Persist as a new opportunity and open its detail modal in edit mode
-      // Tag editor on creation so we know who added it
-      draft.createdBy = syncState.editorName || 'Anonymous';
-      draft.updatedBy = draft.createdBy;
-      draft.updatedAt = Date.now();
-      opportunities.push(draft);
-      saveOpportunities();
-      pushOpportunity(draft);
-      renderOpportunities();
-      openOpportunityDetail(draft.id, /*startInEdit*/true);
-    });
-  }
-
-  // Refresh markers
-  Object.values(oppState.markersById).forEach(m => oppState.map.removeLayer(m));
-  oppState.markersById = {};
-  const list = getFilteredOpportunities();
-  list.forEach(o => {
-    if (o.lat == null || o.lng == null) return;
-    const color = oppMarkerColor(o);
-    // Larger, fully-opaque marker with thick white outline. The new color
-    // palette is saturated enough that full opacity reads cleanly without
-    // muddying — and the bigger radius means status colors register at any
-    // zoom level. Outline weight bumped to 3.5 for stronger contrast on
-    // satellite basemap.
-    const marker = L.circleMarker([o.lat, o.lng], {
-      radius: 12,
-      fillColor: color,
-      color: '#ffffff',
-      weight: 3.5,
-      opacity: 1,
-      fillOpacity: 1,
-      className: 'opp-marker'
-    });
-    const sizeLine = o.oppType === 'development'
-      ? (o.size != null ? `${o.size.toFixed(2)} acres` : '—')
-      : (o.units != null ? `${o.units.toLocaleString()} units` : '—');
-
-    // Required Rent — back-solve at the current YOC matrix target. Only
-    // applicable to dev deals with enough inputs. requiredRentForOpp() handles
-    // all the fallbacks (deal UW → matrix defaults) and returns null OR a
-    // {needsLand: true} sentinel when the calc can't run.
-    let requiredRentRow = '';
-    let deltaRow = '';
-    if (o.oppType === 'development') {
-      const rr = requiredRentForOpp(o);
-      if (rr && !rr.needsLand && rr.requiredPsf != null) {
-        const yocLabel = (yocState.targetYoc * 100).toFixed(2) + '%';
-        requiredRentRow = `
-          <tr>
-            <td style="padding:2px 0;color:#666;">Required Rent <span style="font-size:12px;color:#999;">@ ${yocLabel}</span></td>
-            <td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#432890;font-weight:700;">$${rr.requiredPsf.toFixed(2)}</td>
-          </tr>
-        `;
-        // Delta row — only when UW rent is also set so the comparison is meaningful
-        if (o.uwRentsPerSF != null) {
-          const gap = o.uwRentsPerSF - rr.requiredPsf;
-          const pctGap = (gap / rr.requiredPsf) * 100;
-          const sign = gap >= 0 ? '+' : '−';
-          // Green for upside (UW exceeds required), red-brick for shortfall
-          const deltaColor = gap >= 0 ? '#4a7a5a' : '#9c4a3a';
-          deltaRow = `
-            <tr>
-              <td style="padding:2px 0;color:#666;">Delta · UW vs Required</td>
-              <td style="text-align:right;font-family:'Inter Tight',sans-serif;color:${deltaColor};font-weight:700;">${sign}$${Math.abs(gap).toFixed(2)} <span style="color:#999;font-weight:600;font-size:12.5px;">(${sign}${Math.abs(pctGap).toFixed(1)}%)</span></td>
-            </tr>
-          `;
-        }
-      }
-    }
-
-    marker.bindPopup(`
-      <div style="font-family:'Inter Tight',sans-serif;min-width:240px;">
-        <div style="font-family:'Inter Tight',sans-serif;font-size:15px;font-weight:600;color:#1a1a1a;margin-bottom:4px;">${escapeHTML(o.name || '(unnamed)')}</div>
-        <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.1em;text-transform:uppercase;color:${color};font-weight:700;margin-bottom:8px;">${escapeHTML(o.oppType)} · ${escapeHTML(o.status)}</div>
-        <table style="font-size:12.5px;width:100%;">
-          <tr><td style="padding:2px 0;color:#666;">Submarket</td><td style="text-align:right;color:#1a1a1a;">${escapeHTML(o.submarket || '—')}</td></tr>
-          <tr><td style="padding:2px 0;color:#666;">Product</td><td style="text-align:right;color:#1a1a1a;">${escapeHTML(o.productType || '—')}</td></tr>
-          <tr><td style="padding:2px 0;color:#666;">Size</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">${sizeLine}</td></tr>
-          ${o.units && o.oppType === 'development' ? `<tr><td style="padding:2px 0;color:#666;">Proposed Units</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">${o.units.toLocaleString()}</td></tr>` : ''}
-          ${o.askingPrice != null
-            ? `<tr><td style="padding:2px 0;color:#666;">Asking</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">${fmtSalePrice(o.askingPrice)}</td></tr>`
-            : (o.pricingGuidance != null
-                ? `<tr><td style="padding:2px 0;color:#666;">Guidance</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">${fmtSalePrice(o.pricingGuidance)}</td></tr>`
-                : '')}
-          ${o.pricingGuidancePerUnit != null
-            ? `<tr><td style="padding:2px 0;color:#666;">Guidance / Unit</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">$${Math.round(o.pricingGuidancePerUnit).toLocaleString()}</td></tr>`
-            : (o.pricePerUnit != null && o.askingPrice != null
-                ? `<tr><td style="padding:2px 0;color:#666;">$ / Unit</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">$${Math.round(o.pricePerUnit).toLocaleString()}</td></tr>`
-                : '')}
-          ${o.yieldOnCost != null ? `<tr><td style="padding:2px 0;color:#666;">Yield on Cost</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#432890;font-weight:700;">${(Number(o.yieldOnCost) * 100).toFixed(2)}%</td></tr>` : ''}
-          ${o.uwRentsPerSF != null ? `<tr><td style="padding:2px 0;color:#666;">UW Rent / SF</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#432890;font-weight:700;">$${Number(o.uwRentsPerSF).toFixed(2)}</td></tr>` : ''}
-          ${requiredRentRow}
-          ${deltaRow}
-          <tr><td style="padding:2px 0;color:#666;">Broker</td><td style="text-align:right;color:#1a1a1a;">${escapeHTML(o.broker || '—')}</td></tr>
-        </table>
-        <button onclick="openOpportunityDetail('${escapeHTML(o.id)}')" style="margin-top:10px;width:100%;padding:7px 12px;background:#432890;color:#fff;border:none;cursor:pointer;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;font-weight:600;border-radius:2px;">View Full Detail</button>
-      </div>
-    `);
-    marker.addTo(oppState.map);
-    oppState.markersById[o.id] = marker;
-  });
-
-  // Comps overlay — layer Property Index markers on top of the opportunity map
-  renderOppCompsOverlay();
-
-  // Invalidate size in case the map was rendered while hidden
-  setTimeout(() => oppState.map && oppState.map.invalidateSize(), 50);
-}
-
-// Render (or refresh) the comps overlay on the Opportunities map. Reads from
-// Property Index data and color-codes by status — Existing in a muted slate so
-// they don't visually compete with the opportunity pins, UC in muted gold.
-// All comp markers are tied to a single LayerGroup so the toggle can flip them
-// on/off without touching opportunity pins.
-function renderOppCompsOverlay() {
-  if (!oppState.map) return;
-
-  // Tear down any prior comps layer cleanly
-  if (oppState.compsLayer) {
-    try { oppState.map.removeLayer(oppState.compsLayer); } catch (e) {}
-    oppState.compsLayer = null;
-  }
-
-  if (oppState.compsOverlay === 'off') return;
-
-  // Decide which statuses to include based on the toggle:
-  //   'existing' → existing only
-  //   'uc'       → existing + true UC
-  //   'all'      → existing + UC + proposed (proposed in a distinct muted purple-grey)
-  const overlay = oppState.compsOverlay;
-  const wantExisting = true;  // all three "on" states include existing
-  const wantUC = overlay === 'uc' || overlay === 'all';
-  const wantProposed = overlay === 'all';
-  const layer = L.layerGroup();
-  // Use raw data + edits so the overlay reflects any user-applied changes
-  for (const p of RAW_DATA.map(applyUserEdits)) {
-    if (p.lat == null || p.lng == null) continue;
-    const proposed = isPlannedProposed(p);
-    if (proposed && !wantProposed) continue;
-    if (!proposed && p.status === 'Existing' && !wantExisting) continue;
-    if (!proposed && p.status === 'Under Construction' && !wantUC) continue;
-    if (!proposed && p.status !== 'Existing' && p.status !== 'Under Construction') continue;
-    // Color by status: existing = muted slate, UC = muted gold, proposed = muted purple-grey
-    // (a third, visually-distinct hue keeps stalled deals readable but not loud)
-    const fill = proposed ? '#8b7da3'
-               : p.status === 'Under Construction' ? '#c9a753'
-               : '#7a7468';
-    const marker = L.circleMarker([p.lat, p.lng], {
-      radius: 5,
-      fillColor: fill,
-      color: '#ffffff',
-      weight: 1.5,
-      opacity: 0.9,
-      fillOpacity: proposed ? 0.6 : 0.75,
-      dashArray: proposed ? '2,2' : null  // hint at "tentative" status
-    });
-    // Compact tooltip popup — clicking opens the full property detail modal
-    const occ = p.vacancy == null ? '—' : (100 - p.vacancy).toFixed(1) + '%';
-    const statusLabel = proposed ? 'Proposed' : p.status;
-    marker.bindPopup(`
-      <div style="font-family:'Inter Tight',sans-serif;min-width:200px;">
-        <div style="font-family:'Inter Tight',sans-serif;font-size:14px;font-weight:600;color:#1a1a1a;margin-bottom:3px;">${escapeHTML(p.name)}</div>
-        <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.1em;text-transform:uppercase;color:${fill};font-weight:700;margin-bottom:6px;">${escapeHTML(statusLabel)} · ${escapeHTML(p.style || '—')}</div>
-        <table style="font-size:12.5px;width:100%;">
-          <tr><td style="padding:2px 0;color:#666;">Submarket</td><td style="text-align:right;color:#1a1a1a;">${escapeHTML(p.submarket || '—')}</td></tr>
-          <tr><td style="padding:2px 0;color:#666;">Units</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">${p.units == null ? '—' : p.units.toLocaleString()}</td></tr>
-          <tr><td style="padding:2px 0;color:#666;">Year Built</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">${fmt.monthYear(p.monthBuilt, p.yearBuilt)}</td></tr>
-          <tr><td style="padding:2px 0;color:#666;">Avg Rent / SF</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">${p.avgAskingSF == null ? '—' : '$' + p.avgAskingSF.toFixed(2)}</td></tr>
-          <tr><td style="padding:2px 0;color:#666;">Occupancy</td><td style="text-align:right;font-family:'Inter Tight',sans-serif;color:#1a1a1a;">${occ}</td></tr>
-        </table>
-        <button onclick="closeOppPopupAndOpenDetail('${escapeHTML(p.id)}')" style="margin-top:8px;width:100%;padding:6px 10px;background:#432890;color:#fff;border:none;cursor:pointer;font-family:'Inter Tight',sans-serif;font-size:12px;letter-spacing:0.11em;text-transform:uppercase;font-weight:600;border-radius:2px;">View Property Detail</button>
-      </div>
-    `);
-    layer.addLayer(marker);
-  }
-  layer.addTo(oppState.map);
-  oppState.compsLayer = layer;
-}
-
-// Helper for the popup button — closes the Leaflet popup before opening the modal
-// so the popup doesn't sit on top of the modal in the visual stacking order.
-function closeOppPopupAndOpenDetail(pid) {
-  if (oppState.map) oppState.map.closePopup();
-  openDetail(pid);
-}
-window.closeOppPopupAndOpenDetail = closeOppPopupAndOpenDetail;
-
-// ----- Opportunity detail modal (reuses the main #modal container) -----
-const oppModalState = {
-  id: null, editing: false,
-  compEditSection: null,                          // 'land' | 'invest' | 'rent' | null
-  pickerTerm: { land: '', invest: '', rent: '' },  // preserved search text per section
-  shownKeys: { land: [], invest: [], rent: [] },   // keys currently displayed (excluded from picker)
-  collapsed: {}                                    // section key -> true when rolled up
-};
-
-// Resolved comp-set order for a deal (persisted on o.compOrder). Always returns
-// all three keys, user order first, defaults appended so nothing goes missing.
-function oppCompOrder(o) {
-  const def = ['rent', 'land', 'invest'];
-  const ord = (Array.isArray(o.compOrder) ? o.compOrder : []).filter(k => def.includes(k));
-  for (const k of def) if (!ord.includes(k)) ord.push(k);
-  return ord;
-}
-// Section order is fixed (rent, land, invest) — see oppCompOrder above.
-// Reordering now happens at the row level only (moveOppCompRow, below),
-// not at the section level.
-// Roll a section up/down. Toggles in place (no full re-render) so it stays snappy
-// and doesn't disturb the map or scroll; state is remembered for later renders.
-function toggleOppSection(key) {
-  oppModalState.collapsed[key] = !oppModalState.collapsed[key];
-  const sec = document.querySelector('.opp-sec[data-sec="' + key + '"]');
-  if (!sec) { renderOpportunityModal(); return; }
-  const collapsed = oppModalState.collapsed[key];
-  const body = sec.querySelector('.opp-sec-body');
-  if (body) body.style.display = collapsed ? 'none' : '';
-  sec.classList.toggle('collapsed', collapsed);
-}
-// Collapsible section wrapper. `toolsHTML` sits at the right of the header (e.g.
-// reorder arrows, the Customize button) and does not toggle the section.
-function oppSec(key, titleHTML, bodyHTML, toolsHTML) {
-  const collapsed = !!oppModalState.collapsed[key];
-  return `
-    <div class="opp-sec${collapsed ? ' collapsed' : ''}" data-sec="${key}">
-      <div class="opp-sec-head">
-        <button class="opp-sec-toggle" onclick="toggleOppSection('${key}')">
-          <span class="opp-sec-chev">▾</span>
-          <span class="opp-sec-titletext">${titleHTML}</span>
-        </button>
-        ${toolsHTML ? `<span class="opp-sec-tools">${toolsHTML}</span>` : ''}
-      </div>
-      <div class="opp-sec-body"${collapsed ? ' style="display:none;"' : ''}>${bodyHTML}</div>
-    </div>`;
-}
-window.toggleCompEdit = toggleCompEdit;
-window.removeOppComp = removeOppComp;
-window.addOppComp = addOppComp;
-window.resetOppComps = resetOppComps;
-window.filterCompPicker = filterCompPicker;
-window.moveOppCompRow = moveOppCompRow;
-window.toggleOppSection = toggleOppSection;
-
-function openOpportunityDetail(oppId, startInEdit) {
-  const o = opportunities.find(x => x.id === oppId);
-  if (!o) return;
-  oppModalState.id = oppId;
-  oppModalState.editing = !!startInEdit;
-  oppModalState.compEditSection = null;
-  oppModalState.collapsed = {};
-  renderOpportunityModal();
-  const modal = document.getElementById('modal');
-  modal.classList.add('show');
-  modal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-
 // Stable key for a land/investment comp: custom comps keyed by their own id,
 // built-ins by their index into the source array.
 function saleCompKey(c) { return c._isCustom ? ('c:' + c.id) : ('b:' + c._builtinIdx); }
 
-// Per-opportunity manual comp overrides. Stored on the opp object (o.compPicks)
-// so they persist + cloud-sync with the rest of the deal. Each section holds a
-// { removed:[keys], added:[keys], order:[keys] } delta applied on top of the
-// auto-selection — order is a full ordering of currently-shown keys, used to
-// override the default ranked sort when the user has manually reordered rows.
-function oppCompPicks(o, section) {
-  if (!o.compPicks) o.compPicks = {};
-  if (!o.compPicks[section]) o.compPicks[section] = { removed: [], added: [], order: [] };
-  if (!o.compPicks[section].order) o.compPicks[section].order = [];
-  return o.compPicks[section];
-}
-function persistOppCompPicks(o) {
-  saveOpportunities();
-  try { pushOpportunity(o); } catch (e) { /* cloud is best-effort; localStorage already written */ }
-  // Preserve scroll position so adding/removing several comps doesn't jump the
-  // modal back to the top on each edit.
-  const sc = document.getElementById('modal-content');
-  const y = sc ? sc.scrollTop : 0;
-  renderOpportunityModal();
-  const sc2 = document.getElementById('modal-content');
-  if (sc2) sc2.scrollTop = y;
-}
-function toggleCompEdit(section) {
-  oppModalState.compEditSection = (oppModalState.compEditSection === section) ? null : section;
-  renderOpportunityModal();
-}
-function removeOppComp(section, key) {
-  const o = opportunities.find(x => x.id === oppModalState.id); if (!o) return;
-  const p = oppCompPicks(o, section);
-  key = String(key);
-  if (!p.removed.map(String).includes(key)) p.removed.push(key);
-  p.added = p.added.map(String).filter(k => k !== key);
-  p.order = (p.order || []).map(String).filter(k => k !== key);
-  persistOppCompPicks(o);
-}
-function addOppComp(section, key) {
-  const o = opportunities.find(x => x.id === oppModalState.id); if (!o) return;
-  const p = oppCompPicks(o, section);
-  key = String(key);
-  p.removed = p.removed.map(String).filter(k => k !== key);
-  if (!p.added.map(String).includes(key)) p.added.push(key);
-  persistOppCompPicks(o);
-}
-function resetOppComps(section) {
-  const o = opportunities.find(x => x.id === oppModalState.id); if (!o) return;
-  if (o.compPicks) o.compPicks[section] = { removed: [], added: [], order: [] };
-  persistOppCompPicks(o);
-}
-// Move a single comp row up/down within its table (edit mode). Reads the
-// currently-displayed order for the section (set during the last render),
-// swaps the two adjacent rows, and saves the resulting sequence as the
-// section's custom order — independent of which section it lives in.
-function moveOppCompRow(section, key, dir) {
-  const o = opportunities.find(x => x.id === oppModalState.id); if (!o) return;
-  const current = (oppModalState.shownKeys[section] || []).map(String);
-  key = String(key);
-  const i = current.indexOf(key), j = i + dir;
-  if (i < 0 || j < 0 || j >= current.length) return;
-  [current[i], current[j]] = [current[j], current[i]];
-  const p = oppCompPicks(o, section);
-  p.order = current;
-  persistOppCompPicks(o);
-}
-// Reorder arrows for a single comp row — sits alongside the remove ✕ button
-// in edit mode. Disabled at either end of the visible list.
-function compRowReorderTools(section, key, i, len) {
-  return `<button class="oppc-reorder-btn" ${i === 0 ? 'disabled' : ''} onclick="moveOppCompRow('${section}','${key}',-1)" title="Move up">↑</button><button class="oppc-reorder-btn" ${i === len - 1 ? 'disabled' : ''} onclick="moveOppCompRow('${section}','${key}',1)" title="Move down">↓</button>`;
-}
-// Live-filter the "add a comp" picker without re-rendering the whole modal
-// (keeps the search box focused). Writes straight into the list container.
-function filterCompPicker(section, term) {
-  oppModalState.pickerTerm[section] = term || '';
-  const host = document.getElementById('comp-picker-list-' + section);
-  if (host) host.innerHTML = buildCompPickerList(section, term);
-}
-function buildCompPickerList(section, term) {
-  term = (term || '').trim().toLowerCase();
-  const shown = new Set((oppModalState.shownKeys[section] || []).map(String));
-  const esc = escapeHTML;
-  if (section === 'rent') {
-    if (!term) return '<div class="comp-picker-empty">Type a property name, submarket, or city to search…</div>';
-    const matches = RAW_DATA
-      .filter(p => p.status === 'Existing' && !shown.has(String(p.id)))
-      .filter(p => ((p.name || '') + ' ' + (p.wbSubmarket || '') + ' ' + (p.city || '')).toLowerCase().includes(term))
-      .slice(0, 20);
-    if (!matches.length) return '<div class="comp-picker-empty">No matching properties.</div>';
-    return matches.map(p => `<div class="comp-picker-item" onclick="addOppComp('rent','${esc(String(p.id))}')"><span class="comp-picker-add">+</span><span class="comp-picker-name">${esc(p.name || '(unnamed)')}</span><span class="comp-picker-meta">${esc(p.wbSubmarket || p.submarket || '')} · ${esc(p.city || '')} · Class ${esc(p.class || '—')} · ${p.yearBuilt || '—'}</span></div>`).join('');
-  }
-  const type = section === 'land' ? 'land' : 'investment';
-  let uni = getAllComps(type).filter(c => c.pricePerUnit != null && !shown.has(saleCompKey(c)));
-  if (term) uni = uni.filter(c => ((c.name || '') + ' ' + (c.submarket || '') + ' ' + (c.city || '')).toLowerCase().includes(term));
-  uni = uni.slice(0, 25);
-  if (!uni.length) return `<div class="comp-picker-empty">${term ? 'No matching comps.' : 'No more comps available to add.'}</div>`;
-  return uni.map(c => {
-    const key = saleCompKey(c);
-    const loc = section === 'land' ? (c.submarket || '') : (c.city || c.submarket || '');
-    const pu = c.pricePerUnit != null ? '$' + Math.round(c.pricePerUnit).toLocaleString() + '/u' : '';
-    return `<div class="comp-picker-item" onclick="addOppComp('${section}','${key}')"><span class="comp-picker-add">+</span><span class="comp-picker-name">${esc(c.name || '(unnamed)')}${c._isCustom ? ' <span class="oppc-tag">CUSTOM</span>' : ''}</span><span class="comp-picker-meta">${esc(loc)}${pu ? ' · ' + pu : ''}</span></div>`;
-  }).join('');
-}
-// Shared markup for the customize toolbar shown under a comp table in edit mode.
-function compEditBar(section) {
-  const term = escapeHTML(oppModalState.pickerTerm[section] || '');
-  return `
-    <div class="comp-edit-bar">
-      <input class="comp-picker-input" placeholder="Search to add a comp…" value="${term}"
-             oninput="filterCompPicker('${section}', this.value)">
-      <button class="cx-btn" onclick="resetOppComps('${section}')">Reset to auto</button>
-      <button class="cx-btn primary" onclick="toggleCompEdit('${section}')">Done</button>
-    </div>
-    <div id="comp-picker-list-${section}" class="comp-picker-list">${buildCompPickerList(section, oppModalState.pickerTerm[section] || '')}</div>`;
-}
-function compCustomizeBtn(section, customized) {
-  const active = oppModalState.compEditSection === section;
-  return `<button class="comp-customize-btn${active ? ' active' : ''}" onclick="toggleCompEdit('${section}')">${active ? 'Done' : (customized ? '✎ Edited' : '✎ Customize')}</button>`;
-}
-
-function renderOpportunityModal() {
-  const o = opportunities.find(x => x.id === oppModalState.id);
-  if (!o) return;
-  const editing = oppModalState.editing;
-  const isDev = o.oppType === 'development';
-
-  const field = (label, value, editName, type, opts) => {
-    opts = opts || {};
-    const editField = type === 'select'
-      ? `<select class="edit-input" data-field="${editName}">${(opts.options || []).map(opt => `<option value="${escapeHTML(opt)}"${opt === value ? ' selected' : ''}>${escapeHTML(opt)}</option>`).join('')}</select>`
-      : type === 'textarea'
-      ? `<textarea class="edit-input" data-field="${editName}" rows="3" style="resize:vertical;">${escapeHTML(value || '')}</textarea>`
-      : `<input class="edit-input" type="${type || 'text'}" data-field="${editName}" value="${value == null ? '' : escapeHTML(String(value))}"${opts.step ? ` step="${opts.step}"` : ''}>`;
-    const displayValue = opts.format ? opts.format(value) : (value == null || value === '' ? '—' : escapeHTML(String(value)));
-    return `
-      <div class="detail-cell" style="grid-column:span ${opts.span || 2};">
-        <div class="detail-label">${escapeHTML(label)}</div>
-        <div class="detail-value">${editing ? editField : displayValue}</div>
-      </div>
-    `;
-  };
-
-  const sizeFormat = v => v == null ? '—' : (isDev ? `${Number(v).toFixed(2)} acres` : `${Number(v).toLocaleString()} units`);
-
-  document.getElementById('modal-content').innerHTML = `
-    <div class="modal-header">
-      <div>
-        <div class="modal-eyebrow">Opportunity · ${escapeHTML(o.oppType)}</div>
-        <h2 class="modal-title">${escapeHTML(o.name || '(unnamed)')}</h2>
-        <div class="modal-sub">
-          <span style="color:${oppMarkerColor(o)};font-weight:600;">${escapeHTML(o.status)}</span>
-          ${o.submarket ? ` · ${escapeHTML(o.submarket)}` : ''}
-          ${o.address ? ` · ${escapeHTML(o.address)}` : ''}
-        </div>
-      </div>
-      <div class="modal-actions">
-        ${editing
-          ? `<button class="modal-btn modal-btn-primary" onclick="saveOpportunityEdits()">SAVE</button>
-             <button class="modal-btn" onclick="cancelOpportunityEdit()">CANCEL</button>`
-          : `${modalMenu([
-               { label: '✎ Edit Deal', action: 'onclick="toggleOpportunityEdit()"' },
-               { label: '⎙ Export', action: 'onclick="exportOpportunity()"' },
-               { sep: true },
-               { label: 'Delete Deal', action: 'onclick="deleteOpportunity()"', warn: true }
-             ])}
-             <button class="modal-close" onclick="closeModal()">CLOSE ×</button>`}
-      </div>
-    </div>
-    <div class="modal-body">
-      ${editing ? '<div class="edit-notice">Edit mode · changes save to the cloud and sync to every teammate in seconds.</div>' : ''}
-
-      <div class="detail-section-title">Deal Basics</div>
-      <div class="detail-grid">
-        ${field('Name / Project', o.name, 'name', 'text', { span: 4 })}
-        ${field('Address', o.address, 'address', 'text', { span: 4 })}
-        ${field('Type', o.oppType, 'oppType', 'select', { options: ['development', 'investment'] })}
-        ${field('Status', o.status, 'status', 'select', { options: OPP_STATUSES })}
-        ${field('Submarket', o.submarket, 'submarket', 'select', { options: [''].concat(WB_SUBMARKETS) })}
-        ${field('City', o.city, 'city', 'text')}
-        ${field('Product Type', o.productType, 'productType', 'select', { options: ['', 'Garden', 'Mid-Rise', 'High-Rise', 'Low-Rise', 'Townhome', 'SFR'] })}
-        ${field(isDev ? 'Year Built (existing)' : 'Year Built', o.yearBuilt, 'yearBuilt', 'number')}
-      </div>
-
-      <div class="detail-section-title">Sizing &amp; Pricing</div>
-      <div class="detail-grid">
-        ${field(isDev ? 'Acreage' : 'Asset Size', o.size, 'size', 'number', { step: '0.01', format: sizeFormat })}
-        ${field(isDev ? 'Proposed Units' : 'Existing Units', o.units, 'units', 'number', { format: v => v == null ? '—' : Number(v).toLocaleString() })}
-        ${field('Asking Price', o.askingPrice, 'askingPrice', 'number', { format: v => v == null ? '—' : fmtSalePrice(v) })}
-        ${field(isDev ? '$ / Proposed Unit' : '$ / Unit', o.pricePerUnit, 'pricePerUnit', 'number', { format: v => v == null ? '—' : '$' + Math.round(v).toLocaleString() })}
-      </div>
-
-      ${isDev && (editing || o.pricingGuidance != null || o.offerPrice != null || o.underwrittenLandPrice != null) ? `
-        <!-- Pricing Guidance — three rows of three columns:
-             Seller's pricing guidance / Our offer / Our UW land value.
-             Surfaces the negotiation triangle at a glance. -->
-        <div class="detail-section-title">Pricing Guidance · Offer · UW Land Value</div>
-        <div class="detail-grid">
-          ${field('Guidance — Total', o.pricingGuidance, 'pricingGuidance', 'number', { format: v => v == null ? '—' : fmtSalePrice(v) })}
-          ${field('Guidance — $/Unit', o.pricingGuidancePerUnit, 'pricingGuidancePerUnit', 'number', { format: v => v == null ? '—' : '$' + Math.round(v).toLocaleString() })}
-          ${field('Guidance — $/SF Land', o.pricingGuidancePerSF, 'pricingGuidancePerSF', 'number', { step: '0.01', format: v => v == null ? '—' : '$' + Number(v).toFixed(2) })}
-          ${field('Offer — Total', o.offerPrice, 'offerPrice', 'number', { format: v => v == null ? '—' : fmtSalePrice(v) })}
-          ${field('Offer — $/Unit', o.offerPricePerUnit, 'offerPricePerUnit', 'number', { format: v => v == null ? '—' : '$' + Math.round(v).toLocaleString() })}
-          ${field('Offer — $/SF Land', o.offerPricePerSF, 'offerPricePerSF', 'number', { step: '0.01', format: v => v == null ? '—' : '$' + Number(v).toFixed(2) })}
-          ${field('UW Land — Total', o.underwrittenLandPrice, 'underwrittenLandPrice', 'number', { format: v => v == null ? '—' : fmtSalePrice(v) })}
-          ${field('UW Land — $/Unit', o.underwrittenLandPricePerUnit, 'underwrittenLandPricePerUnit', 'number', { format: v => v == null ? '—' : '$' + Math.round(v).toLocaleString() })}
-          ${field('UW Land — $/SF', o.underwrittenLandPricePerSF, 'underwrittenLandPricePerSF', 'number', { step: '0.01', format: v => v == null ? '—' : '$' + Number(v).toFixed(2) })}
-        </div>
-      ` : ''}
-
-      ${isDev && (editing || o.uwRentsPerSF != null || o.yieldOnCost != null || o.totalProjectCost != null) ? `
-        <!-- UW Economics — the deal-level returns view. YoC stored as a decimal
-             (0.065 = 6.50%); rents and hard cost as $/SF. -->
-        <div class="detail-section-title">UW Economics</div>
-        <div class="detail-grid">
-          ${field('UW Rents — $/SF', o.uwRentsPerSF, 'uwRentsPerSF', 'number', { step: '0.01', format: v => v == null ? '—' : '$' + Number(v).toFixed(2) })}
-          ${field('UW Avg Unit SF', o.uwAvgUnitSize, 'uwAvgUnitSize', 'number', { format: v => v == null ? '—' : Number(v).toLocaleString() })}
-          ${field('UW Hard Cost — $/NRSF', o.uwHardCostPerNRSF, 'uwHardCostPerNRSF', 'number', { format: v => v == null ? '—' : '$' + Math.round(v).toLocaleString() })}
-          ${field('Yield on Cost', o.yieldOnCost, 'yieldOnCost', 'number', { step: '0.0001', format: v => v == null ? '—' : (Number(v) * 100).toFixed(2) + '%' })}
-          ${field('Total Project Cost', o.totalProjectCost, 'totalProjectCost', 'number', { format: v => v == null ? '—' : fmtSalePrice(v) })}
-          ${field('TPC — $/Unit', o.totalProjectCostPerUnit, 'totalProjectCostPerUnit', 'number', { format: v => v == null ? '—' : '$' + Math.round(v).toLocaleString() })}
-          ${field('Ground-Floor Retail', o.retail, 'retail', 'select', { options: ['', 'Y', 'N'] })}
-          ${field('Market', o.onOffMarket, 'onOffMarket', 'select', { options: ['', 'On', 'Off'] })}
-        </div>
-      ` : ''}
-
-      ${isDev ? (() => {
-        // Required Rent Analysis — back-solves the rent / SF the project needs
-        // to hit the target return, using this deal's proposed unit count and
-        // any per-deal assumption overrides (matrix defaults fill the rest).
-        // Renders in both view and edit mode; assumptions are editable in edit.
-        const rr = requiredRentForOpp(o);
-        if (!rr) {
-          // Unknown product type — can't even start
-          return `
-            <div class="detail-section-title">Required Rent Analysis</div>
-            <div style="padding:12px 14px;background:var(--bg-2);border-left:3px solid var(--ink-4);border-radius:2px;font-size:13px;color:var(--ink-3);font-family:'Inter Tight',sans-serif;line-height:1.6;">
-              Set a recognized Product Type (Garden / Mid-Rise / High-Rise / Townhome / SFR / Low-Rise) on this deal to enable required-rent back-solve.
-            </div>
-          `;
-        }
-        if (rr.needsUnits) {
-          return `
-            <div class="detail-section-title">Required Rent Analysis</div>
-            <div style="padding:12px 14px;background:var(--bg-2);border-left:3px solid var(--warn);border-radius:2px;font-size:13px;color:var(--ink-3);font-family:'Inter Tight',sans-serif;line-height:1.6;">
-              <strong style="color:var(--warn);">Set Proposed Units to use a total land override.</strong>
-              A total land value needs a proposed unit count to convert to $/unit.
-            </div>
-          `;
-        }
-        if (rr.needsLand) {
-          // Have product but no land cost
-          return `
-            <div class="detail-section-title">Required Rent Analysis</div>
-            <div style="padding:12px 14px;background:var(--bg-2);border-left:3px solid var(--warn);border-radius:2px;font-size:13px;color:var(--ink-3);font-family:'Inter Tight',sans-serif;line-height:1.6;">
-              <strong style="color:var(--warn);">Add a land cost to enable this analysis.</strong>
-              Set <em>UW Land Price</em>, <em>Offer Price</em>, or <em>Pricing Guidance</em> (total or per-unit) and this section will back-solve where rents need to land for a ${(yocState.targetYoc * 100).toFixed(2)}% Yield on Cost.
-            </div>
-          `;
-        }
-        // Compute sensitivity at common YoC targets, anchoring around this
-        // deal's EFFECTIVE target (its override if set, else the matrix global)
-        // so the active row reflects what's actually driving the required rent.
-        const effectiveTarget = o.uwTargetYoc != null ? o.uwTargetYoc / 100 : yocState.targetYoc;
-        const dealHasYocOverride = o.uwTargetYoc != null;
-        const sensitivityTargets = [0.0550, 0.0600, 0.0650, 0.0700];
-        const currentTargetRounded = Math.round(effectiveTarget * 10000) / 10000;
-        if (!sensitivityTargets.some(t => Math.abs(t - currentTargetRounded) < 0.0001)) {
-          sensitivityTargets.push(currentTargetRounded);
-          sensitivityTargets.sort((a, b) => a - b);
-        }
-        const sensitivityRows = sensitivityTargets.map(yoc => {
-          const r = requiredRentForOpp(o, { targetYoc: yoc });
-          if (!r || r.needsLand) return null;
-          const isActive = Math.abs(yoc - effectiveTarget) < 0.0001;
-          const activeTag = isActive
-            ? `<span style="font-size:12px;letter-spacing:0.1em;color:var(--ink-4);margin-left:8px;">${dealHasYocOverride ? 'THIS DEAL' : 'YOC TAB'}</span>`
-            : '';
-          return `
-            <tr style="${isActive ? 'background:rgba(67,40,144,0.06);' : ''}">
-              <td style="padding:8px 10px;font-family:'Inter Tight',sans-serif;font-size:12.5px;font-weight:700;color:${isActive ? 'var(--accent-text)' : 'var(--ink-2)'};">
-                ${(yoc * 100).toFixed(2)}%
-                ${activeTag}
-              </td>
-              <td style="padding:8px 10px;text-align:right;font-family:'Inter Tight',sans-serif;font-size:13px;font-weight:${isActive ? '700' : '600'};color:${isActive ? 'var(--accent-text)' : 'var(--ink-1)'};">
-                $${r.requiredPsf.toFixed(2)} / SF
-              </td>
-              <td style="padding:8px 10px;text-align:right;font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-3);">
-                ${o.uwAvgUnitSize || yocState.unitSize ? '$' + Math.round(r.requiredPsf * (o.uwAvgUnitSize || yocState.unitSize)).toLocaleString() + ' / month' : '—'}
-              </td>
-            </tr>
-          `;
-        }).filter(Boolean).join('');
-
-        // Compare UW rent (if set) to the required rent at current target
-        const uwRent = o.uwRentsPerSF;
-        let comparisonHtml = '';
-        if (uwRent != null) {
-          const gap = uwRent - rr.requiredPsf;
-          const pctGap = (gap / rr.requiredPsf) * 100;
-          const sign = gap >= 0 ? '+' : '−';
-          const color = gap >= 0 ? 'var(--positive)' : 'var(--negative)';
-          const summary = gap >= 0
-            ? `Your UW rent <strong>exceeds</strong> the required rent — ${pctGap.toFixed(1)}% upside cushion against the ${(rr.targetYoc * 100).toFixed(2)}% YoC threshold.`
-            : `Your UW rent <strong>falls short</strong> of the required rent — needs ${Math.abs(pctGap).toFixed(1)}% rent growth to hit the ${(rr.targetYoc * 100).toFixed(2)}% YoC threshold.`;
-          comparisonHtml = `
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0 18px;">
-              <div style="padding:10px 14px;background:var(--bg-2);border-radius:2px;border-left:3px solid var(--accent);">
-                <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:3px;">Required Rent</div>
-                <div style="font-family:'Inter Tight',sans-serif;font-size:24px;font-weight:500;color:var(--accent-text);line-height:1.1;">$${rr.requiredPsf.toFixed(2)}<span style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-3);font-weight:600;margin-left:6px;">/ SF</span></div>
-              </div>
-              <div style="padding:10px 14px;background:var(--bg-2);border-radius:2px;border-left:3px solid var(--ink-3);">
-                <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:3px;">Your UW Rent</div>
-                <div style="font-family:'Inter Tight',sans-serif;font-size:24px;font-weight:500;color:var(--ink-1);line-height:1.1;">$${uwRent.toFixed(2)}<span style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-3);font-weight:700;margin-left:6px;">/ SF</span></div>
-              </div>
-              <div style="padding:10px 14px;background:var(--bg-2);border-radius:2px;border-left:3px solid ${color};">
-                <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:3px;">Gap</div>
-                <div style="font-family:'Inter Tight',sans-serif;font-size:24px;font-weight:500;color:${color};line-height:1.1;">${sign}$${Math.abs(gap).toFixed(2)}<span style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-3);font-weight:700;margin-left:6px;">/ SF</span></div>
-              </div>
-            </div>
-            <div style="padding:10px 14px;background:rgba(67,40,144,0.04);border-radius:2px;font-size:12.5px;color:var(--ink-2);font-family:'Inter Tight',sans-serif;line-height:1.55;margin-bottom:14px;">
-              ${summary}
-            </div>
-          `;
-        } else {
-          comparisonHtml = `
-            <div style="display:flex;justify-content:flex-start;gap:14px;margin:14px 0 18px;">
-              <div style="padding:14px 18px;background:var(--bg-2);border-radius:2px;border-left:3px solid var(--accent);min-width:260px;">
-                <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;margin-bottom:4px;">Required Rent — ${(rr.targetYoc * 100).toFixed(2)}% YoC</div>
-                <div style="font-family:'Inter Tight',sans-serif;font-size:32px;font-weight:500;color:var(--accent-text);line-height:1;">$${rr.requiredPsf.toFixed(2)}<span style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);font-weight:700;margin-left:8px;">/ SF</span></div>
-                <div style="font-family:'Inter Tight',sans-serif;font-size:12px;color:var(--ink-3);font-weight:600;margin-top:6px;">${o.uwAvgUnitSize || yocState.unitSize ? '≈ $' + Math.round(rr.requiredPsf * (o.uwAvgUnitSize || yocState.unitSize)).toLocaleString() + ' / unit / month' : ''}</div>
-              </div>
-            </div>
-            <div style="padding:10px 14px;background:rgba(67,40,144,0.04);border-radius:2px;font-size:12.5px;color:var(--ink-2);font-family:'Inter Tight',sans-serif;line-height:1.55;margin-bottom:14px;">
-              Set a <em>UW Rents — $/SF</em> assumption on this deal and the gap analysis will appear here.
-            </div>
-          `;
-        }
-
-        // Source attribution — small caption showing which inputs were deal-specific
-        const srcLine = `
-          <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-3);letter-spacing:0.08em;margin-top:10px;line-height:1.6;font-weight:600;">
-            <strong style="color:var(--ink-2);">INPUTS · </strong>
-            LAND: ${escapeHTML(rr.sources.land)} ·
-            HC: ${escapeHTML(rr.sources.hc)} ·
-            OTHER HC: ${escapeHTML(rr.sources.otherHc)} ·
-            SOFT: ${escapeHTML(rr.sources.soft)} ·
-            UNIT SF: ${escapeHTML(rr.sources.sf)} ·
-            OPEX: ${escapeHTML(rr.sources.opex)} ·
-            VAC: ${escapeHTML(rr.sources.vacancy)} ·
-            YOC: ${escapeHTML(rr.sources.targetYoc)}
-          </div>
-        `;
-
-        // ---- Per-deal assumption override panel ----
-        // Lets the user tune THIS deal's assumptions. Editable only in edit
-        // mode (like every other field) — saves through saveOpportunityEdits via
-        // data-field. Blank = inherit YOC matrix. Land override is a TOTAL that
-        // gets divided by the deal's proposed units.
-        const anyOverride = o.uwTargetYoc != null || o.uwVacancy != null ||
-          o.uwOpex != null || o.uwOtherIncomePerUnit != null ||
-          o.uwAvgUnitSize != null || o.uwHardCostPerNRSF != null ||
-          o.uwLandTotalOverride != null || o.uwOtherHcPerUnit != null || o.uwSoftPerUnit != null;
-
-        // ov(): one assumption cell.
-        //   field      — opp field / data-field name
-        //   val        — current stored override (null = inherit)
-        //   effective  — the value actually used in the calc (for display)
-        //   matrixTxt  — human label of the inherited default
-        //   unit       — '%', 'SF', '$', '$/unit', or '' (prefix $ shown for money)
-        //   fmt        — formatter for the effective display value
-        const ov = (label, field, val, effective, matrixTxt, unit, fmt, step) => {
-          const isSet = val != null;
-          const moneyPrefix = (unit === '$' || unit === '$/unit');
-          const suffix = unit === '%' ? '%' : unit === 'SF' ? ' SF' : unit === '$/unit' ? ' /unit' : '';
-          if (editing) {
-            return `
-              <div style="display:flex;flex-direction:column;gap:4px;">
-                <label class="detail-label" style="color:${isSet ? 'var(--accent-text)' : 'var(--ink-3)'};">${label}${isSet ? ' <span style="color:var(--accent-text);">•</span>' : ''}</label>
-                <div style="display:flex;align-items:center;border:1px solid var(--line);border-radius:4px;overflow:hidden;background:#fff;">
-                  ${moneyPrefix ? '<span style="padding:0 0 0 9px;color:var(--ink-4);font-size:12.5px;">$</span>' : ''}
-                  <input class="edit-input" type="number" step="${step || 'any'}" data-field="${field}"
-                    value="${isSet ? val : ''}" placeholder="${escapeHTML(String(matrixTxt))}"
-                    style="border:0;border-radius:0;padding:7px 9px;width:100%;background:transparent;">
-                  ${suffix ? `<span style="padding:0 9px 0 0;color:var(--ink-4);font-size:12px;white-space:nowrap;">${suffix.trim()}</span>` : ''}
-                </div>
-                <span style="font-family:'Inter Tight',sans-serif;font-size:10.5px;color:var(--ink-4);">Blank inherits matrix: ${escapeHTML(String(matrixTxt))}</span>
-              </div>
-            `;
-          }
-          // view mode
-          return `
-            <div style="display:flex;flex-direction:column;gap:3px;">
-              <div class="detail-label" style="color:${isSet ? 'var(--accent-text)' : 'var(--ink-3)'};">${label}${isSet ? ' <span style="color:var(--accent-text);">•</span>' : ''}</div>
-              <div style="font-family:'Inter Tight',sans-serif;font-size:15px;font-weight:600;color:var(--ink-1);font-variant-numeric:tabular-nums;">${fmt(effective)}</div>
-              <span style="font-family:'Inter Tight',sans-serif;font-size:10.5px;color:var(--ink-4);">${isSet ? 'Deal override' : `Matrix: ${escapeHTML(String(matrixTxt))}`}</span>
-            </div>
-          `;
-        };
-
-        const matrixOpexPct = (opexFor(rr.bucket) * 100).toFixed(0) + '%';
-        const matrixVacPct = (vacFor(rr.bucket) * 100).toFixed(0) + '%';
-        const matrixYocPct = (yocState.targetYoc * 100).toFixed(2) + '%';
-        const matrixHc = yocState.costs[rr.bucket] ? yocState.costs[rr.bucket].hc : null;
-        const matrixOtherHc = yocState.costs[rr.bucket] ? (yocState.costs[rr.bucket].otherHc || 0) : 0;
-        const matrixSoft = yocState.costs[rr.bucket] ? (yocState.costs[rr.bucket].soft || 0) : 0;
-        const matrixOi = oiFor(rr.bucket);
-        // Effective land TOTAL for display = per-unit land × proposed units
-        const effLandTotal = (o.units && rr.components.landPerUnit != null) ? rr.components.landPerUnit * o.units : null;
-        // Default land total shown as placeholder = UW land price (total)
-        const defaultLandTotal = o.underwrittenLandPrice != null ? o.underwrittenLandPrice
-          : (o.underwrittenLandPricePerUnit != null && o.units ? o.underwrittenLandPricePerUnit * o.units : null);
-        const money0 = v => v == null ? '—' : '$' + Math.round(v).toLocaleString();
-
-        const overridePanel = `
-          <div style="border:1px solid var(--line);border-radius:4px;background:var(--bg-2);padding:14px 16px;margin-bottom:16px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
-              <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent-text);font-weight:600;">
-                Deal Assumptions <span style="color:var(--ink-4);font-weight:500;text-transform:none;letter-spacing:0;">· ${anyOverride ? 'overriding matrix' : 'inheriting matrix'}${o.units ? ` · ${Number(o.units).toLocaleString()} proposed units` : ''}</span>
-              </div>
-              ${editing && anyOverride ? `<button type="button" onclick="resetOppAssumptions()" style="border:1px solid var(--line-strong);background:#fff;color:var(--ink-2);font-family:'Inter Tight',sans-serif;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;padding:5px 10px;border-radius:4px;cursor:pointer;">Reset to Matrix</button>` : ''}
-            </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px 14px;">
-              ${ov('Target YoC', 'uwTargetYoc', o.uwTargetYoc, rr.targetYoc * 100, matrixYocPct, '%', v => v.toFixed(2) + '%', '0.01')}
-              ${ov('Vacancy', 'uwVacancy', o.uwVacancy, rr.components.vacancy * 100, matrixVacPct, '%', v => v.toFixed(1) + '%', '0.1')}
-              ${ov('OpEx Ratio', 'uwOpex', o.uwOpex, rr.components.opex * 100, matrixOpexPct, '%', v => v.toFixed(1) + '%', '0.5')}
-              ${ov('Land — Total', 'uwLandTotalOverride', o.uwLandTotalOverride, effLandTotal, money0(defaultLandTotal) + ' (UW land)', '$', money0, '100000')}
-              ${ov('Avg Unit Size', 'uwAvgUnitSize', o.uwAvgUnitSize, rr.components.sf, sfFor(rr.bucket) + ' SF', 'SF', v => Math.round(v).toLocaleString() + ' SF', '5')}
-              ${ov('Hard Cost / NRSF', 'uwHardCostPerNRSF', o.uwHardCostPerNRSF, rr.components.hc, money0(matrixHc), '$', v => '$' + Math.round(v).toLocaleString(), '1')}
-              ${ov('Other HC / Unit', 'uwOtherHcPerUnit', o.uwOtherHcPerUnit, rr.components.otherHc, money0(matrixOtherHc), '$', money0, '500')}
-              ${ov('Soft / Unit', 'uwSoftPerUnit', o.uwSoftPerUnit, rr.components.soft, money0(matrixSoft), '$', money0, '500')}
-              ${ov('Other Income / Unit', 'uwOtherIncomePerUnit', o.uwOtherIncomePerUnit, rr.components.oiPerUnit, money0(matrixOi), '$/unit', money0, '10')}
-            </div>
-          </div>
-        `;
-
-        // ---- VIEW-MODE deal profile: development budget + stabilized cash
-        // flow at the UW rent, laid out like the dev-proforma modal. ----
-        const prof = computeOppProfile(o, rr);
-        let profilePanel = '';
-        if (prof) {
-          const money = v => v == null ? '—' : '$' + Math.round(v).toLocaleString();
-          const pct2 = v => (v == null || isNaN(v)) ? '—' : (v * 100).toFixed(2) + '%';
-          const u = prof.units;
-          // line: label + total + per-unit
-          const L = (label, total, opts) => {
-            opts = opts || {};
-            const cls = opts.total ? 'oppf-line oppf-total' : (opts.deduct ? 'oppf-line oppf-deduct' : 'oppf-line');
-            const tv = opts.paren ? `(${money(total)})` : money(total);
-            const pv = opts.paren ? `(${money(total / u)})` : money(total / u);
-            return `<div class="${cls}"><span class="oppf-lbl">${label}</span><span class="oppf-val">${tv}</span><span class="oppf-pu">${money0PU(total / u)}</span></div>`;
-          };
-          const money0PU = v => v == null ? '—' : '$' + Math.round(v).toLocaleString();
-          const colhead = `<div class="oppf-line oppf-colhead"><span class="oppf-lbl"></span><span class="oppf-val">Total</span><span class="oppf-pu">Per Unit</span></div>`;
-
-          // KPI row — achieved YoC (at UW rent) vs target, TPC, NOI, cushion
-          const achieved = prof.cf ? prof.cf.achievedYoc : null;
-          const meetsHurdle = achieved != null && achieved >= prof.targetYoc;
-          const spreadBps = achieved != null ? Math.round((achieved - prof.targetYoc) * 10000) : null;
-          const rentCushionPct = (prof.uwRentPSF != null && prof.requiredPsf) ? ((prof.uwRentPSF - prof.requiredPsf) / prof.requiredPsf) * 100 : null;
-
-          const kpis = `
-            <div class="oppf-kpi-row">
-              <div class="oppf-kpi oppf-kpi-lead">
-                <div class="oppf-kpi-label">Achieved YoC${prof.cf ? '' : ' — set UW rent'}</div>
-                <div class="oppf-kpi-val">${achieved != null ? pct2(achieved) : '—'}</div>
-                <div class="oppf-kpi-sub">${spreadBps != null ? `${spreadBps >= 0 ? '+' : ''}${spreadBps} bps vs ${pct2(prof.targetYoc)} target` : `Target ${pct2(prof.targetYoc)}`}</div>
-              </div>
-              <div class="oppf-kpi">
-                <div class="oppf-kpi-label">Total Project Cost</div>
-                <div class="oppf-kpi-val">${money(prof.tpc)}</div>
-                <div class="oppf-kpi-sub">${money(prof.tpcPerUnit)}/unit</div>
-              </div>
-              <div class="oppf-kpi">
-                <div class="oppf-kpi-label">Stabilized NOI</div>
-                <div class="oppf-kpi-val">${prof.cf ? money(prof.cf.noi) : '—'}</div>
-                <div class="oppf-kpi-sub">${prof.cf ? money(prof.cf.noi / u) + '/unit' : 'at UW rent'}</div>
-              </div>
-              <div class="oppf-kpi">
-                <div class="oppf-kpi-label">Rent Cushion</div>
-                <div class="oppf-kpi-val ${rentCushionPct != null ? (rentCushionPct >= 0 ? 'pos' : 'neg') : ''}">${rentCushionPct != null ? (rentCushionPct >= 0 ? '+' : '') + rentCushionPct.toFixed(1) + '%' : '—'}</div>
-                <div class="oppf-kpi-sub">UW $${prof.uwRentPSF != null ? prof.uwRentPSF.toFixed(2) : '—'} vs req $${prof.requiredPsf.toFixed(2)}</div>
-              </div>
-            </div>
-          `;
-
-          const cfSection = prof.cf ? `
-            <div class="oppf-section">
-              <div class="oppf-section-title">Stabilized Operations · at UW Rent $${prof.uwRentPSF.toFixed(2)}/SF</div>
-              <div class="oppf-inner">
-                ${colhead}
-                ${L('Gross Potential Rent', prof.cf.gpr)}
-                ${L('Other Income', prof.cf.otherIncome)}
-                ${L('Vacancy Loss', prof.cf.vacancyLoss, { paren: true, deduct: true })}
-                ${L('Effective Gross Income', prof.cf.egi)}
-                ${L('Operating Expenses', prof.cf.opex, { paren: true, deduct: true })}
-                ${L('Stabilized NOI', prof.cf.noi, { total: true })}
-              </div>
-            </div>
-          ` : `
-            <div class="oppf-section">
-              <div class="oppf-section-title">Stabilized Operations</div>
-              <div style="padding:12px 14px;font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-4);line-height:1.5;">
-                Set <em>UW Rents — $/SF</em> on this deal to see the stabilized cash flow and achieved yield-on-cost.
-              </div>
-            </div>
-          `;
-
-          profilePanel = `
-            ${kpis}
-            <div class="oppf-grid">
-              <div class="oppf-section">
-                <div class="oppf-section-title">Development Budget</div>
-                <div class="oppf-inner">
-                  ${colhead}
-                  ${L('Land', prof.landTotal)}
-                  ${L('Hard Cost', prof.hardTotal)}
-                  ${L('Soft Cost', prof.softTotal)}
-                  ${L('Total Project Cost', prof.tpc, { total: true })}
-                </div>
-              </div>
-              ${cfSection}
-            </div>
-          `;
-        }
-
-        // ---- Comp sets (reorderable): rent / land / investment. Each is built
-        // into compSections and rendered in the deal's saved order. ----
-        const compSections = {};
-        const propRent = computePropertyRentComps(o, rr, prof);
-        if (propRent && (propRent.rows.length || propRent.customized)) {
-          const psf2 = v => v == null ? '—' : '$' + v.toFixed(2);
-          const pct0 = v => v == null ? '—' : (v >= 0 ? '+' : '') + (v * 100).toFixed(0) + '%';
-          const editingRent = oppModalState.compEditSection === 'rent';
-          oppModalState.shownKeys.rent = propRent.rows.map(r => String(r.id));
-          // When every comp already sits in the deal's own submarket, the
-          // "DEAL SUBMKT" marker is pure noise — only flag it when the set is
-          // mixed (i.e. the cluster fallback pulled in other submarkets).
-          const allDeal = propRent.rows.every(r => r.sub === propRent.dealSub);
-          const oppIdEsc = escapeHTML(String(o.id));
-          const prRows = propRent.rows.map((r, i, arr) => {
-            // At/above required or UW = green: market rents support the deal.
-            const reqCol = r.vsRequired == null ? 'var(--ink-3)' : (r.vsRequired >= 0 ? 'var(--positive)' : 'var(--negative)');
-            const uwCol = r.vsUw == null ? 'var(--ink-3)' : (r.vsUw >= 0 ? 'var(--positive)' : 'var(--negative)');
-            const flagDeal = r.sub === propRent.dealSub && !allDeal;
-            const nameTd = `<td class="oppc-td oppc-name"${flagDeal ? ' style="border-left:2px solid var(--accent);"' : ''}>${escapeHTML(r.name || '(unnamed)')}${flagDeal ? ' <span class="oppc-tag">DEAL SUBMKT</span>' : ''}<div class="oppc-sub">${escapeHTML(r.sub || '')}${r.city ? ' · ' + escapeHTML(r.city) : ''} · Class ${escapeHTML(r.cls || '—')} · ${r.year || '—'}${r.units ? ' · ' + Number(r.units).toLocaleString() + ' units' : ''}</div></td>`;
-            const lastCell = editingRent
-              ? `<td class="oppc-td num"><span class="oppc-row-tools">${compRowReorderTools('rent', escapeHTML(String(r.id)), i, arr.length)}<button class="comp-remove-btn" onclick="removeOppComp('rent','${escapeHTML(String(r.id))}')">✕</button></span></td>`
-              : `<td class="oppc-td num" style="color:${uwCol};">${pct0(r.vsUw)}<span class="oppc-chev">›</span></td>`;
-            return `
-              <tr${editingRent ? '' : ` class="oppc-row" onclick="openPropCompDetail('${oppIdEsc}','${escapeHTML(String(r.id))}')"`}>
-                ${nameTd}
-                <td class="oppc-td num">${r.avgUnitSF != null ? Math.round(r.avgUnitSF).toLocaleString() : '—'}</td>
-                <td class="oppc-td num">${r.perUnit != null ? '$' + Math.round(r.perUnit).toLocaleString() : '—'}</td>
-                <td class="oppc-td num oppc-strong">${psf2(r.psf)}</td>
-                <td class="oppc-td num" style="color:${reqCol};">${pct0(r.vsRequired)}</td>
-                ${lastCell}
-              </tr>`;
-          }).join('');
-
-          // Headline: how the comparable set brackets the required rent.
-          const n = propRent.rows.length;
-          const atOrAbove = propRent.rows.filter(r => r.vsRequired != null && r.vsRequired >= 0).length;
-          const avgPsf = propRent.stats.avg;
-          const avgVsReq = (propRent.requiredPsf && avgPsf != null) ? (avgPsf - propRent.requiredPsf) / propRent.requiredPsf : null;
-          const clears = avgVsReq != null && avgVsReq >= 0;
-          const headCol = clears ? 'var(--positive)' : 'var(--negative)';
-          const headline = avgPsf == null ? '' : `
-            <div style="padding:10px 14px;background:${clears ? 'rgba(47,122,77,0.06)' : 'rgba(176,70,58,0.06)'};border-radius:2px;font-size:12.5px;color:var(--ink-2);font-family:'Inter Tight',sans-serif;line-height:1.5;margin-bottom:12px;">
-              Comparable in-place effective rents average <strong>${psf2(avgPsf)}/SF</strong> (${psf2(propRent.stats.min)}–${psf2(propRent.stats.max)} range).
-              Deal needs <strong>${psf2(propRent.requiredPsf)}/SF</strong> — comp average is
-              <strong style="color:${headCol};">${pct0(avgVsReq)}</strong> vs required, and
-              <strong>${atOrAbove} of ${n}</strong> comps already clear it${propRent.uwPsf != null ? `. Your UW is set at ${psf2(propRent.uwPsf)}/SF` : ''}.
-            </div>`;
-
-          compSections.rent = {
-            title: 'Rent Comps · Comparable Properties',
-            sub: `CoStar in-place effective rents${propRent.customized ? ' · custom' : ''}`,
-            tool: compCustomizeBtn('rent', propRent.customized),
-            body: `
-            <div style="font-family:'Inter Tight',sans-serif;font-size:12.5px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
-              Existing properties in comparable locations whose in-place effective rents bracket this deal's required and UW $/SF. ${escapeHTML(propRent.scope)} · ${propRent.stats.count} match${propRent.stats.count === 1 ? '' : 'es'}.
-            </div>
-            ${headline}
-            <div class="oppc-block">
-              <div class="oppc-block-head">
-                <span class="oppc-block-sub">Deal needs ${psf2(propRent.requiredPsf)}/SF${propRent.uwPsf != null ? ` · UW ${psf2(propRent.uwPsf)}/SF` : ''}</span>
-              </div>
-              <div class="oppc-tablewrap">
-                <table class="oppc-table">
-                  <thead><tr>
-                    <th class="oppc-th">Property</th>
-                    <th class="oppc-th num">Avg SF</th>
-                    <th class="oppc-th num">Eff Rent/Unit</th>
-                    <th class="oppc-th num">Eff $/SF</th>
-                    <th class="oppc-th num">vs Req</th>
-                    <th class="oppc-th num">${editingRent ? 'Reorder' : 'vs UW'}</th>
-                  </tr></thead>
-                  <tbody>${prRows || `<tr><td class="oppc-td" colspan="6" style="color:var(--ink-4);">No comps selected — add some below.</td></tr>`}</tbody>
-                </table>
-              </div>
-              ${editingRent ? compEditBar('rent') : ''}
-            </div>`
-          };
-        }
-
-        const comps = computeOppComps(o, rr, prof);
-        if (comps) {
-          const money0c = v => v == null ? '—' : '$' + Math.round(v).toLocaleString();
-          const fmtDate = s => { if (!s) return '—'; const d = new Date(s); return isNaN(d) ? '—' : (d.getMonth()+1) + '/' + String(d.getFullYear()).slice(2); };
-
-          // stat chip strip comparing the deal value to the comp set
-          const statStrip = (dealVal, stats, label) => {
-            if (!stats) return '';
-            // Spread = how far the comp average sits ABOVE the deal's basis,
-            // as a % of the deal basis. Positive = comps trade above our basis
-            // (favorable — we're in below the market), shown green.
-            const spread = (dealVal && stats.avg != null) ? ((stats.avg - dealVal) / dealVal) * 100 : 0;
-            const col = spread >= 0 ? 'var(--positive)' : 'var(--negative)';
-            return `
-              <div class="oppc-stats">
-                <div class="oppc-stat"><span class="oppc-stat-lbl">This Deal</span><span class="oppc-stat-val" style="color:var(--accent-text);">${money0c(dealVal)}</span></div>
-                <div class="oppc-stat"><span class="oppc-stat-lbl">Comp Avg</span><span class="oppc-stat-val">${money0c(stats.avg)}</span></div>
-                <div class="oppc-stat"><span class="oppc-stat-lbl">Range</span><span class="oppc-stat-val">${money0c(stats.min)} – ${money0c(stats.max)}</span></div>
-                <div class="oppc-stat"><span class="oppc-stat-lbl">Spread</span><span class="oppc-stat-val" style="color:${col};">${spread >= 0 ? '+' : ''}${spread.toFixed(0)}%</span></div>
-              </div>
-            `;
-          };
-
-          // LAND comps table
-          const compRef = c => c._isCustom ? `{customId:'${c.id}'}` : `{builtinIdx:${c._builtinIdx}}`;
-          const editingLand = oppModalState.compEditSection === 'land';
-          const editingInv = oppModalState.compEditSection === 'invest';
-          oppModalState.shownKeys.land = comps.land.rows.map(saleCompKey);
-          oppModalState.shownKeys.invest = comps.invest.rows.map(saleCompKey);
-
-          const landRows = comps.land.rows.map((c, i, arr) => {
-            const last = editingLand
-              ? `<td class="oppc-td num"><span class="oppc-row-tools">${compRowReorderTools('land', saleCompKey(c), i, arr.length)}<button class="comp-remove-btn" onclick="removeOppComp('land','${saleCompKey(c)}')">✕</button></span></td>`
-              : `<td class="oppc-td num">${fmtDate(c.saleDate)}<span class="oppc-chev">›</span></td>`;
-            return `
-            <tr${editingLand ? '' : ` class="oppc-row" onclick="openSaleCompDetail('land', ${compRef(c)})"`}>
-              <td class="oppc-td oppc-name">${escapeHTML(c.name || '—')}${c._isCustom ? ' <span class="oppc-tag">CUSTOM</span>' : ''}<div class="oppc-sub">${escapeHTML(c.submarket || '')}${c.constructionType ? ' · ' + escapeHTML(c.constructionType) : ''}</div></td>
-              <td class="oppc-td num">${c.proposedUnits ? Number(c.proposedUnits).toLocaleString() : '—'}</td>
-              <td class="oppc-td num">${c.acreage != null ? c.acreage.toFixed(1) : '—'}</td>
-              <td class="oppc-td num oppc-strong">${money0c(c.pricePerUnit)}</td>
-              ${last}
-            </tr>`;
-          }).join('');
-
-          const landTable = comps.land.rows.length || editingLand ? `
-            ${statStrip(comps.land.dealPU, comps.land.stats)}
-            <div class="oppc-tablewrap">
-              <table class="oppc-table">
-                <thead><tr>
-                  <th class="oppc-th">Comp${comps.land.form ? ` · ${comps.land.form.map(f=>f[0].toUpperCase()+f.slice(1)).join(' / ')}` : ''}</th>
-                  <th class="oppc-th num">Units</th>
-                  <th class="oppc-th num">Acres</th>
-                  <th class="oppc-th num">Land $/Unit</th>
-                  <th class="oppc-th num">${editingLand ? 'Reorder' : 'Date'}</th>
-                </tr></thead>
-                <tbody>${landRows || `<tr><td class="oppc-td" colspan="5" style="color:var(--ink-4);">No comps selected — add some below.</td></tr>`}</tbody>
-              </table>
-            </div>
-            ${editingLand ? compEditBar('land') : ''}
-          ` : `<div class="oppc-empty">No land comps available.</div>`;
-
-          // INVESTMENT comps table
-          const invRows = comps.invest.rows.map((c, i, arr) => {
-            const last = editingInv
-              ? `<td class="oppc-td num"><span class="oppc-row-tools">${compRowReorderTools('invest', saleCompKey(c), i, arr.length)}<button class="comp-remove-btn" onclick="removeOppComp('invest','${saleCompKey(c)}')">✕</button></span></td>`
-              : `<td class="oppc-td num">${fmtDate(c.saleDate)}<span class="oppc-chev">›</span></td>`;
-            return `
-            <tr${editingInv ? '' : ` class="oppc-row" onclick="openSaleCompDetail('investment', ${compRef(c)})"`}>
-              <td class="oppc-td oppc-name">${escapeHTML(c.name || '—')}${c._isCustom ? ' <span class="oppc-tag">CUSTOM</span>' : ''}<div class="oppc-sub">${escapeHTML(c.city || '')}${c.yearBuilt ? ' · ' + c.yearBuilt : ''}</div></td>
-              <td class="oppc-td num">${c.units ? Number(c.units).toLocaleString() : '—'}</td>
-              <td class="oppc-td num oppc-strong">${money0c(c.pricePerUnit)}</td>
-              <td class="oppc-td num">${c.capRate != null ? c.capRate.toFixed(2) + '%' : '—'}</td>
-              ${last}
-            </tr>`;
-          }).join('');
-
-          const invTable = comps.invest.rows.length || editingInv ? `
-            ${statStrip(comps.invest.dealPU, comps.invest.stats)}
-            <div class="oppc-tablewrap">
-              <table class="oppc-table">
-                <thead><tr>
-                  <th class="oppc-th">Sale Comp</th>
-                  <th class="oppc-th num">Units</th>
-                  <th class="oppc-th num">$/Unit</th>
-                  <th class="oppc-th num">Cap</th>
-                  <th class="oppc-th num">${editingInv ? 'Reorder' : 'Date'}</th>
-                </tr></thead>
-                <tbody>${invRows || `<tr><td class="oppc-td" colspan="5" style="color:var(--ink-4);">No comps selected — add some below.</td></tr>`}</tbody>
-              </table>
-            </div>
-            ${editingInv ? compEditBar('invest') : ''}
-          ` : `<div class="oppc-empty">No investment comps available.</div>`;
-
-          const dealBasisNote = `Deal UW basis (TPC/unit) ${money0c(comps.invest.dealPU)}${comps.invest.stats && comps.invest.stats.avgCap != null ? ` · comp avg cap ${comps.invest.stats.avgCap.toFixed(2)}%` : ''}`;
-
-          compSections.land = {
-            title: 'Land Comps',
-            sub: 'Auto-matched to this deal',
-            tool: compCustomizeBtn('land', comps.land.customized),
-            body: `
-            <div class="oppc-block">
-              <div class="oppc-block-head">
-                <span class="oppc-block-sub">Deal land basis ${money0c(comps.land.dealPU)}/unit${comps.land.form ? ' · same form' : ''}${comps.land.locCount ? ` · ${comps.land.locCount} in ${escapeHTML(comps.land.locLabel)}` : ''}</span>
-              </div>
-              ${landTable}
-            </div>`
-          };
-          compSections.invest = {
-            title: 'Investment Sale Comps',
-            sub: 'Auto-matched to this deal',
-            tool: compCustomizeBtn('invest', comps.invest.customized),
-            body: `
-            <div class="oppc-block">
-              <div class="oppc-block-head">
-                <span class="oppc-block-sub">${dealBasisNote}${comps.invest.locCount ? ` · ${comps.invest.locCount} in ${escapeHTML(comps.invest.locLabel)}` : ''}</span>
-              </div>
-              ${invTable}
-            </div>`
-          };
-        }
-
-        // Assemble the comp sets in a fixed order, each in a collapsible section
-        // with its Customize button. (Row-level reorder lives inside each table
-        // now — see compRowReorderTools — not at the section level.)
-        const compSetsHtml = oppCompOrder(o).map((key) => {
-          const s = compSections[key];
-          if (!s) return '';
-          const tools = s.tool || '';
-          const title = `${escapeHTML(s.title)}${s.sub ? ` <span style="font-family:'Inter Tight',sans-serif;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-4);font-weight:600;">${escapeHTML(s.sub)}</span>` : ''}`;
-          return oppSec('comp:' + key, title, s.body, tools);
-        }).join('');
-
-        return editing ? `
-          <div class="detail-section-title">Required Rent Analysis</div>
-          <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:14px;line-height:1.5;">
-            Back-solves the rent / SF this project needs to hit its target return,
-            using this deal's ${o.units ? Number(o.units).toLocaleString() + ' proposed units' : 'proposed units'}.
-            Override any assumption below — blank fields inherit the YOC Matrix
-            defaults. Overrides save on the deal.
-          </div>
-          ${overridePanel}
-          ${comparisonHtml}
-          <div style="border:1px solid var(--line);border-radius:3px;overflow:hidden;">
-            <table style="width:100%;border-collapse:collapse;">
-              <thead>
-                <tr style="background:var(--bg-2);">
-                  <th style="padding:7px 10px;text-align:left;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;border-bottom:1.5px solid var(--accent);">Target YoC</th>
-                  <th style="padding:7px 10px;text-align:right;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;border-bottom:1.5px solid var(--accent);">Required PSF</th>
-                  <th style="padding:7px 10px;text-align:right;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;border-bottom:1.5px solid var(--accent);">Per Unit / Mo</th>
-                </tr>
-              </thead>
-              <tbody>${sensitivityRows}</tbody>
-            </table>
-          </div>
-          ${srcLine}
-        ` : `
-          ${oppSec('profile',
-            `Deal Profile ${anyOverride ? '<span style="font-size:11px;letter-spacing:0.08em;color:var(--accent-text);font-weight:600;margin-left:8px;">· CUSTOM ASSUMPTIONS</span>' : ''}`,
-            `${profilePanel}
-             ${comparisonHtml}
-             <details style="margin-top:14px;margin-bottom:6px;">
-               <summary style="cursor:pointer;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600;">Required-Rent Sensitivity &amp; Inputs</summary>
-               <div style="margin-top:12px;border:1px solid var(--line);border-radius:3px;overflow:hidden;">
-                 <table style="width:100%;border-collapse:collapse;">
-                   <thead>
-                     <tr style="background:var(--bg-2);">
-                       <th style="padding:7px 10px;text-align:left;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;border-bottom:1.5px solid var(--accent);">Target YoC</th>
-                       <th style="padding:7px 10px;text-align:right;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;border-bottom:1.5px solid var(--accent);">Required PSF</th>
-                       <th style="padding:7px 10px;text-align:right;font-family:'Inter Tight',sans-serif;font-size:12.5px;letter-spacing:0.11em;text-transform:uppercase;color:var(--ink-3);font-weight:600;border-bottom:1.5px solid var(--accent);">Per Unit / Mo</th>
-                     </tr>
-                   </thead>
-                   <tbody>${sensitivityRows}</tbody>
-                 </table>
-               </div>
-               ${srcLine}
-             </details>`,
-            `<span style="font-family:'Inter Tight',sans-serif;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-4);font-weight:600;">${o.units ? Number(o.units).toLocaleString() + ' units · ' : ''}${(prof && prof.sf) ? Math.round(prof.sf).toLocaleString() + ' SF avg' : ''}</span>`
-          )}
-          ${compSetsHtml}
-        `;
-      })() : ''}
-
-      ${renderOppCompSetSection(o, editing)}
-
-      ${oppSec('broker', 'Broker · Seller', `
-      <div class="detail-grid">
-        ${field('Broker', o.broker, 'broker', 'text')}
-        ${field('Broker Contact', o.brokerContact, 'brokerContact', 'text')}
-        ${field('Seller', o.seller, 'seller', 'text', { span: 2 })}
-      </div>`)}
-
-      ${oppSec('tracking', 'Tracking', `
-      <div class="detail-grid">
-        ${field('Date Added', o.dateAdded, 'dateAdded', 'date')}
-        ${field('Call for Offer', o.callForOfferDate, 'callForOfferDate', 'date')}
-        ${field('Closing Date', o.closingDate, 'closingDate', 'date')}
-        ${field('Construction Start', o.constructionStartDate, 'constructionStartDate', 'date')}
-        ${field('Deadline / Best & Final', o.deadline, 'deadline', 'date')}
-        ${field('Deal Type', o.dealType, 'dealType', 'text')}
-        ${field('Latitude', o.lat, 'lat', 'number', { step: 'any', format: v => v == null ? '—' : Number(v).toFixed(6) })}
-        ${field('Longitude', o.lng, 'lng', 'number', { step: 'any', format: v => v == null ? '—' : Number(v).toFixed(6) })}
-      </div>`)}
-
-      ${oppSec('notes', 'Notes', `${editing
-        ? `<textarea class="edit-input" data-field="notes" rows="5" style="width:100%;resize:vertical;">${escapeHTML(o.notes || '')}</textarea>`
-        : `<div style="white-space:pre-wrap;color:var(--ink-2);font-size:13px;line-height:1.6;padding:8px 0;">${escapeHTML(o.notes || '(no notes)')}</div>`}`)}
-
-      ${editing ? '' : (o.lat != null && o.lng != null ? `
-        <div class="detail-section-title">Location</div>
-        <div id="opp-modal-map" style="height:280px;width:100%;background:#e8e4dc;border-radius:3px;position:relative;"></div>
-      ` : '')}
-    </div>
-  `;
-
-  // Comp Set Benchmark controls live outside the generic field handling.
-  try { wireOppCompSetSection(); } catch (e) { console.error('[ocs wiring]', e); }
-
-  if (!editing && o.lat != null && o.lng != null) {
-    setTimeout(() => initOpportunityModalMap(o), 100);
-  }
-}
-
-function initOpportunityModalMap(o) {
-  const host = document.getElementById('opp-modal-map');
-  if (!host) return;
-  const map = L.map(host, {
-    center: [o.lat, o.lng],
-    zoom: 16,
-    zoomControl: true,
-    preferCanvas: true
-  });
-  const street = wbStreetLayer();
-  const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-    attribution: 'Tiles &copy; Esri',
-    maxZoom: 19
-  });
-  const labels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-    attribution: '',
-    maxZoom: 19
-  });
-  const satWithLabels = L.layerGroup([sat, labels]);
-  street.addTo(map);
-  L.control.layers({ 'Street': street, 'Satellite': satWithLabels }, null, { position: 'topright', collapsed: false }).addTo(map);
-  L.circleMarker([o.lat, o.lng], {
-    radius: 12,
-    fillColor: oppMarkerColor(o),
-    color: '#ffffff',
-    weight: 3,
-    opacity: 1,
-    fillOpacity: 0.95
-  }).bindPopup(`<strong>${escapeHTML(o.name || '(unnamed)')}</strong>`).addTo(map);
-  // Reuse modalState.map so closeModal cleans this up too
-  modalState.map = map;
-  setTimeout(() => map.invalidateSize(), 50);
-}
-
-function toggleOpportunityEdit() {
-  oppModalState.editing = !oppModalState.editing;
-  if (oppModalState.editing && modalState.map) {
-    try { modalState.map.remove(); } catch (e) {}
-    modalState.map = null;
-  }
-  renderOpportunityModal();
-}
-
-function cancelOpportunityEdit() {
-  oppModalState.editing = false;
-  renderOpportunityModal();
-}
-
-// Live per-deal assumption override — called on input change in the Required
-// Rent Analysis panel. Writes the single field, persists, and re-renders the
-// modal so the required rent + sensitivity recompute immediately. Empty clears
-// the override (falls back to YOC matrix default).
-function setOppAssumption(field, rawValue) {
-  const o = opportunities.find(x => x.id === oppModalState.id);
-  if (!o) return;
-  const trimmed = (rawValue == null ? '' : String(rawValue)).trim();
-  if (trimmed === '') {
-    o[field] = null;
-  } else {
-    const n = parseFloat(trimmed.replace(/[$,%\s]/g, ''));
-    o[field] = isNaN(n) ? null : n;
-  }
-  o.updatedBy = syncState.editorName || 'Anonymous';
-  o.updatedAt = Date.now();
-  saveOpportunities();
-  pushOpportunity(o);
-  renderOpportunityModal();
-  try { renderOpportunities(); } catch (e) { /* map/list refresh is non-critical */ }
-}
-
-function resetOppAssumptions() {
-  // In edit mode: just blank the assumption inputs in the DOM — they persist on
-  // Save like everything else. (If somehow called outside edit mode, fall back
-  // to clearing + saving.)
-  const fields = ['uwTargetYoc', 'uwVacancy', 'uwOpex', 'uwOtherIncomePerUnit',
-    'uwLandTotalOverride', 'uwOtherHcPerUnit', 'uwSoftPerUnit'];
-  if (oppModalState.editing) {
-    fields.forEach(f => {
-      const el = document.querySelector(`#modal-content [data-field="${f}"]`);
-      if (el) el.value = '';
-    });
-    return;
-  }
-  const o = opportunities.find(x => x.id === oppModalState.id);
-  if (!o) return;
-  fields.forEach(f => { o[f] = null; });
-  o.updatedBy = syncState.editorName || 'Anonymous';
-  o.updatedAt = Date.now();
-  saveOpportunities();
-  pushOpportunity(o);
-  renderOpportunityModal();
-  try { renderOpportunities(); } catch (e) { /* non-critical */ }
-}
-
-function saveOpportunityEdits() {
-  const o = opportunities.find(x => x.id === oppModalState.id);
-  if (!o) return;
-  // Pull values from each .edit-input. Coerce based on the input's type:
-  //   - <input type="number"> → parseFloat
-  //   - <select> with empty option → null when empty
-  //   - everything else → keep as string (text/date/textarea)
-  // Doing it by-type rather than a hardcoded field list ensures any new
-  // numeric fields automatically round-trip as numbers. Critical: text
-  // concat on numeric fields was producing absurd KPI totals when number
-  // fields were silently stored as strings after an edit.
-  document.querySelectorAll('#modal-content [data-field]').forEach(el => {
-    const f = el.dataset.field;
-    const tagName = el.tagName;
-    const inputType = (el.type || '').toLowerCase();
-    let v = el.value;
-    if (v === '' || v == null) {
-      v = null;
-    } else if (tagName === 'INPUT' && inputType === 'number') {
-      const n = parseFloat(v);
-      v = isNaN(n) ? null : n;
-    }
-    // text, date, textarea, and select all stay as strings (or null)
-    o[f] = v;
-  });
-  // Auto-fill pricePerUnit if both askingPrice and units are set and pricePerUnit is blank
-  if (o.askingPrice && o.units && (o.pricePerUnit == null || o.pricePerUnit === '')) {
-    o.pricePerUnit = o.askingPrice / o.units;
-  }
-  // Tag editor + timestamp on every save
-  o.updatedBy = syncState.editorName || 'Anonymous';
-  o.updatedAt = Date.now();
-  saveOpportunities();
-  pushOpportunity(o);
-  if (modalState.map) {
-    try { modalState.map.remove(); } catch (e) {}
-    modalState.map = null;
-  }
-  oppModalState.editing = false;
-  renderOpportunityModal();
-  renderOpportunities();
-}
-
-function deleteOpportunity() {
-  if (!confirm('Delete this opportunity? This cannot be undone.')) return;
-  const idToDelete = oppModalState.id;
-  opportunities = opportunities.filter(x => x.id !== idToDelete);
-  saveOpportunities();
-  deleteOpportunityCloud(idToDelete);
-  closeModal();
-  renderOpportunities();
-}
-
-// ----- Add Opportunity flow — primes a draft and waits for the user to click the map -----
-function startAddOpportunity() {
-  // Make sure the user is on the Opportunities tab — switch them there if not
-  if (getActiveView() !== 'opportunities') {
-    document.querySelector('.tab[data-view="opportunities"]').click();
-  }
-  oppState.pendingDraft = blankOpportunity();
-  oppState.awaitingPin = true;
-  const banner = document.getElementById('opp-instruction-banner');
-  if (banner) banner.style.display = 'flex';
-  // Scroll the map into view so the workflow is obvious
-  const mapEl = document.getElementById('opp-map');
-  if (mapEl) mapEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
-}
-
-function cancelAddOpportunity() {
-  oppState.awaitingPin = false;
-  oppState.pendingDraft = null;
-  const banner = document.getElementById('opp-instruction-banner');
-  if (banner) banner.style.display = 'none';
-}
-
-// ----- Export to CSV -----
-function exportOpportunitiesCsv() {
-  const escapeCsv = v => {
-    if (v == null) return '';
-    const s = String(v);
-    if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
-    return s;
-  };
-  const rowToCsv = arr => arr.map(escapeCsv).join(',');
-  const headers = [
-    'Name', 'Deal Type', 'Type', 'Status', 'Submarket', 'City', 'Address', 'Product Type',
-    'Acreage', 'Proposed/Existing Units',
-    'Asking Price', 'Asking $/Unit',
-    'Pricing Guidance', 'Guidance $/Unit', 'Guidance $/SF Land',
-    'Offer Price', 'Offer $/Unit', 'Offer $/SF Land',
-    'UW Land Price', 'UW Land $/Unit', 'UW Land $/SF',
-    'UW Rents $/SF', 'UW Avg Unit SF', 'UW Hard Cost $/NRSF', 'Retail Y/N',
-    'Yield on Cost', 'Total Project Cost', 'TPC $/Unit',
-    'On/Off Market',
-    'Broker', 'Broker Contact', 'Seller',
-    'Date Added', 'Call for Offer', 'Closing Date', 'Construction Start', 'Deadline',
-    'Latitude', 'Longitude', 'Notes'
-  ];
-  const list = getFilteredOpportunities();
-  const rows = list.map(o => rowToCsv([
-    o.name, o.dealType, o.oppType, o.status, o.submarket, o.city, o.address, o.productType,
-    o.oppType === 'development' ? o.size : '', o.units,
-    o.askingPrice, o.pricePerUnit,
-    o.pricingGuidance, o.pricingGuidancePerUnit, o.pricingGuidancePerSF,
-    o.offerPrice, o.offerPricePerUnit, o.offerPricePerSF,
-    o.underwrittenLandPrice, o.underwrittenLandPricePerUnit, o.underwrittenLandPricePerSF,
-    o.uwRentsPerSF, o.uwAvgUnitSize, o.uwHardCostPerNRSF, o.retail,
-    o.yieldOnCost != null ? (o.yieldOnCost * 100).toFixed(2) + '%' : '',
-    o.totalProjectCost, o.totalProjectCostPerUnit,
-    o.onOffMarket,
-    o.broker, o.brokerContact, o.seller,
-    o.dateAdded, o.callForOfferDate, o.closingDate, o.constructionStartDate, o.deadline,
-    o.lat, o.lng, o.notes
-  ]));
-  const csv = [rowToCsv(headers), ...rows].join('\n');
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const today = new Date().toISOString().slice(0, 10);
-  a.href = url;
-  a.download = `wb_opportunities_${today}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 100);
-}
-
-/* =================================================================
-   OPPORTUNITIES PDF EXPORT
-   ================================================================= */
-// Builds a print-ready landscape PDF of the currently filtered opportunities
-// using the same window.print() pattern as the YOC matrix + Market Report
-// exports elsewhere in the dashboard. Includes a cover summary (status
-// buckets, top submarkets, aggregate capital) followed by a detail table.
-function exportOpportunitiesPdf() {
-  const list = getFilteredOpportunities();
-  if (list.length === 0) {
-    alert('No opportunities match the current filters. Adjust the filters and try again.');
-    return;
-  }
-
-  const mode = oppState.typeFilter;
-  const modeLabel = mode === 'development' ? 'Development Pipeline'
-                  : mode === 'investment' ? 'Investment Pipeline'
-                  : 'All Opportunities';
-
-  // Status buckets — same logic as the KPI bar
-  const pursuing = list.filter(o =>
-    o.status !== 'Closed' && o.status !== 'Closed - Pre Development' &&
-    o.status !== 'Passed' && o.status !== 'Dead' && o.status !== 'Monitor'
-  );
-  const monitoring = list.filter(o => o.status === 'Monitor');
-  const passed = list.filter(o => o.status === 'Passed' || o.status === 'Dead');
-  const closed = list.filter(o => o.status === 'Closed' || o.status === 'Closed - Pre Development');
-
-  const sumUnits = arr => arr.reduce((s, o) => s + (o.units || 0), 0);
-  const totalUnits = sumUnits(list);
-  const totalTpc = list.reduce((s, o) => s + (o.totalProjectCost || 0), 0);
-  const totalAsking = list.reduce((s, o) => s + (o.askingPrice || o.pricingGuidance || 0), 0);
-
-  // Top submarkets by units (live deals only — exclude passed)
-  const bySm = {};
-  for (const o of list) {
-    if (o.status === 'Passed' || o.status === 'Dead') continue;
-    if (!o.submarket) continue;
-    if (!bySm[o.submarket]) bySm[o.submarket] = { units: 0, count: 0 };
-    bySm[o.submarket].units += (o.units || 0);
-    bySm[o.submarket].count += 1;
-  }
-  const topSubmarkets = Object.entries(bySm)
-    .sort((a, b) => b[1].units - a[1].units)
-    .slice(0, 8);
-
-  // Sort detail rows: closed → pursuing → monitor → passed, then by units desc
-  const statusOrder = { 'Closed': 0, 'Closed - Pre Development': 1, 'Under Contract': 2, 'LOI': 3, 'Negotiating': 4, 'Underwriting': 5, 'Sourcing': 6, 'Monitor': 7, 'Passed': 8 };
-  const sorted = [...list].sort((a, b) => {
-    const aS = statusOrder[a.status] ?? 99;
-    const bS = statusOrder[b.status] ?? 99;
-    if (aS !== bS) return aS - bS;
-    return (b.units || 0) - (a.units || 0);
-  });
-
-  // Format helpers
-  const fmtMoney = v => v == null ? '—' : '$' + (v >= 1e6 ? (v/1e6).toFixed(1) + 'M' : v >= 1e3 ? (v/1e3).toFixed(0) + 'K' : Math.round(v).toLocaleString());
-  const fmtPpu = v => v == null ? '—' : '$' + Math.round(v).toLocaleString();
-  const fmtPct = v => v == null ? '—' : (Number(v) * 100).toFixed(2) + '%';
-  const fmt2 = v => v == null ? '—' : '$' + Number(v).toFixed(2);
-
-  const today = TODAY.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
-  // Sidebar filter context
-  const ctxParts = [];
-  ctxParts.push(state.status === 'all' ? 'All Status' : state.status);
-  if (state.productTypes.size > 0) ctxParts.push([...state.productTypes].join(', '));
-  if (state.cities.size > 0) ctxParts.push([...state.cities].join(', '));
-  if (state.submarkets.size > 0) ctxParts.push([...state.submarkets].join(', '));
-  const ctxLine = ctxParts.join(' · ');
-
-  const detailRows = sorted.map(o => {
-    const statusColor = (o.status === 'Closed' || o.status === 'Closed - Pre Development') ? '#4a7a5a'
-                      : o.status === 'Passed' ? '#7a7468'
-                      : o.status === 'Dead' ? '#5a3535'
-                      : o.status === 'Monitor' ? '#946b00'
-                      : (o.status === 'Under Contract' || o.status === 'LOI') ? '#946b00'
-                      : '#432890';
-    return `
-      <tr>
-        <td><strong>${escapeHTML(o.name)}</strong></td>
-        <td>${escapeHTML(o.submarket || '—')}</td>
-        <td>${escapeHTML(o.productType || '—')}</td>
-        <td style="color:${statusColor};font-weight:700;">${escapeHTML(o.status)}</td>
-        <td class="num">${o.size != null ? o.size.toFixed(2) : '—'}</td>
-        <td class="num">${o.units != null ? o.units.toLocaleString() : '—'}</td>
-        <td class="num">${o.askingPrice != null ? fmtMoney(o.askingPrice) : (o.pricingGuidance != null ? fmtMoney(o.pricingGuidance) + ' <em>(g)</em>' : '—')}</td>
-        <td class="num">${o.pricingGuidancePerUnit != null ? fmtPpu(o.pricingGuidancePerUnit) : (o.pricePerUnit != null ? fmtPpu(o.pricePerUnit) : '—')}</td>
-        <td class="num">${fmt2(o.uwRentsPerSF)}</td>
-        <td class="num" style="font-weight:700;color:#432890;">${fmtPct(o.yieldOnCost)}</td>
-        <td class="num">${fmtMoney(o.totalProjectCost)}</td>
-        <td>${escapeHTML(o.broker || '—')}</td>
-      </tr>
-    `;
-  }).join('');
-
-  const topSmRows = topSubmarkets.map(([sm, s]) => `
-    <tr>
-      <td><strong>${escapeHTML(sm)}</strong></td>
-      <td class="num">${s.count}</td>
-      <td class="num">${s.units.toLocaleString()}</td>
-    </tr>
-  `).join('');
-
-  const printDoc = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>Willow Bridge · ${modeLabel}</title>
-<style>
-  @page { size: landscape; margin: 0.5in; }
-  body { font-family: 'Inter Tight', -apple-system, sans-serif; color: #1a1a1a; margin: 0; padding: 0; }
-  .cover { padding: 0 0 18px 0; border-bottom: 2px solid #432890; margin-bottom: 18px; }
-  .brand { font-family: 'Inter Tight', sans-serif; font-size: 12.5px; letter-spacing: 0.2em; color: #6f6f7a; text-transform: uppercase; font-weight: 600; }
-  h1 { font-family: Georgia, 'Fraunces', serif; font-size: 28px; font-weight: 500; color: #432890; margin: 6px 0 4px; letter-spacing: -0.01em; }
-  .subtitle { font-family: 'Inter Tight', sans-serif; font-size: 12.5px; letter-spacing: 0.11em; color: #6f6f7a; text-transform: uppercase; font-weight: 600; }
-  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0 18px; }
-  .summary-cell { border: 1px solid #dde0e5; padding: 10px 14px; border-radius: 2px; }
-  .summary-label { font-family: 'Inter Tight', sans-serif; font-size: 12px; letter-spacing: 0.11em; text-transform: uppercase; color: #6f6f7a; font-weight: 600; }
-  .summary-value { font-family: Georgia, serif; font-size: 22px; font-weight: 500; color: #1a1a1a; margin-top: 2px; }
-  .summary-sub { font-family: 'Inter Tight', sans-serif; font-size: 12px; color: #6f6f7a; margin-top: 4px; font-weight: 600; }
-  .two-col { display: grid; grid-template-columns: 360px 1fr; gap: 24px; margin-bottom: 18px; }
-  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  th { font-family: 'Inter Tight', sans-serif; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: #16161d; background: #f4f5f7; padding: 6px 6px; border-bottom: 1.5px solid #432890; text-align: left; font-weight: 600; }
-  th.num { text-align: right; }
-  td { padding: 5px 6px; border-bottom: 1px solid #eef0f3; vertical-align: top; }
-  td.num { text-align: right; font-family: 'Inter Tight', sans-serif; }
-  .section-title { font-family: 'Inter Tight', sans-serif; font-size: 12px; letter-spacing: 0.11em; text-transform: uppercase; color: #432890; font-weight: 600; margin: 6px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #432890; }
-  .footer { font-family: 'Inter Tight', sans-serif; font-size: 12.5px; color: #888; letter-spacing: 0.08em; margin-top: 18px; padding-top: 8px; border-top: 1px solid #eef0f3; text-transform: uppercase; font-weight: 600; }
-  /* Keep logical blocks intact across page breaks: a section heading stays with
-     its content, table rows never split, and the summary tiles hold together. */
-  .section-title { break-after: avoid; page-break-after: avoid; }
-  .summary-grid, .summary-cell, .two-col { break-inside: avoid; page-break-inside: avoid; }
-  table { page-break-inside: auto; }
-  tr { break-inside: avoid; page-break-inside: avoid; }
-  thead { display: table-header-group; }
-</style>
-</head>
-<body>
-  <div class="cover">
-    <div class="brand">Willow Bridge · ${window.__WBD.title} · Internal</div>
-    <h1>${escapeHTML(modeLabel)}</h1>
-    <div class="subtitle">${escapeHTML(ctxLine)} · As of ${today}</div>
-  </div>
-
-  <div class="summary-grid">
-    <div class="summary-cell">
-      <div class="summary-label">Tracked Opportunities</div>
-      <div class="summary-value">${list.length}</div>
-      <div class="summary-sub">${pursuing.length} pursuing · ${monitoring.length} monitoring · ${passed.length} passed · ${closed.length} closed</div>
-    </div>
-    <div class="summary-cell">
-      <div class="summary-label">Proposed / Existing Units</div>
-      <div class="summary-value">${totalUnits.toLocaleString()}</div>
-      <div class="summary-sub">aggregate units across all tracked deals</div>
-    </div>
-    <div class="summary-cell">
-      <div class="summary-label">Total Project Cost</div>
-      <div class="summary-value">${fmtMoney(totalTpc)}</div>
-      <div class="summary-sub">sum of TPC where underwritten</div>
-    </div>
-    <div class="summary-cell">
-      <div class="summary-label">Aggregate Asking + Guidance</div>
-      <div class="summary-value">${fmtMoney(totalAsking)}</div>
-      <div class="summary-sub">asking + pricing guidance across all sites</div>
-    </div>
-  </div>
-
-  <div class="two-col">
-    <div>
-      <div class="section-title">Top Submarkets · Live</div>
-      <table>
-        <thead>
-          <tr><th>Submarket</th><th class="num">Deals</th><th class="num">Units</th></tr>
-        </thead>
-        <tbody>
-          ${topSmRows || '<tr><td colspan="3" style="color:#888;padding:12px;text-align:center;">No live submarkets — all deals passed.</td></tr>'}
-        </tbody>
-      </table>
-    </div>
-    <div>
-      <div class="section-title">Status Distribution</div>
-      <table>
-        <thead>
-          <tr><th>Status</th><th class="num">Deals</th><th class="num">Units</th></tr>
-        </thead>
-        <tbody>
-          ${pursuing.length ? `<tr><td style="color:#432890;font-weight:700;">Pursuing (active deal stages)</td><td class="num">${pursuing.length}</td><td class="num">${sumUnits(pursuing).toLocaleString()}</td></tr>` : ''}
-          ${monitoring.length ? `<tr><td style="color:#946b00;font-weight:700;">Monitor (watch list)</td><td class="num">${monitoring.length}</td><td class="num">${sumUnits(monitoring).toLocaleString()}</td></tr>` : ''}
-          ${closed.length ? `<tr><td style="color:#4a7a5a;font-weight:700;">Closed</td><td class="num">${closed.length}</td><td class="num">${sumUnits(closed).toLocaleString()}</td></tr>` : ''}
-          ${passed.length ? `<tr><td style="color:#7a7468;font-weight:700;">Passed</td><td class="num">${passed.length}</td><td class="num">${sumUnits(passed).toLocaleString()}</td></tr>` : ''}
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="section-title">Detail · All ${list.length} Opportunities</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Deal Name</th>
-        <th>Submarket</th>
-        <th>Product</th>
-        <th>Status</th>
-        <th class="num">Acres</th>
-        <th class="num">Units</th>
-        <th class="num">Asking/Guide</th>
-        <th class="num">$/Unit</th>
-        <th class="num">UW Rent/SF</th>
-        <th class="num">YoC</th>
-        <th class="num">TPC</th>
-        <th>Broker</th>
-      </tr>
-    </thead>
-    <tbody>${detailRows}</tbody>
-  </table>
-
-  <div class="footer">Willow Bridge · Market Intel Dashboard · ${list.length} opportunities · Generated ${today}</div>
-</body>
-</html>`;
-
-  const w = window.open('', '_blank');
-  if (!w) {
-    alert('Pop-up blocked. Please allow pop-ups for this site and try again.');
-    return;
-  }
-  w.document.open();
-  w.document.write(printDoc);
-  w.document.close();
-  setTimeout(() => { try { w.print(); } catch (e) { console.error(e); } }, 600);
-}
-
-// ----- Expose globally so inline onclick attributes work -----
-window.openOpportunityDetail = openOpportunityDetail;
-window.toggleOpportunityEdit = toggleOpportunityEdit;
-window.cancelOpportunityEdit = cancelOpportunityEdit;
-window.saveOpportunityEdits = saveOpportunityEdits;
-window.deleteOpportunity = deleteOpportunity;
-
-// ----- Boot the opportunities layer -----
-loadOpportunities();
-// Reconcile local↔cloud state on boot, then subscribe to realtime changes
-reconcileOpportunitiesOnBoot().then(() => {
-  subscribeOpportunitiesRealtime();
-});
 
 // ----- Boot the comp sets cloud sync -----
 // loadCompSets() already ran when the data layer was defined; here we
@@ -14016,17 +10834,6 @@ reconcilePropertyEditsOnBoot().then(() => {
 pullPropertySnapshotsFromCloud().catch(e => {
   console.warn('[snapshots.boot] Could not pull snapshots — table may not exist yet:', e && e.message ? e.message : e);
 });
-
-// Top-level "pull everything" used by the manual sync button.
-// All five synced stores are pulled together so a manual refresh is a
-// "fully resync the dashboard" action.
-async function pullAllFromCloud() {
-  await pullOpportunitiesFromCloud();
-  await pullCompSetsFromCloud();
-  await pullSaleCompsFromCloud();
-  await pullPropertyEditsFromCloud();
-  await pullPropertySnapshotsFromCloud();
-}
 
 /* =================================================================
    PROPERTY INDEX CSV EXPORT — mirrors the filters & sort visible on screen
@@ -14594,7 +11401,6 @@ function attachTableSort() {
       if (table) {
         if (table.id === 'table-invcomps') tableKey = 'invcomps';
         else if (table.id === 'table-landcomps') tableKey = 'landcomps';
-        else if (table.id === 'table-opportunities') tableKey = 'opportunities';
       }
       const field = th.dataset.sort;
       if (state.sort.table === tableKey && state.sort.field === field) {
@@ -14674,85 +11480,6 @@ function openDetail(pid) {
   if (inner) inner.scrollTop = 0;
 }
 
-// Open a CoStar property's detail from within an opportunity's rent-comp table.
-// Pushes a "reopen this opportunity" handler onto the back stack so the property
-// modal shows a ‹ BACK button that returns the user to the deal.
-function openPropCompDetail(oppId, pid) {
-  pushModalBack(() => openOpportunityDetail(oppId));
-  openDetail(pid);
-}
-window.openPropCompDetail = openPropCompDetail;
-
-// Export the currently-open opportunity (deal profile + comps) to a clean,
-// print-ready document in a new tab. The user can print or Save as PDF.
-// We clone the already-rendered view-mode modal so the export always matches
-// exactly what's on screen, then strip interactive chrome and the live map.
-function exportOpportunity() {
-  const o = opportunities.find(x => x.id === oppModalState.id);
-  // Leave customize mode so the export shows clean, final comp tables.
-  if (oppModalState.compEditSection) { oppModalState.compEditSection = null; renderOpportunityModal(); }
-  const src = document.getElementById('modal-content');
-  if (!src) return;
-  const clone = src.cloneNode(true);
-  // Strip interactive chrome that shouldn't appear in a printout.
-  clone.querySelectorAll('.modal-btn, .modal-close, .edit-notice, .comp-customize-btn, .comp-edit-bar, .comp-picker-list, .opp-sec-chev, .oppc-reorder-btn, .comp-remove-btn').forEach(el => el.remove());
-  // Expand every collapsed section so the export is complete regardless of what
-  // the user has rolled up on screen.
-  clone.querySelectorAll('.opp-sec-body').forEach(b => { b.style.display = ''; });
-  // Remove the live Leaflet map and its now-orphaned section heading.
-  const mapEl = clone.querySelector('#opp-modal-map');
-  if (mapEl) {
-    const prev = mapEl.previousElementSibling;
-    if (prev && prev.classList && prev.classList.contains('detail-section-title')) prev.remove();
-    mapEl.remove();
-  }
-  const styles = Array.from(document.querySelectorAll('style:not(#wbi-boot)')).map(s => s.textContent).join('\n');
-  const title = (o && o.name) ? o.name : 'Opportunity';
-  const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  const w = window.open('', '_blank');
-  if (!w) { alert('Please allow pop-ups for this site to export the deal.'); return; }
-  w.document.open();
-  w.document.write(
-    '<!DOCTYPE html><html><head><meta charset="utf-8">'
-    + '<title>' + escapeHTML(title) + ' — Willow Bridge</title>'
-    + '<link rel="preconnect" href="https://fonts.googleapis.com">'
-    + '<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">'
-    + '<style>' + styles + '</style>'
-    + '<style>'
-    + 'html,body{background:#fff;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
-    + '.export-shell{max-width:920px;margin:0 auto;padding:0 0 40px;}'
-    + '.export-bar{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 18px;background:#fff;border-bottom:1px solid var(--line);}'
-    + '.export-bar .export-meta{font-family:\'Inter Tight\',sans-serif;font-size:11px;color:var(--ink-4);letter-spacing:.06em;text-transform:uppercase;font-weight:600;}'
-    + '.export-bar button{font-family:\'Inter Tight\',sans-serif;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:8px 16px;border-radius:3px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;}'
-    + '.modal,#modal-content{position:static !important;max-height:none !important;height:auto !important;overflow:visible !important;box-shadow:none !important;border-radius:0 !important;background:#fff !important;width:auto !important;margin:0 !important;}'
-    + '.modal-body{padding:20px 26px 26px;}'
-    // Keep each top-level section together on one page. The prior version only
-    // protected small sub-elements (grids/blocks), so a whole section could
-    // still split — the heading on one page, its content on the next. Now the
-    // section wrapper itself avoids breaking; if a section is genuinely taller
-    // than a page it'll still flow, but nothing splits unnecessarily.
-    + '.opp-sec,.oppc-block,.detail-grid,.oppf-kpi-row,.oppf-section,.oppc-stats,.oppf-card{break-inside:avoid;page-break-inside:avoid;}'
-    // A heading must never sit alone at the bottom of a page, orphaned from its
-    // content, and a section title should stay with the first rows below it.
-    + '.detail-section-title,.opp-sec-head,.oppc-block-head{break-after:avoid;page-break-after:avoid;}'
-    // Table rows shouldn't split mid-row.
-    + 'tr{break-inside:avoid;page-break-inside:avoid;}'
-    + 'details{open:true;}'
-    + '@media print{.export-bar{display:none;}.export-shell{max-width:none;padding:0;}@page{margin:14mm;}}'
-    + '</style></head><body><div class="export-shell">'
-    + '<div class="export-bar"><span class="export-meta">Willow Bridge · Deal Summary · ' + escapeHTML(dateStr) + '</span>'
-    + '<button onclick="window.print()">Print / Save as PDF</button></div>'
-    + '<div class="modal">' + clone.innerHTML + '</div>'
-    + '</div></body></html>'
-  );
-  w.document.close();
-  // Expand any collapsed <details> (e.g. the sensitivity table) so the export is complete.
-  try { w.document.querySelectorAll('details').forEach(d => d.setAttribute('open', '')); } catch (e) {}
-  w.focus();
-  setTimeout(() => { try { w.print(); } catch (e) {} }, 500);
-}
-window.exportOpportunity = exportOpportunity;
-
 function toggleEditMode() {
   modalState.editing = !modalState.editing;
   // If entering edit mode, the map markup will be removed — destroy the Leaflet instance first
@@ -14764,17 +11491,16 @@ function toggleEditMode() {
 }
 
 // ---------- the property over time (Oct 2026): every deal and sale on the same core.properties record ----------
-// window.__WBD.history is built in loader.js from Pipeline deals and Sale Comps, keyed by property uuid.
+// window.__WBD.history is built in loader.js from Sale Comps, keyed by property uuid (the Demo never reads Canopy deals).
 function wbLife(p) {
   const W = window.__WBD; if (!W || !W.history || !p) return null;
   const id = (W.propByCostar && W.propByCostar[p.id]) || p.id;
-  return W.history[id] ? { id, ...W.history[id] } : (W.propByCostar && W.propByCostar[p.id] ? { id, deals: 0, sales: 0 } : null);
+  return W.history[id] ? { id, ...W.history[id] } : (W.propByCostar && W.propByCostar[p.id] ? { id, sales: 0 } : null);
 }
 const WB_MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function wbMonYr(d, short) { if (!d) return ''; const [y, m] = String(d).split('-'); return WB_MON[+m - 1] + ' ' + (short ? "'" + y.slice(2) : y); }
 function wbLifecycleTag(p) {
   const h = wbLife(p); if (!h) return '';
-  if (h.onMarket) return ' <span class="wb-life" title="An active deal in Pipeline">On market</span>';
   if (h.lastSale) {
     const cut = new Date(Date.now() - 36 * 30.44 * 864e5).toISOString().slice(0, 10);
     if (h.lastSale.sale_date >= cut) return ` <span class="wb-life" title="Last recorded sale">Sold ${wbMonYr(h.lastSale.sale_date, true)}</span>`;
@@ -14783,17 +11509,16 @@ function wbLifecycleTag(p) {
 }
 function wbHistorySection(p) {
   const h = wbLife(p); if (!h) return '';
-  const s = h.lastSale, d = h.onMarket, bits = [];
-  if (d) bits.push(`On market now: ${escapeHTML(d.name || 'active deal')} in Pipeline.`);
+  const s = h.lastSale, bits = [];
   if (s) {
     const cap = s.cap_rate_t12 != null ? `${(+s.cap_rate_t12).toFixed(2)}% cap on marketed T-12` : (s.cap_rate != null ? `${(+s.cap_rate).toFixed(2)}% reported cap` : '');
     bits.push(`Last sale ${wbMonYr(s.sale_date)}: ${fmt.money(s.sale_price)}${s.price_per_unit ? ` (${fmt.money(s.price_per_unit)}/unit${cap ? ', ' + cap : ''})` : (cap ? ` (${cap})` : '')}${s.buyer ? ' to ' + escapeHTML(s.buyer) : ''}.`);
   }
-  const counts = [h.deals ? `marketed or pursued ${h.deals === 1 ? 'once' : h.deals + ' times'}` : null, h.sales ? `sold ${h.sales === 1 ? 'once' : h.sales + ' times'} on record` : null].filter(Boolean).join(', ');
+  const counts = h.sales ? `sold ${h.sales === 1 ? 'once' : h.sales + ' times'} on record` : '';
   return `
       <div class="detail-section-title">History</div>
       <div class="wb-life-sec">
-        <p>${bits.join(' ') || 'No deals or sales recorded for this property yet.'}${counts ? ` <span class="wb-life-n">${counts.charAt(0).toUpperCase() + counts.slice(1)}.</span>` : ''}</p>
+        <p>${bits.join(' ') || 'No sales recorded for this property yet.'}${counts ? ` <span class="wb-life-n">${counts.charAt(0).toUpperCase() + counts.slice(1)}.</span>` : ''}</p>
         <a href="#" class="wb-life-link" onclick="WB.propertyHistory('${h.id}');return false;">Full history →</a>
       </div>`;
 }
@@ -15975,7 +12700,7 @@ function renderSettingsModal() {
 
       <div class="detail-section-title">Market</div>
       <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
-        Which market the dashboard shows. Each market loads its own properties, RealPage data, comps, comp sets and opportunities.
+        Which market the dashboard shows. Each market loads its own properties, RealPage data, comps and comp sets.
       </div>
       <select id="wb-market-select" class="wb-market-select" onchange="wbSwitchMarket(this.value)"
         style="font-family:'Inter Tight',sans-serif;font-size:14px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg-2);color:var(--ink-1);min-width:260px;margin-bottom:22px;">
@@ -16003,7 +12728,7 @@ function renderSettingsModal() {
       <div class="detail-section-title">Account</div>
       <div style="font-family:'Inter Tight',sans-serif;font-size:13px;color:var(--ink-3);margin-bottom:12px;line-height:1.5;">
         ${REQUIRE_MICROSOFT_SIGNIN
-          ? 'Signed in with your Microsoft 365 account. Your name is tagged on opportunities, comp sets, and sale comps you add or edit, so the team can see who touched what.'
+          ? 'Signed in with your Microsoft 365 account. Your name is tagged on comp sets, sale comps and property edits you add or edit, so the team can see who touched what.'
           : 'Signed in with your Willow Bridge Canopy login. Your email is tagged on everything you add or edit. Sign out from the top bar.'}
       </div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px;">
@@ -16221,511 +12946,9 @@ function trendGrow(psf, submarket) {
   return psf * Math.pow(1 + effectiveGrowthRate(submarket), yocState.years);
 }
 
-// Backward-compat shim — older code uses trendRent(); keep it but redirect.
-// Now returns the SAME PSF when trend is disabled, and the at-delivery PSF otherwise.
-// In this refactor we no longer use trendedAvg/trendedBest in the heat map cells —
-// the cells display today's rent and ROC bakes the trend into the comparison.
-function trendRent(psf) {
-  return trendGrow(psf);
-}
-
 // Map a property's style to a YOC display column
 function yocColumnFor(style) {
   return PRODUCT_TYPE_MAP[style] || null;
-}
-
-/* =================================================================
-   REQUIRED RENT — DEAL-AWARE
-   ================================================================= */
-// Given an opportunity object, compute the required achievable rent ($/SF)
-// to hit a target YoC. Preferring deal-specific UW values (land price, hard
-// cost, unit size) over the YOC matrix defaults wherever they're set, so the
-// answer is as deal-accurate as the user has made it.
-//
-// Returns { requiredPsf, components, sources } or null if uncomputable
-// (missing land cost is the only hard blocker — everything else falls back).
-// Build a full deal profile from a required-rent result + the deal's own UW
-// rent: assembles the development budget (total + per-unit) and the stabilized
-// cash flow at the UW rent, yielding the ACHIEVED yield-on-cost. Mirrors the
-// dev-proforma modal's structure so the view-mode panel reads like a mini IC
-// summary. Returns null if units are missing.
-// Rent comps: benchmark the deal's required + UW $/SF against achieved
-// EFFECTIVE rents in the deal's submarket and nearby submarkets (RealPage).
-// Rents come as $/unit/mo (eR); we convert to $/SF using the deal's avg unit
-// size so they're directly comparable to required/UW PSF. Returns null if no
-// rent coverage. Nearby = same city cluster (prefix before the hyphen).
-function computeRentComps(o, rr, prof) {
-  if (!rr || !prof || !prof.sf) return null;
-  const sf = prof.sf;
-  const year = String(CURRENT_YEAR);
-  const dealSub = o.submarket || '';
-  if (!dealSub) return null;
-
-  // Build the candidate submarket list: the deal's own submarket first, then
-  // others in the same city cluster (e.g. 'Scottsdale-*'), then dedge.
-  const cluster = dealSub.includes('-') ? dealSub.split('-')[0] : dealSub;
-  const candidates = [];
-  const seen = new Set();
-  const pushSub = s => { if (s && !seen.has(s)) { seen.add(s); candidates.push(s); } };
-  pushSub(dealSub);
-  for (const s of WB_SUBMARKETS) {
-    const c = s.includes('-') ? s.split('-')[0] : s;
-    if (c === cluster) pushSub(s);
-  }
-  // If the cluster is thin, add a few metro-wide fallbacks so there's context
-  if (candidates.length < 3) {
-    for (const s of WB_SUBMARKETS) pushSub(s);
-  }
-
-  const rows = [];
-  for (const sub of candidates) {
-    const fc = getRpForecastForWbSubmarket(sub);
-    if (!fc || !fc[year] || fc[year].eR == null) continue;
-    const eR = fc[year].eR;                 // effective rent $/unit/mo
-    const psf = eR / sf;                    // convert to $/SF using deal unit size
-    const occ = fc[year].oc != null ? fc[year].oc : null;
-    rows.push({
-      sub,
-      isDeal: sub === dealSub,
-      eR,
-      psf,
-      occ,
-      vsRequired: rr.requiredPsf ? (psf - rr.requiredPsf) / rr.requiredPsf : null,
-      vsUw: (o.uwRentsPerSF != null && o.uwRentsPerSF) ? (psf - o.uwRentsPerSF) / o.uwRentsPerSF : null
-    });
-    if (rows.length >= 8) break;
-  }
-  if (!rows.length) return null;
-
-  // Keep the deal's submarket pinned first; sort the rest by rent PSF desc.
-  rows.sort((a, b) => (a.isDeal ? -1 : b.isDeal ? 1 : b.psf - a.psf));
-
-  const psfVals = rows.map(r => r.psf);
-  const stats = {
-    avg: psfVals.reduce((s, v) => s + v, 0) / psfVals.length,
-    min: Math.min(...psfVals),
-    max: Math.max(...psfVals)
-  };
-  return { year, sf, rows, stats, cluster, requiredPsf: rr.requiredPsf, uwPsf: o.uwRentsPerSF };
-}
-
-// Property-level rent comps — actual existing properties in comparable
-// locations whose IN-PLACE effective rents can be benchmarked against this
-// deal's required and UW $/SF. Unlike computeRentComps (submarket forecast
-// averages), this surfaces individual comparable deals.
-//   - Rent basis: each property's own CoStar effective $/SF (avgEffectiveSF),
-//     falling back to avgEffectiveUnit / avgUnitSF when the $/SF field is blank.
-//   - Comparability filter: same WB submarket, Class A, vintage >= 2015 — i.e.
-//     the newer, institutional product a ground-up development competes with.
-//   - Progressive relaxation guarantees a usable set: widen to the submarket
-//     cluster, then to Class A/B and vintage >= 2010, before giving up.
-function computePropertyRentComps(o, rr, prof) {
-  if (!rr || !prof || !prof.sf) return null;
-  const reqPsf = rr.requiredPsf;
-  const uwPsf = o.uwRentsPerSF;
-  const dealSub = o.submarket || '';
-  if (!dealSub) return null;
-  const cluster = dealSub.includes('-') ? dealSub.split('-')[0] : dealSub;
-  const clusterSubs = WB_SUBMARKETS.filter(s => (s.includes('-') ? s.split('-')[0] : s) === cluster);
-
-  // Effective rent extractor: prefer per-property effective $/SF; derive the
-  // missing side from avg unit SF when only one of $/SF or $/unit is present.
-  const effOf = p => {
-    let psf = (p.avgEffectiveSF != null && p.avgEffectiveSF > 0) ? p.avgEffectiveSF : null;
-    let perUnit = (p.avgEffectiveUnit != null && p.avgEffectiveUnit > 0) ? p.avgEffectiveUnit : null;
-    if (psf == null && perUnit != null && p.avgUnitSF) psf = perUnit / p.avgUnitSF;
-    if (perUnit == null && psf != null && p.avgUnitSF) perUnit = psf * p.avgUnitSF;
-    return { psf, perUnit };
-  };
-
-  const all = RAW_DATA.map(applyUserEdits);
-  const buildPool = (classes, minYear, subs) => {
-    const subSet = new Set(subs);
-    return all.filter(p => {
-      if (p.status !== 'Existing') return false;
-      if (!classes.has(p.class)) return false;
-      if (!(p.yearBuilt >= minYear)) return false;
-      if (!subSet.has(p.wbSubmarket)) return false;
-      const e = effOf(p);
-      return e.psf != null && e.psf > 0;
-    });
-  };
-
-  // Progressive relaxation — stop at the first tier with enough comps.
-  let pool = buildPool(new Set(['A']), 2015, [dealSub]);
-  let scope = 'Class A · 2015+ · ' + dealSub;
-  if (pool.length < 4 && clusterSubs.length > 1) {
-    pool = buildPool(new Set(['A']), 2015, clusterSubs);
-    scope = 'Class A · 2015+ · ' + cluster + ' area';
-  }
-  if (pool.length < 4) {
-    pool = buildPool(new Set(['A', 'B']), 2010, clusterSubs.length ? clusterSubs : [dealSub]);
-    scope = 'Class A/B · 2010+ · ' + (clusterSubs.length > 1 ? cluster + ' area' : dealSub);
-  }
-  if (!pool.length) return null;
-
-  const makeRow = p => {
-    const e = effOf(p);
-    return {
-      id: p.id,
-      name: p.name,
-      sub: p.wbSubmarket || p.submarket,
-      city: p.city,
-      cls: p.class,
-      year: p.yearBuilt,
-      units: p.units,
-      avgUnitSF: p.avgUnitSF,
-      psf: e.psf,
-      perUnit: e.perUnit,
-      vsRequired: reqPsf ? (e.psf - reqPsf) / reqPsf : null,
-      vsUw: (uwPsf != null && uwPsf) ? (e.psf - uwPsf) / uwPsf : null
-    };
-  };
-
-  // Rank: deal's own submarket first, then newest vintage, then highest rent.
-  const rankFn = (a, b) => {
-    const ad = a.sub === dealSub ? 1 : 0, bd = b.sub === dealSub ? 1 : 0;
-    if (ad !== bd) return bd - ad;
-    if ((b.year || 0) !== (a.year || 0)) return (b.year || 0) - (a.year || 0);
-    return (b.psf || 0) - (a.psf || 0);
-  };
-  const autoTop = pool.map(makeRow).sort(rankFn).slice(0, 10);
-
-  // Apply this deal's manual comp overrides: drop removed, force-add included.
-  const picks = (o.compPicks && o.compPicks.rent) || { removed: [], added: [], order: [] };
-  const removed = new Set((picks.removed || []).map(String));
-  const shown = autoTop.filter(r => !removed.has(String(r.id)));
-  const shownIds = new Set(shown.map(r => String(r.id)));
-  for (const addId of (picks.added || [])) {
-    if (shownIds.has(String(addId))) continue;
-    const p = all.find(x => String(x.id) === String(addId));
-    if (p) { shown.push(makeRow(p)); shownIds.add(String(addId)); }
-  }
-  shown.sort(rankFn);
-  // Row-level manual order (↑/↓ on each comp row) overrides the default rank
-  // sort. Comps not in the saved order fall to the end, keeping their
-  // relative position from the rank sort above.
-  if ((picks.order || []).length) {
-    const orderIdx = new Map(picks.order.map((k, idx) => [String(k), idx]));
-    shown.sort((a, b) => {
-      const ai = orderIdx.has(String(a.id)) ? orderIdx.get(String(a.id)) : Infinity;
-      const bi = orderIdx.has(String(b.id)) ? orderIdx.get(String(b.id)) : Infinity;
-      return ai - bi;
-    });
-  }
-  const customized = removed.size > 0 || (picks.added || []).length > 0;
-  if (!shown.length && !customized) return null;
-
-  const psfVals = shown.map(r => r.psf).filter(v => v != null);
-  const stats = {
-    avg: psfVals.length ? psfVals.reduce((s, v) => s + v, 0) / psfVals.length : null,
-    min: psfVals.length ? Math.min(...psfVals) : null,
-    max: psfVals.length ? Math.max(...psfVals) : null,
-    count: pool.length
-  };
-  return { rows: shown, stats, scope, requiredPsf: reqPsf, uwPsf, sf: prof.sf, dealSub, customized };
-}
-
-// Auto-pull the most relevant comps for a deal, ranked by COMPARABILITY
-// (location, then recency/size) — NOT by price. Price similarity is the thing
-// we're benchmarking, so it must not drive selection: a trophy asset in the
-// same submarket is a better comp than a cheap one that happens to match cost.
-//   - LAND: same construction form + same/near submarket, then recency
-//   - INVESTMENT: same city/submarket, then recency (newer sales first)
-// Returns { land:{...}, invest:{...} } with rows + stats. $/unit is display-only.
-function computeOppComps(o, rr, prof) {
-  if (!rr || !prof) return null;
-  const norm = s => (s || '').toString().trim().toLowerCase();
-  const dealCity = norm(o.city);
-  const dealSub = norm(o.submarket);
-  const saleTime = c => { const d = new Date(c.saleDate); return isNaN(d) ? 0 : d.getTime(); };
-
-  // Does a comp's location match the deal's city or submarket? (either field,
-  // either direction — submarket names and city names overlap in the data)
-  const locMatch = (compCity, compSub) => {
-    const cc = norm(compCity), cs = norm(compSub);
-    const fields = [cc, cs].filter(Boolean);
-    const targets = [dealCity, dealSub].filter(Boolean);
-    if (!targets.length) return false;
-    return fields.some(f => targets.some(t => f === t || f.includes(t) || t.includes(f)));
-  };
-
-  // --- form matching for land comps ---
-  const pt = norm(o.productType);
-  let formSet;
-  if (pt.includes('garden')) formSet = ['garden'];
-  else if (pt.includes('town') || pt.includes('sfr') || pt.includes('btr') || pt.includes('build')) formSet = ['btr', 'garden'];
-  else if (pt.includes('low')) formSet = ['garden', 'wrap'];
-  else if (pt.includes('mid')) formSet = ['wrap', 'podium'];
-  else if (pt.includes('high')) formSet = ['podium', 'tower', 'wrap'];
-  else formSet = null;
-
-  const dealLandPU = rr.components.landPerUnit;
-  const dealUnits = o.units || 0;
-
-  // Comparability score: location match is the dominant signal, then recency,
-  // then size proximity. Higher = better comp. Returns a sortable number.
-  const score = (c, compUnits) => {
-    let s = 0;
-    if (locMatch(c.city, c.submarket)) s += 1e15;        // same market dominates
-    s += saleTime(c);                                     // then most recent
-    if (dealUnits && compUnits) s -= Math.abs(compUnits - dealUnits) * 1e6; // size tiebreak
-    return s;
-  };
-
-  // Apply this deal's manual comp overrides for a section: from the full ranked
-  // pool, keep the auto top-N minus any removed, then force-add any included
-  // comps (resolved from the full comp universe). scoreFn re-sorts the result.
-  const applyPicks = (ranked, defaultN, type, scoreFn) => {
-    const picks = (o.compPicks && o.compPicks[type === 'land' ? 'land' : 'invest']) || { removed: [], added: [], order: [] };
-    const removed = new Set(picks.removed || []);
-    const shown = ranked.slice(0, defaultN).filter(c => !removed.has(saleCompKey(c)));
-    const shownKeys = new Set(shown.map(saleCompKey));
-    if ((picks.added || []).length) {
-      const byKey = new Map(getAllComps(type).map(c => [saleCompKey(c), c]));
-      for (const k of picks.added) {
-        if (shownKeys.has(k)) continue;
-        const c = byKey.get(k);
-        if (c && c.pricePerUnit != null) { shown.push(c); shownKeys.add(k); }
-      }
-    }
-    shown.sort((a, b) => scoreFn(b) - scoreFn(a));
-    // Row-level manual order (set via the ↑/↓ controls on each comp row)
-    // overrides the default comparability sort. Any comp not in the saved
-    // order (e.g. newly added) falls to the end, keeping its relative
-    // position from the sort above.
-    if ((picks.order || []).length) {
-      const orderIdx = new Map(picks.order.map((k, idx) => [k, idx]));
-      shown.sort((a, b) => {
-        const ai = orderIdx.has(saleCompKey(a)) ? orderIdx.get(saleCompKey(a)) : Infinity;
-        const bi = orderIdx.has(saleCompKey(b)) ? orderIdx.get(saleCompKey(b)) : Infinity;
-        return ai - bi;
-      });
-    }
-    const customized = removed.size > 0 || (picks.added || []).length > 0;
-    return { rows: shown, customized };
-  };
-
-  // LAND comps — same form, ranked by comparability
-  const landAll = getAllComps('land').filter(c => c.pricePerUnit != null);
-  let landPool = landAll;
-  if (formSet) {
-    const byForm = landAll.filter(c => c.constructionType && formSet.includes(norm(c.constructionType)));
-    if (byForm.length >= 3) landPool = byForm;
-  }
-  const landRankedAll = landPool.slice().sort((a, b) => score(b, b.proposedUnits) - score(a, a.proposedUnits));
-  const landSel = applyPicks(landRankedAll, 6, 'land', c => score(c, c.proposedUnits));
-  const landRanked = landSel.rows;
-  const landVals = landRanked.map(c => c.pricePerUnit);
-  const landStats = landVals.length ? {
-    avg: landVals.reduce((s, v) => s + v, 0) / landVals.length,
-    min: Math.min(...landVals),
-    max: Math.max(...landVals)
-  } : null;
-  const landLocCount = landRanked.filter(c => locMatch(c.city, c.submarket)).length;
-
-  // INVESTMENT comps — same market, ranked by comparability
-  const invAll = getAllComps('investment').filter(c => c.pricePerUnit != null);
-  const invRankedAll = invAll.slice().sort((a, b) => score(b, b.units) - score(a, a.units));
-  const invSel = applyPicks(invRankedAll, 6, 'investment', c => score(c, c.units));
-  const invRanked = invSel.rows;
-  const invVals = invRanked.map(c => c.pricePerUnit);
-  const capVals = invRanked.map(c => c.capRate).filter(v => v != null);
-  const invStats = invVals.length ? {
-    avg: invVals.reduce((s, v) => s + v, 0) / invVals.length,
-    min: Math.min(...invVals),
-    max: Math.max(...invVals),
-    avgCap: capVals.length ? capVals.reduce((s, v) => s + v, 0) / capVals.length : null
-  } : null;
-  const invLocCount = invRanked.filter(c => locMatch(c.city, c.submarket)).length;
-
-  return {
-    land: { dealPU: dealLandPU, rows: landRanked, stats: landStats, form: formSet, locCount: landLocCount, locLabel: (o.submarket || o.city || ''), customized: landSel.customized },
-    invest: { dealPU: prof.tpcPerUnit, rows: invRanked, stats: invStats, locCount: invLocCount, locLabel: (o.city || o.submarket || ''), customized: invSel.customized }
-  };
-}
-
-function computeOppProfile(o, rr) {
-  if (!rr || !o.units || o.units <= 0) return null;
-  const units = o.units;
-  const c = rr.components;
-  const sf = c.sf;
-  const nrsf = sf * units;
-
-  // --- Development budget ---
-  const landTotal = c.landPerUnit * units;
-  const hardTotal = (c.hc * nrsf) + (c.otherHc * units);   // HC/NRSF × NRSF + other HC/unit × units
-  const softTotal = c.soft * units;
-  const tpc = landTotal + hardTotal + softTotal;
-  const tpcPerUnit = tpc / units;
-
-  // --- Stabilized cash flow at the deal's UW rent (if set) ---
-  const uwRentPSF = o.uwRentsPerSF;
-  let cf = null;
-  if (uwRentPSF != null) {
-    const gpr = uwRentPSF * sf * 12 * units;
-    const otherIncome = c.oiPerUnit * units;
-    const grossPotential = gpr + otherIncome;
-    const vacancyLoss = grossPotential * c.vacancy;
-    const egi = grossPotential - vacancyLoss;
-    const opex = grossPotential * c.opex;
-    const noi = egi - opex;
-    const achievedYoc = tpc ? noi / tpc : 0;
-    cf = { gpr, otherIncome, grossPotential, vacancyLoss, egi, opex, noi, achievedYoc };
-  }
-
-  return {
-    units, sf, nrsf,
-    landTotal, hardTotal, softTotal, tpc, tpcPerUnit,
-    targetYoc: rr.targetYoc,
-    requiredPsf: rr.requiredPsf,
-    uwRentPSF,
-    cf
-  };
-}
-
-function requiredRentForOpp(opp, opts) {
-  opts = opts || {};
-  // Target YoC — explicit opts override wins (used by the sensitivity table),
-  // else the deal's own saved override (uwTargetYoc), else the YOC matrix global.
-  let targetYoc, targetYocSource;
-  if (opts.targetYoc != null) {
-    targetYoc = opts.targetYoc; targetYocSource = 'scenario';
-  } else if (opp.uwTargetYoc != null) {
-    targetYoc = opp.uwTargetYoc / 100;  // stored as percent on the deal
-    targetYocSource = 'UW · deal';
-  } else {
-    targetYoc = yocState.targetYoc; targetYocSource = 'YOC matrix · global';
-  }
-  // 1. Product bucket — required to look up matrix defaults
-  const bucket = PRODUCT_TYPE_MAP[opp.productType];
-  if (!bucket) return null;  // unknown product → can't price
-  const matrixCosts = yocState.costs[bucket];
-  if (!matrixCosts) return null;
-
-  // 2. Inputs with deal → matrix fallback. Track source for transparency.
-  const sources = {};
-  sources.targetYoc = targetYocSource;
-
-  // Vacancy — deal override (uwVacancy, stored as percent) else matrix global
-  let vacancy;
-  if (opp.uwVacancy != null) {
-    vacancy = opp.uwVacancy / 100;
-    sources.vacancy = 'UW · deal';
-  } else {
-    vacancy = vacFor(bucket);
-    sources.vacancy = `YOC matrix · ${bucket}`;
-  }
-
-  // OpEx ratio — deal override (uwOpex, stored as percent) else matrix (which
-  // may itself be product-specific via opexFor)
-  let opex;
-  if (opp.uwOpex != null) {
-    opex = opp.uwOpex / 100;
-    sources.opex = 'UW · deal';
-  } else {
-    opex = opexFor(bucket);
-    sources.opex = `YOC matrix · ${yocState.opexMode === 'product' ? bucket : 'global'}`;
-  }
-
-  // Other income per unit — deal override (uwOtherIncomePerUnit) else matrix
-  let oiPerUnit;
-  if (opp.uwOtherIncomePerUnit != null) {
-    oiPerUnit = opp.uwOtherIncomePerUnit;
-    sources.oi = 'UW · deal';
-  } else {
-    oiPerUnit = oiFor(bucket);
-    sources.oi = `YOC matrix · ${bucket}`;
-  }
-
-  // Land cost per unit. A deal can override the TOTAL land value (for
-  // sensitivity) — that total is divided by the deal's PROPOSED UNIT COUNT.
-  // Otherwise fall through the usual UW land price / offer / guidance chain.
-  let landPerUnit = null;
-  if (opp.uwLandTotalOverride != null && opp.units) {
-    landPerUnit = opp.uwLandTotalOverride / opp.units;
-    sources.land = 'Land total override ÷ units';
-  } else if (opp.uwLandTotalOverride != null && !opp.units) {
-    // total given but no unit count — can't convert
-    return { needsUnits: true, bucket };
-  } else if (opp.underwrittenLandPricePerUnit != null) {
-    landPerUnit = opp.underwrittenLandPricePerUnit;
-    sources.land = 'UW land price';
-  } else if (opp.offerPricePerUnit != null) {
-    landPerUnit = opp.offerPricePerUnit;
-    sources.land = 'Our offer';
-  } else if (opp.pricingGuidancePerUnit != null) {
-    landPerUnit = opp.pricingGuidancePerUnit;
-    sources.land = 'Pricing guidance';
-  } else if (opp.underwrittenLandPrice != null && opp.units) {
-    landPerUnit = opp.underwrittenLandPrice / opp.units;
-    sources.land = 'UW land price ÷ units';
-  } else if (opp.offerPrice != null && opp.units) {
-    landPerUnit = opp.offerPrice / opp.units;
-    sources.land = 'Our offer ÷ units';
-  } else if (opp.pricingGuidance != null && opp.units) {
-    landPerUnit = opp.pricingGuidance / opp.units;
-    sources.land = 'Pricing guidance ÷ units';
-  } else {
-    // Land is the most deal-specific input — bailing rather than faking it
-    return { needsLand: true, bucket };
-  }
-
-  // Hard cost / NRSF — deal-specific if set, else matrix default
-  let hc;
-  if (opp.uwHardCostPerNRSF != null) {
-    hc = opp.uwHardCostPerNRSF;
-    sources.hc = 'UW · deal';
-  } else {
-    hc = matrixCosts.hc;
-    sources.hc = `YOC matrix · ${bucket}`;
-  }
-
-  // Unit size — deal-specific if set, else matrix global default
-  let sf;
-  if (opp.uwAvgUnitSize != null) {
-    sf = opp.uwAvgUnitSize;
-    sources.sf = 'UW · deal';
-  } else {
-    sf = sfFor(bucket);
-    sources.sf = `YOC matrix · ${bucket}`;
-  }
-
-  // Other HC + Soft — deal per-unit override if set, else matrix bucket default
-  let otherHc;
-  if (opp.uwOtherHcPerUnit != null) {
-    otherHc = opp.uwOtherHcPerUnit;
-    sources.otherHc = 'UW · deal';
-  } else {
-    otherHc = matrixCosts.otherHc || 0;
-    sources.otherHc = `YOC matrix · ${bucket}`;
-  }
-  let soft;
-  if (opp.uwSoftPerUnit != null) {
-    soft = opp.uwSoftPerUnit;
-    sources.soft = 'UW · deal';
-  } else {
-    soft = matrixCosts.soft || 0;
-    sources.soft = `YOC matrix · ${bucket}`;
-  }
-
-  // 3. Calc — matches the dev proforma: opex on Gross Potential Rent, other
-  // income included. TC per unit = Land + (HC × SF) + Other HC + Soft.
-  const tcPerUnit = landPerUnit + (hc * sf) + otherHc + soft;
-  const noiPerUnit = tcPerUnit * targetYoc;
-  const denom = (1 - vacancy - opex);
-  const grossPotentialPerUnit = denom > 0 ? noiPerUnit / denom : noiPerUnit;
-  const gprPerUnit = grossPotentialPerUnit - oiPerUnit;   // rent portion of GPR
-  const egiPerUnit = grossPotentialPerUnit * (1 - vacancy);
-  const requiredPsf = gprPerUnit / 12 / sf;
-
-  return {
-    requiredPsf,
-    targetYoc,
-    bucket,
-    components: { landPerUnit, hc, sf, otherHc, soft, tcPerUnit, noiPerUnit, egiPerUnit, gprPerUnit, vacancy, opex, oiPerUnit },
-    sources
-  };
 }
 
 // Build the color bands relative to target YOC.
@@ -21698,7 +17921,6 @@ function renderActive() {
   else if (view === 'submarkets') renderSubmarkets();
   else if (view === 'properties') renderProperties();
   else if (view === 'salecomps') renderSaleComps();
-  else if (view === 'opportunities') renderOpportunities();
 }
 
 // Keep the left panel's chips in step with the filter state (the filter bar can change it too)
@@ -21821,59 +18043,6 @@ document.getElementById('sc-export-btn').addEventListener('click', exportSaleCom
 document.getElementById('sc-year-filter').addEventListener('change', e => {
   state.scYear = e.target.value;
   renderSaleComps();
-});
-
-// Opportunities — buttons, search, type filter
-document.getElementById('opp-add-btn').addEventListener('click', startAddOpportunity);
-document.getElementById('opp-cancel-drop').addEventListener('click', cancelAddOpportunity);
-// Opportunity Export picker — clicking the EXPORT button toggles a tiny
-// dropdown with Excel (CSV) and PDF Report options. Clicking outside the
-// menu closes it. Each menu item dispatches to its respective export.
-(function wireOppExportPicker() {
-  const btn = document.getElementById('opp-export-btn');
-  const menu = document.getElementById('opp-export-menu');
-  if (!btn || !menu) return;
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
-  });
-  menu.querySelectorAll('.export-menu-item').forEach(item => {
-    item.addEventListener('click', e => {
-      e.stopPropagation();
-      const fmt = item.dataset.format;
-      menu.style.display = 'none';
-      if (fmt === 'csv') exportOpportunitiesCsv();
-      else if (fmt === 'pdf') exportOpportunitiesPdf();
-    });
-  });
-  // Click anywhere else → close
-  document.addEventListener('click', () => {
-    menu.style.display = 'none';
-  });
-})();
-document.getElementById('opp-search').addEventListener('input', e => {
-  oppState.search = e.target.value;
-  renderOppList();
-  initOrUpdateOppMap();
-});
-document.querySelectorAll('#opp-type-filter .toggle-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#opp-type-filter .toggle-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    oppState.typeFilter = btn.dataset.filter;
-    renderOpportunities();
-  });
-});
-// Comps overlay toggle — overlay Property Index markers on the opportunity map
-document.querySelectorAll('#opp-comps-toggle .toggle-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('#opp-comps-toggle .toggle-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    oppState.compsOverlay = btn.dataset.comps;
-    // Only need to refresh the comps layer — opportunity markers and other state unchanged.
-    // Using initOrUpdateOppMap to keep things simple; it re-uses the existing map instance.
-    if (oppState.map) renderOppCompsOverlay();
-  });
 });
 
 // Market Report PDF export (Market Overview tab) — clicking opens a config
@@ -22327,11 +18496,6 @@ function toggleMapFullscreen(btn) {
         propertyMap.invalidateSize();
       }
     } catch (e) {}
-    try {
-      if (typeof oppState !== 'undefined' && oppState && oppState.map && typeof oppState.map.invalidateSize === 'function') {
-        oppState.map.invalidateSize();
-      }
-    } catch (e) {}
     window.dispatchEvent(new Event('resize'));
   }, 80);
 }
@@ -22540,7 +18704,7 @@ function renderCompSetList() {
   const sets = Object.values(compSets).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   const placeholder = sets.length === 0 ? '— No Saved Sets —' : '— Activate Comp Set —';
   picker.innerHTML = `<option value="">${placeholder}</option>` +
-    sets.map(s => { const dn = compSetDealName(s); return `<option value="${escapeHTML(s.id)}" ${state.activeCompSetId === s.id ? 'selected' : ''}>${escapeHTML(s.name)} · ${s.propertyIds.length}${dn ? ' · ↔ ' + escapeHTML(dn) : ''}</option>`; }).join('');
+    sets.map(s => `<option value="${escapeHTML(s.id)}" ${state.activeCompSetId === s.id ? 'selected' : ''}>${escapeHTML(s.name)} · ${s.propertyIds.length}</option>`).join('');
   // If active, select that option
   if (state.activeCompSetId) picker.value = state.activeCompSetId;
 }
@@ -22596,8 +18760,7 @@ function updateCompSetBanner() {
     const cs = compSets[state.activeCompSetId];
     banner.style.display = '';
     nameEl.textContent = cs.name;
-    const dn = compSetDealName(cs);
-    metaEl.textContent = `· ${cs.propertyIds.length} properties${dn ? ' · Tied to ' + dn : ''} · All filters scoped to this set`;
+    metaEl.textContent = `· ${cs.propertyIds.length} properties · All filters scoped to this set`;
   } else {
     banner.style.display = 'none';
   }
@@ -22655,33 +18818,23 @@ if (csSaveBtn) {
   });
 }
 
-// New set straight on the map (search + click), optionally tied to a pipeline deal
+// New set straight on the map (search + click)
 const csNewMap = document.getElementById('cs-new-map');
 if (csNewMap) csNewMap.addEventListener('click', () => openManageCompSet(null, { isNew: true }));
 
-// Deep links from Pipeline: ?compset=<set id or uuid> opens that set; ?deal=<deal uuid> starts a set tied to that deal
+// Deep link: ?compset=<set id or uuid> opens that set
 (function compSetDeepLinks() {
   const q = new URLSearchParams(location.search);
-  const csParam = q.get('compset'), dealParam = q.get('deal');
-  if (!csParam && !dealParam) return;
+  const csParam = q.get('compset');
+  if (!csParam) return;
   let tries = 0;
   const go = () => {
     const sets = Object.values(compSets);
-    if (csParam) {
-      const cs = sets.find(s => s.id === csParam || s.uuid === csParam);
-      if (!cs && tries++ < 40) return setTimeout(go, 250);
-      if (!cs) return;
-      const tab = document.querySelector('.tab[data-view="properties"]'); if (tab) tab.click();
-      if (state.activeCompSetId !== cs.id) activateCompSet(cs.id);
-      return;
-    }
-    const opp = cmDealOpp(dealParam);
-    if (!opp && tries++ < 40) return setTimeout(go, 250);
-    if (!opp) return;
+    const cs = sets.find(s => s.id === csParam || s.uuid === csParam);
+    if (!cs && tries++ < 40) return setTimeout(go, 250);
+    if (!cs) return;
     const tab = document.querySelector('.tab[data-view="properties"]'); if (tab) tab.click();
-    const existing = sets.find(s => s.dealId === dealParam);
-    if (existing) { if (state.activeCompSetId !== existing.id) activateCompSet(existing.id); openManageCompSet(existing.id); }
-    else openManageCompSet(null, { isNew: true, dealId: dealParam, name: (opp.name || 'Deal') + ' comp set' });
+    if (state.activeCompSetId !== cs.id) activateCompSet(cs.id);
   };
   setTimeout(go, 300);
 })();
@@ -22759,9 +18912,6 @@ document.addEventListener('keydown', e => {
   if (cm && cm.classList.contains('show')) closeManageCompSet();
 });
 
-// One-time offer to clear Phoenix-market records that came across with the
-// shared storage key.
-try { maybeOfferPhoenixPurge(); } catch (e) { console.error('[phx purge]', e); }
 
 // Bring locally-stored WB deals into RAW_DATA before the first paint, then
 // reconcile with the cloud in the background and repaint once truth lands.
@@ -22813,7 +18963,6 @@ if (syncStatusBtn) {
       await reconcilePropertyEditsOnBoot();
       await reconcileSaleCompsOnBoot();
       await reconcileCompSetsOnBoot();
-      await reconcileOpportunitiesOnBoot();
       syncState.status = 'synced';
       syncState.lastSync = Date.now();
       updateSyncIndicator();

@@ -613,7 +613,7 @@
         + hero('Occupancy', s.occ == null ? '—' : s.occ.toFixed(1) + '<u>%</u>', `${ex.filter((p) => occOf(p) != null && occOf(p) < 90).length} below 90%`)
         + hero('Concessions', s.wks == null ? '—' : s.wks.toFixed(1) + '<u> wks free</u>', `${hw} of ${ex.length} checked on websites`)
         + hero('Comps', intC(s.units) + '<u> units</u>', `${ex.length} properties · built ${yrs.length ? Math.min(...yrs) + '–' + Math.max(...yrs) : '—'}`);
-      const foot = `<tfoot><tr><td>Total / unit-weighted average</td><td class="csx-o"></td><td></td><td class="csx-o"></td><td class="num">${intC(s.units)}</td><td class="num">${yrs.length ? Math.round(wa(ex, (p) => p.yearBuilt)) : '—'}</td><td class="num csx-k">${money(s.ask)}</td><td class="num">${s.askU ? '$' + Math.round(s.askU).toLocaleString() : '—'}</td><td class="num">${money(s.eff)}</td><td class="num">${pct(s.occ)}</td><td class="num">${wks(s.wks)}</td><td colspan="3"></td></tr></tfoot>`;
+      const foot = `<tfoot><tr><td title="Weighted by units; rent per SF by square feet">Total / weighted average</td><td class="csx-o"></td><td></td><td class="csx-o"></td><td class="num">${intC(s.units)}</td><td class="num">${yrs.length ? Math.round(wa(ex, (p) => p.yearBuilt)) : '—'}</td><td class="num csx-k">${money(s.ask)}</td><td class="num">${s.askU ? '$' + Math.round(s.askU).toLocaleString() : '—'}</td><td class="num">${money(s.eff)}</td><td class="num">${pct(s.occ)}</td><td class="num">${wks(s.wks)}</td><td colspan="3"></td></tr></tfoot>`;
       const line = sumLine([[money(s.ask), '/SF asking' + (s.askU ? ` ($${Math.round(s.askU).toLocaleString()}/mo)` : '')], [money(s.eff), '/SF effective'], [pct(s.occ), 'occupied'], [wks(s.wks), 'wks free'], [intC(s.units), 'units']]) + `<span class="csx-fresh">${checked(ex)}${ex.some((p) => handWks(p) == null) ? ' · gray weeks free are CoStar’s' : ''}</span>`;
       out += `<section class="panel csx-sec csx-sec-ex">${panelHead('csx-s-ex', 'ex', 'Rent comps', ex.length, line, null)}
         <div class="table-scroll"><table class="csx-table csx-dense csx-fixed">${colg([21, 13, 7, 5, 5, 5, 7, 7, 7, 6, 6, 7, '40px', '32px'])}${rcHead()}
@@ -993,9 +993,6 @@
       </div>`;
     }).join('');
     return `<section class="panel csx-sec csx-yocp"><div class="csx-sech"><div class="csx-sect"><i></i><b>YOC check</b></div><span class="csx-fresh">Rent needed for a ${target} yield on the matrix's current costs, against this set's stabilized comps (unit-weighted, asking $/SF) <button type="button" class="csx-link csx-toyoc">Open YOC matrix →</button></span></div><div class="csx-ygrid2">${cards}</div></section>`;
-  }
-  function addSearch() {
-    return `<div class="csx-add"><div class="csx-ta"><input class="csx-in csx-add-q" placeholder="Search a property by name or address…" value=""><div class="csx-ta-list" hidden></div></div></div>`;
   }
   function addNear(cs, map) {
     const anchor = UI.near;

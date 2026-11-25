@@ -1,8 +1,9 @@
 /* Market Intel Demo's own copy of v2/shared/legacy-db.js (copied Nov 20 2026). Edit this one for the Demo. */
 /* Willow Bridge Canopy: legacy table adapter for the Market Intel dashboard.
-   The dashboard was written against eight flat public tables (opportunities, custom_comps, property_edits, ...).
+   The dashboard was written against flat public tables (custom_comps, property_edits, comp_sets, ...).
    This object answers those same calls (.from(t).select().eq().upsert().delete()) and reads/writes the new
-   core / market / pipeline / comps tables underneath, so the dashboard code can stay as it is.
+   core / market / comps tables underneath, so the dashboard code can stay as it is.
+   Demo copy: nothing here reads or writes Canopy's deals (pipeline schema).
    Requires window.WB (shared/wb.js) and window.__WBD (market data loaded by intel/index.html). */
 (function () {
   const sb = WB.sb;
@@ -24,60 +25,6 @@
     return null;
   }
   const legacyPropId = (uuid) => ctx().costarByProp[uuid] || uuid;
-
-  // ---------- stage <-> Intel status ----------
-  const TO_STATUS = { prospect: 'Sourcing', screening: 'Screening', underwriting: 'Underwriting', loi: 'LOI', under_contract: 'Under Contract',
-    closed: 'Closed', monitor: 'Monitor', passed: 'Passed', lost: 'Lost', dead: 'Dead' };
-  const TO_STAGE = { 'Sourcing': 'prospect', 'Screening': 'screening', 'Underwriting': 'underwriting', 'Negotiating': 'underwriting', 'LOI': 'loi',
-    'Under Contract': 'under_contract', 'Closed': 'closed', 'Closed - Pre Development': 'closed', 'Monitor': 'monitor', 'Passed': 'passed',
-    'Lost': 'lost', 'Dead': 'dead' };
-
-  // deal row -> Intel opportunity object
-  function dealToOpp(r, compSetLegacy) {
-    const u = r.uw || {};
-    const land = r.kind === 'land';
-    let status = TO_STATUS[r.stage] || 'Sourcing';
-    if (u.intelStatus && TO_STAGE[u.intelStatus] === r.stage) status = u.intelStatus;   // keeps Negotiating / Closed - Pre Development
-    const roc = u.yieldOnCost != null ? num(u.yieldOnCost) : (u.roc != null ? num(u.roc) / 100 : null);
-    const opp = {
-      ...u,
-      id: r.legacy?.opportunity_id || r.id,
-      _dealId: r.id,
-      name: r.name, address: r.address || u.address || '', city: u.city || '', submarket: u.submarket || u.where || '',
-      oppType: land ? 'development' : 'investment', status,
-      size: land ? num(r.acres) : num(r.units), units: num(r.units ?? u.doors),
-      askingPrice: num(u.askingPrice) ?? num(r.guidance), pricingGuidance: num(r.guidance) ?? num(u.pricingGuidance),
-      broker: r.broker || '', brokerContact: r.broker_contact || '', seller: r.seller || '',
-      notes: r.summary || '',
-      lat: num(r.lat), lng: num(r.lng),
-      dateAdded: u.dateAdded || (r.created_at || '').slice(0, 10),
-      callForOfferDate: r.bid_date || '',
-      uwRentsPerSF: num(u.uwRentsPerSF ?? u.rentPsf), yieldOnCost: roc != null && roc > 1 ? roc / 100 : roc,
-      productType: u.productType || u.product || '', yearBuilt: num(u.yearBuilt),
-      compSetId: compSetLegacy || null,   // comp_sets.deal_id is the one source of truth for which set belongs to a deal
-      updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : undefined,
-    };
-    delete opp.intelStatus;
-    return opp;
-  }
-  // Intel opportunity -> deal columns (+ everything else kept in uw)
-  const OPP_COLS = new Set(['id', '_dealId', 'name', 'address', 'status', 'oppType', 'size', 'units', 'askingPrice', 'pricingGuidance', 'broker',
-    'brokerContact', 'seller', 'notes', 'lat', 'lng', 'callForOfferDate']);
-  function oppToDeal(o, market) {
-    const land = (o.oppType || 'development') !== 'investment';
-    const uw = {};
-    for (const [k, v] of Object.entries(o)) if (!OPP_COLS.has(k) && v !== undefined) uw[k] = v;
-    delete uw.compSetId;   // the link lives on market.comp_sets.deal_id, not in the deal's uw
-    if (o.askingPrice != null) uw.askingPrice = o.askingPrice;
-    uw.intelStatus = o.status;
-    return {
-      market_id: market, name: o.name || 'Untitled', kind: land ? 'land' : 'asset',
-      stage: TO_STAGE[o.status] || 'prospect', address: o.address || null,
-      lat: num(o.lat), lng: num(o.lng), guidance: num(o.pricingGuidance) ?? num(o.askingPrice),
-      bid_date: o.callForOfferDate || null, broker: o.broker || null, broker_contact: o.brokerContact || null, seller: o.seller || null,
-      units: num(o.units), acres: land ? num(o.size) : null, summary: o.notes || null, uw,
-    };
-  }
 
   // ---------- sale comps ----------
   function compRowToLegacy(r) {
@@ -129,45 +76,6 @@
 
   // ---------- table handlers: select(filters) / upsert(rows) / remove(filters) ----------
   const H = {
-    async opportunities_select() { return [];   // Demo copy: Opportunities are Canopy-only; the Demo never reads pipeline.deals
-    },
-    async _opportunities_select_canopy() {
-      const c = ctx();
-      const [rows, sets] = await Promise.all([
-        WB.fetchAll('pipeline', 'deals', '*', (q) => q.eq('market_id', c.market).is('merged_into', null)),
-        WB.fetchAll('market', 'comp_sets', 'id,legacy_id,deal_id', (q) => q.eq('market_id', c.market)),
-      ]);
-      const setByDeal = Object.fromEntries(sets.filter((s) => s.deal_id).map((s) => [s.deal_id, s.legacy_id || s.id]));
-      return rows.map((r) => {
-        const data = dealToOpp(r, setByDeal[r.id]);
-        return { id: data.id, market: c.market, data, editor_name: r.updated_by, updated_at: r.updated_at };
-      });
-    },
-    async opportunities_upsert(row) {
-      const c = ctx(), o = row.data || {};
-      const patch = oppToDeal(o, c.market);
-      const found = await findDeal(row.id);
-      if (found) {
-        delete patch.market_id;
-        patch.uw = { ...(found.uw || {}), ...patch.uw };
-        const { error } = await S('pipeline').from('deals').update(patch).eq('id', found.id); if (error) throw error;
-        if (found.stage !== patch.stage) await S('pipeline').from('deal_log').insert({ deal_id: found.id, kind: 'stage', body: `Stage set to ${o.status} in Market Intel.` });
-      } else {
-        patch.legacy = { opportunity_id: String(row.id) };
-        const { data, error } = await S('pipeline').from('deals').insert(patch).select('id').single(); if (error) throw error;
-        await S('pipeline').from('deal_log').insert({ deal_id: data.id, kind: 'note', body: `Added in Market Intel as ${o.status}.` });
-      }
-      if (o.compSetId) await linkCompSet(o.compSetId, row.id);   // unlinking is explicit (LegacyDB.linkDealCompSet(deal, null))
-    },
-    async opportunities_remove(f) {
-      const d = await findDeal(f.id); if (!d) return;
-      // never a silent hard delete: removing in Market Intel archives the deal as Passed and logs it (delete for good from Opportunities)
-      if (!['passed', 'lost', 'dead', 'closed'].includes(d.stage)) {
-        const { error } = await S('pipeline').from('deals').update({ stage: 'passed' }).eq('id', d.id); if (error) throw error;
-        await S('pipeline').from('deal_log').insert({ deal_id: d.id, kind: 'stage', body: 'Removed in Market Intel; archived as Passed.' });
-      }
-    },
-
     async custom_comps_select() {
       let rows = await WB.fetchAll('comps', 'sale_comps', '*', (q) => q.eq('market_id', ctx().market));
       // Demo copy: same scope as the Sale Comps page (not excluded; investment sales 100+ units, built 1970 or later; unknown stays in)
@@ -251,8 +159,8 @@
       return sets.map((s) => {
         const ids = members.filter((m) => m.comp_set_id === s.id).sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)).map((m) => legacyPropId(m.property_id));
         const id = s.legacy_id || s.id;
-        return { id, uuid: s.id, deal_id: s.deal_id || null, market: c.market, name: s.name, description: s.description, property_ids: ids, editor_name: s.updated_by,
-          created_at: s.created_at, updated_at: s.updated_at, data: { id, name: s.name, description: s.description || '', propertyIds: ids, dealId: s.deal_id || null, settings: s.settings || {} } };
+        return { id, uuid: s.id, market: c.market, name: s.name, description: s.description, property_ids: ids, editor_name: s.updated_by,
+          created_at: s.created_at, updated_at: s.updated_at, data: { id, name: s.name, description: s.description || '', propertyIds: ids, settings: s.settings || {} } };
       });
     },
     async comp_sets_upsert(row) {
@@ -273,12 +181,6 @@
         const { data, error } = await withSettings(row, (extra) => S('market').from('comp_sets').insert({ market_id: c.market, name: row.name, description: row.description || null, legacy_id: String(row.id), ...extra }).select('id').single());
         if (error) throw error; setId = data.id;
       }
-      // deal link: written only when the caller says so (undefined = leave as is). One set per deal.
-      if (row.deal_id !== undefined) {
-        const dealId = row.deal_id || null;
-        if (dealId) { const { error: e3 } = await S('market').from('comp_sets').update({ deal_id: null }).eq('deal_id', dealId).neq('id', setId); if (e3) throw e3; }
-        const { error: e4 } = await S('market').from('comp_sets').update({ deal_id: dealId }).eq('id', setId); if (e4) throw e4;
-      }
       if (ids.length) {
         const { error } = await S('market').from('comp_set_members').insert(ids.map((property_id, i) => ({ comp_set_id: setId, property_id, sort: i + 1 })));
         if (error) throw error;
@@ -290,12 +192,6 @@
     },
   };
 
-  async function findDeal(legacyId) {
-    const k = String(legacyId);
-    if (isUuid(k)) { const { data } = await S('pipeline').from('deals').select('id,stage,uw').eq('id', k).limit(1); if (data && data[0]) return data[0]; }
-    const { data } = await S('pipeline').from('deals').select('id,stage,uw').contains('legacy', { opportunity_id: k }).limit(1);
-    return data && data[0];
-  }
   async function findComp(legacyId) {
     const k = String(legacyId);
     if (isUuid(k)) { const { data } = await S('comps').from('sale_comps').select('id').eq('id', k).limit(1); if (data && data[0]) return data[0]; }
@@ -315,16 +211,6 @@
     const { data } = await S('market').from('comp_sets').select('id,market_id').eq('legacy_id', k).limit(1);
     return data && data[0];
   }
-  // one set per deal: linking clears the deal from any other set; null unlinks the deal from every set
-  async function linkCompSet(setLegacyId, oppLegacyId) {
-    const [s, d] = await Promise.all([setLegacyId ? findCompSet(setLegacyId) : null, findDeal(oppLegacyId)]);
-    if (!d) return;
-    let q = S('market').from('comp_sets').update({ deal_id: null }).eq('deal_id', d.id);
-    if (s) q = q.neq('id', s.id);
-    await q;
-    if (s) await S('market').from('comp_sets').update({ deal_id: d.id }).eq('id', s.id);
-  }
-
   // ---------- the query builder the dashboard talks to ----------
   function from(table) {
     let op = 'select', rows = null; const filters = {};
@@ -361,8 +247,7 @@
     from, channel: noopChannel, removeChannel: () => {},
     auth: sb.auth,
     storage: { from: () => ({ download: async () => fail({ message: 'not available' }), upload: async () => fail({ message: 'not available' }) }) },
-    linkDealCompSet: (oppLegacyId, setLegacyId) => linkCompSet(setLegacyId || null, oppLegacyId),
-    _internals: { dealToOpp, oppToDeal, compRowToLegacy, legacyToCompRow },
+    _internals: { compRowToLegacy, legacyToCompRow },
     // Hand updates (property card Save, fee schedule, comp set Update forms): explicit saves only, straight to the database.
     // The boot-time reconcile that re-pushes browser caches stays blocked by read-only.
     direct: {
@@ -375,7 +260,7 @@
       removeComp: (type, id) => H.custom_comps_remove({ id, comp_type: type }),
       // Property card "Remove from the dashboard": a hand-added project is deleted outright;
       // a CoStar property moves to core.properties_removed (restorable, and later uploads skip its CoStar id).
-      // Overrides, fees, snapshots and comp set memberships go with it (cascade); deals, sale comps and parcels just unlink.
+      // Overrides, fees, snapshots and comp set memberships go with it (cascade); linked records elsewhere just unlink.
       async removeProperty(legacyId, reason) {
         const id = await propUuid(legacyId); if (!id) throw new Error('property not found in the database');
         const { data: row, error: e1 } = await S('core').from('properties').select('*').eq('id', id).single(); if (e1) throw e1;
